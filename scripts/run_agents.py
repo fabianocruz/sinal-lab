@@ -8,6 +8,7 @@ Usage:
     # Subprocess mode (default, backward-compatible)
     python scripts/run_agents.py sintese --edition 3 --persist
     python scripts/run_agents.py radar --persist
+    python scripts/run_agents.py all --output
     python scripts/run_agents.py all --persist --dry-run
 
     # Orchestrate mode (in-process, editorial review, evidence items)
@@ -35,6 +36,8 @@ AGENTS = {
         "class_name": "SinteseAgent",
         "period_arg": "edition",
         "slug_pattern": "sinal-semanal-{period}",
+        "output_dir": "apps/agents/sintese/output",
+        "filename_pattern": "sinal-semanal-{period}.md",
     },
     "radar": {
         "module": "apps.agents.radar.main",
@@ -43,6 +46,8 @@ AGENTS = {
         "class_name": "RadarAgent",
         "period_arg": "week",
         "slug_pattern": "radar-week-{period}",
+        "output_dir": "apps/agents/radar/output",
+        "filename_pattern": "radar-week-{period}.md",
     },
     "codigo": {
         "module": "apps.agents.codigo.main",
@@ -51,6 +56,8 @@ AGENTS = {
         "class_name": "CodigoAgent",
         "period_arg": "week",
         "slug_pattern": "codigo-week-{period}",
+        "output_dir": "apps/agents/codigo/output",
+        "filename_pattern": "codigo-week-{period}.md",
     },
     "funding": {
         "module": "apps.agents.funding.main",
@@ -59,6 +66,8 @@ AGENTS = {
         "class_name": "FundingAgent",
         "period_arg": "week",
         "slug_pattern": "funding-semanal-{period}",
+        "output_dir": "apps/agents/funding/output",
+        "filename_pattern": "funding-week-{period}.md",
     },
     "mercado": {
         "module": "apps.agents.mercado.main",
@@ -67,6 +76,8 @@ AGENTS = {
         "class_name": "MercadoAgent",
         "period_arg": "week",
         "slug_pattern": "mercado-week-{period}",
+        "output_dir": "apps/agents/mercado/output",
+        "filename_pattern": "mercado-week-{period}.md",
     },
 }
 
@@ -251,6 +262,10 @@ Available agents:
         help="Send newsletter (sintese only, subprocess mode)",
     )
     parser.add_argument(
+        "--output", action="store_true",
+        help="Save Markdown output to each agent's output/ directory",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
         help="Run without saving or sending",
     )
@@ -306,7 +321,15 @@ Available agents:
             session.close()
     else:
         # Subprocess mode (default, backward-compatible)
+        from datetime import datetime
+
+        if args.week is None:
+            week_val = datetime.now().isocalendar()[1]
+        else:
+            week_val = args.week
+
         for name in agents_to_run:
+            cfg = AGENTS[name]
             extra_args = []
 
             if name == "sintese":
@@ -319,6 +342,12 @@ Available agents:
 
             if args.persist:
                 extra_args.append("--persist")
+
+            if args.output:
+                period = args.edition if cfg["period_arg"] == "edition" else week_val
+                filename = cfg["filename_pattern"].format(period=period)
+                output_path = str(PROJECT_ROOT / cfg["output_dir"] / filename)
+                extra_args.extend(["--output", output_path])
 
             if args.verbose:
                 extra_args.append("--verbose")
