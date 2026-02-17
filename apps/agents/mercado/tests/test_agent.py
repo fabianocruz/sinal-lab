@@ -156,7 +156,7 @@ def test_full_agent_run(mock_collect, mercado_agent):
 
 def test_agent_run_with_no_profiles(mercado_agent):
     """Test agent run with empty profile list."""
-    with patch("apps.agents.mercado.collector.collect_all_sources", return_value=[]):
+    with patch("apps.agents.mercado.agent.collect_all_sources", return_value=[]):
         result = mercado_agent.run()
 
         # Should still produce output (empty report)

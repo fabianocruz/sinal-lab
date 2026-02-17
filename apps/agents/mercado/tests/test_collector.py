@@ -14,29 +14,21 @@ from apps.agents.mercado.collector import (
 
 @pytest.fixture
 def mock_github_response():
-    """Mock GitHub Search API response."""
+    """Mock GitHub Search Users API response (organizations)."""
     return {
         "total_count": 2,
         "items": [
             {
-                "owner": {
-                    "login": "nubank",
-                    "html_url": "https://github.com/nubank",
-                    "type": "Organization",
-                },
-                "html_url": "https://github.com/nubank/fklearn",
+                "login": "nubank",
+                "html_url": "https://github.com/nubank",
+                "type": "Organization",
                 "description": "Functional machine learning",
-                "language": "Python",
             },
             {
-                "owner": {
-                    "login": "stone-payments",
-                    "html_url": "https://github.com/stone-payments",
-                    "type": "Organization",
-                },
-                "html_url": "https://github.com/stone-payments/kong",
+                "login": "stone-payments",
+                "html_url": "https://github.com/stone-payments",
+                "type": "Organization",
                 "description": "Microservice gateway",
-                "language": "Go",
             },
         ],
     }
@@ -48,9 +40,9 @@ def github_source():
     return DataSourceConfig(
         name="github_sao_paulo",
         source_type="api",
-        url="https://api.github.com/search/repositories",
+        url="https://api.github.com/search/users",
         enabled=True,
-        params={"q": "location:São+Paulo stars:>100", "sort": "stars", "per_page": 100},
+        params={"q": 'location:"São Paulo" type:org repos:>5', "sort": "repositories", "per_page": 100},
     )
 
 
@@ -76,9 +68,8 @@ def test_collect_from_github_success(mock_get, mock_github_response, github_sour
     assert profiles[0].name == "nubank"
     assert profiles[0].city == "São Paulo"
     assert profiles[0].country == "Brasil"
-    assert "Python" in profiles[0].tech_stack
+    assert profiles[0].github_url == "https://github.com/nubank"
     assert profiles[1].name == "stone-payments"
-    assert "Go" in profiles[1].tech_stack
 
 
 @patch("httpx.get")
@@ -110,31 +101,22 @@ def test_collect_from_github_http_error(mock_get, github_source, provenance):
 
 
 @patch("httpx.get")
-def test_collect_from_github_filters_personal_repos(mock_get, github_source, provenance):
-    """Test that personal (non-org) repos are filtered out."""
+def test_collect_from_github_skips_items_without_login(mock_get, github_source, provenance):
+    """Test that items without a login are skipped."""
     mock_response = Mock()
     mock_response.json.return_value = {
         "total_count": 2,
         "items": [
             {
-                "owner": {
-                    "login": "john-doe",
-                    "html_url": "https://github.com/john-doe",
-                    "type": "User",  # Personal account, should be filtered
-                },
-                "html_url": "https://github.com/john-doe/project",
-                "description": "Personal project",
-                "language": "Python",
+                "login": "",  # Empty login, should be skipped
+                "html_url": "https://github.com/ghost",
+                "type": "Organization",
             },
             {
-                "owner": {
-                    "login": "acme-corp",
-                    "html_url": "https://github.com/acme-corp",
-                    "type": "Organization",  # Should be included
-                },
-                "html_url": "https://github.com/acme-corp/app",
+                "login": "acme-corp",
+                "html_url": "https://github.com/acme-corp",
+                "type": "Organization",
                 "description": "Corporate app",
-                "language": "JavaScript",
             },
         ],
     }
@@ -143,7 +125,6 @@ def test_collect_from_github_filters_personal_repos(mock_get, github_source, pro
 
     profiles = collect_from_github(github_source, provenance)
 
-    # Should only return the Organization repo
     assert len(profiles) == 1
     assert profiles[0].name == "acme-corp"
 
@@ -154,7 +135,7 @@ def test_collect_all_sources_skips_disabled(provenance):
         DataSourceConfig(
             name="github_test",
             source_type="api",
-            url="https://api.github.com/search/repositories",
+            url="https://api.github.com/search/users",
             enabled=False,  # Disabled
         ),
     ]
@@ -182,13 +163,13 @@ def test_collect_all_sources_multiple(mock_collect_github, provenance):
         DataSourceConfig(
             name="github_sao_paulo",
             source_type="api",
-            url="https://api.github.com/search/repositories",
+            url="https://api.github.com/search/users",
             enabled=True,
         ),
         DataSourceConfig(
             name="github_rio",
             source_type="api",
-            url="https://api.github.com/search/repositories",
+            url="https://api.github.com/search/users",
             enabled=True,
         ),
     ]

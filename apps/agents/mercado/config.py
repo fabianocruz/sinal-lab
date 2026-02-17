@@ -8,79 +8,47 @@ from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 # GitHub Search API: Discover tech companies via org profiles
 # Free tier: 30 req/min, 5000 req/hour
 MERCADO_SOURCES: list[DataSourceConfig] = [
-    # GitHub Search — São Paulo, Brasil
+    # GitHub Search — discover tech organizations by LATAM city
+    # Uses /search/users endpoint with type:org filter
     DataSourceConfig(
         name="github_sao_paulo",
         source_type="api",
-        url="https://api.github.com/search/repositories",
-        enabled=True,
-        params={
-            "q": "location:São+Paulo stars:>100",
-            "sort": "stars",
-            "per_page": 100,
-        },
+        url="https://api.github.com/search/users",
+        params={"q": 'location:"São Paulo" type:org repos:>5', "sort": "repositories", "per_page": 100},
     ),
-    # GitHub Search — Rio de Janeiro, Brasil
     DataSourceConfig(
         name="github_rio",
         source_type="api",
-        url="https://api.github.com/search/repositories",
-        enabled=True,
-        params={
-            "q": "location:Rio+de+Janeiro stars:>100",
-            "sort": "stars",
-            "per_page": 100,
-        },
+        url="https://api.github.com/search/users",
+        params={"q": 'location:"Rio de Janeiro" type:org repos:>5', "sort": "repositories", "per_page": 100},
     ),
-    # GitHub Search — Mexico City, Mexico
     DataSourceConfig(
         name="github_mexico_city",
         source_type="api",
-        url="https://api.github.com/search/repositories",
-        enabled=True,
-        params={
-            "q": "location:Mexico+City stars:>100",
-            "sort": "stars",
-            "per_page": 100,
-        },
+        url="https://api.github.com/search/users",
+        params={"q": 'location:"Mexico City" type:org repos:>5', "sort": "repositories", "per_page": 100},
     ),
-    # GitHub Search — Buenos Aires, Argentina
     DataSourceConfig(
         name="github_buenos_aires",
         source_type="api",
-        url="https://api.github.com/search/repositories",
-        enabled=True,
-        params={
-            "q": "location:Buenos+Aires stars:>50",
-            "sort": "stars",
-            "per_page": 100,
-        },
+        url="https://api.github.com/search/users",
+        params={"q": 'location:"Buenos Aires" type:org repos:>3', "sort": "repositories", "per_page": 100},
     ),
-    # GitHub Search — Bogotá, Colombia
     DataSourceConfig(
         name="github_bogota",
         source_type="api",
-        url="https://api.github.com/search/repositories",
-        enabled=True,
-        params={
-            "q": "location:Bogotá stars:>50",
-            "sort": "stars",
-            "per_page": 100,
-        },
+        url="https://api.github.com/search/users",
+        params={"q": 'location:"Bogotá" type:org repos:>3', "sort": "repositories", "per_page": 100},
     ),
+
     # Dealroom API (freemium tier: 100 req/day)
-    # Enabled when API key is available
     DataSourceConfig(
-        name="dealroom_api",
-        source_type="api",
+        name="dealroom_api", source_type="api",
         url="https://api.dealroom.co/v1/companies",
         api_key_env="DEALROOM_API_KEY",
         enabled=False,  # Enable when API key configured
-        params={
-            "filter": "hq_location:latam",
-            "limit": 100,
-        },
-        rate_limit_per_minute=2,  # Conservative for free tier
+        params={"filter": "hq_location:latam", "limit": 100},
+        rate_limit_per_minute=2,
     ),
 ]
 

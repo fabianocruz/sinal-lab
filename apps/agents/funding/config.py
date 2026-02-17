@@ -5,99 +5,40 @@ from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 # LATAM VC firms and investment news sources (RSS/Atom feeds)
 FUNDING_SOURCES: list[DataSourceConfig] = [
     # --- Brazilian VCs ---
-    DataSourceConfig(
-        name="kaszek",
-        source_type="rss",
-        url="https://kaszek.com/feed/",
-    ),
-    DataSourceConfig(
-        name="monashees",
-        source_type="rss",
-        url="https://www.monashees.com.br/feed/",
-    ),
-    DataSourceConfig(
-        name="valor_capital",
-        source_type="rss",
-        url="https://valorcapitalgroup.com/feed/",
-    ),
-    DataSourceConfig(
-        name="canary",
-        source_type="rss",
-        url="https://canary.vc/blog/rss.xml",
-    ),
-    DataSourceConfig(
-        name="maya_capital",
-        source_type="rss",
-        url="https://maya.capital/blog/rss",
-    ),
-    DataSourceConfig(
-        name="domo_invest",
-        source_type="rss",
-        url="https://domo.vc/feed/",
-    ),
-    DataSourceConfig(
-        name="astella",
-        source_type="rss",
-        url="https://www.astellapartners.com/feed/",
-    ),
+    DataSourceConfig(name="kaszek", source_type="rss", url="https://kaszek.com/feed/"),
+    DataSourceConfig(name="monashees", source_type="rss", url="https://www.monashees.com.br/feed/", enabled=False),  # SSL handshake timeout
+    DataSourceConfig(name="valor_capital", source_type="rss", url="https://valorcapitalgroup.com/feed/", enabled=False),  # Returns HTML, not RSS
+    DataSourceConfig(name="canary", source_type="rss", url="https://canary.vc/blog/rss.xml", enabled=False),  # Returns HTML, not RSS
+    DataSourceConfig(name="maya_capital", source_type="rss", url="https://maya.capital/blog/rss", enabled=False),  # Returns HTML, not RSS
+    DataSourceConfig(name="domo_invest", source_type="rss", url="https://domo.vc/feed/", enabled=False),  # 0 entries (empty feed)
+    DataSourceConfig(name="astella", source_type="rss", url="https://www.astellapartners.com/feed/", enabled=False),  # DNS resolution failed
 
     # --- LATAM VCs (regional) ---
-    DataSourceConfig(
-        name="tiger_global_latam",
-        source_type="rss",
-        url="https://www.tigerglobal.com/feed/",
-    ),
-    DataSourceConfig(
-        name="softbank_latam",
-        source_type="rss",
-        url="https://www.softbank.com/en/news/feed",
-    ),
-    DataSourceConfig(
-        name="qed_investors",
-        source_type="rss",
-        url="https://qedinvestors.com/feed/",
-    ),
+    DataSourceConfig(name="tiger_global_latam", source_type="rss", url="https://www.tigerglobal.com/feed/", enabled=False),  # 404
+    DataSourceConfig(name="softbank_latam", source_type="rss", url="https://www.softbank.com/en/news/feed", enabled=False),  # Timeout
+    DataSourceConfig(name="qed_investors", source_type="rss", url="https://qedinvestors.com/feed/", enabled=False),  # 404
 
     # --- Investment News Sources ---
-    DataSourceConfig(
-        name="pipeline_valor",
-        source_type="rss",
-        url="https://pipelinevalor.globo.com/rss/",
-    ),
-    DataSourceConfig(
-        name="neofeed",
-        source_type="rss",
-        url="https://neofeed.com.br/feed/",
-    ),
-    DataSourceConfig(
-        name="startupi",
-        source_type="rss",
-        url="https://startupi.com.br/feed/",
-    ),
-    DataSourceConfig(
-        name="distrito_funding",
-        source_type="rss",
-        url="https://distrito.me/blog/category/funding/feed/",
-    ),
-    DataSourceConfig(
-        name="contxto",
-        source_type="rss",
-        url="https://contxto.com/feed/",
-    ),
+    DataSourceConfig(name="pipeline_valor", source_type="rss", url="https://pipelinevalor.globo.com/rss/", enabled=False),  # 404
+    DataSourceConfig(name="neofeed", source_type="rss", url="https://neofeed.com.br/feed/"),
+    DataSourceConfig(name="startupi", source_type="rss", url="https://startupi.com.br/feed/"),
+    DataSourceConfig(name="distrito_funding", source_type="rss", url="https://distrito.me/blog/category/funding/feed/", enabled=False),  # 404
+    DataSourceConfig(name="contxto", source_type="rss", url="https://contxto.com/feed/", enabled=False),  # SSL protocol error
+
+    # --- Funding News (cross-validated with SINTESE sources) ---
+    DataSourceConfig(name="crunchbase_news", source_type="rss", url="https://news.crunchbase.com/feed/"),
+    DataSourceConfig(name="techcrunch_latam", source_type="rss", url="https://techcrunch.com/tag/latin-america/feed/"),
+    DataSourceConfig(name="latamlist", source_type="rss", url="https://latamlist.com/feed/"),
+    DataSourceConfig(name="abstartups", source_type="rss", url="https://abstartups.com.br/feed/"),
+    DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/"),
 
     # --- Dealroom API (freemium) ---
-    # Note: Dealroom API requires API key, configured via environment variable
     DataSourceConfig(
-        name="dealroom_api",
-        source_type="api",
+        name="dealroom_api", source_type="api",
         url="https://api.dealroom.co/v1/funding_rounds",
-        api_key_env="DEALROOM_API_KEY",
-        rate_limit_per_minute=10,
+        api_key_env="DEALROOM_API_KEY", rate_limit_per_minute=10,
         enabled=False,  # Enable when API key is available
-        params={
-            "countries": "BR,MX,AR,CO,CL,PE,UY",  # LATAM countries
-            "days_ago": 7,  # Last 7 days
-        },
+        params={"countries": "BR,MX,AR,CO,CL,PE,UY", "days_ago": 7},
     ),
 ]
 

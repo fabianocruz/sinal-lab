@@ -4,6 +4,7 @@ Collects company profiles from GitHub, Dealroom API, and other sources.
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
@@ -14,6 +15,16 @@ from apps.agents.base.config import DataSourceConfig
 from apps.agents.base.provenance import ProvenanceTracker
 
 logger = logging.getLogger(__name__)
+
+
+# Map query location strings to (city, country) tuples
+_LOCATION_MAP = {
+    "São Paulo": ("São Paulo", "Brasil"),
+    "Rio de Janeiro": ("Rio de Janeiro", "Brasil"),
+    "Mexico City": ("Mexico City", "Mexico"),
+    "Buenos Aires": ("Buenos Aires", "Argentina"),
+    "Bogotá": ("Bogotá", "Colombia"),
+}
 
 
 @dataclass
@@ -37,11 +48,22 @@ class CompanyProfile:
     source_name: str = ""
 
 
+def _resolve_location(query: str) -> tuple:
+    """Extract (city, country) from the GitHub search query string."""
+    for loc_name, (city, country) in _LOCATION_MAP.items():
+        if loc_name in query:
+            return city, country
+    return None, "Brasil"
+
+
 def collect_from_github(
     source: DataSourceConfig,
     provenance: ProvenanceTracker,
 ) -> list[CompanyProfile]:
-    """Collect company profiles from GitHub Search API.
+    """Collect organization profiles from GitHub Search API.
+
+    Uses /search/users with type:org to find tech organizations
+    by LATAM city location.
 
     Args:
         source: GitHub API data source configuration
@@ -54,10 +76,9 @@ def collect_from_github(
 
     try:
         headers = {"Accept": "application/vnd.github+json"}
-        # Add GitHub token if available (optional, increases rate limit)
-        # token = os.getenv("GITHUB_TOKEN")
-        # if token:
-        #     headers["Authorization"] = f"token {token}"
+        token = os.getenv("GITHUB_TOKEN")
+        if token:
+            headers["Authorization"] = "token {}".format(token)
 
         response = httpx.get(
             source.url,
@@ -68,68 +89,38 @@ def collect_from_github(
         response.raise_for_status()
         data = response.json()
 
+        total = data.get("total_count", 0)
         logger.info(
-            "GitHub API returned %d repositories from %s",
-            data.get("total_count", 0),
+            "GitHub API returned %d organizations from %s",
+            total,
             source.name,
         )
 
-        for repo in data.get("items", []):
-            # Extract organization or owner
-            owner = repo.get("owner", {})
-            owner_name = owner.get("login", "")
-            owner_url = owner.get("html_url", "")
+        query = source.params.get("q", "")
+        city, country = _resolve_location(query)
 
-            # Only process organization accounts (not personal repos)
-            if owner.get("type") != "Organization":
+        for org in data.get("items", []):
+            org_login = org.get("login", "")
+            org_url = org.get("html_url", "")
+
+            if not org_login:
                 continue
 
-            # Extract location from repo
-            # GitHub doesn't provide org location in repo search, so we use query location
-            location = source.params.get("q", "")
-            city = None
-            country = "Brasil"
-
-            if "São+Paulo" in location or "Sao+Paulo" in location:
-                city = "São Paulo"
-                country = "Brasil"
-            elif "Rio+de+Janeiro" in location:
-                city = "Rio de Janeiro"
-                country = "Brasil"
-            elif "Mexico+City" in location:
-                city = "Mexico City"
-                country = "Mexico"
-            elif "Buenos+Aires" in location:
-                city = "Buenos Aires"
-                country = "Argentina"
-            elif "Bogotá" in location or "Bogota" in location:
-                city = "Bogotá"
-                country = "Colombia"
-
-            # Extract tech stack from primary language
-            tech_stack = []
-            if repo.get("language"):
-                tech_stack.append(repo["language"])
-
             profile = CompanyProfile(
-                name=owner_name,
-                slug=owner_name.lower().replace(" ", "-"),
-                website=None,  # Will be enriched later
-                description=repo.get("description", ""),
-                sector=None,  # Will be classified later
+                name=org_login,
+                slug=org_login.lower().replace(" ", "-"),
+                description=org.get("description") or "",
                 city=city,
                 country=country,
-                github_url=owner_url,
-                tech_stack=tech_stack,
-                source_url=repo.get("html_url", ""),
+                github_url=org_url,
+                source_url=org_url,
                 source_name=source.name,
             )
 
             profiles.append(profile)
 
-            # Track provenance
             provenance.track(
-                source_url=repo.get("html_url", ""),
+                source_url=org_url,
                 source_name=source.name,
                 extraction_method="api",
             )
@@ -141,9 +132,7 @@ def collect_from_github(
     except Exception as e:
         logger.error(
             "Unexpected error collecting from GitHub %s: %s",
-            source.name,
-            e,
-            exc_info=True,
+            source.name, e, exc_info=True,
         )
 
     logger.info("Collected %d company profiles from %s", len(profiles), source.name)
