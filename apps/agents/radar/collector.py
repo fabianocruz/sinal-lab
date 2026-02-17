@@ -8,18 +8,22 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from time import mktime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
-import feedparser
 import httpx
 
 from apps.agents.base.config import DataSourceConfig
 from apps.agents.base.provenance import ProvenanceTracker
+from apps.agents.sources.dedup import deduplicate_by_hash
+from apps.agents.sources.github import GitHubRepoItem, fetch_github_repos
+from apps.agents.sources.http import create_http_client
+from apps.agents.sources.rss import (
+    RSSItem,
+    fetch_rss_feed,
+    parse_feed_date,  # noqa: F401 — re-export
+)
 
 logger = logging.getLogger(__name__)
-
-FEED_FETCH_TIMEOUT = 15.0
 
 
 @dataclass
@@ -33,8 +37,8 @@ class TrendSignal:
     published_at: Optional[datetime] = None
     summary: Optional[str] = None
     author: Optional[str] = None
-    tags: list[str] = field(default_factory=list)
-    metrics: dict[str, Any] = field(default_factory=dict)
+    tags: List[str] = field(default_factory=list)
+    metrics: dict = field(default_factory=dict)
     content_hash: str = ""
 
     def __post_init__(self) -> None:
@@ -42,182 +46,82 @@ class TrendSignal:
             self.content_hash = hashlib.md5(self.url.encode()).hexdigest()
 
 
-def parse_feed_date(entry: Any) -> Optional[datetime]:
-    """Extract publication date from a feed entry."""
-    for date_field in ("published_parsed", "updated_parsed", "created_parsed"):
-        parsed = getattr(entry, date_field, None)
-        if parsed:
-            try:
-                return datetime.fromtimestamp(mktime(parsed), tz=timezone.utc)
-            except (ValueError, OverflowError, OSError):
-                continue
-    return None
+def _rss_to_signal(item: RSSItem, source_type: str) -> TrendSignal:
+    """Convert a shared RSSItem to a RADAR TrendSignal."""
+    return TrendSignal(
+        title=item.title,
+        url=item.url,
+        source_name=item.source_name,
+        source_type=source_type,
+        published_at=item.published_at,
+        summary=item.summary,
+        author=item.author,
+        tags=item.tags,
+        content_hash=item.content_hash,
+    )
+
+
+def _github_to_signal(repo: GitHubRepoItem) -> TrendSignal:
+    """Convert a shared GitHubRepoItem to a RADAR TrendSignal."""
+    description = repo.description or ""
+    return TrendSignal(
+        title="{} \u2014 {}".format(repo.full_name, description[:200]),
+        url=repo.url,
+        source_name=repo.source_name,
+        source_type="github",
+        published_at=repo.created_at,
+        summary=description,
+        author=repo.full_name.split("/")[0] if "/" in repo.full_name else "",
+        tags=[repo.language.lower()] if repo.language else [],
+        metrics={
+            "stars": repo.stars,
+            "forks": repo.forks,
+            "open_issues": repo.open_issues,
+            "language": repo.language or "",
+        },
+        content_hash=repo.content_hash,
+    )
 
 
 def collect_rss_source(
     source: DataSourceConfig,
     client: httpx.Client,
     source_type: str = "community",
-) -> list[TrendSignal]:
+) -> List[TrendSignal]:
     """Fetch and parse a single RSS/Atom feed into TrendSignals."""
-    if not source.url:
-        return []
-
-    try:
-        response = client.get(source.url, timeout=FEED_FETCH_TIMEOUT)
-        response.raise_for_status()
-    except httpx.HTTPError as e:
-        logger.warning("Failed to fetch %s: %s", source.name, e)
-        return []
-
-    feed = feedparser.parse(response.text)
-    if feed.bozo and not feed.entries:
-        logger.warning("Feed %s is malformed with no entries", source.name)
-        return []
-
-    signals: list[TrendSignal] = []
-    for entry in feed.entries:
-        title = getattr(entry, "title", None)
-        link = getattr(entry, "link", None)
-        if not title or not link:
-            continue
-
-        tags = []
-        if hasattr(entry, "tags"):
-            for tag in entry.tags:
-                term = tag.get("term", "") if isinstance(tag, dict) else getattr(tag, "term", "")
-                if term:
-                    tags.append(term.strip().lower())
-
-        summary = getattr(entry, "summary", None)
-        if summary and len(summary) > 1000:
-            summary = summary[:1000] + "..."
-
-        metrics = {}
-        # HN entries often have points in the title or description
-        if "hn" in source.name.lower():
-            comments_link = getattr(entry, "comments", None)
-            if comments_link:
-                metrics["hn_comments_url"] = comments_link
-
-        signals.append(TrendSignal(
-            title=title.strip(),
-            url=link.strip(),
-            source_name=source.name,
-            source_type=source_type,
-            published_at=parse_feed_date(entry),
-            summary=summary,
-            author=getattr(entry, "author", None),
-            tags=tags[:10],
-            metrics=metrics,
-        ))
-
-    logger.info("Collected %d signals from %s", len(signals), source.name)
-    return signals
+    rss_items = fetch_rss_feed(source, client)
+    return [_rss_to_signal(item, source_type) for item in rss_items]
 
 
 def collect_github_trending(
     source: DataSourceConfig,
     client: httpx.Client,
-) -> list[TrendSignal]:
+) -> List[TrendSignal]:
     """Fetch GitHub trending repos via the search API.
 
-    Uses the GitHub search API to find recently created repos with high star counts.
-    Falls back gracefully if rate-limited.
+    Uses the shared GitHub collector with RADAR-specific min_stars=50
+    and converts results to TrendSignal with title format:
+    "{full_name} — {description[:200]}"
     """
-    if not source.url:
-        return []
-
     window = source.params.get("window", "daily")
-    if window == "daily":
-        date_qualifier = "created:>2026-02-10"
-    else:
-        date_qualifier = "created:>2026-02-03"
-
-    params = {
-        "q": f"stars:>50 {date_qualifier}",
-        "sort": "stars",
-        "order": "desc",
-        "per_page": 30,
-    }
-
-    headers = {"Accept": "application/vnd.github+json"}
-    github_token = None
-    try:
-        import os
-        github_token = os.getenv("GITHUB_TOKEN")
-    except Exception:
-        pass
-
-    if github_token:
-        headers["Authorization"] = f"Bearer {github_token}"
-
-    try:
-        response = client.get(
-            source.url,
-            params=params,
-            headers=headers,
-            timeout=FEED_FETCH_TIMEOUT,
-        )
-        response.raise_for_status()
-    except httpx.HTTPError as e:
-        logger.warning("GitHub API error for %s: %s", source.name, e)
-        return []
-
-    data = response.json()
-    items = data.get("items", [])
-
-    signals: list[TrendSignal] = []
-    for repo in items:
-        created_at = None
-        if repo.get("created_at"):
-            try:
-                created_at = datetime.fromisoformat(
-                    repo["created_at"].replace("Z", "+00:00")
-                )
-            except ValueError:
-                pass
-
-        description = repo.get("description") or ""
-        signals.append(TrendSignal(
-            title=f"{repo.get('full_name', 'unknown')} — {description[:200]}",
-            url=repo.get("html_url", ""),
-            source_name=source.name,
-            source_type="github",
-            published_at=created_at,
-            summary=description,
-            author=repo.get("owner", {}).get("login", ""),
-            tags=[repo.get("language", "").lower()] if repo.get("language") else [],
-            metrics={
-                "stars": repo.get("stargazers_count", 0),
-                "forks": repo.get("forks_count", 0),
-                "open_issues": repo.get("open_issues_count", 0),
-                "language": repo.get("language", ""),
-            },
-        ))
-
-    logger.info("Collected %d repos from %s", len(signals), source.name)
-    return signals
+    repos = fetch_github_repos(source, client, min_stars=50, window=window)
+    return [_github_to_signal(repo) for repo in repos]
 
 
 def collect_all_sources(
-    sources: list[DataSourceConfig],
+    sources: List[DataSourceConfig],
     provenance: ProvenanceTracker,
     agent_name: str = "radar",
     run_id: str = "",
-) -> list[TrendSignal]:
+) -> List[TrendSignal]:
     """Fetch all configured sources and return deduplicated signals.
 
     Routes each source to the appropriate collector based on source type
     and name.
     """
-    all_signals: list[TrendSignal] = []
-    seen_urls: set[str] = set()
+    all_signals: List[TrendSignal] = []
 
-    with httpx.Client(
-        follow_redirects=True,
-        headers={"User-Agent": "Sinal.lab/0.1 (trend radar)"},
-    ) as client:
+    with create_http_client() as client:
         for source in sources:
             if not source.enabled:
                 continue
@@ -234,22 +138,22 @@ def collect_all_sources(
                 signals = collect_rss_source(source, client, source_type="community")
 
             for signal in signals:
-                if signal.content_hash not in seen_urls:
-                    seen_urls.add(signal.content_hash)
-                    all_signals.append(signal)
+                provenance.track(
+                    source_url=signal.url,
+                    source_name=source.name,
+                    extraction_method="api" if source.source_type == "api" else "rss",
+                    confidence=0.6,
+                    collector_agent=agent_name,
+                    collector_run_id=run_id,
+                )
 
-                    provenance.track(
-                        source_url=signal.url,
-                        source_name=source.name,
-                        extraction_method="api" if source.source_type == "api" else "rss",
-                        confidence=0.6,
-                        collector_agent=agent_name,
-                        collector_run_id=run_id,
-                    )
+            all_signals.extend(signals)
+
+    unique_signals = deduplicate_by_hash(all_signals, hash_fn=lambda s: s.content_hash)
 
     logger.info(
         "RADAR collected %d unique signals from %d sources",
-        len(all_signals),
+        len(unique_signals),
         len([s for s in sources if s.enabled]),
     )
-    return all_signals
+    return unique_signals
