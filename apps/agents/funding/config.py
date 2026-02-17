@@ -1,6 +1,6 @@
 """Configuration for the FUNDING agent — data sources and parameters."""
 
-from apps.agents.base.config import AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 
 # LATAM VC firms and investment news sources (RSS/Atom feeds)
 FUNDING_SOURCES: list[DataSourceConfig] = [
@@ -103,6 +103,7 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
 
 FUNDING_CONFIG = AgentConfig(
     agent_name="funding",
+    agent_category=AgentCategory.DATA,
     version="0.1.0",
     description="Investment Tracking — monitors VC announcements and funding rounds in LATAM startups",
     data_sources=FUNDING_SOURCES,

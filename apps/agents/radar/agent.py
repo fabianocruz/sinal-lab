@@ -9,6 +9,7 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.radar.classifier import ClassifiedSignal, classify_signals
 from apps.agents.radar.collector import TrendSignal, collect_all_sources
@@ -27,6 +28,7 @@ class RadarAgent(BaseAgent):
     """
 
     agent_name = "radar"
+    agent_category = AgentCategory.CONTENT.value
     version = RADAR_CONFIG.version
 
     def __init__(self, week_number: int = 1) -> None:
@@ -93,6 +95,7 @@ class RadarAgent(BaseAgent):
             title=f"RADAR Semanal — Semana {self.week_number}",
             body_md=report_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=confidence,
             sources=source_urls,

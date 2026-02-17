@@ -9,6 +9,7 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.sintese.collector import FeedItem, collect_all_feeds
 from apps.agents.sintese.config import SINTESE_CONFIG
@@ -26,6 +27,7 @@ class SinteseAgent(BaseAgent):
     """
 
     agent_name = "sintese"
+    agent_category = AgentCategory.CONTENT.value
     version = SINTESE_CONFIG.version
 
     def __init__(self, edition_number: int = 1) -> None:
@@ -95,6 +97,7 @@ class SinteseAgent(BaseAgent):
             title=f"Sinal Semanal #{self.edition_number}",
             body_md=newsletter_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=confidence,
             sources=source_urls,

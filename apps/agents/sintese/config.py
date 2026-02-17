@@ -1,6 +1,6 @@
 """Configuration for the SINTESE agent — data sources, parameters, and feed list."""
 
-from apps.agents.base.config import AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 
 # LATAM tech RSS/Atom feeds organized by category.
 # Each feed is a DataSourceConfig for consistent handling.
@@ -62,6 +62,7 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
 
 SINTESE_CONFIG = AgentConfig(
     agent_name="sintese",
+    agent_category=AgentCategory.CONTENT,
     version="0.1.0",
     description="Newsletter Synthesizer — aggregates and curates LATAM tech news into Sinal Semanal",
     data_sources=LATAM_TECH_FEEDS,

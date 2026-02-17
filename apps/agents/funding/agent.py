@@ -10,6 +10,7 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.funding.collector import FundingEvent, collect_all_sources
 from apps.agents.funding.config import FUNDING_CONFIG
@@ -29,6 +30,7 @@ class FundingAgent(BaseAgent):
     """
 
     agent_name = "funding"
+    agent_category = AgentCategory.DATA.value
     version = FUNDING_CONFIG.version
 
     def __init__(self, week_number: int = 1) -> None:
@@ -166,6 +168,7 @@ class FundingAgent(BaseAgent):
             title=f"FUNDING Report — Semana {self.week_number}/2026",
             body_md=report_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=aggregate_confidence,
             sources=source_urls,

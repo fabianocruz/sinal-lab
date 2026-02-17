@@ -9,6 +9,7 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.codigo.analyzer import AnalyzedSignal, analyze_signals
 from apps.agents.codigo.collector import DevSignal, collect_all_sources
@@ -27,6 +28,7 @@ class CodigoAgent(BaseAgent):
     """
 
     agent_name = "codigo"
+    agent_category = AgentCategory.CONTENT.value
     version = CODIGO_CONFIG.version
 
     def __init__(self, week_number: int = 1) -> None:
@@ -91,6 +93,7 @@ class CodigoAgent(BaseAgent):
             title=f"CODIGO Semanal — Semana {self.week_number}",
             body_md=report_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=confidence,
             sources=source_urls,

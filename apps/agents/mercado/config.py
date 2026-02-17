@@ -3,7 +3,7 @@
 Data sources for startup discovery and ecosystem mapping across LATAM.
 """
 
-from apps.agents.base.config import AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 
 # GitHub Search API: Discover tech companies via org profiles
 # Free tier: 30 req/min, 5000 req/hour
@@ -86,6 +86,7 @@ MERCADO_SOURCES: list[DataSourceConfig] = [
 
 MERCADO_CONFIG = AgentConfig(
     agent_name="mercado",
+    agent_category=AgentCategory.DATA,
     version="0.1.0",
     description="LATAM startup mapping and ecosystem intelligence",
     data_sources=MERCADO_SOURCES,

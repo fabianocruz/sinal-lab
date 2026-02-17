@@ -10,6 +10,7 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.base.provenance import ProvenanceTracker
 from apps.agents.mercado.classifier import classify_all_profiles
@@ -26,6 +27,7 @@ class MercadoAgent(BaseAgent):
     """MERCADO agent for LATAM startup mapping and ecosystem intelligence."""
 
     agent_name = "mercado"
+    agent_category = AgentCategory.DATA.value
 
     def __init__(self, week_number: int):
         """Initialize MERCADO agent.
@@ -153,6 +155,7 @@ class MercadoAgent(BaseAgent):
             title=f"MERCADO Report — Semana {self.week_number}/2026",
             body_md=body_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=aggregate_confidence,
             sources=source_urls,

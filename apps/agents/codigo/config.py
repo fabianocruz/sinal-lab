@@ -1,6 +1,6 @@
 """Configuration for the CODIGO agent — data sources and parameters."""
 
-from apps.agents.base.config import AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 
 CODIGO_SOURCES: list[DataSourceConfig] = [
     # --- GitHub Trending ---
@@ -60,6 +60,7 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
 
 CODIGO_CONFIG = AgentConfig(
     agent_name="codigo",
+    agent_category=AgentCategory.CONTENT,
     version="0.1.0",
     description="Developer Ecosystem Signals — tracks GitHub, npm, PyPI, and Stack Overflow trends",
     data_sources=CODIGO_SOURCES,

@@ -1,6 +1,6 @@
 """Configuration for the RADAR agent — data sources and parameters."""
 
-from apps.agents.base.config import AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 
 RADAR_SOURCES: list[DataSourceConfig] = [
     # --- Hacker News ---
@@ -77,6 +77,7 @@ RADAR_SOURCES: list[DataSourceConfig] = [
 
 RADAR_CONFIG = AgentConfig(
     agent_name="radar",
+    agent_category=AgentCategory.CONTENT,
     version="0.1.0",
     description="Trend Intelligence — detects emerging signals from HN, GitHub, arXiv, and Google Trends",
     data_sources=RADAR_SOURCES,
