@@ -304,15 +304,19 @@ class TestOrchestrateAgentRun:
         assert result.evidence_stats is None
 
     def test_rolls_back_on_persist_error(self, session: Session):
-        """If persistence fails, no records should be committed."""
+        """If domain_persist_fn raises, the orchestrator should roll back."""
         agent = FakeAgent()
-        agent.agent_name = "x" * 200  # Too long for String(100)
 
-        with pytest.raises(Exception):
+        def failing_persist(agent, result, sess):
+            raise RuntimeError("Domain persistence failed")
+
+        with pytest.raises(RuntimeError, match="Domain persistence failed"):
             orchestrate_agent_run(
                 agent, session=session, slug="error-slug",
                 enable_editorial=False, persist=True,
+                domain_persist_fn=failing_persist,
             )
 
-        # Verify no records were persisted
+        # After rollback, records from persist_agent_output should be gone
+        assert session.query(AgentRun).count() == 0
         assert session.query(ContentPiece).filter_by(slug="error-slug").count() == 0
