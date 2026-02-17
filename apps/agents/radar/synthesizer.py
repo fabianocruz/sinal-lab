@@ -8,9 +8,12 @@ momentum indicators.
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from apps.agents.radar.classifier import ClassifiedSignal
+
+if TYPE_CHECKING:
+    from apps.agents.radar.writer import RadarWriter
 
 logger = logging.getLogger(__name__)
 
@@ -141,20 +144,64 @@ def format_signal_markdown(signal: ClassifiedSignal, index: int) -> str:
     return "\n".join(lines)
 
 
+def format_signal_markdown_with_summary(
+    signal: ClassifiedSignal,
+    index: int,
+    summary_override: Optional[str] = None,
+) -> str:
+    """Format a single trend signal as Markdown, optionally with an LLM summary.
+
+    Args:
+        signal: The classified signal to format.
+        index: The signal number in the report.
+        summary_override: If provided, use this instead of the original summary.
+    """
+    lines: list[str] = []
+    mi = momentum_indicator(signal.momentum_score)
+
+    lines.append(f"**{index}. [{signal.signal.title}]({signal.signal.url})** {mi}")
+    lines.append(f"*Fonte: {signal.signal.source_name} | Topicos: {', '.join(signal.topics[:3])}*")
+
+    summary = summary_override
+    if summary is None and signal.signal.summary:
+        import re
+        summary = re.sub(r"<[^>]+>", "", signal.signal.summary.strip())
+        if len(summary) > 300:
+            summary = summary[:297] + "..."
+
+    if summary:
+        lines.append(f"> {summary}")
+
+    # Show key metrics if available
+    metrics = signal.signal.metrics
+    if metrics.get("stars"):
+        lines.append(f"  Stars: {metrics['stars']:,} | Language: {metrics.get('language', 'N/A')}")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
 def synthesize_trend_report(
     classified: list[ClassifiedSignal],
     week_number: int = 1,
     report_date: Optional[datetime] = None,
+    writer: Optional["RadarWriter"] = None,
 ) -> str:
     """Produce the full trend report in Markdown.
+
+    When a writer is provided and available, generates LLM-powered editorial
+    content (intro paragraph, section analysis, rewritten summaries).
+    Falls back to template-based output per-piece when the LLM is unavailable
+    or returns None.
 
     Args:
         classified: All classified signals (will be filtered and ranked).
         week_number: Week number for the report title.
         report_date: Date for the report (defaults to now).
+        writer: Optional LLM editorial writer for enhanced content.
 
     Returns:
-        Complete trend report Markdown.
+        Complete trend report Markdown ready for review and publication.
     """
     if not report_date:
         report_date = datetime.now(timezone.utc)
@@ -163,6 +210,8 @@ def synthesize_trend_report(
 
     top_signals = select_top_signals(classified)
     sections = group_by_topic(top_signals)
+
+    use_writer = writer is not None and writer.is_available
 
     lines: list[str] = []
 
@@ -174,34 +223,58 @@ def synthesize_trend_report(
     lines.append("---")
     lines.append("")
 
-    # Summary
-    topic_counts = {}
-    for s in top_signals:
-        topic_counts[s.primary_topic] = topic_counts.get(s.primary_topic, 0) + 1
+    # Intro: try LLM, fallback to template
+    llm_intro = None
+    if use_writer:
+        llm_intro = writer.write_report_intro(sections, week_number)
 
-    top_topics = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:3]
-    top_topic_names = [
-        TOPIC_DISPLAY_NAMES.get(t[0], t[0]) for t in top_topics
-    ]
+    if llm_intro:
+        lines.append(llm_intro)
+    else:
+        # Template fallback: summary stats
+        topic_counts: dict[str, int] = {}
+        for s in top_signals:
+            topic_counts[s.primary_topic] = topic_counts.get(s.primary_topic, 0) + 1
 
-    lines.append(
-        f"**{len(top_signals)} sinais emergentes** detectados esta semana "
-        f"de **{len(set(s.signal.source_name for s in top_signals))} fontes**. "
-        f"Areas mais ativas: {', '.join(top_topic_names) if top_topic_names else 'diversas'}."
-    )
+        top_topics = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+        top_topic_names = [
+            TOPIC_DISPLAY_NAMES.get(t[0], t[0]) for t in top_topics
+        ]
+
+        lines.append(
+            f"**{len(top_signals)} sinais emergentes** detectados esta semana "
+            f"de **{len(set(s.signal.source_name for s in top_signals))} fontes**. "
+            f"Areas mais ativas: {', '.join(top_topic_names) if top_topic_names else 'diversas'}."
+        )
     lines.append("")
     lines.append("---")
     lines.append("")
 
-    # Sections
+    # Sections: try LLM per section, fallback to template
     signal_index = 1
     for section in sections:
         lines.append(f"## {section.heading}")
         lines.append("")
 
-        for classified_signal in section.signals:
-            lines.append(format_signal_markdown(classified_signal, signal_index))
-            signal_index += 1
+        section_content = None
+        if use_writer:
+            section_content = writer.write_section_content(section)
+
+        if section_content:
+            # LLM editorial analysis
+            lines.append(section_content.intro)
+            lines.append("")
+            for i, classified_signal in enumerate(section.signals):
+                lines.append(format_signal_markdown_with_summary(
+                    classified_signal, signal_index,
+                    summary_override=section_content.summaries[i],
+                ))
+                signal_index += 1
+        else:
+            # Template fallback
+            for classified_signal in section.signals:
+                lines.append(format_signal_markdown(classified_signal, signal_index))
+                signal_index += 1
 
         lines.append("---")
         lines.append("")

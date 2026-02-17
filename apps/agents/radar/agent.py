@@ -15,6 +15,7 @@ from apps.agents.radar.classifier import ClassifiedSignal, classify_signals
 from apps.agents.radar.collector import TrendSignal, collect_all_sources
 from apps.agents.radar.config import RADAR_CONFIG
 from apps.agents.radar.synthesizer import synthesize_trend_report
+from apps.agents.radar.writer import RadarWriter
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +85,11 @@ class RadarAgent(BaseAgent):
             data_quality=0.3, analysis_confidence=0.3
         )
 
+        writer = RadarWriter()
         report_md = synthesize_trend_report(
             classified=classified,
             week_number=self.week_number,
+            writer=writer,
         )
 
         source_urls = self.provenance.get_source_urls()[:20]
