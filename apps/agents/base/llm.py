@@ -17,15 +17,17 @@ Architecture:
         └── mercado/writer.py       (ecosystem mapping editorial)
 
 Usage:
-    from apps.agents.base.llm import LLMClient, strip_code_fences
+    from apps.agents.base.llm import LLMClient, strip_code_fences, strip_html
     client = LLMClient()
     if client.is_available:
         result = client.generate("Summarize this article", system_prompt="...")
         cleaned = strip_code_fences(result)  # Remove ```json ... ``` wrappers
+    summary = strip_html("<p>Raw HTML</p>", max_length=300)  # Clean RSS summaries
 """
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -109,6 +111,29 @@ class LLMClient:
         except Exception as e:
             logger.warning("LLM unexpected error: %s", e)
             return None
+
+
+def strip_html(text: str, max_length: int = 300) -> str:
+    """Strip HTML tags from text and optionally truncate.
+
+    Used by synthesizers to clean raw RSS/web summaries before
+    rendering in Markdown reports. Removes all HTML tags and
+    normalizes whitespace.
+
+    Args:
+        text: Raw text that may contain HTML tags.
+        max_length: Maximum output length (0 = no limit). Truncates
+            with "..." if exceeded.
+
+    Returns:
+        Cleaned plain text.
+    """
+    cleaned = re.sub(r"<[^>]+>", "", text).strip()
+    # Collapse multiple whitespace into single space
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    if max_length and len(cleaned) > max_length:
+        cleaned = cleaned[: max_length - 3] + "..."
+    return cleaned
 
 
 def strip_code_fences(text: str) -> str:

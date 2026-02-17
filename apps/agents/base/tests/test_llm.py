@@ -5,7 +5,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.agents.base.llm import LLMClient, LLMConfig
+from apps.agents.base.llm import LLMClient, LLMConfig, strip_code_fences, strip_html
 
 
 class TestLLMConfig:
@@ -215,3 +215,79 @@ class TestLLMClientGenerate:
             result = client.generate("prompt")
 
         assert result is None
+
+
+class TestStripCodeFences:
+    """Test strip_code_fences utility."""
+
+    def test_strips_json_code_fence(self):
+        text = '```json\n{"key": "value"}\n```'
+        assert strip_code_fences(text) == '{"key": "value"}'
+
+    def test_strips_plain_code_fence(self):
+        text = '```\nsome content\n```'
+        assert strip_code_fences(text) == "some content"
+
+    def test_leaves_non_fenced_text_alone(self):
+        text = '{"key": "value"}'
+        assert strip_code_fences(text) == '{"key": "value"}'
+
+    def test_handles_whitespace_around_fences(self):
+        text = '  ```json\n{"key": "value"}\n```  '
+        assert strip_code_fences(text) == '{"key": "value"}'
+
+    def test_handles_empty_string(self):
+        assert strip_code_fences("") == ""
+
+
+class TestStripHtml:
+    """Test strip_html utility."""
+
+    def test_strips_html_tags(self):
+        text = "<p>Hello <b>world</b></p>"
+        assert strip_html(text) == "Hello world"
+
+    def test_strips_anchor_tags(self):
+        text = '<a href="https://example.com">Link text</a>'
+        assert strip_html(text) == "Link text"
+
+    def test_strips_img_tags(self):
+        text = '<img src="photo.jpg" style="display: block;"> After image'
+        assert strip_html(text) == "After image"
+
+    def test_truncates_to_max_length(self):
+        text = "A" * 500
+        result = strip_html(text, max_length=100)
+        assert len(result) == 100
+        assert result.endswith("...")
+
+    def test_no_truncation_when_under_limit(self):
+        text = "Short text"
+        assert strip_html(text, max_length=300) == "Short text"
+
+    def test_no_truncation_when_max_length_zero(self):
+        text = "A" * 500
+        assert strip_html(text, max_length=0) == "A" * 500
+
+    def test_collapses_whitespace(self):
+        text = "<p>Hello</p>\n\n  <p>World</p>"
+        assert strip_html(text) == "Hello World"
+
+    def test_handles_empty_string(self):
+        assert strip_html("") == ""
+
+    def test_handles_nested_tags(self):
+        text = "<div><p>Text <span>here</span></p></div>"
+        assert strip_html(text) == "Text here"
+
+    def test_real_funding_html(self):
+        """Test with actual HTML that was leaking in FUNDING output."""
+        text = (
+            '<p><a href="https://startupi.com.br" rel="nofollow">Startupi</a><br />'
+            '<img src="https://startupi.com.br/wp-content/uploads/2026/02/photo.jpeg" '
+            'style="display: block; margin: 1em auto;"> Brazilian fintech raised $17M</p>'
+        )
+        result = strip_html(text)
+        assert "<" not in result
+        assert ">" not in result
+        assert "Brazilian fintech raised $17M" in result

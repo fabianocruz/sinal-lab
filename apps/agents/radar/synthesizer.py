@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from apps.agents.base.llm import strip_html
 from apps.agents.radar.classifier import ClassifiedSignal
 
 if TYPE_CHECKING:
@@ -129,10 +130,7 @@ def format_signal_markdown(signal: ClassifiedSignal, index: int) -> str:
     lines.append(f"*Fonte: {signal.signal.source_name} | Topicos: {', '.join(signal.topics[:3])}*")
 
     if signal.signal.summary:
-        import re
-        summary = re.sub(r"<[^>]+>", "", signal.signal.summary.strip())
-        if len(summary) > 300:
-            summary = summary[:297] + "..."
+        summary = strip_html(signal.signal.summary)
         lines.append(f"> {summary}")
 
     # Show key metrics if available
@@ -164,10 +162,7 @@ def format_signal_markdown_with_summary(
 
     summary = summary_override
     if summary is None and signal.signal.summary:
-        import re
-        summary = re.sub(r"<[^>]+>", "", signal.signal.summary.strip())
-        if len(summary) > 300:
-            summary = summary[:297] + "..."
+        summary = strip_html(signal.signal.summary)
 
     if summary:
         lines.append(f"> {summary}")
@@ -277,6 +272,16 @@ def synthesize_trend_report(
                 signal_index += 1
 
         lines.append("---")
+        lines.append("")
+
+    # Editorial mode notice
+    if not use_writer:
+        lines.append(
+            "> *Nota: Este relatorio foi gerado em modo template (sem camada editorial LLM). "
+            "Os resumos abaixo sao extraidos diretamente das fontes originais e podem conter "
+            "conteudo em ingles ou outros idiomas. A versao editorial em portugues requer "
+            "a configuracao da variavel ANTHROPIC_API_KEY.*"
+        )
         lines.append("")
 
     # Footer

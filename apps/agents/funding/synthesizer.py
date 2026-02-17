@@ -7,6 +7,7 @@ with company details, investors, and confidence scores.
 import logging
 from typing import TYPE_CHECKING, Optional
 
+from apps.agents.base.llm import strip_html
 from apps.agents.funding.scorer import ScoredFundingEvent
 
 if TYPE_CHECKING:
@@ -180,8 +181,8 @@ def synthesize_funding_report(
             lines.append(f"- **Confiança**: {conf_str}")
 
             if event.notes and not event.notes.startswith("[AMOUNT_CONFLICT"):
-                summary = event.notes[:200]
-                lines.append(f"- **Nota**: {summary}...")
+                note_text = strip_html(event.notes, max_length=200)
+                lines.append(f"- **Nota**: {note_text}")
 
             # Add LLM commentary if available
             if llm_highlights and idx < len(llm_highlights):
@@ -255,6 +256,17 @@ def synthesize_funding_report(
 
             lines.append(f"**{event.company_name}** — {amount_str} {round_str} ({conf_str})")
             lines.append("")
+
+    # Editorial mode notice
+    use_writer = writer is not None and writer.is_available
+    if not use_writer:
+        lines.append(
+            "> *Nota: Este relatorio foi gerado em modo template (sem camada editorial LLM). "
+            "As notas sao extraidas diretamente das fontes originais e podem conter "
+            "conteudo em ingles ou HTML residual. A versao editorial em portugues requer "
+            "a configuracao da variavel ANTHROPIC_API_KEY.*"
+        )
+        lines.append("")
 
     # Footer
     lines.append("---")
