@@ -27,14 +27,17 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 │   ├── api/                 # FastAPI backend
 │   └── agents/              # AI agent infrastructure
 │       ├── base/            # Shared agent framework
-│       ├── sintese/         # Newsletter Synthesizer Agent
-│       ├── radar/           # Trend Intelligence Agent
-│       ├── codigo/          # Code & Infra Research Agent
-│       ├── funding/         # Capital Flow Tracker (future)
-│       ├── mercado/         # Market Intelligence Agent (future)
-│       ├── index/           # Startup Ranking Agent (future)
-│       ├── seo_engine/      # SEO Optimization Agent (future)
-│       └── editorial/       # Editorial pipeline (Sprint 3)
+│       ├── # --- Agents de Dados (escopo: todo ecossistema LATAM) ---
+│       ├── funding/         # Capital Flow Tracker — todas as rodadas LATAM (future)
+│       ├── mercado/         # Market Intelligence — ecossistema completo (future)
+│       ├── index/           # Startup Ranking — todas as startups LATAM (future)
+│       ├── # --- Agents de Conteudo (escopo: linha editorial) ---
+│       ├── sintese/         # Newsletter Synthesizer — audiencia tecnica
+│       ├── radar/           # Trend Intelligence — tendencias para publico tecnico
+│       ├── codigo/          # Code & Infra Research — tecnologia e infraestrutura
+│       ├── # --- Pipeline de Qualidade ---
+│       ├── editorial/       # Editorial pipeline — filtra dados para publicacao (Sprint 3)
+│       └── seo_engine/      # SEO Optimization — paginas programaticas (future)
 ├── packages/
 │   ├── shared/              # Tipos compartilhados, utils
 │   ├── database/            # Schema, migrations, seeds
@@ -66,7 +69,8 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - Dados normalizados em PostgreSQL, cache em Redis
 - Frontend consome API REST + WebSocket para dashboards
 - Programmatic SEO pages sao geradas via SSR com dados do banco
-- Todo output de agent passa pelo editorial pipeline antes de publicar
+- Agents de dados (Funding, Mercado, Index) cobrem todo o ecossistema LATAM — sem filtro editorial
+- Todo output destinado a publicacao passa pelo editorial pipeline (filtro editorial + quality check)
 
 ### Variaveis de Ambiente
 - Ver .env.example para lista completa

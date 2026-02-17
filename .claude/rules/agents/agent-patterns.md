@@ -17,6 +17,14 @@ apps/agents/{name}/
     └── test_output.py
 ```
 
+## Agent Scope
+Agents have different data scope depending on their category:
+- **Data Agents** (FUNDING, MERCADO, INDEX): Collect and index ALL LATAM startups/companies, regardless of editorial line
+- **Content Agents** (SINTESE, RADAR, CODIGO): Produce content filtered by editorial guidelines for the target audience
+- **Quality Pipeline** (EDITORIAL, SEO_ENGINE): Filter, validate, and optimize content for publication
+
+Data agents must NOT filter by editorial criteria — they are the broad data layer. The editorial pipeline is responsible for applying the editorial filter before publication.
+
 ## Rules
 - Every agent MUST inherit from `apps.agents.base.base_agent.BaseAgent`
 - Every agent output MUST include a confidence score (0-1)

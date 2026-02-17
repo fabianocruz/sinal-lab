@@ -4,6 +4,75 @@ Este documento define padrões e guidelines para desenvolvimento de AI agents na
 
 ---
 
+## Classificação de Agentes
+
+Os agents da plataforma se dividem em três categorias com escopos distintos:
+
+### Agents de Dados (cobertura ampla — todo o ecossistema LATAM)
+
+Coletam, normalizam e indexam dados sobre **todas** as startups e empresas de tecnologia da América Latina, independente da linha editorial. São a base de dados da plataforma.
+
+| Agent | Função | Escopo |
+|-------|--------|--------|
+| **FUNDING** | Capital Flow Tracker | Todas as rodadas de investimento LATAM |
+| **MERCADO** | Market Intelligence | Inteligência de mercado do ecossistema completo |
+| **INDEX** *(planned)* | Startup Ranking | Ranking abrangente de startups LATAM |
+
+### Agents de Conteúdo (filtrados pela linha editorial)
+
+Produzem análises e conteúdo direcionado ao público-alvo da plataforma: fundadores técnicos, CTOs e engenheiros seniores. Operam dentro do recorte editorial definido em [EDITORIAL.md](EDITORIAL.md).
+
+| Agent | Função | Escopo |
+|-------|--------|--------|
+| **SINTESE** | Newsletter Synthesizer | Sintetiza conteúdo para a audiência técnica |
+| **RADAR** | Trend Intelligence | Tendências relevantes para o público técnico |
+| **CÓDIGO** | Code & Infra Research | Pesquisa sobre tecnologia e infraestrutura |
+
+### Pipeline de Qualidade
+
+Agents transversais que garantem qualidade antes da publicação.
+
+| Agent | Função | Escopo |
+|-------|--------|--------|
+| **EDITORIAL** | Editorial Pipeline | Filtra e adapta outputs dos agents de dados para publicação, aplicando o recorte editorial |
+| **SEO ENGINE** *(planned)* | SEO Optimization | Otimização de páginas programáticas para busca |
+
+### Relação entre categorias
+
+```
+┌─────────────────────────────────────────────────────┐
+│           AGENTS DE DADOS (escopo amplo)             │
+│         FUNDING · MERCADO · INDEX                    │
+│     Cobertura: todas as startups LATAM               │
+└──────────────────────┬──────────────────────────────┘
+                       │ dados brutos
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│          PIPELINE DE QUALIDADE                       │
+│              EDITORIAL                               │
+│     Filtra pelo recorte editorial +                  │
+│     valida qualidade + confidence scoring            │
+└──────────────────────┬──────────────────────────────┘
+                       │ conteúdo validado
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│        AGENTS DE CONTEÚDO (escopo editorial)         │
+│       SINTESE · RADAR · CÓDIGO                       │
+│     Produzem para: fundadores técnicos,              │
+│     CTOs, engenheiros seniores                       │
+└──────────────────────┬──────────────────────────────┘
+                       │ conteúdo final
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│              SEO ENGINE                              │
+│     Otimiza e distribui para publicação              │
+└─────────────────────────────────────────────────────┘
+```
+
+**Princípio fundamental:** Os agents de dados alimentam a base completa do ecossistema LATAM. O pipeline editorial decide o que vira conteúdo publicado para a audiência-alvo.
+
+---
+
 ## Arquitetura de Agentes
 
 ### Lifecycle: collect → process → score → output
