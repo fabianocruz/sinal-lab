@@ -5,6 +5,26 @@
 
 ---
 
+## Project Status (Updated: 2026-02-17)
+
+**Repository:** https://github.com/fabianocruz/sinal-lab
+**Branch:** main (5 commits)
+**Test Coverage:** 50 test files covering critical modules
+
+### Completed Setup:
+- ✅ Initial project structure committed
+- ✅ API routers tested (6/6 = 100%)
+- ✅ Editorial package tested (3/3 = 100%)
+- ✅ Agent system documented and tested
+- ✅ GitHub repository initialized
+
+### Next Steps:
+- Create feature branches for new work (follow Git Workflow below)
+- Run tests before every commit: `pytest apps/ packages/ -v`
+- Keep main branch stable (no direct commits except hotfixes)
+
+---
+
 ## Engineering Preferences
 
 IMPORTANT — Use these to guide every recommendation, review, and code change:
@@ -111,10 +131,35 @@ For anything beyond trivial changes:
 
 ### Git Workflow
 
-- Always create a new branch for each task.
-- Keep diffs small and focused (< 200 lines when possible).
-- Write commit messages that explain *why*, not just *what*.
-- YOU MUST run tests before committing.
+**Branch Strategy:**
+- `main` — stable, deployable code only
+- `feature/<name>` — new features (e.g., `feature/auth-system`)
+- `fix/<name>` — bug fixes (e.g., `fix/api-validation`)
+- `agent/<name>` — new AI agents (e.g., `agent/funding`)
+
+**Rules:**
+- ✅ Always create a new branch for each task
+- ✅ Keep diffs small and focused (< 200 lines when possible)
+- ✅ Write commit messages that explain *why*, not just *what*
+- ✅ YOU MUST run tests before committing
+- ❌ NEVER commit directly to main (except initial setup/hotfixes)
+
+**Exception:** Direct commits to main were allowed during initial project setup (commits 1-5). From now on, all work MUST be done in feature branches with PR review.
+
+**Workflow Example:**
+```bash
+# Create feature branch
+git checkout -b feature/new-feature
+
+# Make changes, test, commit
+pytest apps/ packages/ -v
+git add .
+git commit -m "feat: add new feature"
+
+# Push and create PR
+git push -u origin feature/new-feature
+gh pr create --title "Add new feature" --body "Description..."
+```
 
 ---
 
@@ -157,6 +202,66 @@ Output a comprehensive list of scenarios to test, sorted by priority.
 Include happy paths, edge cases, error states, and boundary conditions.
 ```
 
+### QSTATUS
+When I type "qstatus", this means:
+```
+Show current project status:
+- Test coverage summary
+- Uncommitted/unstaged changes
+- Current branch and commits ahead/behind
+- Pending TODOs or technical debt
+```
+
+---
+
+## Project-Specific Commands
+
+### Running Tests
+```bash
+# All tests
+pytest apps/ packages/ -v
+
+# Specific module
+pytest apps/api/tests/ -v
+pytest apps/agents/editorial/tests/ -v
+
+# With coverage
+pytest --cov=apps --cov=packages --cov-report=html
+```
+
+### Running Agents
+```bash
+# Dry run (preview only)
+python scripts/run_agents.py sintese --dry-run --verbose
+
+# Run and persist
+python scripts/run_agents.py sintese --persist
+
+# Run all agents
+python scripts/run_agents.py all --persist
+```
+
+### Database Migrations
+```bash
+# Run migrations
+alembic -c packages/database/alembic.ini upgrade head
+
+# Create new migration
+alembic -c packages/database/alembic.ini revision --autogenerate -m "description"
+```
+
+### Local Development
+```bash
+# Start infrastructure
+docker compose up -d
+
+# Start API server
+uvicorn apps.api.main:app --reload --port 8000
+
+# Start frontend
+pnpm dev
+```
+
 ---
 
 ## Context Management
@@ -171,7 +276,28 @@ Include happy paths, edge cases, error states, and boundary conditions.
 ## What NOT to Do
 
 - NEVER modify test files to make tests pass — fix the implementation instead.
-- NEVER commit directly to main/master.
+- NEVER commit directly to main/master (except initial setup or critical hotfixes).
 - NEVER skip tests to save time.
 - NEVER assume my priorities on timeline or scale — ask.
 - NEVER proceed past a review section without my explicit approval.
+
+---
+
+## Test Coverage Standards
+
+**Minimum Requirements:**
+- Overall coverage: ≥ 80%
+- API routers: 100% (all endpoints tested)
+- Critical agents: 100% (collector, processor, scorer, synthesizer)
+- Editorial pipeline: 100% (all layers tested)
+
+**Current Status:**
+- ✅ API routers: 6/6 = 100%
+- ✅ Editorial package: 3/3 = 100%
+- ✅ Agent base framework: 100%
+- ✅ Overall: 50 test files
+
+**Before Committing:**
+1. Run full test suite: `pytest apps/ packages/ -v`
+2. Check coverage report if needed
+3. Fix any failing tests before proceeding
