@@ -183,3 +183,235 @@ class TestParseTweet:
         item = parse_tweet(SAMPLE_TWEET_WITH_LINK, "twitter_fintech", {})
         assert item is not None
         assert item.author is None or item.author == ""
+
+
+# ---------------------------------------------------------------------------
+# Sample X API v2 full response for fetch/orchestrator tests
+# ---------------------------------------------------------------------------
+
+SAMPLE_API_RESPONSE = {
+    "data": [
+        SAMPLE_TWEET_WITH_LINK,
+        {
+            "id": "1892345678901234568",
+            "text": "New fintech startup in Sao Paulo https://t.co/def456",
+            "created_at": "2026-02-16T14:00:00.000Z",
+            "author_id": "444555666",
+            "entities": {
+                "urls": [
+                    {
+                        "url": "https://t.co/def456",
+                        "expanded_url": "https://startse.com/artigo-fintech/",
+                    }
+                ]
+            },
+        },
+    ],
+    "includes": {
+        "users": [
+            {"id": "111222333", "name": "Tech Analyst", "username": "techanalyst"},
+            {"id": "444555666", "name": "VC Partner", "username": "vcpartner"},
+        ]
+    },
+    "meta": {
+        "newest_id": "1892345678901234568",
+        "oldest_id": "1892345678901234567",
+        "result_count": 2,
+    },
+}
+
+SAMPLE_API_EMPTY = {
+    "meta": {"result_count": 0},
+}
+
+
+# ---------------------------------------------------------------------------
+# Fetch Tests
+# ---------------------------------------------------------------------------
+
+class TestFetchTwitterResults:
+    """Test X API v2 fetch function."""
+
+    def test_fetch_returns_items_on_success(self):
+        from apps.agents.sintese.twitter_collector import fetch_twitter_results
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = SAMPLE_API_RESPONSE
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = mock_response
+
+        items = fetch_twitter_results("test query", "fake_token", mock_client)
+        assert len(items) == 2
+        assert items[0].url == "https://techcrunch.com/2026/02/17/open-banking-latam/"
+        assert items[1].url == "https://startse.com/artigo-fintech/"
+
+    def test_fetch_returns_empty_on_401(self):
+        from apps.agents.sintese.twitter_collector import fetch_twitter_results
+
+        mock_client = MagicMock()
+        mock_client.get.side_effect = httpx.HTTPStatusError(
+            "401 Unauthorized",
+            request=MagicMock(),
+            response=MagicMock(status_code=401),
+        )
+
+        items = fetch_twitter_results("test query", "bad_token", mock_client)
+        assert items == []
+
+    def test_fetch_returns_empty_on_429(self):
+        from apps.agents.sintese.twitter_collector import fetch_twitter_results
+
+        mock_client = MagicMock()
+        mock_client.get.side_effect = httpx.HTTPStatusError(
+            "429 Too Many Requests",
+            request=MagicMock(),
+            response=MagicMock(status_code=429),
+        )
+
+        items = fetch_twitter_results("test query", "token", mock_client)
+        assert items == []
+
+    def test_fetch_returns_empty_on_network_error(self):
+        from apps.agents.sintese.twitter_collector import fetch_twitter_results
+
+        mock_client = MagicMock()
+        mock_client.get.side_effect = httpx.ConnectTimeout("timeout")
+
+        items = fetch_twitter_results("test query", "token", mock_client)
+        assert items == []
+
+    def test_fetch_returns_empty_on_empty_response(self):
+        from apps.agents.sintese.twitter_collector import fetch_twitter_results
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = SAMPLE_API_EMPTY
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = mock_response
+
+        items = fetch_twitter_results("test query", "token", mock_client)
+        assert items == []
+
+    def test_fetch_passes_bearer_token(self):
+        from apps.agents.sintese.twitter_collector import fetch_twitter_results
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = SAMPLE_API_EMPTY
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = mock_response
+
+        fetch_twitter_results("test query", "my_secret_token", mock_client)
+
+        # Verify the Authorization header was passed
+        call_kwargs = mock_client.get.call_args
+        headers = call_kwargs.kwargs.get("headers", {})
+        assert headers.get("Authorization") == "Bearer my_secret_token"
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator Tests
+# ---------------------------------------------------------------------------
+
+class TestCollectTwitterSources:
+    """Test Twitter collection orchestrator."""
+
+    def test_collect_skips_when_no_api_key(self):
+        from apps.agents.sintese.twitter_collector import collect_twitter_sources
+        from apps.agents.base.config import DataSourceConfig
+        from apps.agents.base.provenance import ProvenanceTracker
+
+        sources = [
+            DataSourceConfig(
+                name="twitter_fintech", source_type="api",
+                api_key_env="X_BEARER_TOKEN",
+            ),
+        ]
+        provenance = ProvenanceTracker()
+
+        with patch.dict(os.environ, {}, clear=True):
+            # Ensure X_BEARER_TOKEN is not set
+            os.environ.pop("X_BEARER_TOKEN", None)
+            items = collect_twitter_sources(sources, provenance)
+
+        assert items == []
+
+    def test_collect_deduplicates_across_territories(self):
+        from apps.agents.sintese.twitter_collector import collect_twitter_sources
+        from apps.agents.base.config import DataSourceConfig
+        from apps.agents.base.provenance import ProvenanceTracker
+
+        # Two sources that would return the same tweet/article
+        sources = [
+            DataSourceConfig(
+                name="twitter_fintech", source_type="api",
+                api_key_env="X_BEARER_TOKEN",
+                params={"territory": "fintech"},
+            ),
+            DataSourceConfig(
+                name="twitter_ai", source_type="api",
+                api_key_env="X_BEARER_TOKEN",
+                params={"territory": "ai"},
+            ),
+        ]
+        provenance = ProvenanceTracker()
+
+        # Both territories return the same tweet
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [SAMPLE_TWEET_WITH_LINK],
+            "includes": {"users": [SAMPLE_USERS["111222333"]]},
+            "meta": {"result_count": 1},
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.dict(os.environ, {"X_BEARER_TOKEN": "fake_token"}):
+            with patch("apps.agents.sintese.twitter_collector.httpx.Client") as MockClient:
+                mock_client = MagicMock()
+                mock_client.get.return_value = mock_response
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                MockClient.return_value = mock_client
+
+                items = collect_twitter_sources(sources, provenance)
+
+        # Same article URL → only 1 item after dedup
+        assert len(items) == 1
+
+    def test_collect_tracks_provenance(self):
+        from apps.agents.sintese.twitter_collector import collect_twitter_sources
+        from apps.agents.base.config import DataSourceConfig
+        from apps.agents.base.provenance import ProvenanceTracker
+
+        sources = [
+            DataSourceConfig(
+                name="twitter_fintech", source_type="api",
+                api_key_env="X_BEARER_TOKEN",
+                params={"territory": "fintech"},
+            ),
+        ]
+        provenance = ProvenanceTracker()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = SAMPLE_API_RESPONSE
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.dict(os.environ, {"X_BEARER_TOKEN": "fake_token"}):
+            with patch("apps.agents.sintese.twitter_collector.httpx.Client") as MockClient:
+                mock_client = MagicMock()
+                mock_client.get.return_value = mock_response
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                MockClient.return_value = mock_client
+
+                items = collect_twitter_sources(sources, provenance)
+
+        assert len(provenance.records) == len(items)
+        for record in provenance.records:
+            assert record.extraction_method == "api"
+            assert record.confidence == 0.4
