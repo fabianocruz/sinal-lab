@@ -186,7 +186,7 @@ class TestMultiSourceRouting:
         ]
         provenance = ProvenanceTracker()
 
-        with patch("apps.agents.sintese.collector.collect_twitter_sources") as mock_twitter:
+        with patch("apps.agents.sintese.twitter_collector.collect_twitter_sources") as mock_twitter:
             mock_twitter.return_value = [
                 FeedItem(title="Tweet item", url="https://x.com/1", source_name="twitter_fintech"),
             ]
@@ -235,7 +235,7 @@ class TestMultiSourceRouting:
         provenance = ProvenanceTracker()
 
         with patch("apps.agents.sintese.collector.fetch_feed") as mock_rss, \
-             patch("apps.agents.sintese.collector.collect_twitter_sources") as mock_twitter:
+             patch("apps.agents.sintese.twitter_collector.collect_twitter_sources") as mock_twitter:
             mock_rss.return_value = [
                 FeedItem(title="Article", url=shared_url, source_name="test_rss"),
             ]

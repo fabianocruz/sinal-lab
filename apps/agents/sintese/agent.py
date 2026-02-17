@@ -11,7 +11,7 @@ from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
 from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
-from apps.agents.sintese.collector import FeedItem, collect_all_feeds
+from apps.agents.sintese.collector import FeedItem, collect_all_sources
 from apps.agents.sintese.config import SINTESE_CONFIG
 from apps.agents.sintese.scorer import ScoredItem, score_items
 from apps.agents.sintese.synthesizer import synthesize_newsletter
@@ -36,11 +36,11 @@ class SinteseAgent(BaseAgent):
         self.edition_number = edition_number
 
     def collect(self) -> list[Any]:
-        """Fetch all configured RSS/Atom feeds."""
+        """Fetch all configured sources (RSS + Twitter)."""
         sources = self.config.get_enabled_sources()
         logger.info("Collecting from %d enabled sources", len(sources))
 
-        items = collect_all_feeds(
+        items = collect_all_sources(
             sources=sources,
             provenance=self.provenance,
             agent_name=self.agent_name,

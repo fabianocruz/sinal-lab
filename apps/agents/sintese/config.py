@@ -65,12 +65,53 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="simonwillison", source_type="rss", url="https://simonwillison.net/atom/everything/"),
 ]
 
+# X/Twitter API sources — one per editorial territory.
+# Requires X_BEARER_TOKEN env var. Gracefully skipped when not set.
+TWITTER_SOURCES: list[DataSourceConfig] = [
+    DataSourceConfig(
+        name="twitter_fintech", source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
+        params={"territory": "fintech"},
+    ),
+    DataSourceConfig(
+        name="twitter_ai", source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
+        params={"territory": "ai"},
+    ),
+    DataSourceConfig(
+        name="twitter_cripto", source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
+        params={"territory": "cripto"},
+    ),
+    DataSourceConfig(
+        name="twitter_engenharia", source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
+        params={"territory": "engenharia"},
+    ),
+    DataSourceConfig(
+        name="twitter_venture", source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
+        params={"territory": "venture"},
+    ),
+    DataSourceConfig(
+        name="twitter_green_agritech", source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
+        params={"territory": "green_agritech"},
+    ),
+]
+
 SINTESE_CONFIG = AgentConfig(
     agent_name="sintese",
     agent_category=AgentCategory.CONTENT,
-    version="0.1.0",
+    version="0.2.0",
     description="Newsletter Synthesizer — aggregates and curates LATAM tech news into Sinal Semanal",
-    data_sources=LATAM_TECH_FEEDS,
+    data_sources=LATAM_TECH_FEEDS + TWITTER_SOURCES,
     schedule_cron="0 6 * * 1",  # Every Monday at 6am UTC
     output_content_type="DATA_REPORT",
     min_confidence_to_publish=0.3,

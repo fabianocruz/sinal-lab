@@ -1,7 +1,11 @@
-"""RSS/Atom feed collector for SINTESE agent.
+"""Multi-source collector for SINTESE agent.
 
-Fetches and parses feeds from configured sources, deduplicates by URL,
-and returns structured feed items with provenance tracking.
+Fetches and parses feeds from RSS/Atom sources and X/Twitter API,
+deduplicates by URL, and returns structured feed items with provenance tracking.
+
+Routes each source to the appropriate collector based on source_type:
+- "rss" → fetch_feed() (RSS/Atom parser)
+- "api" + twitter → collect_twitter_sources() (X API v2)
 """
 
 import hashlib
@@ -132,19 +136,23 @@ def fetch_feed(
     return items
 
 
-def collect_all_feeds(
+def collect_all_sources(
     sources: list[DataSourceConfig],
     provenance: ProvenanceTracker,
     agent_name: str = "sintese",
     run_id: str = "",
 ) -> list[FeedItem]:
-    """Fetch all configured feeds and return deduplicated items.
+    """Fetch all configured sources (RSS + Twitter) and return deduplicated items.
 
-    Deduplication is by URL (content_hash). Items from the same URL
-    across different feeds are kept only once (first seen wins).
+    Routes each source to the appropriate collector based on source_type:
+    - "api" sources with "twitter" in the name → collect_twitter_sources()
+    - all other sources → fetch_feed() (RSS/Atom)
+
+    Deduplication is by content_hash (MD5 of URL). Items from the same URL
+    across different sources/types are kept only once (first seen wins).
 
     Args:
-        sources: List of feed source configurations.
+        sources: List of source configurations (RSS + API).
         provenance: Tracker to record data provenance.
         agent_name: Name of the collecting agent.
         run_id: Current run identifier.
@@ -152,38 +160,61 @@ def collect_all_feeds(
     Returns:
         Deduplicated list of FeedItems from all sources.
     """
-    all_items: list[FeedItem] = []
-    seen_urls: set[str] = set()
+    # Separate sources by type
+    rss_sources = [s for s in sources if s.source_type == "rss" and s.enabled]
+    twitter_sources = [
+        s for s in sources
+        if s.source_type == "api" and "twitter" in s.name and s.enabled
+    ]
 
+    all_items: list[FeedItem] = []
+    seen_hashes: set[str] = set()
+
+    def _add_items(items: list[FeedItem], source_name: str, method: str) -> None:
+        """Add items to the collection, deduplicating by content_hash."""
+        for item in items:
+            if item.content_hash not in seen_hashes:
+                seen_hashes.add(item.content_hash)
+                all_items.append(item)
+
+                provenance.track(
+                    source_url=item.url,
+                    source_name=item.source_name,
+                    extraction_method=method,
+                    confidence=0.6 if method == "rss" else 0.4,
+                    collector_agent=agent_name,
+                    collector_run_id=run_id,
+                )
+
+    # Collect RSS sources
     with httpx.Client(
         follow_redirects=True,
         headers={"User-Agent": "Sinal.lab/0.1 (newsletter aggregator)"},
     ) as client:
-        for source in sources:
-            if not source.enabled:
-                continue
-
+        for source in rss_sources:
             items = fetch_feed(source, client)
+            _add_items(items, source.name, "rss")
 
-            for item in items:
-                if item.content_hash not in seen_urls:
-                    seen_urls.add(item.content_hash)
-                    all_items.append(item)
+    # Collect Twitter sources (handled by twitter_collector module)
+    if twitter_sources:
+        from apps.agents.sintese.twitter_collector import collect_twitter_sources
 
-                    provenance.track(
-                        source_url=item.url,
-                        source_name=source.name,
-                        extraction_method="rss",
-                        confidence=0.6,
-                        collector_agent=agent_name,
-                        collector_run_id=run_id,
-                    )
+        twitter_items = collect_twitter_sources(
+            sources=twitter_sources,
+            provenance=ProvenanceTracker(),  # Separate tracker (twitter_collector tracks internally)
+            agent_name=agent_name,
+            run_id=run_id,
+        )
+        _add_items(twitter_items, "twitter", "api")
 
+    total_sources = len(rss_sources) + len(twitter_sources)
     logger.info(
-        "Collected %d unique items from %d sources (%d duplicates removed)",
-        len(all_items),
-        len([s for s in sources if s.enabled]),
-        len(seen_urls) - len(all_items) if len(seen_urls) > len(all_items) else 0,
+        "Collected %d unique items from %d sources (%d RSS, %d Twitter)",
+        len(all_items), total_sources, len(rss_sources), len(twitter_sources),
     )
 
     return all_items
+
+
+# Backward-compatible alias
+collect_all_feeds = collect_all_sources
