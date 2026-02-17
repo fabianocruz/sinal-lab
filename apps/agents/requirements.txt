@@ -1,0 +1,7 @@
+# Core agent dependencies
+httpx
+feedparser
+pydantic
+
+# LLM integration (optional — agents degrade gracefully without it)
+anthropic>=0.40.0
