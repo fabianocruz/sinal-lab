@@ -146,8 +146,12 @@ def fetch_rss_feed(
         logger.warning("Feed %s is malformed and has no entries", source.name)
         return []
 
+    entries = feed.entries
+    if source.max_items is not None:
+        entries = entries[:source.max_items]
+
     items: List[RSSItem] = []
-    for entry in feed.entries:
+    for entry in entries:
         item = parse_rss_entry(entry, source.name)
         if item:
             items.append(item)

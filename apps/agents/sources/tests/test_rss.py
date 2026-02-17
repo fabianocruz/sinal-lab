@@ -310,6 +310,65 @@ class TestFetchRSSFeed:
         items = fetch_rss_feed(source, mock_client)
         assert items == []
 
+    @patch("apps.agents.sources.rss.feedparser")
+    def test_max_items_caps_entries(self, mock_feedparser: MagicMock) -> None:
+        """max_items in DataSourceConfig caps the number of returned items."""
+        mock_response = MagicMock()
+        mock_response.text = "<rss>...</rss>"
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.get.return_value = mock_response
+
+        # Feed has 50 entries
+        mock_feedparser.parse.return_value = MagicMock(
+            bozo=False,
+            entries=[
+                SimpleNamespace(
+                    title=f"Article {i}",
+                    link=f"https://example.com/{i}",
+                )
+                for i in range(50)
+            ],
+        )
+
+        source = DataSourceConfig(
+            name="big_feed", source_type="rss",
+            url="https://example.com/feed", max_items=10,
+        )
+        items = fetch_rss_feed(source, mock_client)
+        assert len(items) == 10
+        assert items[0].title == "Article 0"
+        assert items[-1].title == "Article 9"
+
+    @patch("apps.agents.sources.rss.feedparser")
+    def test_max_items_none_returns_all(self, mock_feedparser: MagicMock) -> None:
+        """max_items=None (default) returns all entries."""
+        mock_response = MagicMock()
+        mock_response.text = "<rss>...</rss>"
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.get.return_value = mock_response
+
+        mock_feedparser.parse.return_value = MagicMock(
+            bozo=False,
+            entries=[
+                SimpleNamespace(
+                    title=f"Article {i}",
+                    link=f"https://example.com/{i}",
+                )
+                for i in range(25)
+            ],
+        )
+
+        source = DataSourceConfig(
+            name="full_feed", source_type="rss",
+            url="https://example.com/feed",
+        )
+        items = fetch_rss_feed(source, mock_client)
+        assert len(items) == 25
+
 
 class TestRSSItem:
     """Test RSSItem dataclass behavior."""

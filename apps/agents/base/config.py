@@ -32,6 +32,7 @@ class DataSourceConfig:
     api_key_env: Optional[str] = None  # environment variable name for API key
     rate_limit_per_minute: int = 60
     enabled: bool = True
+    max_items: Optional[int] = None  # Cap entries per fetch (None = no limit)
     params: dict[str, Any] = field(default_factory=dict)
 
 

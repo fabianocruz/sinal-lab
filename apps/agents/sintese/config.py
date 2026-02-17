@@ -7,7 +7,7 @@ from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 
 LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     # --- Brazilian Tech Media ---
-    DataSourceConfig(name="startse", source_type="rss", url="https://www.startse.com/feed/"),
+    DataSourceConfig(name="startse", source_type="rss", url="https://www.startse.com/feed/", enabled=False),  # Returns HTML instead of RSS feed
     DataSourceConfig(name="convergenciadigital", source_type="rss", url="https://convergenciadigital.com.br/feed/", enabled=False),  # Telecom/regulatory focus, not aligned with technical audience
     DataSourceConfig(name="baguete", source_type="rss", url="https://www.baguete.com.br/rss/noticias/feed", enabled=False),  # Corporate IT news, low relevance for founders/CTOs
 
@@ -20,7 +20,7 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/"),
 
     # --- LATAM (non-Brazil) ---
-    DataSourceConfig(name="contxto", source_type="rss", url="https://contxto.com/feed/"),
+    DataSourceConfig(name="contxto", source_type="rss", url="https://contxto.com/feed/", enabled=False),  # SSL protocol error (TLS version mismatch)
     DataSourceConfig(name="techcrunch_latam", source_type="rss", url="https://techcrunch.com/tag/latin-america/feed/"),
     DataSourceConfig(name="restofworld", source_type="rss", url="https://restofworld.org/feed/"),
     DataSourceConfig(name="latamlist", source_type="rss", url="https://latamlist.com/feed/"),
@@ -43,17 +43,17 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     # --- Developer & Infrastructure ---
     DataSourceConfig(name="devto", source_type="rss", url="https://dev.to/feed"),
     DataSourceConfig(name="github_blog", source_type="rss", url="https://github.blog/feed/"),
-    DataSourceConfig(name="netlify_blog", source_type="rss", url="https://www.netlify.com/blog/rss.xml"),
-    DataSourceConfig(name="vercel_blog", source_type="rss", url="https://vercel.com/blog/rss.xml"),
+    DataSourceConfig(name="netlify_blog", source_type="rss", url="https://www.netlify.com/blog/rss.xml", enabled=False),  # RSS feed removed (404)
+    DataSourceConfig(name="vercel_blog", source_type="rss", url="https://vercel.com/atom", max_items=20),  # Atom feed returns all posts; cap to recent 20
     DataSourceConfig(name="cloudflare_blog", source_type="rss", url="https://blog.cloudflare.com/rss/"),
 
     # --- Fintech ---
-    DataSourceConfig(name="fintechfutures", source_type="rss", url="https://www.fintechfutures.com/feed/"),
+    DataSourceConfig(name="fintechfutures", source_type="rss", url="https://www.fintechfutures.com/feed/", enabled=False),  # 403 Forbidden (bot blocking)
     DataSourceConfig(name="fintech_nexus", source_type="rss", url="https://www.fintechnexus.com/feed/"),
     DataSourceConfig(name="infomoney", source_type="rss", url="https://www.infomoney.com.br/feed/"),
 
     # --- VC & Startup Ops ---
-    DataSourceConfig(name="a16z", source_type="rss", url="https://a16z.com/feed/"),
+    DataSourceConfig(name="a16z", source_type="rss", url="https://a16z.com/feed/", enabled=False),  # RSS feed removed (404)
     DataSourceConfig(name="ycombinator", source_type="rss", url="https://www.ycombinator.com/blog/rss/"),
     DataSourceConfig(name="first_round", source_type="rss", url="https://review.firstround.com/feed.xml", enabled=False),  # RSS feed removed
     DataSourceConfig(name="crunchbase_news", source_type="rss", url="https://news.crunchbase.com/feed/"),
