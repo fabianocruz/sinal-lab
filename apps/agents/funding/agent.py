@@ -17,6 +17,7 @@ from apps.agents.funding.config import FUNDING_CONFIG
 from apps.agents.funding.processor import process_events
 from apps.agents.funding.scorer import ScoredFundingEvent, score_events
 from apps.agents.funding.synthesizer import synthesize_funding_report
+from apps.agents.funding.writer import FundingWriter
 
 logger = logging.getLogger(__name__)
 
@@ -156,10 +157,12 @@ class FundingAgent(BaseAgent):
                 analysis_confidence=0.3,
             )
 
-        # Generate report
+        # Generate report with LLM writer (falls back to templates if unavailable)
+        writer = FundingWriter()
         report_md = synthesize_funding_report(
             scored_events=scored_events,
             week_number=self.week_number,
+            writer=writer,
         )
 
         source_urls = self.provenance.get_source_urls()[:20]
