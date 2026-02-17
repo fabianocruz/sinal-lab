@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # How many items to include in the newsletter
 TOP_ITEMS_COUNT = 18
-MIN_SCORE_THRESHOLD = 0.15
+MIN_SCORE_THRESHOLD = 0.35
 
 # Category definitions for grouping newsletter items
 CATEGORIES: dict[str, list[str]] = {

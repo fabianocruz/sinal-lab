@@ -8,12 +8,16 @@ Scores collected feed items by relevance to the Sinal.lab audience
 - LATAM relevance (Portuguese content, LATAM keywords)
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from apps.agents.sintese.collector import FeedItem
+from packages.editorial.guidelines import EDITORIAL_TERRITORIES
+
+logger = logging.getLogger(__name__)
 
 # Topic keywords with relevance weights (higher = more relevant)
 TOPIC_KEYWORDS: dict[str, float] = {
@@ -24,13 +28,13 @@ TOPIC_KEYWORDS: dict[str, float] = {
 
     # Startups & VC (high relevance)
     "startup": 0.9, "venture capital": 0.9, "investimento": 0.8,
-    "rodada": 0.9, "funding": 0.8, "serie a": 0.9, "serie b": 0.9,
+    "funding": 0.8, "serie a": 0.9, "serie b": 0.9,
     "seed": 0.7, "pre-seed": 0.7, "unicornio": 0.9, "ipo": 0.8,
     "aquisicao": 0.8, "acquisition": 0.7, "fundraising": 0.8,
 
-    # LATAM specific (high relevance)
-    "brasil": 0.8, "brazil": 0.7, "latam": 0.9, "america latina": 0.9,
-    "sao paulo": 0.7, "florianopolis": 0.7, "fintech brasil": 1.0,
+    # LATAM fintech (topic-specific — pure geographic terms like "brasil",
+    # "sao paulo" are handled by score_latam_relevance, NOT here)
+    "latam": 0.9, "america latina": 0.9, "fintech brasil": 1.0,
     "pix": 0.8, "open finance": 0.8, "drex": 0.8, "nubank": 0.7,
 
     # Tech infrastructure (medium relevance)
@@ -66,11 +70,58 @@ SOURCE_AUTHORITY: dict[str, float] = {
 
 DEFAULT_SOURCE_AUTHORITY = 0.5
 
+# Minimum topic relevance to be considered for the newsletter.
+# Items below this threshold are filtered out regardless of recency,
+# authority, or LATAM score. Prevents non-editorial content (cars,
+# consumer gadgets, sports, lifestyle) from appearing.
+MIN_TOPIC_SCORE = 0.10
+
+# Cache for compiled regex patterns used by _keyword_in_text
+_KEYWORD_RE_CACHE: dict[str, re.Pattern] = {}
+
+
+def _keyword_in_text(keyword: str, text: str) -> bool:
+    """Check if keyword appears as whole word(s) in text.
+
+    Uses regex word boundaries to prevent false positives from
+    substring matches (e.g., "ai" matching in "custaria",
+    "inter" matching in "internet", "api" matching in "capital").
+    """
+    pattern = _KEYWORD_RE_CACHE.get(keyword)
+    if pattern is None:
+        pattern = re.compile(r"\b" + re.escape(keyword) + r"\b")
+        _KEYWORD_RE_CACHE[keyword] = pattern
+    return bool(pattern.search(text))
+
+
+def _build_editorial_keyword_set() -> set[str]:
+    """Extract all keywords from editorial territories as a flat set.
+
+    These keywords supplement TOPIC_KEYWORDS to ensure items that match
+    editorial guidelines are scored even if they don't match the scorer's
+    own keyword list.
+    """
+    keywords: set[str] = set()
+    for territory in EDITORIAL_TERRITORIES.values():
+        for kw in territory.get("keywords", []):
+            keywords.add(kw.lower())
+    return keywords
+
+
+EDITORIAL_KEYWORD_SET: set[str] = _build_editorial_keyword_set()
+
 
 def score_topic_relevance(item: FeedItem) -> float:
     """Score an item's topic relevance based on keyword matching.
 
-    Searches title, summary, and tags for known topic keywords.
+    Searches title, summary, and tags against two keyword sources:
+    1. TOPIC_KEYWORDS — scorer's own weighted keywords
+    2. EDITORIAL_KEYWORD_SET — keywords from editorial territories
+
+    Items must match at least one keyword from either source to receive
+    a non-zero score. This prevents non-editorial content (consumer
+    gadgets, sports, cars, lifestyle) from entering the newsletter.
+
     Returns 0.0-1.0.
     """
     text = " ".join([
@@ -82,10 +133,21 @@ def score_topic_relevance(item: FeedItem) -> float:
     max_score = 0.0
     match_count = 0
 
+    # Check scorer's own weighted keywords (word-boundary matching
+    # prevents "ai" matching in "custaria", "api" in "capital", etc.)
     for keyword, weight in TOPIC_KEYWORDS.items():
-        if keyword in text:
+        if _keyword_in_text(keyword, text):
             max_score = max(max_score, weight)
             match_count += 1
+
+    # Check editorial territory keywords (flat weight 0.5 for matches
+    # not already covered by TOPIC_KEYWORDS)
+    editorial_matches = sum(1 for kw in EDITORIAL_KEYWORD_SET if _keyword_in_text(kw, text))
+    if editorial_matches > 0 and max_score == 0.0:
+        # Item matches editorial guidelines but not scorer keywords —
+        # give it a baseline score so it's not filtered out
+        max_score = 0.5
+    match_count += editorial_matches
 
     # Bonus for multiple keyword matches (capped)
     multi_match_bonus = min(match_count * 0.02, 0.1)
@@ -154,7 +216,7 @@ def score_latam_relevance(item: FeedItem) -> float:
         "mexico", "buenos aires", "bogota", "santiago", "lima", "medellin",
         "latam", "america latina", "latin america", "south america",
     ]
-    location_matches = sum(1 for loc in latam_locations if loc in text)
+    location_matches = sum(1 for loc in latam_locations if _keyword_in_text(loc, text))
     score += min(location_matches * 0.15, 0.4)
 
     # LATAM company mentions
@@ -163,7 +225,7 @@ def score_latam_relevance(item: FeedItem) -> float:
         "creditas", "loft", "vtex", "stone", "pagseguro", "totvs",
         "magazineluiza", "inter", "neon", "c6bank", "kavak",
     ]
-    company_matches = sum(1 for c in latam_companies if c in text)
+    company_matches = sum(1 for c in latam_companies if _keyword_in_text(c, text))
     score += min(company_matches * 0.1, 0.3)
 
     return min(score, 1.0)
@@ -197,27 +259,48 @@ class ScoredItem:
 def score_items(
     items: list[FeedItem],
     reference_time: Optional[datetime] = None,
+    min_topic_score: float = MIN_TOPIC_SCORE,
 ) -> list[ScoredItem]:
     """Score all collected items and return them sorted by composite score.
+
+    Items with topic_score below min_topic_score are filtered out. This
+    prevents content with zero editorial relevance (consumer gadgets,
+    sports, cars, lifestyle) from entering the newsletter even if they
+    score high on recency or LATAM signals.
 
     Args:
         items: List of collected FeedItems.
         reference_time: Optional reference time for recency scoring (defaults to now).
+        min_topic_score: Minimum topic relevance to include (default MIN_TOPIC_SCORE).
 
     Returns:
-        List of ScoredItems sorted by composite_score descending.
+        List of ScoredItems sorted by composite_score descending,
+        filtered by min_topic_score.
     """
     scored: list[ScoredItem] = []
+    filtered_count = 0
 
     for item in items:
+        topic = score_topic_relevance(item)
+
+        if topic < min_topic_score:
+            filtered_count += 1
+            continue
+
         scored_item = ScoredItem(
             item=item,
-            topic_score=score_topic_relevance(item),
+            topic_score=topic,
             recency_score=score_recency(item, reference_time),
             authority_score=score_source_authority(item),
             latam_score=score_latam_relevance(item),
         )
         scored.append(scored_item)
+
+    if filtered_count > 0:
+        logger.info(
+            "Filtered %d/%d items below min_topic_score=%.2f",
+            filtered_count, len(items), min_topic_score,
+        )
 
     scored.sort(key=lambda x: x.composite_score, reverse=True)
 
