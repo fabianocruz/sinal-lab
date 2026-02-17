@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch, call
 from apps.agents.sintese.collector import FeedItem
 from apps.agents.sintese.scorer import ScoredItem
 from apps.agents.sintese.synthesizer import NewsletterSection
+from apps.agents.base.llm import strip_code_fences
 from apps.agents.sintese.writer import SinteseWriter, SectionContent
 
 
@@ -357,27 +358,27 @@ class TestWriteSectionContent:
 
 
 class TestStripCodeFences:
-    """Test _strip_code_fences() static method."""
+    """Test strip_code_fences() shared utility."""
 
     def test_strips_json_code_fence(self):
         raw = '```json\n{"key": "value"}\n```'
-        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+        assert strip_code_fences(raw) == '{"key": "value"}'
 
     def test_strips_plain_code_fence(self):
         raw = '```\n{"key": "value"}\n```'
-        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+        assert strip_code_fences(raw) == '{"key": "value"}'
 
     def test_returns_plain_json_unchanged(self):
         raw = '{"key": "value"}'
-        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+        assert strip_code_fences(raw) == '{"key": "value"}'
 
     def test_handles_whitespace_around_fences(self):
         raw = '  ```json\n{"key": "value"}\n```  '
-        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+        assert strip_code_fences(raw) == '{"key": "value"}'
 
     def test_handles_multiline_json(self):
         raw = '```json\n{\n  "intro": "text",\n  "summaries": ["a", "b"]\n}\n```'
-        result = SinteseWriter._strip_code_fences(raw)
+        result = strip_code_fences(raw)
         data = json.loads(result)
         assert data["intro"] == "text"
         assert len(data["summaries"]) == 2

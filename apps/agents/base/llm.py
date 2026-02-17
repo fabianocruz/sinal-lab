@@ -8,15 +8,20 @@ Architecture:
     This module is the shared LLM layer used by all agent writers:
 
         base/llm.py (this module)
-        └── LLMClient.generate()   → Anthropic messages API
-            ├── sintese/writer.py   (newsletter editorial content)
-            └── (future agents)     (reusable by RADAR, CODIGO, etc.)
+        ├── LLMClient.generate()    → Anthropic messages API
+        ├── strip_code_fences()     → Clean LLM JSON output
+        ├── sintese/writer.py       (newsletter editorial content)
+        ├── radar/writer.py         (trend analysis editorial)
+        ├── codigo/writer.py        (dev ecosystem editorial)
+        ├── funding/writer.py       (capital markets editorial)
+        └── mercado/writer.py       (ecosystem mapping editorial)
 
 Usage:
-    from apps.agents.base.llm import LLMClient
+    from apps.agents.base.llm import LLMClient, strip_code_fences
     client = LLMClient()
     if client.is_available:
         result = client.generate("Summarize this article", system_prompt="...")
+        cleaned = strip_code_fences(result)  # Remove ```json ... ``` wrappers
 """
 
 import logging
@@ -104,3 +109,25 @@ class LLMClient:
         except Exception as e:
             logger.warning("LLM unexpected error: %s", e)
             return None
+
+
+def strip_code_fences(text: str) -> str:
+    """Strip markdown code fences (```json ... ```) from LLM output.
+
+    LLMs often wrap JSON responses in code fences even when asked not to.
+    This function safely removes them while preserving the content.
+
+    Args:
+        text: Raw LLM output that may contain code fences.
+
+    Returns:
+        Cleaned text with code fences removed.
+    """
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        first_newline = stripped.find("\n")
+        if first_newline != -1:
+            stripped = stripped[first_newline + 1:]
+        if stripped.rstrip().endswith("```"):
+            stripped = stripped.rstrip()[:-3]
+    return stripped.strip()

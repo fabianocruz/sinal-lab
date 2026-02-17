@@ -22,7 +22,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from apps.agents.base.llm import LLMClient
+from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.sintese.synthesizer import NewsletterSection
 
 logger = logging.getLogger(__name__)
@@ -205,20 +205,6 @@ class SinteseWriter:
             lines.append("")
         return "\n".join(lines)
 
-    @staticmethod
-    def _strip_code_fences(text: str) -> str:
-        """Strip markdown code fences (```json ... ```) from LLM output."""
-        stripped = text.strip()
-        if stripped.startswith("```"):
-            # Remove opening fence (```json or ```)
-            first_newline = stripped.find("\n")
-            if first_newline != -1:
-                stripped = stripped[first_newline + 1:]
-            # Remove closing fence
-            if stripped.rstrip().endswith("```"):
-                stripped = stripped.rstrip()[:-3]
-        return stripped.strip()
-
     def _parse_section_json(
         self,
         raw: str,
@@ -226,7 +212,7 @@ class SinteseWriter:
         expected_count: int,
     ) -> Optional[SectionContent]:
         """Parse and validate the JSON response for a section."""
-        cleaned = self._strip_code_fences(raw)
+        cleaned = strip_code_fences(raw)
         try:
             data = json.loads(cleaned)
         except json.JSONDecodeError:
