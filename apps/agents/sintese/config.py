@@ -8,15 +8,8 @@ from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     # --- Brazilian Tech Media ---
     DataSourceConfig(name="startse", source_type="rss", url="https://www.startse.com/feed/"),
-    DataSourceConfig(name="tecmundo", source_type="rss", url="https://www.tecmundo.com.br/rss"),
-    DataSourceConfig(name="canaltech", source_type="rss", url="https://canaltech.com.br/rss/"),
-    DataSourceConfig(name="olhardigital", source_type="rss", url="https://olhardigital.com.br/feed/"),
-    DataSourceConfig(name="tecnoblog", source_type="rss", url="https://tecnoblog.net/feed/"),
     DataSourceConfig(name="convergenciadigital", source_type="rss", url="https://www.convergenciadigital.com.br/rss.php"),
     DataSourceConfig(name="baguete", source_type="rss", url="https://www.baguete.com.br/rss"),
-    DataSourceConfig(name="mundoconectado", source_type="rss", url="https://mundoconectado.com.br/feed"),
-    DataSourceConfig(name="meiobit", source_type="rss", url="https://meiobit.com/feed/"),
-    DataSourceConfig(name="gabordi", source_type="rss", url="https://gabordi.com/feed/"),
 
     # --- Startup & VC ---
     DataSourceConfig(name="distrito", source_type="rss", url="https://distrito.me/blog/feed/"),

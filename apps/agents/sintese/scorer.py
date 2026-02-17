@@ -55,17 +55,31 @@ TOPIC_KEYWORDS: dict[str, float] = {
 
 # Source authority scores (0-1, higher = more established/reliable)
 SOURCE_AUTHORITY: dict[str, float] = {
+    # Global Tech
     "techcrunch": 0.9, "techcrunch_latam": 0.95,
     "arstechnica": 0.85, "theverge": 0.8,
     "mit_tech_review": 0.9,
     "restofworld": 0.9,
     "hackernews_best": 0.8, "lobsters": 0.7,
+    # LATAM Startup & VC
     "startse": 0.85, "neofeed": 0.85,
     "contxto": 0.85, "distrito": 0.8,
-    "infomoney": 0.8, "pipeline_valor": 0.85,
-    "github_blog": 0.8, "vercel_blog": 0.7,
+    "pipeline_valor": 0.85,
     "startupi": 0.7, "abstartups": 0.7,
-    "latamlist": 0.75,
+    "latamlist": 0.75, "blocknews": 0.70,
+    # Brazilian Tech Media
+    "convergenciadigital": 0.65, "baguete": 0.60,
+    "infomoney": 0.55,  # lowered — too much general finance noise
+    # AI & ML
+    "theaibeat": 0.80, "deeplearning_ai": 0.85,
+    # Developer & Infrastructure
+    "github_blog": 0.8, "vercel_blog": 0.7,
+    "netlify_blog": 0.65, "cloudflare_blog": 0.75,
+    "devto": 0.55,
+    # Fintech
+    "fintechfutures": 0.75,
+    # Newsletters
+    "tldrnewsletter": 0.70, "bytebytego": 0.75,
 }
 
 DEFAULT_SOURCE_AUTHORITY = 0.5
