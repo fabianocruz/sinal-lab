@@ -138,11 +138,11 @@ def validate_content(
     score = float(criteria_met_count)  # 0.0 to 5.0
 
     # Weighted score (using weights from FILTER_CRITERIA)
-    weighted_score = sum(
+    weighted_score = float(sum(
         FILTER_CRITERIA[key]["weight"]
         for key, passed in criteria_results.items()
         if passed
-    )
+    ))
 
     # Pass threshold: 3/5 criteria (or 4/5 in strict mode)
     required_criteria = 4 if strict_mode else 3
