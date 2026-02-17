@@ -1,0 +1,66 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(pytest *)",
+      "Bash(uvicorn *)",
+      "Bash(airflow *)",
+      "Bash(git *)",
+      "Bash(docker *)",
+      "Bash(docker compose *)",
+      "Bash(alembic *)",
+      "Bash(black *)",
+      "Bash(isort *)",
+      "Bash(npx prettier *)",
+      "Bash(python -m *)",
+      "Write",
+      "Edit",
+      "Read",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(DROP TABLE *)",
+      "Bash(DELETE FROM *)",
+      "Bash(git push --force *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.claude/hooks/protect-env.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.claude/hooks/auto-format.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Verifique se o codigo segue os padroes do CLAUDE.md. Todos os arquivos novos tem testes? Existe documentacao? Responda com {\"ok\": true} ou {\"ok\": false, \"reason\": \"o que falta\"}"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}

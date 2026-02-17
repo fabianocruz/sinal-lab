@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build output
+.next/
+out/
+dist/
+build/
+*.js.map
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# Secrets
+credentials.json
+secrets/
+*.pem
+*.key
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Airflow
+airflow/logs/
+airflow/dags/__pycache__/
+
+# Plan files
+PLAN.md
+SCRATCHPAD.md

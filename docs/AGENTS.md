@@ -1,0 +1,562 @@
+# AI Agents — Development Guide
+
+Este documento define padrões e guidelines para desenvolvimento de AI agents na plataforma Sinal.lab.
+
+---
+
+## Arquitetura de Agentes
+
+### Lifecycle: collect → process → score → output
+
+Todos os agentes seguem o mesmo ciclo de vida de 4 fases:
+
+```python
+class MyAgent(BaseAgent):
+    def collect(self) -> list[Any]:
+        """Gather raw data from configured sources."""
+        ...
+
+    def process(self, raw_data: list[Any]) -> list[Any]:
+        """Transform, classify, and filter collected data."""
+        ...
+
+    def score(self, processed_data: list[Any]) -> list[ConfidenceScore]:
+        """Compute confidence scores for processed data."""
+        ...
+
+    def output(self, processed_data: list[Any], scores: list[ConfidenceScore]) -> AgentOutput:
+        """Format results into publishable content."""
+        ...
+```
+
+### Estrutura de Diretórios (OBRIGATÓRIA)
+
+```
+apps/agents/{agent_name}/
+├── __init__.py          # Exports main agent class
+├── config.py            # Data sources, parameters, scheduling
+├── collector.py         # Data collection from sources
+├── processor.py         # Processing workflow (normalize, dedupe, etc.)
+├── scorer.py            # Confidence scoring logic
+├── synthesizer.py       # Content formatting (Markdown/HTML)
+├── db_writer.py         # Database persistence (optional)
+├── agent.py             # Main agent class (inherits BaseAgent)
+├── main.py              # CLI entry point
+└── tests/
+    ├── __init__.py
+    ├── test_collector.py
+    ├── test_processor.py
+    ├── test_scorer.py
+    ├── test_synthesizer.py
+    ├── test_agent.py     # End-to-end agent tests
+    └── test_db_writer.py # Database tests (if applicable)
+```
+
+---
+
+## Padrões Obrigatórios
+
+### 1. Type Hints
+
+**OBRIGATÓRIO** em todas as funções públicas e métodos:
+
+```python
+# ✅ CORRETO
+def normalize_currency(event: FundingEvent) -> FundingEvent:
+    """Convert local currency to USD."""
+    ...
+
+def collect_all_sources(
+    sources: list[DataSourceConfig],
+    provenance: ProvenanceTracker,
+    agent_name: str,
+    run_id: str,
+) -> list[FundingEvent]:
+    """Collect from all sources."""
+    ...
+
+# ❌ INCORRETO
+def normalize_currency(event):
+    ...
+```
+
+### 2. Docstrings
+
+**OBRIGATÓRIO** em:
+- Todas as classes
+- Todas as funções públicas
+- Todos os métodos públicos
+
+**Formato**:
+```python
+def function_name(arg1: Type1, arg2: Type2) -> ReturnType:
+    """Short one-line summary (ends with period).
+
+    Longer description if needed. Explain what the function does,
+    not how it does it. Focus on the "why" and "what".
+
+    Args:
+        arg1: Description of arg1
+        arg2: Description of arg2
+
+    Returns:
+        Description of return value
+
+    Raises:
+        ValueError: When X happens
+        KeyError: When Y is missing
+    """
+    ...
+```
+
+### 3. Logging Estruturado
+
+**NUNCA** usar `print()`. **SEMPRE** usar `logging`:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ✅ CORRETO
+logger.info("Collected %d events from %s", len(events), source.name)
+logger.warning("Currency %s not supported, skipping", currency)
+logger.error("Failed to fetch feed %s: %s", source.name, error, exc_info=True)
+
+# ❌ INCORRETO
+print(f"Collected {len(events)} events")
+```
+
+### 4. Confidence Scoring
+
+**OBRIGATÓRIO** incluir confidence score em todos os outputs:
+
+- **Data Quality (DQ)**: 0-1 scale, quão bons são os dados?
+  - Source count, verification, freshness
+- **Analysis Confidence (AC)**: 0-1 scale, quão confiante é a análise?
+  - Methodology, cross-validation
+
+```python
+from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+
+confidence = compute_confidence(
+    source_count=3,
+    sources_verified=2,
+    data_freshness_days=1,
+)
+# Returns: ConfidenceScore(dq=0.8, ac=0.75, grade="A")
+```
+
+**Grades**:
+- A: 0.8-1.0 (Very high confidence)
+- B: 0.6-0.8 (High confidence)
+- C: 0.4-0.6 (Medium confidence)
+- D: 0.0-0.4 (Low confidence)
+
+### 5. Provenance Tracking
+
+**OBRIGATÓRIO** rastrear proveniência de **TODOS** os dados:
+
+```python
+from apps.agents.base.provenance import ProvenanceTracker
+
+provenance = ProvenanceTracker()
+
+# Para cada data point coletado
+provenance.add_record(
+    source_url="https://source.com/article",
+    source_name="source_rss",
+    extraction_method="rss",
+    agent_name="funding",
+    run_id=self.run_id,
+)
+
+# No output
+sources = provenance.get_source_urls()[:20]  # Top 20 sources
+summary = provenance.summary()  # Stats
+```
+
+### 6. Error Handling
+
+**SEMPRE** fazer error handling explícito:
+
+```python
+# ✅ CORRETO
+try:
+    response = httpx.get(url, timeout=15.0)
+    response.raise_for_status()
+except httpx.TimeoutException:
+    logger.error("Timeout fetching %s", url)
+    return []
+except httpx.HTTPError as e:
+    logger.error("HTTP error fetching %s: %s", url, e)
+    return []
+except Exception as e:
+    logger.error("Unexpected error: %s", e, exc_info=True)
+    return []
+
+# ❌ INCORRETO
+response = httpx.get(url)  # Can crash entire agent
+```
+
+### 7. Testes
+
+**Mínimo de 80% de cobertura** por agente.
+
+**Obrigatório testar**:
+- ✅ Happy path (dados válidos)
+- ✅ Edge cases (empty lists, None values, missing fields)
+- ✅ Error cases (network failures, invalid data, database errors)
+- ✅ Integration (full agent run end-to-end)
+
+```python
+# apps/agents/{name}/tests/test_collector.py
+def test_collect_valid_feed():
+    """Test collecting from valid RSS feed."""
+    ...
+
+def test_collect_empty_feed():
+    """Test handling empty feed."""
+    ...
+
+def test_collect_network_error():
+    """Test handling network timeout."""
+    ...
+```
+
+---
+
+## Data Sources
+
+### Tipos Suportados
+
+1. **RSS/Atom feeds** (`source_type="rss"`)
+   - Use `feedparser`
+   - Timeout: 15s
+   - Handle `bozo` (malformed XML)
+
+2. **REST APIs** (`source_type="api"`)
+   - Use `httpx` (async)
+   - Rate limiting via `rate_limit_per_minute`
+   - API key via `api_key_env` (environment variable)
+
+3. **Web scraping** (`source_type="scraper"`)
+   - Use `BeautifulSoup4`
+   - Respect robots.txt
+   - Rate limit: max 10 req/min per domain
+
+4. **File-based** (`source_type="file"`)
+   - CSV, JSON, local files
+
+### Configuração
+
+```python
+from apps.agents.base.config import AgentConfig, DataSourceConfig
+
+SOURCES = [
+    DataSourceConfig(
+        name="example_rss",
+        source_type="rss",
+        url="https://example.com/feed",
+        enabled=True,
+    ),
+    DataSourceConfig(
+        name="example_api",
+        source_type="api",
+        url="https://api.example.com/data",
+        api_key_env="EXAMPLE_API_KEY",
+        rate_limit_per_minute=60,
+        enabled=False,  # Enable when API key available
+        params={"filter": "latam", "limit": 100},
+    ),
+]
+
+AGENT_CONFIG = AgentConfig(
+    agent_name="my_agent",
+    version="0.1.0",
+    description="Short description",
+    data_sources=SOURCES,
+    schedule_cron="0 7 * * 1",  # Every Monday 7am UTC
+    output_content_type="DATA_REPORT",
+    min_confidence_to_publish=0.4,
+    max_items_per_run=500,
+)
+```
+
+---
+
+## Output Format
+
+### AgentOutput
+
+Todos os agentes devem retornar `AgentOutput`:
+
+```python
+from apps.agents.base.output import AgentOutput
+
+return AgentOutput(
+    title="Report Title",
+    body_md="# Markdown content\n\n...",
+    agent_name=self.agent_name,
+    run_id=self.run_id,
+    confidence=aggregate_confidence,
+    sources=source_urls[:20],
+    content_type="DATA_REPORT",  # ou "ANALYSIS"
+    summary="Brief summary of the report",
+)
+```
+
+### Markdown com YAML Frontmatter
+
+```markdown
+---
+title: "Report Title"
+agent: funding
+run_id: "funding-20260216-070015-a3f4b2"
+generated_at: "2026-02-16T07:00:15Z"
+content_type: DATA_REPORT
+confidence_dq: 0.75
+confidence_ac: 0.68
+confidence_grade: B
+source_count: 12
+sources:
+  - "https://source1.com/..."
+  - "https://source2.com/..."
+---
+
+# Report Content
+
+[Markdown body...]
+```
+
+---
+
+## CLI Entry Point (main.py)
+
+### Argumentos Padrão
+
+```python
+parser.add_argument("--dry-run", action="store_true",
+                    help="Run without saving or persisting")
+parser.add_argument("--persist", action="store_true",
+                    help="Save to database")
+parser.add_argument("--output", type=str,
+                    help="Output file path")
+parser.add_argument("--verbose", "-v", action="store_true",
+                    help="Enable debug logging")
+```
+
+### Integração com run_agents.py
+
+Adicionar ao `AGENTS` dict em `scripts/run_agents.py`:
+
+```python
+AGENTS = {
+    # ...
+    "my_agent": {
+        "module": "apps.agents.my_agent.main",
+        "description": "Short description (one line)",
+    },
+}
+```
+
+---
+
+## Database Persistence
+
+### Upsert Pattern
+
+```python
+from sqlalchemy.orm import Session
+
+def upsert_record(session: Session, data: MyData, confidence: float) -> MyModel:
+    """Insert or update record based on confidence."""
+    # Check if exists by unique key
+    existing = session.query(MyModel).filter_by(
+        unique_field_1=data.field1,
+        unique_field_2=data.field2,
+    ).first()
+
+    if existing:
+        # Update only if new confidence > old
+        if confidence > existing.confidence:
+            existing.field_x = data.field_x
+            existing.confidence = confidence
+            session.commit()
+            return existing
+        else:
+            # Skip update, existing is better
+            return existing
+    else:
+        # Insert new record
+        record = MyModel(
+            id=uuid4(),
+            field_x=data.field_x,
+            confidence=confidence,
+        )
+        session.add(record)
+        session.commit()
+        return record
+```
+
+### Transaction Management
+
+```python
+try:
+    # Multiple DB operations
+    session.add(record1)
+    session.add(record2)
+    session.commit()
+    logger.info("Persisted %d records", 2)
+except Exception as e:
+    session.rollback()
+    logger.error("Failed to persist: %s", e)
+    raise
+finally:
+    session.close()
+```
+
+---
+
+## Testing Guidelines
+
+### Estrutura de Testes
+
+```python
+# test_my_module.py
+import pytest
+from unittest.mock import Mock, patch
+
+def test_happy_path():
+    """Test with valid data."""
+    result = my_function(valid_input)
+    assert result == expected_output
+
+def test_edge_case_empty():
+    """Test with empty input."""
+    result = my_function([])
+    assert result == []
+
+def test_edge_case_none():
+    """Test with None values."""
+    result = my_function(None)
+    assert result is None
+
+@patch('httpx.get')
+def test_network_error(mock_get):
+    """Test handling network error."""
+    mock_get.side_effect = httpx.TimeoutException()
+    result = my_function()
+    assert result == []
+```
+
+### Fixtures
+
+```python
+# conftest.py
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+@pytest.fixture
+def db_session():
+    """Test database session."""
+    engine = create_engine("sqlite:///:memory:")
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield session
+    session.close()
+
+@pytest.fixture
+def mock_feed_entry():
+    """Mock feedparser entry."""
+    class MockEntry:
+        title = "Test Title"
+        link = "https://test.com"
+        summary = "Test summary"
+    return MockEntry()
+```
+
+### Coverage
+
+```bash
+# Run tests with coverage
+pytest apps/agents/my_agent/tests/ --cov=apps/agents/my_agent --cov-report=term-missing
+
+# Minimum 80% coverage required
+```
+
+---
+
+## Performance Guidelines
+
+1. **Rate Limiting**: Respect `rate_limit_per_minute` from config
+2. **Timeouts**: Always set timeouts (default 15s for HTTP)
+3. **Async quando possível**: Use `httpx` async client para múltiplas requests
+4. **Batch processing**: Process em chunks de 100-500 items
+5. **Memory**: Evitar carregar todos os dados em memória (use generators)
+
+---
+
+## Security
+
+1. **API Keys**: NUNCA hardcode, sempre via environment variables
+2. **SQL Injection**: Sempre usar SQLAlchemy ORM (nunca raw SQL)
+3. **XSS**: Sanitize user input antes de renderizar HTML
+4. **Secrets**: Nunca commit `.env` ou credenciais no git
+5. **Rate Limiting**: Implementar em endpoints públicos
+
+---
+
+## Deployment
+
+### Environment Variables
+
+```bash
+# .env (NEVER commit this file)
+DATABASE_URL=postgresql://user:pass@localhost:5432/dbname
+DEALROOM_API_KEY=your_api_key_here
+CRUNCHBASE_API_KEY=your_api_key_here
+```
+
+### Cron Schedule
+
+```bash
+# crontab -e
+# FUNDING agent: Every Monday 7am UTC
+0 7 * * 1 cd /app && python scripts/run_agents.py funding --persist
+
+# MERCADO agent: Every Wednesday 7am UTC
+0 7 * * 3 cd /app && python scripts/run_agents.py mercado --persist
+```
+
+---
+
+## Checklist para Novo Agente
+
+Antes de considerar um agente "completo":
+
+- [ ] Estrutura de diretórios correta (9 arquivos mínimos)
+- [ ] Type hints em todas as funções públicas
+- [ ] Docstrings em todas as classes e funções públicas
+- [ ] Logging estruturado (sem `print()`)
+- [ ] Confidence scoring implementado
+- [ ] Provenance tracking para todos os dados
+- [ ] Error handling explícito
+- [ ] Testes com 80%+ coverage
+- [ ] Testes de edge cases (empty, None, errors)
+- [ ] CLI entry point funcional
+- [ ] Integrado em `scripts/run_agents.py`
+- [ ] Documentação atualizada em `docs/blueprint.md`
+- [ ] README ou guia de uso no diretório do agente
+
+---
+
+## Referências
+
+- [BaseAgent](../apps/agents/base/base_agent.py) — Classe base
+- [ConfidenceScore](../apps/agents/base/confidence.py) — Sistema de confiança
+- [ProvenanceTracker](../apps/agents/base/provenance.py) — Rastreamento de fontes
+- [AgentOutput](../apps/agents/base/output.py) — Formato de saída
+
+**Exemplo de referência**: [apps/agents/sintese](../apps/agents/sintese/) — Agente SINTESE completo

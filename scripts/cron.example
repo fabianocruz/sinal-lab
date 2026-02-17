@@ -1,0 +1,24 @@
+# =============================================================================
+# Sinal.lab Cron Schedule
+#
+# Copy to /etc/cron.d/sinal or add entries via `crontab -e`.
+# Adjust paths to your deployment environment.
+# =============================================================================
+
+# Environment
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+PROJECT_DIR=/opt/sinal
+
+# --- SINTESE: Weekly newsletter (Saturdays at 06:00 UTC) ---
+# Generates, persists to DB, and sends via Resend/Beehiiv
+0 6 * * 6  cd $PROJECT_DIR && python scripts/run_agents.py sintese --edition $(date +\%W) --persist --send >> /var/log/sinal/sintese.log 2>&1
+
+# --- RADAR: Daily trend scan (every day at 08:00 UTC) ---
+0 8 * * *  cd $PROJECT_DIR && python scripts/run_agents.py radar --persist >> /var/log/sinal/radar.log 2>&1
+
+# --- CODIGO: Daily dev ecosystem scan (every day at 09:00 UTC) ---
+0 9 * * *  cd $PROJECT_DIR && python scripts/run_agents.py codigo --persist >> /var/log/sinal/codigo.log 2>&1
+
+# --- DB backup (daily at 02:00 UTC) ---
+0 2 * * *  pg_dump -U sinal sinal_dev | gzip > /var/backups/sinal/db_$(date +\%Y\%m\%d).sql.gz 2>> /var/log/sinal/backup.log

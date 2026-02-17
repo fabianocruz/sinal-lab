@@ -1,0 +1,22 @@
+{
+  "name": "sinal-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sinal.lab — Inteligência aberta para quem constrói. AI-native research platform for LATAM tech.",
+  "scripts": {
+    "dev": "pnpm --filter @sinal/web dev",
+    "build": "pnpm --filter @sinal/web build",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "test": "pnpm -r test",
+    "test:web": "pnpm --filter @sinal/web test",
+    "test:api": "cd apps/api && pytest",
+    "test:agents": "cd apps/agents && pytest",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

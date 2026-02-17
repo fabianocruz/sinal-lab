@@ -1,0 +1,350 @@
+"""RSS/Atom feed collector for FUNDING agent.
+
+Fetches and parses VC announcement feeds and investment news sources,
+extracts funding events, and returns structured FundingEvent objects
+with provenance tracking.
+"""
+
+import hashlib
+import logging
+import re
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
+from time import mktime
+from typing import Any, Optional
+
+import feedparser
+import httpx
+
+from apps.agents.base.config import DataSourceConfig
+from apps.agents.base.provenance import ProvenanceTracker
+
+logger = logging.getLogger(__name__)
+
+# Timeout for individual feed fetches (seconds)
+FEED_FETCH_TIMEOUT = 15.0
+
+
+@dataclass
+class FundingEvent:
+    """A single funding event collected from a source.
+
+    Represents a funding round announcement with company info,
+    round details, and investor information.
+    """
+
+    company_name: str
+    round_type: str
+    source_url: str
+    source_name: str
+    company_slug: Optional[str] = None
+    amount_usd: Optional[float] = None
+    amount_local: Optional[float] = None
+    currency: str = "USD"
+    announced_date: Optional[date] = None
+    lead_investors: list[str] = field(default_factory=list)
+    participants: list[str] = field(default_factory=list)
+    valuation_usd: Optional[float] = None
+    notes: Optional[str] = None
+    content_hash: str = ""
+
+    def __post_init__(self) -> None:
+        """Generate content hash if not provided."""
+        if not self.content_hash:
+            hash_input = f"{self.company_name}-{self.round_type}-{self.source_url}"
+            self.content_hash = hashlib.md5(hash_input.encode()).hexdigest()
+
+
+def parse_feed_date(entry: Any) -> Optional[date]:
+    """Extract and parse the publication date from a feed entry.
+
+    Handles multiple date formats commonly found in RSS/Atom feeds.
+    Returns None if no valid date is found.
+
+    Args:
+        entry: feedparser entry object
+
+    Returns:
+        date object or None
+    """
+    for date_field in ("published_parsed", "updated_parsed", "created_parsed"):
+        parsed = getattr(entry, date_field, None)
+        if parsed:
+            try:
+                dt = datetime.fromtimestamp(mktime(parsed), tz=timezone.utc)
+                return dt.date()
+            except (ValueError, OverflowError, OSError):
+                continue
+    return None
+
+
+def extract_funding_from_title(title: str) -> Optional[dict[str, Any]]:
+    """Extract funding information from title using regex patterns.
+
+    Common patterns:
+    - "Nubank raises $500M Series G"
+    - "Stone recebe aporte de R$ 50 milhões"
+    - "Creditas levanta US$ 15M em rodada Série A"
+
+    Args:
+        title: Article or post title
+
+    Returns:
+        Dictionary with extracted info or None
+    """
+    # Pattern 1: Company + action + amount + round type
+    # More strict: company name should be before the action verb
+    pattern1 = r"^([\w\s]+?)\s+(?:raises?|recebe|levanta|anuncia)\s+(?:aporte de\s+)?(?:US\$|R\$|\$)\s*(\d+(?:\.\d+)?)\s*(?:million|milhão|milhões|M|mi)?\s*(?:em\s+)?(?:rodada\s+)?(?:Series|Série)\s+([A-G])"
+
+    match = re.search(pattern1, title, re.IGNORECASE)
+    if match:
+        company_name = match.group(1).strip()
+        amount = float(match.group(2))
+        currency_symbol = "BRL" if "R$" in title else "USD"
+        round_type_letter = match.group(3)
+        round_type = f"series_{round_type_letter.lower()}"
+
+        return {
+            "company_name": company_name,
+            "amount": amount,
+            "currency": currency_symbol,
+            "round_type": round_type,
+        }
+
+    # Pattern 2: Seed rounds (no letter)
+    pattern2 = r"^([\w\s]+?)\s+(?:raises?|recebe|levanta|anuncia)\s+(?:aporte de\s+)?(?:US\$|R\$|\$)\s*(\d+(?:\.\d+)?)\s*(?:million|milhão|milhões|M|mi)?\s*(?:em\s+)?(?:rodada\s+)?(?:seed|pre-seed|pré-seed)"
+
+    match = re.search(pattern2, title, re.IGNORECASE)
+    if match:
+        company_name = match.group(1).strip()
+        amount = float(match.group(2))
+        currency_symbol = "BRL" if "R$" in title else "USD"
+
+        # Determine if pre-seed or seed
+        round_type = "pre_seed" if "pre" in title.lower() or "pré" in title.lower() else "seed"
+
+        return {
+            "company_name": company_name,
+            "amount": amount,
+            "currency": currency_symbol,
+            "round_type": round_type,
+        }
+
+    return None
+
+
+def extract_funding_from_content(content: str) -> dict[str, Any]:
+    """Extract funding details from article content.
+
+    Looks for patterns like:
+    - Amount: "$10M", "R$ 50 milhões"
+    - Round type: "Series A", "Série B", "seed round"
+    - Investors: names following "led by", "liderado por"
+
+    Args:
+        content: Article content or summary
+
+    Returns:
+        Dictionary with extracted details
+    """
+    details = {}
+
+    # Extract round type
+    round_patterns = [
+        (r"series\s+([a-g])", lambda m: f"series_{m.group(1).lower()}"),
+        (r"série\s+([a-g])", lambda m: f"series_{m.group(1).lower()}"),
+        (r"\b(seed|pre-seed|pre seed)\b", lambda m: m.group(1).lower().replace(" ", "_").replace("-", "_")),
+        (r"rodada\s+(seed|série\s+[a-g])", lambda m: "seed" if "seed" in m.group(1).lower() else f"series_{m.group(1)[-1].lower()}"),
+    ]
+
+    for pattern, transform in round_patterns:
+        match = re.search(pattern, content, re.IGNORECASE)
+        if match:
+            details["round_type"] = transform(match)
+            break
+
+    # Extract investors
+    investor_patterns = [
+        r"led by\s+([\w\s,&]+?)(?:\.|,|and|with)",
+        r"liderado por\s+([\w\s,&]+?)(?:\.|,|e\s)",
+        r"participation of\s+([\w\s,&]+?)(?:\.|,)",
+    ]
+
+    for pattern in investor_patterns:
+        match = re.search(pattern, content, re.IGNORECASE)
+        if match:
+            investors_str = match.group(1).strip()
+            # Split by comma or "and"/"e"
+            investors = re.split(r",\s*|\s+and\s+|\s+e\s+", investors_str)
+            details["lead_investors"] = [inv.strip() for inv in investors if inv.strip()]
+            break
+
+    return details
+
+
+def parse_funding_event(
+    entry: Any, source_name: str
+) -> Optional[FundingEvent]:
+    """Parse a single RSS feed entry into a FundingEvent.
+
+    Extracts company name, funding amount, round type, investors,
+    and dates from the entry title and content.
+
+    Args:
+        entry: feedparser entry object
+        source_name: Name of the data source
+
+    Returns:
+        FundingEvent or None if parsing fails
+    """
+    title = getattr(entry, "title", "")
+    link = getattr(entry, "link", "")
+    summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+
+    if not title or not link:
+        return None
+
+    # Extract from title first
+    title_info = extract_funding_from_title(title)
+    if not title_info:
+        # No funding info in title, skip this entry
+        logger.debug("No funding info in title: %s", title)
+        return None
+
+    # Extract additional details from content
+    content_info = extract_funding_from_content(summary)
+
+    # Merge information
+    company_name = title_info.get("company_name", "Unknown Company")
+    amount = title_info.get("amount")
+    currency = title_info.get("currency", "USD")
+    round_type = title_info.get("round_type") or content_info.get("round_type", "unknown")
+    lead_investors = content_info.get("lead_investors", [])
+
+    announced_date = parse_feed_date(entry)
+
+    return FundingEvent(
+        company_name=company_name,
+        round_type=round_type,
+        amount_usd=amount if currency == "USD" else None,
+        amount_local=amount if currency != "USD" else None,
+        currency=currency,
+        announced_date=announced_date,
+        lead_investors=lead_investors,
+        source_url=link,
+        source_name=source_name,
+        notes=summary[:500] if summary else None,
+    )
+
+
+def fetch_feed(
+    source: DataSourceConfig,
+    provenance: ProvenanceTracker,
+    agent_name: str,
+    run_id: str,
+) -> list[FundingEvent]:
+    """Fetch and parse a single RSS/Atom feed.
+
+    Args:
+        source: Data source configuration
+        provenance: Provenance tracker
+        agent_name: Name of the agent
+        run_id: Current run ID
+
+    Returns:
+        List of FundingEvent objects
+    """
+    if not source.url:
+        logger.warning("Source %s has no URL, skipping", source.name)
+        return []
+
+    logger.info("Fetching feed: %s", source.name)
+
+    try:
+        # Fetch feed with timeout
+        with httpx.Client(timeout=FEED_FETCH_TIMEOUT) as client:
+            response = client.get(source.url)
+            response.raise_for_status()
+            content = response.text
+
+        # Parse feed
+        feed = feedparser.parse(content)
+
+        if feed.bozo:
+            logger.warning("Feed %s has parsing errors: %s", source.name, feed.bozo_exception)
+
+        events: list[FundingEvent] = []
+        for entry in feed.entries:
+            event = parse_funding_event(entry, source.name)
+            if event:
+                events.append(event)
+
+                # Track provenance
+                provenance.track(
+                    source_url=event.source_url,
+                    source_name=source.name,
+                    extraction_method="rss",
+                )
+
+        logger.info("Collected %d funding events from %s", len(events), source.name)
+        return events
+
+    except httpx.TimeoutException:
+        logger.error("Timeout fetching feed %s", source.name)
+        return []
+    except httpx.HTTPError as e:
+        logger.error("HTTP error fetching feed %s: %s", source.name, e)
+        return []
+    except Exception as e:
+        logger.error("Error parsing feed %s: %s", source.name, e, exc_info=True)
+        return []
+
+
+def collect_all_sources(
+    sources: list[DataSourceConfig],
+    provenance: ProvenanceTracker,
+    agent_name: str,
+    run_id: str,
+) -> list[FundingEvent]:
+    """Collect funding events from all configured sources.
+
+    Args:
+        sources: List of data source configurations
+        provenance: Provenance tracker
+        agent_name: Name of the agent
+        run_id: Current run ID
+
+    Returns:
+        List of all collected FundingEvent objects
+    """
+    all_events: list[FundingEvent] = []
+
+    for source in sources:
+        if source.source_type == "rss":
+            events = fetch_feed(source, provenance, agent_name, run_id)
+            all_events.extend(events)
+        elif source.source_type == "api":
+            # API collection not implemented in MVP
+            logger.info("API source %s not yet implemented, skipping", source.name)
+        else:
+            logger.warning("Unknown source type %s for %s", source.source_type, source.name)
+
+    # Deduplicate by content_hash
+    seen_hashes: set[str] = set()
+    unique_events: list[FundingEvent] = []
+
+    for event in all_events:
+        if event.content_hash not in seen_hashes:
+            seen_hashes.add(event.content_hash)
+            unique_events.append(event)
+        else:
+            logger.debug("Duplicate event detected: %s", event.company_name)
+
+    logger.info(
+        "Collected %d unique funding events from %d sources (removed %d duplicates)",
+        len(unique_events),
+        len(sources),
+        len(all_events) - len(unique_events),
+    )
+
+    return unique_events

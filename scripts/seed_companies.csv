@@ -1,0 +1,21 @@
+name,slug,short_description,sector,sub_sector,city,state,country,business_model,website,status
+Nubank,nubank,Digital banking platform and one of the largest fintechs in the world,Fintech,Digital Banking,São Paulo,SP,Brazil,B2C,https://nubank.com.br,active
+iFood,ifood,Leading food delivery platform in Latin America,Delivery,Food Delivery,Osasco,SP,Brazil,Marketplace,https://www.ifood.com.br,active
+VTEX,vtex,Enterprise digital commerce platform for large retailers,E-commerce,Commerce Platform,Rio de Janeiro,RJ,Brazil,B2B SaaS,https://vtex.com,active
+Creditas,creditas,Secured lending fintech offering home and auto equity loans,Fintech,Lending,São Paulo,SP,Brazil,B2C,https://www.creditas.com,active
+Loft,loft,Real estate marketplace using data to simplify property transactions,PropTech,Marketplace,São Paulo,SP,Brazil,Marketplace,https://www.loft.com.br,active
+Wildlife Studios,wildlife-studios,Mobile gaming studio behind Zooba and Tennis Clash,Gaming,Mobile Games,São Paulo,SP,Brazil,B2C,https://wildlifestudios.com,active
+MadeiraMadeira,madeiramadeira,Online marketplace for home improvement and furniture,E-commerce,Home & Living,Curitiba,PR,Brazil,Marketplace,https://www.madeiramadeira.com.br,active
+Gympass,gympass,Corporate wellness platform connecting employees to fitness partners,HealthTech,Corporate Wellness,São Paulo,SP,Brazil,B2B,https://gympass.com,active
+Rappi,rappi,Super-app for deliveries and financial services across LATAM,Delivery,Super App,Bogotá,,Colombia,Marketplace,https://www.rappi.com,active
+Kavak,kavak,Pre-owned car marketplace with integrated financing,Mobility,Used Cars,Mexico City,,Mexico,Marketplace,https://www.kavak.com,active
+Clip,clip,Mobile payment terminals and financial services for SMBs in Mexico,Fintech,Payments,Mexico City,,Mexico,B2B,https://www.clip.mx,active
+Bitso,bitso,Crypto exchange serving retail and institutional users in LATAM,Fintech,Crypto,Mexico City,,Mexico,B2C,https://bitso.com,active
+NotCo,notco,AI-powered food-tech creating plant-based alternatives,FoodTech,Plant-Based,Santiago,,Chile,B2C,https://notco.com,active
+Betterfly,betterfly,Benefits platform turning healthy habits into social impact,InsurTech,Employee Benefits,Santiago,,Chile,B2B,https://www.betterfly.com,active
+Clara,clara,Corporate spend management and credit cards for LATAM companies,Fintech,Corporate Cards,Mexico City,,Mexico,B2B,https://www.clara.com,active
+Dock,dock,Banking-as-a-service infrastructure for fintechs and enterprises,Fintech,BaaS,São Paulo,SP,Brazil,B2B,https://dock.tech,active
+Cora,cora,Digital bank focused on small and medium businesses in Brazil,Fintech,Digital Banking,São Paulo,SP,Brazil,B2B,https://www.cora.com.br,active
+Mercado Bitcoin,mercado-bitcoin,Largest crypto exchange in Latin America by volume,Fintech,Crypto,São Paulo,SP,Brazil,B2C,https://www.mercadobitcoin.com.br,active
+Nuvemshop,nuvemshop,E-commerce platform for SMBs across Latin America,E-commerce,Commerce Platform,São Paulo,SP,Brazil,B2B SaaS,https://www.nuvemshop.com.br,active
+Alice,alice,Health management platform reinventing health plans in Brazil,HealthTech,Health Plans,São Paulo,SP,Brazil,B2B,https://www.alice.com.br,active
