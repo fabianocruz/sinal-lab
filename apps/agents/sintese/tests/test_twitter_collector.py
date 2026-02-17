@@ -9,6 +9,7 @@ import hashlib
 from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
 
+import httpx
 import pytest
 
 from packages.editorial.guidelines import EDITORIAL_TERRITORIES

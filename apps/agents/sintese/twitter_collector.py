@@ -164,3 +164,145 @@ def parse_tweet(
         tags=[],
         content_hash=hashlib.md5(expanded_url.encode()).hexdigest(),
     )
+
+
+def fetch_twitter_results(
+    query: str,
+    bearer_token: str,
+    client: httpx.Client,
+    source_name: str = "twitter",
+    max_results: int = 50,
+) -> list[FeedItem]:
+    """Fetch tweets matching query from X API v2 search/recent.
+
+    Returns parsed FeedItems. Returns empty list on any API error
+    (auth, rate limit, network, malformed response).
+
+    Args:
+        query: X API search query string.
+        bearer_token: X API Bearer token.
+        client: httpx Client instance.
+        source_name: Source name for resulting FeedItems.
+        max_results: Max tweets per request (10-100, default 50).
+
+    Returns:
+        List of FeedItems parsed from matching tweets.
+    """
+    params = {
+        "query": query,
+        "max_results": max_results,
+        "tweet.fields": "created_at,author_id,entities",
+        "expansions": "author_id",
+        "user.fields": "username",
+    }
+    headers = {
+        "Authorization": f"Bearer {bearer_token}",
+    }
+
+    try:
+        response = client.get(
+            TWITTER_API_URL,
+            params=params,
+            headers=headers,
+            timeout=TWITTER_FETCH_TIMEOUT,
+        )
+        response.raise_for_status()
+    except httpx.HTTPError as e:
+        logger.warning("Twitter API error for %s: %s", source_name, e)
+        return []
+
+    data = response.json()
+    tweets = data.get("data", [])
+    if not tweets:
+        return []
+
+    # Build users lookup from includes
+    users: dict[str, dict] = {}
+    includes = data.get("includes", {})
+    for user in includes.get("users", []):
+        users[user.get("id", "")] = user
+
+    items: list[FeedItem] = []
+    for tweet in tweets:
+        item = parse_tweet(tweet, source_name, users)
+        if item:
+            items.append(item)
+
+    logger.info("Fetched %d items from Twitter (%s)", len(items), source_name)
+    return items
+
+
+def collect_twitter_sources(
+    sources: list[DataSourceConfig],
+    provenance: ProvenanceTracker,
+    agent_name: str = "sintese",
+    run_id: str = "",
+) -> list[FeedItem]:
+    """Collect items from X/Twitter API for all configured Twitter sources.
+
+    Skips silently if X_BEARER_TOKEN env var is not set. Builds a query
+    per source (territory) using build_twitter_queries(), fetches results,
+    deduplicates by content_hash, and tracks provenance.
+
+    Args:
+        sources: List of Twitter DataSourceConfig entries.
+        provenance: Tracker for data provenance records.
+        agent_name: Name of the collecting agent.
+        run_id: Current run identifier.
+
+    Returns:
+        Deduplicated list of FeedItems from Twitter.
+    """
+    bearer_token = os.environ.get("X_BEARER_TOKEN", "")
+    if not bearer_token:
+        logger.warning("X_BEARER_TOKEN not set, skipping Twitter collection")
+        return []
+
+    queries = build_twitter_queries()
+    all_items: list[FeedItem] = []
+    seen_hashes: set[str] = set()
+
+    with httpx.Client(
+        follow_redirects=True,
+        headers={"User-Agent": "Sinal.lab/0.1 (newsletter aggregator)"},
+    ) as client:
+        for source in sources:
+            if not source.enabled:
+                continue
+
+            territory = source.params.get("territory", "")
+            query = queries.get(territory)
+            if not query:
+                logger.warning(
+                    "No query for territory %s (source %s), skipping",
+                    territory, source.name,
+                )
+                continue
+
+            items = fetch_twitter_results(
+                query=query,
+                bearer_token=bearer_token,
+                client=client,
+                source_name=source.name,
+            )
+
+            for item in items:
+                if item.content_hash not in seen_hashes:
+                    seen_hashes.add(item.content_hash)
+                    all_items.append(item)
+
+                    provenance.track(
+                        source_url=item.url,
+                        source_name=source.name,
+                        extraction_method="api",
+                        confidence=0.4,
+                        collector_agent=agent_name,
+                        collector_run_id=run_id,
+                    )
+
+    logger.info(
+        "Twitter collected %d unique items from %d sources",
+        len(all_items),
+        len([s for s in sources if s.enabled]),
+    )
+    return all_items
