@@ -8,14 +8,14 @@ from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     # --- Brazilian Tech Media ---
     DataSourceConfig(name="startse", source_type="rss", url="https://www.startse.com/feed/"),
-    DataSourceConfig(name="convergenciadigital", source_type="rss", url="https://www.convergenciadigital.com.br/rss.php"),
-    DataSourceConfig(name="baguete", source_type="rss", url="https://www.baguete.com.br/rss"),
+    DataSourceConfig(name="convergenciadigital", source_type="rss", url="https://convergenciadigital.com.br/feed/"),
+    DataSourceConfig(name="baguete", source_type="rss", url="https://www.baguete.com.br/rss/noticias/feed"),
 
     # --- Startup & VC ---
-    DataSourceConfig(name="distrito", source_type="rss", url="https://distrito.me/blog/feed/"),
+    DataSourceConfig(name="distrito", source_type="rss", url="https://distrito.me/blog/feed/", enabled=False),  # RSS feed removed
     DataSourceConfig(name="abstartups", source_type="rss", url="https://abstartups.com.br/feed/"),
     DataSourceConfig(name="startupi", source_type="rss", url="https://startupi.com.br/feed/"),
-    DataSourceConfig(name="pipeline_valor", source_type="rss", url="https://pipelinevalor.globo.com/rss/"),
+    DataSourceConfig(name="pipeline_valor", source_type="rss", url="https://pipelinevalor.globo.com/rss/", enabled=False),  # RSS feed removed
     DataSourceConfig(name="neofeed", source_type="rss", url="https://neofeed.com.br/feed/"),
     DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/"),
 
@@ -38,7 +38,7 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     # --- AI & ML ---
     DataSourceConfig(name="theaibeat", source_type="rss", url="https://venturebeat.com/category/ai/feed/"),
     DataSourceConfig(name="mit_tech_review", source_type="rss", url="https://www.technologyreview.com/feed/"),
-    DataSourceConfig(name="deeplearning_ai", source_type="rss", url="https://www.deeplearning.ai/blog/feed/"),
+    DataSourceConfig(name="deeplearning_ai", source_type="rss", url="https://www.deeplearning.ai/blog/feed/", enabled=False),  # RSS feed removed
 
     # --- Developer & Infrastructure ---
     DataSourceConfig(name="devto", source_type="rss", url="https://dev.to/feed"),
@@ -55,7 +55,7 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     # --- VC & Startup Ops ---
     DataSourceConfig(name="a16z", source_type="rss", url="https://a16z.com/feed/"),
     DataSourceConfig(name="ycombinator", source_type="rss", url="https://www.ycombinator.com/blog/rss/"),
-    DataSourceConfig(name="first_round", source_type="rss", url="https://review.firstround.com/feed.xml"),
+    DataSourceConfig(name="first_round", source_type="rss", url="https://review.firstround.com/feed.xml", enabled=False),  # RSS feed removed
     DataSourceConfig(name="crunchbase_news", source_type="rss", url="https://news.crunchbase.com/feed/"),
 
     # --- Newsletters as RSS ---
