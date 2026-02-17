@@ -168,9 +168,13 @@ class SinteseWriter:
             f"- Retorne APENAS o JSON, sem texto antes ou depois"
         )
 
+        # Scale max_tokens based on item count: ~200 tokens per summary + 150 for intro + buffer
+        max_tokens = max(1024, item_count * 200 + 400)
+
         raw = self._client.generate(
             user_prompt=user_prompt,
             system_prompt=SYSTEM_PROMPT,
+            max_tokens=max_tokens,
         )
 
         if not raw:
@@ -201,6 +205,20 @@ class SinteseWriter:
             lines.append("")
         return "\n".join(lines)
 
+    @staticmethod
+    def _strip_code_fences(text: str) -> str:
+        """Strip markdown code fences (```json ... ```) from LLM output."""
+        stripped = text.strip()
+        if stripped.startswith("```"):
+            # Remove opening fence (```json or ```)
+            first_newline = stripped.find("\n")
+            if first_newline != -1:
+                stripped = stripped[first_newline + 1:]
+            # Remove closing fence
+            if stripped.rstrip().endswith("```"):
+                stripped = stripped.rstrip()[:-3]
+        return stripped.strip()
+
     def _parse_section_json(
         self,
         raw: str,
@@ -208,8 +226,9 @@ class SinteseWriter:
         expected_count: int,
     ) -> Optional[SectionContent]:
         """Parse and validate the JSON response for a section."""
+        cleaned = self._strip_code_fences(raw)
         try:
-            data = json.loads(raw)
+            data = json.loads(cleaned)
         except json.JSONDecodeError:
             logger.warning(
                 "Failed to parse JSON for section '%s': %.100s", heading, raw

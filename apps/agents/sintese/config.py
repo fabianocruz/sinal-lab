@@ -8,8 +8,8 @@ from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
 LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     # --- Brazilian Tech Media ---
     DataSourceConfig(name="startse", source_type="rss", url="https://www.startse.com/feed/"),
-    DataSourceConfig(name="convergenciadigital", source_type="rss", url="https://convergenciadigital.com.br/feed/"),
-    DataSourceConfig(name="baguete", source_type="rss", url="https://www.baguete.com.br/rss/noticias/feed"),
+    DataSourceConfig(name="convergenciadigital", source_type="rss", url="https://convergenciadigital.com.br/feed/", enabled=False),  # Telecom/regulatory focus, not aligned with technical audience
+    DataSourceConfig(name="baguete", source_type="rss", url="https://www.baguete.com.br/rss/noticias/feed", enabled=False),  # Corporate IT news, low relevance for founders/CTOs
 
     # --- Startup & VC ---
     DataSourceConfig(name="distrito", source_type="rss", url="https://distrito.me/blog/feed/", enabled=False),  # RSS feed removed

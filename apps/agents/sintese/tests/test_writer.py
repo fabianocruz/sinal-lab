@@ -316,3 +316,68 @@ class TestWriteSectionContent:
         result = writer.write_section_content(section)
 
         assert result is None
+
+    def test_parses_json_wrapped_in_code_fences(self):
+        """LLMs often wrap JSON in ```json ... ``` fences."""
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = (
+            '```json\n'
+            '{\n'
+            '  "intro": "Semana intensa para AI.",\n'
+            '  "summaries": ["Resumo 1.", "Resumo 2."]\n'
+            '}\n'
+            '```'
+        )
+
+        writer = SinteseWriter(client=mock_client)
+        section = make_section("AI & ML", item_count=2)
+        result = writer.write_section_content(section)
+
+        assert result is not None
+        assert result.intro == "Semana intensa para AI."
+        assert len(result.summaries) == 2
+
+    def test_parses_json_wrapped_in_plain_code_fences(self):
+        """Handle ``` without json language tag."""
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = (
+            '```\n'
+            '{"intro": "Intro text.", "summaries": ["s1"]}\n'
+            '```'
+        )
+
+        writer = SinteseWriter(client=mock_client)
+        section = make_section("Test", item_count=1)
+        result = writer.write_section_content(section)
+
+        assert result is not None
+        assert result.intro == "Intro text."
+
+
+class TestStripCodeFences:
+    """Test _strip_code_fences() static method."""
+
+    def test_strips_json_code_fence(self):
+        raw = '```json\n{"key": "value"}\n```'
+        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+
+    def test_strips_plain_code_fence(self):
+        raw = '```\n{"key": "value"}\n```'
+        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+
+    def test_returns_plain_json_unchanged(self):
+        raw = '{"key": "value"}'
+        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+
+    def test_handles_whitespace_around_fences(self):
+        raw = '  ```json\n{"key": "value"}\n```  '
+        assert SinteseWriter._strip_code_fences(raw) == '{"key": "value"}'
+
+    def test_handles_multiline_json(self):
+        raw = '```json\n{\n  "intro": "text",\n  "summaries": ["a", "b"]\n}\n```'
+        result = SinteseWriter._strip_code_fences(raw)
+        data = json.loads(result)
+        assert data["intro"] == "text"
+        assert len(data["summaries"]) == 2
