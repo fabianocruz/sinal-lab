@@ -1,6 +1,11 @@
 """Data collection for MERCADO agent.
 
 Collects company profiles from GitHub, Dealroom API, and other sources.
+
+GitHub strategy: Uses the /search/users endpoint (not /search/repositories)
+because GitHub's `location:` qualifier only works on user/org profiles.
+The query includes `type:org` to filter for organizations (companies)
+and `repos:>N` to ensure only active tech orgs are returned.
 """
 
 import logging
@@ -17,7 +22,9 @@ from apps.agents.base.provenance import ProvenanceTracker
 logger = logging.getLogger(__name__)
 
 
-# Map query location strings to (city, country) tuples
+# Map query location strings to (city, country) tuples.
+# Used by _resolve_location() to derive city/country from the GitHub
+# search query parameter, since the API response doesn't include location.
 _LOCATION_MAP = {
     "São Paulo": ("São Paulo", "Brasil"),
     "Rio de Janeiro": ("Rio de Janeiro", "Brasil"),

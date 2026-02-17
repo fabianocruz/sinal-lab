@@ -723,6 +723,35 @@ CRUNCHBASE_API_KEY=your_api_key_here
 
 ---
 
+## Data Source Health
+
+### Feed Audit Process
+
+All RSS/Atom and API data sources should be periodically validated. Common failure modes:
+
+| Failure | Action |
+|---------|--------|
+| **404 / DNS error** | Disable (`enabled=False`) with comment |
+| **SSL error** | Disable — often a server misconfiguration |
+| **Returns HTML, not RSS** | Disable — site removed its feed |
+| **Empty feed (0 entries)** | Disable — feed exists but is abandoned |
+| **403 Forbidden** | Disable — site blocks automated access |
+| **Unbounded entries** | Set `max_items` to cap results |
+
+### Current Status (Feb 2026)
+
+**SINTESE** (34 total, 29 enabled): 5 feeds disabled (startse HTML, contxto SSL, netlify 404, fintechfutures 403, a16z 404). Vercel feed updated from `/blog/rss.xml` to `/atom` with `max_items=20`.
+
+**FUNDING** (15 total, 8 enabled): 12 original VC feeds broken (404s, SSL errors, HTML responses). Added 5 cross-validated news sources from SINTESE (crunchbase_news, techcrunch_latam, latamlist, abstartups, blocknews). 3 original feeds healthy (kaszek, neofeed, startupi).
+
+**MERCADO** (6 total, 5 enabled): GitHub API sources switched from `/search/repositories` to `/search/users` (the `location:` qualifier only works on user/org profiles, not repositories). Dealroom API remains disabled pending API key.
+
+### `max_items` Field
+
+`DataSourceConfig.max_items` caps the number of entries parsed from a feed. Useful for feeds that return their full archive (e.g., Vercel Atom returns 1300+ entries). Set to `None` (default) for no limit.
+
+---
+
 ## Checklist para Novo Agente
 
 Antes de considerar um agente "completo":
