@@ -108,6 +108,7 @@ apps/agents/{agent_name}/
 ├── processor.py         # Processing workflow (normalize, dedupe, etc.)
 ├── scorer.py            # Confidence scoring logic
 ├── synthesizer.py       # Content formatting (Markdown/HTML)
+├── writer.py            # LLM editorial writer (optional, uses base/llm.py)
 ├── db_writer.py         # Database persistence (optional)
 ├── agent.py             # Main agent class (inherits BaseAgent)
 ├── main.py              # CLI entry point
@@ -117,9 +118,47 @@ apps/agents/{agent_name}/
     ├── test_processor.py
     ├── test_scorer.py
     ├── test_synthesizer.py
+    ├── test_writer.py    # LLM writer tests (if applicable)
     ├── test_agent.py     # End-to-end agent tests
     └── test_db_writer.py # Database tests (if applicable)
 ```
+
+---
+
+## LLM Editorial Writer Layer
+
+All agents support an optional LLM-powered editorial writer (`writer.py`) that generates contextualized content using the shared `LLMClient` in `apps/agents/base/llm.py`. When `ANTHROPIC_API_KEY` is set, writers produce editorial commentary; when absent, synthesizers fall back to template-based output.
+
+### Shared Infrastructure
+
+- **`apps/agents/base/llm.py`** — `LLMClient` (Anthropic Claude API) + `strip_code_fences()` utility
+- Model: `claude-sonnet-4-5-20250929`, temperature 0.7
+- All writers import from `base/llm.py` — no direct SDK usage in agent modules
+
+### Writer Patterns
+
+| Agent | Pattern | API Calls | Methods |
+|-------|---------|-----------|---------|
+| **SINTESE** | sections → items | 1 intro + N sections | `write_newsletter_intro()`, `write_section_content()` |
+| **RADAR** | sections → items | 1 intro + N sections | `write_report_intro()`, `write_section_content()` |
+| **CODIGO** | sections → items | 1 intro + N sections | `write_report_intro()`, `write_section_content()` |
+| **FUNDING** | aggregate + highlights | 2 total | `write_report_intro()`, `write_deal_highlights()` |
+| **MERCADO** | aggregate + highlights | 2 total | `write_snapshot_intro()`, `write_highlight_descriptions()` |
+
+**Content agents** (SINTESE, RADAR, CODIGO) use per-section rewriting with `SectionContent(intro, summaries)`.
+**Data agents** (FUNDING, MERCADO) use aggregate narratives + top-N highlight descriptions (too many items for per-section calls).
+
+### Adding a Writer to a New Agent
+
+1. Create `writer.py` with agent-specific `SYSTEM_PROMPT` and writer class
+2. Add `writer: Optional["AgentWriter"] = None` parameter to the synthesizer function
+3. Try LLM first, fall back to existing template on `None` return
+4. Instantiate writer in `agent.py` and pass to synthesizer
+5. All writer methods must return `Optional` — never raise on failure
+
+### Graceful Degradation
+
+Every LLM call returns `Optional`. Synthesizers check `writer.is_available` before calling and handle `None` returns. No agent breaks without `ANTHROPIC_API_KEY`.
 
 ---
 
