@@ -15,6 +15,7 @@ from apps.agents.sintese.collector import FeedItem, collect_all_sources
 from apps.agents.sintese.config import SINTESE_CONFIG
 from apps.agents.sintese.scorer import ScoredItem, score_items
 from apps.agents.sintese.synthesizer import synthesize_newsletter
+from apps.agents.sintese.writer import SinteseWriter
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +87,11 @@ class SinteseAgent(BaseAgent):
             data_quality=0.3, analysis_confidence=0.3
         )
 
+        writer = SinteseWriter()
         newsletter_md = synthesize_newsletter(
             scored_items=scored_items,
             edition_number=self.edition_number,
+            writer=writer,
         )
 
         source_urls = self.provenance.get_source_urls()[:20]
