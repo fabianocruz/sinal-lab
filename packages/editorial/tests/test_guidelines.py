@@ -7,7 +7,7 @@ from packages.editorial.guidelines import (
     FILTER_QUESTION,
     EDITORIAL_RED_FLAGS,
     get_territory_weight,
-    get_primary_agents_for_territory,
+    get_data_source_agents_for_territory,
     get_territory_keywords,
 )
 
@@ -43,7 +43,7 @@ class TestEditorialTerritories:
     def test_all_territories_have_required_fields(self):
         """Test that each territory has all required fields."""
         required_fields = {
-            "name", "weight", "primary_agents", "keywords",
+            "name", "weight", "data_source_agents", "keywords",
             "filter_questions", "sub_territories"
         }
         for territory_key, territory_data in EDITORIAL_TERRITORIES.items():
@@ -169,30 +169,30 @@ class TestGetTerritoryWeight:
         assert get_territory_weight("xyz123") == 0.0
 
 
-class TestGetPrimaryAgentsForTerritory:
-    """Test suite for get_primary_agents_for_territory() function."""
+class TestGetDataSourceAgentsForTerritory:
+    """Test suite for get_data_source_agents_for_territory() function."""
 
-    def test_fintech_primary_agents(self):
-        """Test getting primary agents for fintech territory."""
-        agents = get_primary_agents_for_territory("fintech")
+    def test_fintech_data_source_agents(self):
+        """Test getting data source agents for fintech territory."""
+        agents = get_data_source_agents_for_territory("fintech")
         assert "MERCADO" in agents
         assert "FUNDING" in agents
 
-    def test_ai_primary_agents(self):
-        """Test getting primary agents for AI territory."""
-        agents = get_primary_agents_for_territory("ai")
+    def test_ai_data_source_agents(self):
+        """Test getting data source agents for AI territory."""
+        agents = get_data_source_agents_for_territory("ai")
         assert "RADAR" in agents
         assert "CÓDIGO" in agents
 
-    def test_engenharia_primary_agents(self):
-        """Test getting primary agents for engenharia territory."""
-        agents = get_primary_agents_for_territory("engenharia")
+    def test_engenharia_data_source_agents(self):
+        """Test getting data source agents for engenharia territory."""
+        agents = get_data_source_agents_for_territory("engenharia")
         assert "CÓDIGO" in agents
 
     def test_unknown_territory_returns_empty_list(self):
         """Test that unknown territory returns empty list."""
-        assert get_primary_agents_for_territory("unknown") == []
-        assert get_primary_agents_for_territory("") == []
+        assert get_data_source_agents_for_territory("unknown") == []
+        assert get_data_source_agents_for_territory("") == []
 
 
 class TestGetTerritoryKeywords:

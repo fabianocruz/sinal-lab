@@ -11,7 +11,7 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
     "fintech": {
         "name": "Fintech & Economia Digital LATAM",
         "weight": 0.40,
-        "primary_agents": ["MERCADO", "FUNDING"],
+        "data_source_agents": ["MERCADO", "FUNDING"],
         "keywords": [
             # Open Finance
             "open finance", "open banking", "portabilidade", "apis bancárias",
@@ -43,7 +43,7 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
     "ai": {
         "name": "AI Aplicada & Infraestrutura",
         "weight": 0.20,
-        "primary_agents": ["RADAR", "CÓDIGO"],
+        "data_source_agents": ["RADAR", "CÓDIGO"],
         "keywords": [
             "artificial intelligence", "machine learning", "ai", "ml",
             "fraud detection", "credit scoring", "llm", "gpt", "claude",
@@ -68,7 +68,7 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
     "cripto": {
         "name": "Cripto, Stablecoins & Ativos Digitais",
         "weight": 0.10,
-        "primary_agents": ["MERCADO", "FUNDING"],
+        "data_source_agents": ["MERCADO", "FUNDING"],
         "keywords": [
             "stablecoin", "usdc", "usdt", "dai",
             "drex", "cbdc", "moeda digital",
@@ -91,7 +91,7 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
     "engenharia": {
         "name": "Engenharia, Arquitetura & Infraestrutura",
         "weight": 0.20,
-        "primary_agents": ["CÓDIGO"],
+        "data_source_agents": ["CÓDIGO"],
         "keywords": [
             "arquitetura", "microservices", "monolith", "stack",
             "aws", "gcp", "azure", "cloud", "kubernetes", "docker",
@@ -115,7 +115,7 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
     "venture": {
         "name": "Venture Capital & Funding LATAM",
         "weight": 0.15,
-        "primary_agents": ["FUNDING", "INDEX"],
+        "data_source_agents": ["FUNDING", "INDEX"],
         "keywords": [
             "funding", "investment", "venture capital", "vc",
             "seed", "series a", "series b", "round",
@@ -138,7 +138,7 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
     "green_agritech": {
         "name": "Green Tech, AgriTech & Impacto",
         "weight": 0.05,
-        "primary_agents": ["MERCADO", "RADAR"],
+        "data_source_agents": ["MERCADO", "RADAR"],
         "keywords": [
             "agritech", "agro", "agricultura", "foodtech",
             "climate tech", "esg", "sustentabilidade",
@@ -219,9 +219,9 @@ def get_territory_weight(territory_key: str) -> float:
     return EDITORIAL_TERRITORIES.get(territory_key, {}).get("weight", 0.0)
 
 
-def get_primary_agents_for_territory(territory_key: str) -> List[str]:
-    """Get list of primary agents responsible for a territory."""
-    return EDITORIAL_TERRITORIES.get(territory_key, {}).get("primary_agents", [])
+def get_data_source_agents_for_territory(territory_key: str) -> List[str]:
+    """Get list of data-source agents that feed a territory."""
+    return EDITORIAL_TERRITORIES.get(territory_key, {}).get("data_source_agents", [])
 
 
 def get_territory_keywords(territory_key: str) -> List[str]:
