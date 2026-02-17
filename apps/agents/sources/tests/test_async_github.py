@@ -6,7 +6,7 @@ API fetching via asyncio.
 
 import asyncio
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -100,8 +100,9 @@ class TestFetchGitHubReposAsync:
         params = call_kwargs.kwargs.get("params", {})
         assert "stars:>20" in params.get("q", "")
 
-    @patch.dict(os.environ, {"GITHUB_TOKEN": "test_token_async"})
-    async def test_auth_token_from_env(self) -> None:
+    async def test_auth_token_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("GITHUB_TOKEN", "test_token_async")
+
         mock_response = MagicMock()
         mock_response.json.return_value = _make_api_response(0)
         mock_response.raise_for_status = MagicMock()
