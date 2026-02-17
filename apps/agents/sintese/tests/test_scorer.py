@@ -355,3 +355,32 @@ class TestSourceCalibration:
         from apps.agents.sintese.scorer import SOURCE_AUTHORITY
 
         assert SOURCE_AUTHORITY["infomoney"] <= 0.6
+
+    NEW_QUALITY_SOURCES = {
+        "wired", "geekwire", "cnbc_tech", "pragmatic_engineer",
+        "simonwillison", "a16z", "ycombinator", "first_round",
+        "crunchbase_news", "fintech_nexus",
+    }
+
+    def test_new_sources_in_config(self):
+        """All new quality sources must be present in SINTESE config."""
+        from apps.agents.sintese.config import LATAM_TECH_FEEDS
+
+        config_names = {s.name for s in LATAM_TECH_FEEDS}
+        missing = self.NEW_QUALITY_SOURCES - config_names
+        assert missing == set(), f"New sources missing from config: {missing}"
+
+    def test_new_sources_have_authority(self):
+        """Every new source must have an explicit authority score."""
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY
+
+        missing = self.NEW_QUALITY_SOURCES - set(SOURCE_AUTHORITY.keys())
+        assert missing == set(), f"New sources without authority score: {missing}"
+
+    def test_new_sources_authority_calibrated(self):
+        """New quality sources should have authority >= 0.7 (they were selected for quality)."""
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY
+
+        for source in self.NEW_QUALITY_SOURCES:
+            score = SOURCE_AUTHORITY.get(source, 0.0)
+            assert score >= 0.7, f"{source} authority too low: {score}"
