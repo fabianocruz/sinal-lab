@@ -29,6 +29,9 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="techcrunch", source_type="rss", url="https://techcrunch.com/feed/"),
     DataSourceConfig(name="theverge", source_type="rss", url="https://www.theverge.com/rss/index.xml"),
     DataSourceConfig(name="arstechnica", source_type="rss", url="https://feeds.arstechnica.com/arstechnica/index"),
+    DataSourceConfig(name="wired", source_type="rss", url="https://www.wired.com/feed/rss"),
+    DataSourceConfig(name="geekwire", source_type="rss", url="https://www.geekwire.com/feed/"),
+    DataSourceConfig(name="cnbc_tech", source_type="rss", url="https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"),
     DataSourceConfig(name="hackernews_best", source_type="rss", url="https://hnrss.org/best"),
     DataSourceConfig(name="lobsters", source_type="rss", url="https://lobste.rs/rss"),
 
@@ -46,11 +49,20 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
 
     # --- Fintech ---
     DataSourceConfig(name="fintechfutures", source_type="rss", url="https://www.fintechfutures.com/feed/"),
+    DataSourceConfig(name="fintech_nexus", source_type="rss", url="https://www.fintechnexus.com/feed/"),
     DataSourceConfig(name="infomoney", source_type="rss", url="https://www.infomoney.com.br/feed/"),
+
+    # --- VC & Startup Ops ---
+    DataSourceConfig(name="a16z", source_type="rss", url="https://a16z.com/feed/"),
+    DataSourceConfig(name="ycombinator", source_type="rss", url="https://www.ycombinator.com/blog/rss/"),
+    DataSourceConfig(name="first_round", source_type="rss", url="https://review.firstround.com/feed.xml"),
+    DataSourceConfig(name="crunchbase_news", source_type="rss", url="https://news.crunchbase.com/feed/"),
 
     # --- Newsletters as RSS ---
     DataSourceConfig(name="tldrnewsletter", source_type="rss", url="https://tldr.tech/rss"),
     DataSourceConfig(name="bytebytego", source_type="rss", url="https://blog.bytebytego.com/feed"),
+    DataSourceConfig(name="pragmatic_engineer", source_type="rss", url="https://newsletter.pragmaticengineer.com/feed"),
+    DataSourceConfig(name="simonwillison", source_type="rss", url="https://simonwillison.net/atom/everything/"),
 ]
 
 SINTESE_CONFIG = AgentConfig(

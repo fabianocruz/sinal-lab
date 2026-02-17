@@ -58,6 +58,7 @@ SOURCE_AUTHORITY: dict[str, float] = {
     # Global Tech
     "techcrunch": 0.9, "techcrunch_latam": 0.95,
     "arstechnica": 0.85, "theverge": 0.8,
+    "wired": 0.85, "geekwire": 0.75, "cnbc_tech": 0.80,
     "mit_tech_review": 0.9,
     "restofworld": 0.9,
     "hackernews_best": 0.8, "lobsters": 0.7,
@@ -67,6 +68,9 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "pipeline_valor": 0.85,
     "startupi": 0.7, "abstartups": 0.7,
     "latamlist": 0.75, "blocknews": 0.70,
+    # VC & Startup Ops
+    "a16z": 0.90, "ycombinator": 0.90,
+    "first_round": 0.85, "crunchbase_news": 0.85,
     # Brazilian Tech Media
     "convergenciadigital": 0.65, "baguete": 0.60,
     "infomoney": 0.55,  # lowered — too much general finance noise
@@ -77,9 +81,10 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "netlify_blog": 0.65, "cloudflare_blog": 0.75,
     "devto": 0.55,
     # Fintech
-    "fintechfutures": 0.75,
+    "fintechfutures": 0.75, "fintech_nexus": 0.70,
     # Newsletters
     "tldrnewsletter": 0.70, "bytebytego": 0.75,
+    "pragmatic_engineer": 0.90, "simonwillison": 0.80,
 }
 
 DEFAULT_SOURCE_AUTHORITY = 0.5
