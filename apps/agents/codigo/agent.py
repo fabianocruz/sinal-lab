@@ -15,6 +15,7 @@ from apps.agents.codigo.analyzer import AnalyzedSignal, analyze_signals
 from apps.agents.codigo.collector import DevSignal, collect_all_sources
 from apps.agents.codigo.config import CODIGO_CONFIG
 from apps.agents.codigo.synthesizer import synthesize_dev_report
+from apps.agents.codigo.writer import CodigoWriter
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +83,11 @@ class CodigoAgent(BaseAgent):
             data_quality=0.3, analysis_confidence=0.3
         )
 
+        writer = CodigoWriter()
         report_md = synthesize_dev_report(
             analyzed=analyzed,
             week_number=self.week_number,
+            writer=writer,
         )
 
         source_urls = self.provenance.get_source_urls()[:20]

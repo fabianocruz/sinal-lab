@@ -7,9 +7,12 @@ top frameworks, rising libraries, notable repos, and language trends.
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from apps.agents.codigo.analyzer import AnalyzedSignal
+
+if TYPE_CHECKING:
+    from apps.agents.codigo.writer import CodigoWriter
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +100,18 @@ def group_by_category(signals: list[AnalyzedSignal]) -> list[ReportSection]:
     return sections
 
 
-def format_signal_markdown(signal: AnalyzedSignal, index: int) -> str:
-    """Format a single dev signal as Markdown."""
+def format_signal_markdown(
+    signal: AnalyzedSignal,
+    index: int,
+    summary_override: Optional[str] = None,
+) -> str:
+    """Format a single dev signal as Markdown.
+
+    Args:
+        signal: The analyzed signal to format.
+        index: The signal number in the report.
+        summary_override: If provided, use this instead of the original summary.
+    """
     lines: list[str] = []
     adoption = ADOPTION_DISPLAY.get(signal.adoption_indicator, "")
 
@@ -109,11 +122,14 @@ def format_signal_markdown(signal: AnalyzedSignal, index: int) -> str:
         meta_parts.append(f"Lang: {signal.signal.language}")
     lines.append(f"*{' | '.join(meta_parts)}*")
 
-    if signal.signal.summary:
+    summary = summary_override
+    if summary is None and signal.signal.summary:
         import re
         summary = re.sub(r"<[^>]+>", "", signal.signal.summary.strip())
         if len(summary) > 300:
             summary = summary[:297] + "..."
+
+    if summary:
         lines.append(f"> {summary}")
 
     metrics = signal.signal.metrics
@@ -133,14 +149,32 @@ def synthesize_dev_report(
     analyzed: list[AnalyzedSignal],
     week_number: int = 1,
     report_date: Optional[datetime] = None,
+    writer: Optional["CodigoWriter"] = None,
 ) -> str:
-    """Produce the full dev ecosystem report in Markdown."""
+    """Produce the full dev ecosystem report in Markdown.
+
+    When a writer is provided and available, generates LLM-powered editorial
+    content (intro paragraph, section commentary, rewritten summaries).
+    Falls back to template-based output per-piece when the LLM is unavailable
+    or returns None.
+
+    Args:
+        analyzed: All analyzed signals (will be filtered and ranked).
+        week_number: Sequential report week number.
+        report_date: Date for the report (defaults to now).
+        writer: Optional LLM editorial writer for enhanced content.
+
+    Returns:
+        Complete report Markdown ready for review and publication.
+    """
     if not report_date:
         report_date = datetime.now(timezone.utc)
 
     date_str = report_date.strftime("%d/%m/%Y")
     top_signals = select_top_signals(analyzed)
     sections = group_by_category(top_signals)
+
+    use_writer = writer is not None and writer.is_available
 
     lines: list[str] = []
 
@@ -161,24 +195,50 @@ def synthesize_dev_report(
     top_langs = sorted(lang_counts.items(), key=lambda x: x[1], reverse=True)[:5]
     lang_summary = ", ".join(f"{l[0]} ({l[1]})" for l in top_langs if l[0] != "unknown")
 
-    lines.append(
-        f"**{len(top_signals)} sinais dev** analisados esta semana de "
-        f"**{len(set(s.signal.source_name for s in top_signals))} fontes**."
-    )
-    if lang_summary:
-        lines.append(f"Linguagens em destaque: {lang_summary}.")
+    # Intro: try LLM, fallback to template
+    llm_intro = None
+    if use_writer:
+        llm_intro = writer.write_report_intro(sections, week_number)
+
+    if llm_intro:
+        lines.append(llm_intro)
+    else:
+        lines.append(
+            f"**{len(top_signals)} sinais dev** analisados esta semana de "
+            f"**{len(set(s.signal.source_name for s in top_signals))} fontes**."
+        )
+        if lang_summary:
+            lines.append(f"Linguagens em destaque: {lang_summary}.")
     lines.append("")
     lines.append("---")
     lines.append("")
 
-    # Sections
+    # Sections: try LLM per section, fallback to template
     signal_index = 1
     for section in sections:
         lines.append(f"## {section.heading}")
         lines.append("")
-        for analyzed_signal in section.signals:
-            lines.append(format_signal_markdown(analyzed_signal, signal_index))
-            signal_index += 1
+
+        section_content = None
+        if use_writer:
+            section_content = writer.write_section_content(section)
+
+        if section_content:
+            # LLM editorial commentary
+            lines.append(section_content.intro)
+            lines.append("")
+            for i, analyzed_signal in enumerate(section.signals):
+                lines.append(format_signal_markdown(
+                    analyzed_signal, signal_index,
+                    summary_override=section_content.summaries[i],
+                ))
+                signal_index += 1
+        else:
+            # Template fallback
+            for analyzed_signal in section.signals:
+                lines.append(format_signal_markdown(analyzed_signal, signal_index))
+                signal_index += 1
+
         lines.append("---")
         lines.append("")
 
