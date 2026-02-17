@@ -1,6 +1,44 @@
 """Editorial guidelines and territories definition.
 
-Based on docs/EDITORIAL.md - Linha Editorial Definitiva.
+This module defines the editorial framework for Sinal.ai's AI-generated content,
+implementing the guidelines from docs/EDITORIAL.md - Linha Editorial Definitiva.
+
+Key Components:
+    - EDITORIAL_TERRITORIES: 6 content territories with weights, keywords, and agents
+    - FILTER_CRITERIA: 5 quality criteria for content validation
+    - FILTER_QUESTION: The ultimate quality test for publication decisions
+    - EDITORIAL_RED_FLAGS: Patterns that disqualify content from publication
+    - REGULATORY_KEYWORDS: Cross-cutting regulatory content markers
+
+Editorial Territories (with weights):
+    1. Fintech & Economia Digital LATAM (40%) - Pix, Open Finance, neobanks
+    2. AI Aplicada & Infraestrutura (20%) - ML in production, governance, agents
+    3. Cripto, Stablecoins & Ativos Digitais (10%) - Drex, tokenization, DeFi
+    4. Engenharia, Arquitetura & Infraestrutura (20%) - Cloud, DevOps, security
+    5. Venture Capital & Funding LATAM (15%) - Funding rounds, exits, ecosystem
+    6. Green Tech, AgriTech & Impacto (5%) - AgTech, climate tech, ESG
+
+The 5 Filter Criteria (content must pass 3/5):
+    1. Tem dados verificáveis - Numbers, sources, methodology
+    2. É útil para decisões - Actionable information for CTOs/founders
+    3. Não existe em português com essa profundidade - Unique, original analysis
+    4. Se alinha com um dos 6 territórios - Within editorial scope
+    5. Tem ângulo LATAM específico - Not a US content translation
+
+Usage:
+    >>> from packages.editorial.guidelines import get_territory_keywords
+    >>> keywords = get_territory_keywords("fintech")
+    >>> print(keywords[:3])
+    ['open finance', 'open banking', 'portabilidade']
+
+    >>> from packages.editorial.guidelines import FILTER_CRITERIA
+    >>> print(FILTER_CRITERIA["has_data"]["weight"])
+    1.0
+
+See Also:
+    - classifier.py: Uses EDITORIAL_TERRITORIES for territory classification
+    - validator.py: Uses FILTER_CRITERIA for content validation
+    - docs/EDITORIAL.md: Full editorial guidelines document
 """
 
 from typing import Dict, List, Any

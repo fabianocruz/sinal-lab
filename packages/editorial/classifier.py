@@ -1,4 +1,49 @@
-"""Territory classification for content."""
+"""Territory classification for AI-generated content.
+
+This module implements keyword-based classification to assign content to one of
+6 editorial territories defined in guidelines.py. It's used by AI agents to
+automatically categorize their outputs before editorial review.
+
+Classification Algorithm:
+    1. Extract and normalize content + title text (title weighted 2x)
+    2. Count keyword matches per territory using word-boundary regex
+    3. Identify primary territory (highest match count)
+    4. Calculate confidence score (normalized by content length)
+    5. Identify secondary territories (≥30% of primary score)
+    6. Flag regulatory content (meta-territory)
+
+Key Features:
+    - Title gets 2x weight in classification (counted twice)
+    - Case-insensitive keyword matching with word boundaries
+    - Confidence score scales with content length (prevents short-content bias)
+    - Secondary territories capture multi-domain content
+    - Regulatory flag for cross-cutting compliance content
+
+Confidence Scoring:
+    confidence = min(1.0, matches / (words / 100))
+    - Short content (50 words) needs 5+ matches for 1.0 confidence
+    - Long content (500 words) needs 50+ matches for 1.0 confidence
+
+Usage:
+    >>> from packages.editorial.classifier import classify_territory
+    >>> result = classify_territory(
+    ...     title="Pix alcança 3 bilhões de transações mensais",
+    ...     content="O volume de Pix cresceu 45% no Brasil..."
+    ... )
+    >>> print(result.primary_territory)
+    'fintech'
+    >>> print(result.confidence)
+    0.92
+
+Integration Points:
+    - Called by AI agents before saving output
+    - Used in validate_content() to check territory alignment
+    - Feeds territory_classification field in agent outputs
+
+See Also:
+    - guidelines.py: Territory definitions and keyword lists
+    - validator.py: Uses classification in validation pipeline
+"""
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional
