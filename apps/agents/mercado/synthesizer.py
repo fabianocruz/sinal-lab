@@ -145,4 +145,14 @@ Sem novas startups descobertas esta semana.
         report_lines.append(f"- **Notáveis**: {', '.join(notable_names)}")
         report_lines.append("")
 
+    # Editorial mode notice
+    use_writer = writer is not None and writer.is_available
+    if not use_writer:
+        report_lines.append(
+            "> *Nota: Este relatorio foi gerado em modo template (sem camada editorial LLM). "
+            "As descricoes sao extraidas diretamente das fontes originais. A versao editorial "
+            "em portugues requer a configuracao da variavel ANTHROPIC_API_KEY.*"
+        )
+        report_lines.append("")
+
     return "\n".join(report_lines)
