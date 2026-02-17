@@ -84,3 +84,83 @@ def build_twitter_queries() -> dict[str, str]:
         queries[territory_key] = query
 
     return queries
+
+
+def parse_tweet(
+    tweet: dict,
+    source_name: str,
+    users: dict[str, dict],
+) -> Optional[FeedItem]:
+    """Parse an X API v2 tweet JSON object into a FeedItem.
+
+    Uses the expanded URL from entities.urls as FeedItem.url when available,
+    falling back to the tweet permalink on x.com. The content_hash is
+    computed from the resolved URL to enable cross-source dedup with RSS
+    items that link to the same article.
+
+    Args:
+        tweet: Raw tweet dict from X API v2 response data[].
+        source_name: Source name for this item (e.g. "twitter_fintech").
+        users: Dict mapping author_id to user dict (from includes.users).
+
+    Returns:
+        FeedItem or None if tweet lacks required fields.
+    """
+    tweet_id = tweet.get("id")
+    text = tweet.get("text", "")
+
+    if not tweet_id or not text:
+        return None
+
+    # Extract the first expanded URL from entities (the linked article)
+    expanded_url = None
+    entities = tweet.get("entities", {})
+    urls = entities.get("urls", [])
+    for url_entity in urls:
+        candidate = url_entity.get("expanded_url", "")
+        # Skip t.co links and Twitter/X internal links
+        if candidate and "t.co" not in candidate:
+            expanded_url = candidate
+            break
+
+    # Fallback: tweet permalink
+    if not expanded_url:
+        expanded_url = f"https://x.com/i/status/{tweet_id}"
+
+    # Author from includes.users
+    author_id = tweet.get("author_id", "")
+    user = users.get(author_id, {})
+    username = user.get("username", "")
+    author = f"@{username}" if username else None
+
+    # Parse created_at
+    published_at = None
+    created_at = tweet.get("created_at")
+    if created_at:
+        try:
+            published_at = datetime.fromisoformat(
+                created_at.replace("Z", "+00:00")
+            )
+        except (ValueError, TypeError):
+            pass
+
+    # Truncate long text for summary
+    summary = text
+    if len(summary) > 1000:
+        summary = summary[:1000] + "..."
+
+    # Use first ~100 chars of text as title
+    title = text[:100].strip()
+    if len(text) > 100:
+        title += "..."
+
+    return FeedItem(
+        title=title,
+        url=expanded_url,
+        source_name=source_name,
+        published_at=published_at,
+        summary=summary,
+        author=author,
+        tags=[],
+        content_hash=hashlib.md5(expanded_url.encode()).hexdigest(),
+    )
