@@ -26,18 +26,19 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 │   ├── web/                 # Next.js frontend
 │   ├── api/                 # FastAPI backend
 │   └── agents/              # AI agent infrastructure
-│       ├── base/            # Shared agent framework
+│       ├── base/            # Shared framework: BaseAgent, CLI, persistence, orchestrator
+│       ├── sources/         # Shared source layer: HTTP, RSS, GitHub, dedup
 │       ├── # --- Agents de Dados (escopo: todo ecossistema LATAM) ---
-│       ├── funding/         # Capital Flow Tracker — todas as rodadas LATAM (future)
-│       ├── mercado/         # Market Intelligence — ecossistema completo (future)
-│       ├── index/           # Startup Ranking — todas as startups LATAM (future)
+│       ├── funding/         # Capital Flow Tracker — todas as rodadas LATAM
+│       ├── mercado/         # Market Intelligence — ecossistema completo
+│       ├── index/           # Startup Ranking — todas as startups LATAM (planned)
 │       ├── # --- Agents de Conteudo (escopo: linha editorial) ---
 │       ├── sintese/         # Newsletter Synthesizer — audiencia tecnica
 │       ├── radar/           # Trend Intelligence — tendencias para publico tecnico
 │       ├── codigo/          # Code & Infra Research — tecnologia e infraestrutura
 │       ├── # --- Pipeline de Qualidade ---
-│       ├── editorial/       # Editorial pipeline — filtra dados para publicacao (Sprint 3)
-│       └── seo_engine/      # SEO Optimization — paginas programaticas (future)
+│       ├── editorial/       # Editorial pipeline — filtra dados para publicacao
+│       └── seo_engine/      # SEO Optimization — paginas programaticas (planned)
 ├── packages/
 │   ├── shared/              # Tipos compartilhados, utils
 │   ├── database/            # Schema, migrations, seeds
@@ -52,7 +53,9 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - `uvicorn apps.api.main:app --reload` — Inicia API (porta 8000)
 - `pnpm test` — Roda testes frontend
 - `pytest apps/api/tests/` — Roda testes backend
-- `pytest apps/agents/tests/` — Roda testes dos agentes
+- `pytest packages/ apps/agents/ scripts/tests/ -v` — Roda todos os testes Python (957+)
+- `pytest apps/agents/base/tests/ -v` — Testes do framework base + orchestrator
+- `pytest apps/agents/sources/tests/ -v` — Testes da source layer compartilhada
 - `pnpm build` — Build de producao
 - `docker compose up -d` — Sobe PostgreSQL + Redis
 
@@ -65,7 +68,9 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 
 ### Padroes de Arquitetura
 - Cada AI agent e um modulo independente em apps/agents/
-- Agents se comunicam via Redis Streams (Sprint 2+)
+- Agents compartilham: source layer (sources/), CLI (base/cli.py), persistence (base/persistence.py), orchestrator (base/orchestrator.py)
+- Orchestrator conecta agent.run() → editorial review → persist atomico → evidence items
+- Agents se comunicam via Redis Streams (future)
 - Dados normalizados em PostgreSQL, cache em Redis
 - Frontend consome API REST + WebSocket para dashboards
 - Programmatic SEO pages sao geradas via SSR com dados do banco

@@ -26,6 +26,7 @@ pnpm install
 
 # Install Python dependencies
 pip install -r packages/database/requirements.txt
+pip install -r apps/agents/requirements.txt
 pip install feedparser httpx pytest python-dotenv
 
 # Copy environment variables
@@ -50,29 +51,34 @@ pnpm dev
 ### Running Agents
 
 ```bash
-# Dry run — preview without saving
+# Subprocess mode (default) — each agent runs in its own process
 python scripts/run_agents.py sintese --dry-run --verbose
-
-# Generate edition #1 and persist to database
 python scripts/run_agents.py sintese --edition 1 --persist
-
-# Generate, persist, and send newsletter
 python scripts/run_agents.py sintese --edition 1 --persist --send
-
-# Run all agents
 python scripts/run_agents.py all --persist
+
+# Orchestrate mode — in-process with editorial review + evidence persistence
+python scripts/run_agents.py radar --week 8 --orchestrate
+python scripts/run_agents.py all --week 8 --orchestrate
+python scripts/run_agents.py funding --week 8 --orchestrate --no-editorial
+python scripts/run_agents.py all --week 8 --orchestrate --no-evidence
 ```
 
 ### Running Tests
 
 ```bash
-# All Python tests
-python -m pytest packages/database/tests/ apps/agents/ -v
+# All Python tests (957+ tests)
+python -m pytest packages/ apps/agents/ scripts/tests/ -v
 
 # Specific test suites
-python -m pytest apps/agents/base/tests/ -v           # Base agent framework
+python -m pytest apps/agents/base/tests/ -v           # Base framework + orchestrator
+python -m pytest apps/agents/sources/tests/ -v         # Shared source layer
 python -m pytest apps/agents/sintese/tests/ -v         # SINTESE agent
+python -m pytest apps/agents/funding/tests/ -v         # FUNDING agent
+python -m pytest apps/agents/mercado/tests/ -v         # MERCADO agent
 python -m pytest apps/agents/editorial/tests/ -v       # Editorial pipeline
+python -m pytest packages/editorial/tests/ -v          # Editorial rules (classifier, validator)
+python -m pytest scripts/tests/ -v                     # Agent runner CLI tests
 
 # Next.js type check + build
 pnpm build
@@ -93,19 +99,23 @@ sinal-lab/
 │   │   ├── routers/          # health, agents, content, companies, waitlist, editorial
 │   │   └── schemas/          # Pydantic response models
 │   └── agents/               # AI agent system
-│       ├── base/             # BaseAgent, confidence scoring, provenance tracking
-│       ├── sintese/          # Newsletter synthesizer (RSS → scored items → newsletter)
-│       ├── radar/            # Emerging trend detection
-│       ├── codigo/           # Developer ecosystem signals
-│       └── editorial/        # 6-layer editorial governance pipeline
+│       ├── base/             # Shared framework: BaseAgent, CLI, persistence, orchestrator
+│       ├── sources/          # Shared source layer: HTTP, RSS, GitHub, dedup
+│       ├── sintese/          # Newsletter synthesizer (RSS + Twitter → scored → newsletter)
+│       ├── radar/            # Emerging trend detection (HN, GitHub, arXiv)
+│       ├── codigo/           # Developer ecosystem signals (GitHub, npm, PyPI)
+│       ├── funding/          # Investment tracking (VC rounds, Dealroom)
+│       ├── mercado/          # LATAM startup mapping (GitHub Search, Dealroom)
+│       └── editorial/        # Editorial governance: guidelines, editorial-in-the-loop
 ├── packages/
 │   ├── database/             # SQLAlchemy models + Alembic migrations
-│   │   ├── models/           # 8 tables: companies, content_pieces, agent_runs, etc.
+│   │   ├── models/           # 9 tables: companies, content_pieces, agent_runs, evidence_items, etc.
 │   │   └── migrations/       # Version-controlled schema changes
+│   ├── editorial/            # Editorial rules: classifier, validator, guidelines
 │   ├── shared/               # Shared TypeScript utilities
-│   └── data-pipeline/        # Data ingestion pipeline
+│   └── data-pipeline/        # Data ingestion pipeline (future)
 ├── scripts/
-│   ├── run_agents.py         # Unified agent runner
+│   ├── run_agents.py         # Unified agent runner (subprocess + orchestrate modes)
 │   ├── seed_companies.py     # Company data seeder
 │   └── cron.example          # Production cron schedule
 ├── docs/                     # Technical documentation
@@ -116,16 +126,18 @@ sinal-lab/
 
 ### Agent System
 
-| Agent | Role | Status |
-|-------|------|--------|
-| **SINTESE** | Newsletter curation & synthesis | Built |
-| **RADAR** | Emerging trend detection | Built |
-| **CODIGO** | Developer ecosystem signals | Built |
-| SEO.engine | Content discovery optimization | Built (editorial layer) |
-| FUNDING | Investment tracking | Planned |
-| MERCADO | LATAM startup mapping | Planned |
+| Agent | Category | Role | Status |
+|-------|----------|------|--------|
+| **SINTESE** | Content | Newsletter curation & synthesis | Built |
+| **RADAR** | Content | Emerging trend detection | Built |
+| **CODIGO** | Content | Developer ecosystem signals | Built |
+| **FUNDING** | Data | Investment tracking (VC rounds, amounts, investors) | Built |
+| **MERCADO** | Data | LATAM startup mapping & ecosystem intelligence | Built |
+| **EDITORIAL** | Quality | 6-layer editorial governance pipeline | Built |
+| INDEX | Data | Startup ranking engine | Planned |
+| SEO ENGINE | Quality | Programmatic SEO page generation | Planned |
 
-Each agent follows the `collect → process → score → output` lifecycle with mandatory confidence scoring and data provenance tracking.
+Each agent follows the `collect → process → score → output` lifecycle with mandatory confidence scoring and data provenance tracking. The orchestrator connects agents to the editorial pipeline and persistence layer in a single atomic transaction.
 
 ### Editorial Governance Pipeline
 
@@ -144,6 +156,8 @@ PESQUISA → VALIDACAO → VERIFICACAO → VIES → SEO.engine → SINTESE_FINAL
 
 Content that fails any critical layer is flagged for human review.
 
+**Editorial-in-the-loop**: The agent orchestrator integrates editorial review into the agent lifecycle. When running in `--orchestrate` mode, agents automatically pass through the editorial pipeline. Content graded as `publish_ready` is set to `approved`; everything else routes to `pending_review` for human review. Editorial failures are treated as safety nets and default to human review.
+
 ### Data Integrity
 
 - **Confidence Scoring**: DQ (Data Quality) + AC (Analysis Confidence) on a 1-5 scale with A-D grades
@@ -160,7 +174,7 @@ Content that fails any critical layer is flagged for human review.
 | Backend | FastAPI, Pydantic, SQLAlchemy 2.0 |
 | Database | PostgreSQL 16, Alembic |
 | Cache | Redis 7 |
-| Agents | Python, feedparser, httpx |
+| Agents | Python, feedparser, httpx, Anthropic SDK |
 | SEO | JSON-LD, dynamic sitemaps, hreflang |
 | Monorepo | pnpm workspaces |
 

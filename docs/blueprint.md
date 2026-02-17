@@ -35,42 +35,60 @@ collect -> process -> score -> output
 
 ### Active Agents
 
+All 5 agents share a common runtime layer: shared CLI (`base/cli.py`), shared persistence (`base/persistence.py`), shared source layer (`sources/`), evidence writer (`base/evidence_writer.py`), and orchestrator with editorial-in-the-loop (`base/orchestrator.py`).
+
 #### SINTESE (v0.1.0) — Newsletter Synthesizer
-- **Sources**: 37 RSS/Atom feeds across 7 categories (Brazilian tech media, startups/VC, LATAM, global tech, AI/ML, dev tools, fintech)
+- **Category**: Content agent (filtered by editorial line)
+- **Sources**: 37 RSS/Atom feeds across 7 categories + Twitter/X API
 - **Scoring**: 4-dimensional relevance scoring (topic 35%, recency 25%, authority 15%, LATAM relevance 25%)
 - **Output**: Curated newsletter draft with 18 items grouped by category
 - **Diversity**: Max 3 items per source to prevent domination
-- **Integration**: Beehiiv + Resend for delivery
-- **Persistence**: `--persist` flag saves run + content to database
+- **Integration**: Beehiiv + Resend for delivery, LLM writer with fallback
+- **Persistence**: Shared CLI `--persist` saves AgentRun + ContentPiece to database
 
 #### RADAR (v0.1.0) — Emerging Trend Detection
-- **Sources**: Hacker News, GitHub trending, Google Trends PT-BR, arXiv
+- **Category**: Content agent (filtered by editorial line)
+- **Sources**: Hacker News, GitHub trending, Google Trends PT-BR, arXiv (via shared source layer)
 - **Focus**: Weak signal detection for emerging technologies
+- **Persistence**: DB persistence via shared persistence layer
 
 #### CODIGO (v0.1.0) — Developer Ecosystem Signals
-- **Sources**: GitHub trending, npm/PyPI stats, Stack Overflow
+- **Category**: Content agent (filtered by editorial line)
+- **Sources**: GitHub trending, npm/PyPI stats, Stack Overflow (via shared source layer)
 - **Focus**: Mapping tools, languages, and frameworks gaining traction in LATAM
+- **Persistence**: DB persistence via shared persistence layer
 
 #### FUNDING (v0.1.0) — Investment Tracking
+- **Category**: Data agent (broad LATAM coverage)
 - **Sources**: 15 VC RSS feeds (Kaszek, Monashees, Valor Capital, etc.) + Dealroom API (freemium)
 - **Focus**: Funding rounds, amounts, investors, round types (seed, Series A-G)
 - **Features**: Currency normalization (BRL/MXN/ARS → USD), company fuzzy matching, multi-source deduplication
 - **Output**: Weekly funding report grouped by round type (Series A+, Seed, Other)
-- **Database**: Populates `funding_rounds` table, updates `Company.metadata_` with funding stats
+- **Database**: Populates `funding_rounds` table via domain-specific `db_writer`, updates `Company.metadata_` with funding stats
 - **Confidence Logic**: Multi-source verification (2+ sources → 0.8 DQ), amount conflict detection
 
 #### MERCADO (v0.1.0) — LATAM Startup Mapping & Ecosystem Intelligence
+- **Category**: Data agent (broad LATAM coverage)
 - **Sources**: 5 GitHub Search APIs (São Paulo, Rio, Mexico City, Buenos Aires, Bogotá) + Dealroom API (freemium)
 - **Focus**: Company profiles, sector classification, tech stack mapping, ecosystem metrics by city
 - **Features**: Keyword-based sector classification (8 sectors: Fintech, HealthTech, Edtech, SaaS, etc.), GitHub org analysis, tag generation
 - **Output**: Weekly ecosystem snapshot with city breakdown, sector distribution, notable startups
-- **Database**: Populates `companies` table with enriched profiles, updates `ecosystems` table with aggregated stats (total_startups, top_sectors, notable_companies)
+- **Database**: Populates `companies` table via domain-specific `db_writer`, updates `ecosystems` table with aggregated stats
 - **Confidence Logic**: Field completeness scoring (12 fields), API source boost, long description boost
+
+### Shared Infrastructure
+
+- **Shared Source Layer** (`apps/agents/sources/`): HTTP client with retry, RSS parser, GitHub collector, dedup utilities, async variants
+- **Evidence System**: Unified `EvidenceItem` dataclass, normalizer (converts agent-specific types), evidence writer (confidence-based upsert), `EvidenceItemDB` ORM model
+- **Entity Resolver** (`base/entity_resolver.py`): Cross-agent entity deduplication (fuzzy matching across funding rounds, company profiles)
+- **Editorial Integration**: `GuidelinesPack` facade connecting `packages/editorial/` rules to the editorial pipeline, editorial-in-the-loop orchestrator
+- **Shared CLI** (`base/cli.py`): `run_agent_cli()` reduces each agent's `main.py` from ~100 lines to ~15-25 lines
+- **Agent Orchestrator** (`base/orchestrator.py`): `orchestrate_agent_run()` — agent.run() → editorial review → atomic persist → evidence items → domain records
 
 ### Planned Agents
 
 - **INDEX**: LATAM startup ranking engine (growth metrics, investor backing, tech adoption)
-- **SEO.engine**: Programmatic SEO page generation for company profiles
+- **SEO ENGINE**: Programmatic SEO page generation for company profiles
 
 ---
 
@@ -97,12 +115,13 @@ Content that receives a BLOCKER flag is routed to the human review queue (`GET /
 
 ## Data Model
 
-### Core Tables (8 tables)
+### Core Tables (9 tables)
 
 - **companies**: LATAM tech companies with sector, location, tags, tech stack
 - **content_pieces**: All generated content with confidence scores, review status, body Markdown/HTML
 - **agent_runs**: Complete audit trail of agent executions (timing, metrics, errors)
 - **data_provenance**: Source tracking for every data point (URL, method, confidence)
+- **evidence_items**: Unified cross-agent evidence store with content_hash dedup and confidence-based upsert
 - **investors**: VC funds, angels, accelerators with portfolio data
 - **funding_rounds**: Investment events linking companies to investors
 - **ecosystems**: City/region tech ecosystem profiles with metrics
@@ -177,12 +196,35 @@ All pages include programmatic SEO: JSON-LD structured data, canonical URLs, Ope
 - Deployment configs (Vercel, Docker, Procfile)
 - Full README rewrite + blueprint update
 
+### Phase 1: Shared Source Layer (Complete)
+- Agent classification system (data vs content vs quality agents)
+- Editorial classifier, validator, and expanded guidelines (`packages/editorial/`)
+- SINTESE: Twitter/X API integration, multi-source routing, LLM editorial writer
+- Shared HTTP client with retry, RSS parser, GitHub collector, dedup utilities (`agents/sources/`)
+- Collector refactors: all 4 agents (SINTESE, RADAR, CODIGO, FUNDING) use shared source layer
+- Unified EvidenceItem model + DB migration (`evidence_items` table)
+- Evidence normalizer (converts agent-specific types to EvidenceItem)
+- Entity resolver (cross-agent fuzzy matching for companies/funding)
+- GuidelinesPack facade connecting editorial rules to pipeline
+- Async RSS and GitHub fetching support
+
+### Phase 2: Agent Runtime (Complete)
+- Shared persistence layer (`persist_agent_run`, `persist_content_piece`, `persist_agent_output`)
+- EvidenceItemDB ORM model + evidence writer (confidence-based upsert)
+- Shared CLI (`run_agent_cli`) — reduced 5 agent `main.py` files from ~100 lines to ~15-25 lines each
+- Agent orchestrator with editorial-in-the-loop (`orchestrate_agent_run`)
+- `run_agents.py` updated with `--orchestrate` mode (in-process with editorial review)
+- RADAR and CODIGO get DB persistence for the first time
+- Removed `sys.path.insert` hacks from 16 test files
+- 957+ tests passing across the full suite
+
 ### Next Priorities
 - Production deployment (Vercel + Railway/Render)
 - First real newsletter edition
-- FUNDING agent implementation
 - User dashboard with personalized feeds
 - Community features (company submission, feedback loop)
+- INDEX agent implementation (startup ranking)
+- SEO ENGINE agent (programmatic page generation)
 
 ---
 
