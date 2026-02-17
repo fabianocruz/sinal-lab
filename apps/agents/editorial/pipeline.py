@@ -24,6 +24,7 @@ from apps.agents.editorial.layers.verificacao import run_verificacao
 from apps.agents.editorial.layers.vies import run_vies
 from apps.agents.editorial.models import (
     EditorialResult,
+    FlagCategory,
     FlagSeverity,
     LayerResult,
     ReviewFlag,
@@ -103,6 +104,27 @@ class EditorialPipeline:
             agent_output.run_id,
         )
 
+        # Warn when a data agent output enters the editorial pipeline.
+        # Data agents (FUNDING, MERCADO, INDEX) produce raw data reports
+        # that typically bypass editorial review. This is not a blocker,
+        # just an alert for the editorial team.
+        agent_category = getattr(agent_output, "agent_category", "content")
+        if agent_category == "data":
+            logger.warning(
+                "Data agent '%s' output entering editorial pipeline — "
+                "data agents normally bypass editorial review.",
+                agent_output.agent_name,
+            )
+            all_flags.append(ReviewFlag(
+                severity=FlagSeverity.WARNING,
+                category=FlagCategory.DATA_QUALITY,
+                message=(
+                    f"Data agent '{agent_output.agent_name}' output entering editorial "
+                    f"pipeline. Data agents normally bypass editorial review."
+                ),
+                layer="pipeline",
+            ))
+
         for layer_name, layer_fn in self._layers:
             logger.info("Running editorial layer: %s", layer_name)
 
@@ -110,7 +132,6 @@ class EditorialPipeline:
                 result = layer_fn(agent_output)
             except Exception as e:
                 logger.error("Layer %s raised exception: %s", layer_name, e)
-                from apps.agents.editorial.models import FlagCategory
                 result = LayerResult(
                     layer_name=layer_name,
                     passed=False,
@@ -144,7 +165,6 @@ class EditorialPipeline:
                 final_result = run_sintese_final(agent_output, prior_layer_results=layer_results)
             except Exception as e:
                 logger.error("Layer sintese_final raised exception: %s", e)
-                from apps.agents.editorial.models import FlagCategory
                 final_result = LayerResult(
                     layer_name="sintese_final",
                     passed=False,
