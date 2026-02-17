@@ -5,8 +5,10 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
+import json
 import pytest
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from apps.agents.sintese.collector import FeedItem
 from apps.agents.sintese.scorer import ScoredItem
@@ -16,6 +18,7 @@ from apps.agents.sintese.synthesizer import (
     group_by_category,
     synthesize_newsletter,
 )
+from apps.agents.sintese.writer import SinteseWriter, SectionContent
 
 
 def make_scored_item(
@@ -201,3 +204,142 @@ class TestSynthesizeNewsletter:
         date = datetime(2026, 2, 16, tzinfo=timezone.utc)
         newsletter = synthesize_newsletter(items, edition_date=date)
         assert "16/02/2026" in newsletter
+
+
+class TestSynthesizeNewsletterWithLLM:
+    """Test LLM-enhanced newsletter synthesis."""
+
+    def _make_items(self, count: int = 5) -> list[ScoredItem]:
+        """Create a list of scored items for testing."""
+        return [
+            make_scored_item(
+                title=f"AI Article {i}",
+                url=f"https://example.com/ai-{i}",
+                source_name=f"source_{i}",
+                composite=0.9 - i * 0.05,
+                summary=f"Summary about AI topic {i}.",
+                tags=["inteligencia artificial", "machine learning"],
+            )
+            for i in range(count)
+        ]
+
+    def _make_writer(
+        self,
+        available: bool = True,
+        intro_return: str = "LLM-generated intro paragraph.",
+        section_return: SectionContent = None,
+    ) -> MagicMock:
+        """Create a mock SinteseWriter."""
+        writer = MagicMock(spec=SinteseWriter)
+        writer.is_available = available
+
+        writer.write_newsletter_intro.return_value = intro_return if available else None
+
+        if section_return is None and available:
+            section_return = SectionContent(
+                intro="LLM section commentary.",
+                summaries=None,  # Will be set per-test
+            )
+
+        writer.write_section_content.return_value = section_return
+        return writer
+
+    def test_uses_llm_intro_when_writer_available(self):
+        items = self._make_items()
+        writer = self._make_writer(
+            available=True,
+            intro_return="A semana foi dominada por avancos em inteligencia artificial.",
+        )
+        # Section content returns None to keep sections template-based
+        writer.write_section_content.return_value = None
+
+        newsletter = synthesize_newsletter(items, edition_number=42, writer=writer)
+
+        assert "A semana foi dominada por avancos em inteligencia artificial." in newsletter
+        # Template intro should NOT be present
+        assert "Esta semana reunimos" not in newsletter
+
+    def test_uses_llm_section_content_when_writer_available(self):
+        items = self._make_items(count=3)
+        writer = self._make_writer(available=True)
+        writer.write_newsletter_intro.return_value = None  # Template intro fallback
+
+        # Return section content matching item count per section
+        def section_side_effect(section):
+            return SectionContent(
+                intro="LLM editorial commentary for section.",
+                summaries=[f"Rewritten summary for {it.item.title}." for it in section.items],
+            )
+        writer.write_section_content.side_effect = section_side_effect
+
+        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+
+        assert "LLM editorial commentary for section." in newsletter
+        assert "Rewritten summary for AI Article 0." in newsletter
+
+    def test_falls_back_to_template_when_writer_unavailable(self):
+        items = self._make_items()
+        writer = self._make_writer(available=False)
+
+        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+
+        # Should use template intro
+        assert "Esta semana reunimos" in newsletter
+        writer.write_newsletter_intro.assert_not_called()
+        writer.write_section_content.assert_not_called()
+
+    def test_falls_back_to_template_when_writer_is_none(self):
+        items = self._make_items()
+
+        newsletter = synthesize_newsletter(items, edition_number=1, writer=None)
+
+        # Should use template intro (default behavior)
+        assert "Esta semana reunimos" in newsletter
+
+    def test_falls_back_to_template_intro_when_llm_returns_none(self):
+        items = self._make_items()
+        writer = self._make_writer(available=True, intro_return=None)
+        writer.write_section_content.return_value = None
+
+        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+
+        # Template intro should be used as fallback
+        assert "Esta semana reunimos" in newsletter
+
+    def test_falls_back_to_template_section_when_llm_returns_none(self):
+        items = self._make_items(count=3)
+        writer = self._make_writer(available=True, intro_return=None)
+        writer.write_section_content.return_value = None  # Simulates LLM failure
+
+        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+
+        # Template section format: blockquote summaries from RSS
+        assert "Summary about AI topic" in newsletter
+
+    def test_partial_llm_success(self):
+        """Intro works but section content fails — uses mixed output."""
+        items = self._make_items()
+        writer = self._make_writer(
+            available=True,
+            intro_return="LLM intro succeeded.",
+        )
+        writer.write_section_content.return_value = None  # All sections fail
+
+        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+
+        # LLM intro present
+        assert "LLM intro succeeded." in newsletter
+        # Template sections (fallback)
+        assert "Summary about AI topic" in newsletter
+
+    def test_structural_logic_unchanged(self):
+        """select_top_items and group_by_category work the same with/without writer."""
+        items = self._make_items(count=20)
+
+        newsletter_without = synthesize_newsletter(items, edition_number=1, writer=None)
+        writer = self._make_writer(available=False)
+        newsletter_with = synthesize_newsletter(items, edition_number=1, writer=writer)
+
+        # Same structure: same title, same section count
+        assert "# Sinal Semanal #1" in newsletter_without
+        assert "# Sinal Semanal #1" in newsletter_with
