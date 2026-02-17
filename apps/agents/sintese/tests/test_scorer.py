@@ -316,3 +316,42 @@ class TestScoreItems:
         assert len(scored) == 2
         for s in scored:
             assert s.topic_score >= MIN_TOPIC_SCORE
+
+
+class TestSourceCalibration:
+    """Test source authority calibration and config alignment."""
+
+    REMOVED_SOURCES = {
+        "canaltech", "tecmundo", "olhardigital", "tecnoblog",
+        "mundoconectado", "meiobit", "gabordi",
+    }
+
+    def test_removed_sources_not_in_config(self):
+        """Consumer tech sources must NOT appear in SINTESE config."""
+        from apps.agents.sintese.config import LATAM_TECH_FEEDS
+
+        config_names = {s.name for s in LATAM_TECH_FEEDS}
+        overlap = self.REMOVED_SOURCES & config_names
+        assert overlap == set(), f"Removed sources still in config: {overlap}"
+
+    def test_all_config_sources_have_authority(self):
+        """Every source in SINTESE config must have an explicit authority score."""
+        from apps.agents.sintese.config import LATAM_TECH_FEEDS
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY
+
+        config_names = {s.name for s in LATAM_TECH_FEEDS}
+        missing = config_names - set(SOURCE_AUTHORITY.keys())
+        assert missing == set(), f"Sources without authority score: {missing}"
+
+    def test_authority_scores_in_valid_range(self):
+        """All authority scores must be between 0.0 and 1.0."""
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY
+
+        for source, score in SOURCE_AUTHORITY.items():
+            assert 0.0 <= score <= 1.0, f"{source} has invalid authority: {score}"
+
+    def test_infomoney_authority_lowered(self):
+        """Infomoney should have a reduced authority score (too much general finance)."""
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY
+
+        assert SOURCE_AUTHORITY["infomoney"] <= 0.6
