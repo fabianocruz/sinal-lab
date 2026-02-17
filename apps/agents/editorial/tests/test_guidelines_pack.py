@@ -44,7 +44,7 @@ _GOOD_CONTENT = (
     "dados públicos do BCB com pesquisa própria junto a 50 fintechs brasileiras. "
     "O impacto em custos operacionais é significativo: redução de 60% comparado a TED. "
     "ROI médio de implementação: 3 meses para fintechs de médio porte em São Paulo. "
-    + "Dados complementares incluem análise setorial. " * 30  # Ensure 500+ words
+    + "Dados complementares incluem análise setorial detalhada sobre fintechs. " * 50  # 500+ words
 )
 
 # Content that fails: no data, no LATAM, no actionability
