@@ -5,7 +5,21 @@ parameters, and scheduling. This module provides the base structure.
 """
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Optional
+
+
+class AgentCategory(str, Enum):
+    """Classification of agent scope and purpose.
+
+    DATA: Collects and indexes all LATAM startups/companies regardless of editorial line.
+    CONTENT: Produces content filtered by editorial guidelines for the target audience.
+    QUALITY: Filters, validates, and optimizes content for publication.
+    """
+
+    DATA = "data"
+    CONTENT = "content"
+    QUALITY = "quality"
 
 
 @dataclass
@@ -26,6 +40,7 @@ class AgentConfig:
     """Base configuration shared by all agents."""
 
     agent_name: str
+    agent_category: AgentCategory = AgentCategory.CONTENT
     version: str = "0.1.0"
     description: str = ""
     data_sources: list[DataSourceConfig] = field(default_factory=list)
