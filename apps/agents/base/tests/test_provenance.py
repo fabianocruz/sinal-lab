@@ -1,10 +1,5 @@
 """Tests for provenance tracking module."""
 
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
-
 import pytest
 from datetime import datetime, timezone
 from apps.agents.base.provenance import ProvenanceRecord, ProvenanceTracker

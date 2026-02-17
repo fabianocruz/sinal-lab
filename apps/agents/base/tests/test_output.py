@@ -1,10 +1,5 @@
 """Tests for output formatting module."""
 
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
-
 import pytest
 from apps.agents.base.confidence import ConfidenceScore
 from apps.agents.base.output import AgentOutput, format_markdown_output

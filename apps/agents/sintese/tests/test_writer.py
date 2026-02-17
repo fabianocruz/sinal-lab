@@ -1,10 +1,7 @@
 """Tests for SINTESE editorial writer (LLM-powered content generation)."""
 
 import json
-import sys
 import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
 import pytest
 from datetime import datetime, timezone
