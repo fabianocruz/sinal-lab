@@ -95,6 +95,24 @@ class TestAgentOutput:
         errors = output.validate()
         assert any("confidence" in e.lower() for e in errors)
 
+    def test_agent_category_default(self):
+        output = self._make_output()
+        assert output.agent_category == "content"
+
+    def test_agent_category_explicit(self):
+        output = self._make_output(agent_category="data")
+        assert output.agent_category == "data"
+
+    def test_to_markdown_has_agent_category(self):
+        output = self._make_output(agent_category="data")
+        md = output.to_markdown()
+        assert "agent_category: data" in md
+
+    def test_to_dict_has_agent_category(self):
+        output = self._make_output(agent_category="data")
+        d = output.to_dict()
+        assert d["agent_category"] == "data"
+
 
 class TestFormatMarkdownOutput:
     """Test the format_markdown_output helper."""
@@ -139,3 +157,26 @@ class TestFormatMarkdownOutput:
             sources=["src"],
         )
         assert "# Empty" in output.body_md
+
+    def test_format_with_agent_category(self):
+        output = format_markdown_output(
+            title="Test",
+            sections=[{"heading": "A", "content": "B"}],
+            agent_name="funding",
+            run_id="funding-001",
+            confidence=ConfidenceScore(data_quality=0.5, analysis_confidence=0.5),
+            sources=["src"],
+            agent_category="data",
+        )
+        assert output.agent_category == "data"
+
+    def test_format_default_agent_category(self):
+        output = format_markdown_output(
+            title="Test",
+            sections=[],
+            agent_name="test",
+            run_id="test-001",
+            confidence=ConfidenceScore(data_quality=0.5, analysis_confidence=0.5),
+            sources=["src"],
+        )
+        assert output.agent_category == "content"
