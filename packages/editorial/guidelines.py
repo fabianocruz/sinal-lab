@@ -114,7 +114,7 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
     },
     "venture": {
         "name": "Venture Capital & Funding LATAM",
-        "weight": 0.10,
+        "weight": 0.15,
         "primary_agents": ["FUNDING", "INDEX"],
         "keywords": [
             "funding", "investment", "venture capital", "vc",
