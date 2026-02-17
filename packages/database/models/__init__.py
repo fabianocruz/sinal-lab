@@ -6,6 +6,7 @@ from packages.database.models.company import Company
 from packages.database.models.content_piece import ContentPiece
 from packages.database.models.data_provenance import DataProvenance
 from packages.database.models.ecosystem import Ecosystem
+from packages.database.models.evidence_item import EvidenceItemDB
 from packages.database.models.funding_round import FundingRound
 from packages.database.models.investor import Investor
 from packages.database.models.user import User
@@ -17,6 +18,7 @@ __all__ = [
     "ContentPiece",
     "DataProvenance",
     "Ecosystem",
+    "EvidenceItemDB",
     "FundingRound",
     "Investor",
     "User",
