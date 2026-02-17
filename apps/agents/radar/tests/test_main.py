@@ -1,457 +1,71 @@
 """Unit tests for RADAR agent CLI entry point.
 
-Tests for apps.agents.radar.main module, ensuring proper CLI argument parsing,
-agent execution, error handling, and output generation.
-
-Coverage target: >80% per CLAUDE.md standards.
+Tests that radar/main.py correctly delegates to the shared CLI module
+with the right agent-specific configuration.
 """
 
-import argparse
-import logging
-import os
-import sys
-from datetime import datetime
 from io import StringIO
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, mock_open, call
+from unittest.mock import Mock, patch, mock_open
 
 import pytest
 
-# Add project root to path (same as main.py does)
-project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from apps.agents.radar.main import setup_logging, main
+from apps.agents.radar.main import main
 
 
-class TestSetupLogging:
-    """Test suite for logging configuration."""
+class TestMainDelegation:
+    """Test that main() delegates to run_agent_cli correctly."""
 
-    def test_setup_logging_default_level(self):
-        """Test that default logging level is INFO."""
-        with patch('logging.basicConfig') as mock_basic_config:
-            setup_logging(verbose=False)
+    @patch("apps.agents.radar.main.run_agent_cli")
+    def test_delegates_to_run_agent_cli(self, mock_run):
+        main()
 
-            mock_basic_config.assert_called_once()
-            call_kwargs = mock_basic_config.call_args[1]
-            assert call_kwargs['level'] == logging.INFO
+        mock_run.assert_called_once()
 
-    def test_setup_logging_verbose_level(self):
-        """Test that verbose flag sets DEBUG level."""
-        with patch('logging.basicConfig') as mock_basic_config:
-            setup_logging(verbose=True)
+    @patch("apps.agents.radar.main.run_agent_cli")
+    def test_passes_radar_agent_class(self, mock_run):
+        from apps.agents.radar.agent import RadarAgent
 
-            mock_basic_config.assert_called_once()
-            call_kwargs = mock_basic_config.call_args[1]
-            assert call_kwargs['level'] == logging.DEBUG
+        main()
 
-    def test_setup_logging_format(self):
-        """Test that logging format includes timestamp, name, and level."""
-        with patch('logging.basicConfig') as mock_basic_config:
-            setup_logging()
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs["agent_class"] is RadarAgent
 
-            call_kwargs = mock_basic_config.call_args[1]
-            log_format = call_kwargs['format']
+    @patch("apps.agents.radar.main.run_agent_cli")
+    def test_passes_correct_description(self, mock_run):
+        main()
 
-            assert '%(asctime)s' in log_format
-            assert '%(name)s' in log_format
-            assert '%(levelname)s' in log_format
-            assert '%(message)s' in log_format
+        call_kwargs = mock_run.call_args[1]
+        assert "RADAR" in call_kwargs["description"]
 
-    def test_setup_logging_date_format(self):
-        """Test that date format is ISO-like."""
-        with patch('logging.basicConfig') as mock_basic_config:
-            setup_logging()
+    @patch("apps.agents.radar.main.run_agent_cli")
+    def test_passes_output_dir(self, mock_run):
+        main()
 
-            call_kwargs = mock_basic_config.call_args[1]
-            date_format = call_kwargs['datefmt']
+        call_kwargs = mock_run.call_args[1]
+        assert "radar" in call_kwargs["default_output_dir"]
 
-            assert date_format == "%Y-%m-%d %H:%M:%S"
+    @patch("apps.agents.radar.main.run_agent_cli")
+    def test_slug_fn_generates_correct_slug(self, mock_run):
+        main()
 
+        call_kwargs = mock_run.call_args[1]
+        slug_fn = call_kwargs["slug_fn"]
 
-class TestMainCLI:
-    """Test suite for main() CLI function."""
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('sys.argv', ['main.py', '--dry-run'])
-    def test_dry_run_mode_no_file_created(self, mock_file_open, mock_setup_logging, mock_radar_agent_class):
-        """Test that dry-run mode doesn't create output files."""
-        # Setup mock agent
         mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Test content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
+        mock_args = Mock()
+        mock_args.week = 7
 
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 15,
-            'items_processed': 12
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 5}
+        assert slug_fn(mock_agent, mock_args) == "radar-week-7"
 
-        mock_radar_agent_class.return_value = mock_agent
+    @patch("apps.agents.radar.main.run_agent_cli")
+    def test_filename_fn_generates_correct_name(self, mock_run):
+        main()
 
-        # Capture stdout
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            main()
+        call_kwargs = mock_run.call_args[1]
+        filename_fn = call_kwargs["filename_fn"]
 
-            output = mock_stdout.getvalue()
-
-            # Should print preview with equals signs
-            assert "=" in output
-            assert "Test content" in output
-
-        # Verify no file write attempted (dry-run returns early)
-        mock_file_open.assert_not_called()
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('os.makedirs')
-    @patch('sys.argv', ['main.py', '--week', '8'])
-    def test_normal_mode_creates_output_file(
-        self, mock_makedirs, mock_file_open, mock_setup_logging, mock_radar_agent_class
-    ):
-        """Test that normal mode creates output file with correct content."""
-        # Setup mock agent
         mock_agent = Mock()
-        mock_result = Mock()
-        md_content = "# RADAR Report\n\nTest content"
-        mock_result.to_markdown.return_value = md_content
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
+        mock_args = Mock()
+        mock_args.week = 8
 
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 15,
-            'items_processed': 12
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 5}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()):
-            main()
-
-        # Verify output directory created
-        mock_makedirs.assert_called_once_with("apps/agents/radar/output", exist_ok=True)
-
-        # Verify file written with correct content
-        mock_file_open.assert_called_once_with(
-            "apps/agents/radar/output/radar-week-8.md",
-            "w",
-            encoding="utf-8"
-        )
-        handle = mock_file_open()
-        handle.write.assert_called_once_with(md_content)
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('os.makedirs')
-    @patch('sys.argv', ['main.py', '--output', '/tmp/custom-report.md'])
-    def test_custom_output_path(
-        self, mock_makedirs, mock_file_open, mock_setup_logging, mock_radar_agent_class
-    ):
-        """Test that --output flag uses custom path."""
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 10,
-            'items_processed': 8
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 3}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()):
-            main()
-
-        # When custom output is specified, makedirs should NOT be called
-        mock_makedirs.assert_not_called()
-
-        # Should write to custom path
-        mock_file_open.assert_called_once_with(
-            "/tmp/custom-report.md",
-            "w",
-            encoding="utf-8"
-        )
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('sys.argv', ['main.py', '--persist'])
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('os.makedirs')
-    def test_persist_flag_shows_warning(
-        self, mock_makedirs, mock_file_open, mock_setup_logging, mock_radar_agent_class
-    ):
-        """Test that --persist flag shows 'not implemented' warning."""
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 5,
-            'items_processed': 5
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 2}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            main()
-
-            output = mock_stdout.getvalue()
-
-            # Should show persistence skipped message
-            assert "persistence skipped" in output or "not implemented" in output
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('sys.argv', ['main.py', '--verbose'])
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('os.makedirs')
-    def test_verbose_flag_enables_debug_logging(
-        self, mock_makedirs, mock_file_open, mock_setup_logging, mock_radar_agent_class
-    ):
-        """Test that --verbose flag enables DEBUG logging."""
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 5,
-            'items_processed': 5
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 2}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()):
-            main()
-
-        # Verify verbose=True was passed to setup_logging
-        mock_setup_logging.assert_called_once_with(True)
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('sys.argv', ['main.py'])
-    def test_default_week_is_current_week(self, mock_setup_logging, mock_radar_agent_class):
-        """Test that default week is current ISO week number."""
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 5,
-            'items_processed': 5
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 2}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()):
-            with patch('builtins.open', mock_open()):
-                with patch('os.makedirs'):
-                    main()
-
-        # Verify RadarAgent was initialized with current week
-        current_week = datetime.now().isocalendar()[1]
-        mock_radar_agent_class.assert_called_once_with(week_number=current_week)
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('sys.argv', ['main.py', '--week', '42'])
-    def test_custom_week_number(self, mock_setup_logging, mock_radar_agent_class):
-        """Test that --week flag sets custom week number."""
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 5,
-            'items_processed': 5
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 2}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()):
-            with patch('builtins.open', mock_open()):
-                with patch('os.makedirs'):
-                    main()
-
-        # Verify RadarAgent was initialized with week 42
-        mock_radar_agent_class.assert_called_once_with(week_number=42)
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('sys.argv', ['main.py'])
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('os.makedirs')
-    def test_displays_metadata_in_output(
-        self, mock_makedirs, mock_file_open, mock_setup_logging, mock_radar_agent_class
-    ):
-        """Test that metadata is displayed in final output."""
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "B"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 20,
-            'items_processed': 18
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 7}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            main()
-
-            output = mock_stdout.getvalue()
-
-            # Verify metadata is displayed
-            assert "20" in output  # items_collected
-            assert "18" in output  # items_processed
-            assert "7" in output  # unique_sources
-            assert "B" in output  # confidence grade
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('sys.argv', ['main.py'])
-    def test_agent_execution_error_propagates(self, mock_setup_logging, mock_radar_agent_class):
-        """Test that agent execution errors propagate to caller."""
-        # Setup mock agent that raises error
-        mock_agent = Mock()
-        mock_agent.run.side_effect = RuntimeError("Agent failed to collect data")
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        # Should propagate the error
-        with pytest.raises(RuntimeError) as exc_info:
-            main()
-
-        assert "Agent failed to collect data" in str(exc_info.value)
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('sys.argv', ['main.py'])
-    @patch('os.makedirs')
-    @patch('builtins.open')
-    def test_file_write_error_propagates(
-        self, mock_file_open, mock_makedirs, mock_setup_logging, mock_radar_agent_class
-    ):
-        """Test that file write errors propagate to caller."""
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 5,
-            'items_processed': 5
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 2}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        # Simulate file write error
-        mock_file_open.side_effect = IOError("Permission denied")
-
-        with pytest.raises(IOError) as exc_info:
-            main()
-
-        assert "Permission denied" in str(exc_info.value)
-
-    @patch('apps.agents.radar.main.RadarAgent')
-    @patch('apps.agents.radar.main.setup_logging')
-    @patch('logging.getLogger')
-    @patch('sys.argv', ['main.py'])
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('os.makedirs')
-    def test_logging_messages(
-        self, mock_makedirs, mock_file_open, mock_get_logger,
-        mock_setup_logging, mock_radar_agent_class
-    ):
-        """Test that proper logging messages are generated."""
-        # Setup mock logger
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        # Setup mock agent
-        mock_agent = Mock()
-        mock_result = Mock()
-        mock_result.to_markdown.return_value = "Content"
-        mock_result.confidence.to_dict.return_value = {"dq": 0.8, "ac": 0.7}
-        mock_result.confidence.grade = "A"
-        mock_result.confidence.dq_display = "4"
-        mock_result.confidence.ac_display = "3.5"
-
-        mock_agent.run.return_value = mock_result
-        mock_agent.get_run_metadata.return_value = {
-            'items_collected': 10,
-            'items_processed': 9
-        }
-        mock_agent.provenance.summary.return_value = {'unique_sources': 4}
-
-        mock_radar_agent_class.return_value = mock_agent
-
-        with patch('sys.stdout', new=StringIO()):
-            main()
-
-        # Verify logging calls were made
-        assert mock_logger.info.call_count >= 3  # At least: start, metadata, provenance
-
-        # Check that starting message was logged
-        info_calls = [str(call) for call in mock_logger.info.call_args_list]
-        assert any("Starting RADAR" in str(call) for call in info_calls)
+        assert filename_fn(mock_agent, mock_args) == "radar-week-8.md"
