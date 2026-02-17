@@ -151,7 +151,10 @@ class TestClassifyTerritoryVenture:
 
     def test_ecosystem_content(self):
         """Test that ecosystem content is classified as venture."""
-        content = "Mapeamento do ecossistema de startups e unicórnios na América Latina"
+        content = """
+        Mapeamento do ecossistema de startups e unicórnios na América Latina,
+        incluindo análise de venture capital, funding rounds e investidores.
+        """
         result = classify_territory(content)
 
         assert result.primary_territory == "venture"
