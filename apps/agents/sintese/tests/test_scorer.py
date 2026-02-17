@@ -384,3 +384,42 @@ class TestSourceCalibration:
         for source in self.NEW_QUALITY_SOURCES:
             score = SOURCE_AUTHORITY.get(source, 0.0)
             assert score >= 0.7, f"{source} authority too low: {score}"
+
+    TWITTER_SOURCES = {
+        "twitter_fintech", "twitter_ai", "twitter_cripto",
+        "twitter_engenharia", "twitter_venture", "twitter_green_agritech",
+    }
+
+    def test_twitter_sources_in_config(self):
+        """All Twitter sources must be present in SINTESE config."""
+        from apps.agents.sintese.config import TWITTER_SOURCES as TWITTER_SRC_LIST
+
+        config_names = {s.name for s in TWITTER_SRC_LIST}
+        missing = self.TWITTER_SOURCES - config_names
+        assert missing == set(), f"Twitter sources missing from config: {missing}"
+
+    def test_twitter_sources_have_authority(self):
+        """Every Twitter source must have an explicit authority score."""
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY
+
+        missing = self.TWITTER_SOURCES - set(SOURCE_AUTHORITY.keys())
+        assert missing == set(), f"Twitter sources without authority: {missing}"
+
+    def test_twitter_authority_below_default(self):
+        """Twitter sources should have authority below DEFAULT (signals, not editorial)."""
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY, DEFAULT_SOURCE_AUTHORITY
+
+        for source in self.TWITTER_SOURCES:
+            score = SOURCE_AUTHORITY.get(source, 1.0)
+            assert score < DEFAULT_SOURCE_AUTHORITY, (
+                f"{source} authority {score} >= default {DEFAULT_SOURCE_AUTHORITY}"
+            )
+
+    def test_all_sources_have_authority_including_twitter(self):
+        """Every source (RSS + Twitter) in full SINTESE config must have authority."""
+        from apps.agents.sintese.config import SINTESE_CONFIG
+        from apps.agents.sintese.scorer import SOURCE_AUTHORITY
+
+        all_names = {s.name for s in SINTESE_CONFIG.data_sources}
+        missing = all_names - set(SOURCE_AUTHORITY.keys())
+        assert missing == set(), f"Sources without authority score: {missing}"

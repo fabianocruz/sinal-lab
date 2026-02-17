@@ -155,3 +155,94 @@ class TestExtractTags:
 
         tags = extract_tags(MockEntry())
         assert len(tags) == 10
+
+
+class TestMultiSourceRouting:
+    """Test multi-source routing in collect_all_sources."""
+
+    def test_collect_all_sources_exists(self):
+        """collect_all_sources should be importable."""
+        from apps.agents.sintese.collector import collect_all_sources
+        assert callable(collect_all_sources)
+
+    def test_backward_compatible_alias(self):
+        """collect_all_feeds should still be importable (backward compat)."""
+        from apps.agents.sintese.collector import collect_all_feeds
+        assert callable(collect_all_feeds)
+
+    def test_collect_all_sources_routes_twitter(self):
+        """Twitter sources should be routed to twitter_collector."""
+        from unittest.mock import patch, MagicMock
+        from apps.agents.sintese.collector import collect_all_sources
+        from apps.agents.base.config import DataSourceConfig
+        from apps.agents.base.provenance import ProvenanceTracker
+
+        sources = [
+            DataSourceConfig(
+                name="twitter_fintech", source_type="api",
+                api_key_env="X_BEARER_TOKEN",
+                params={"territory": "fintech"},
+            ),
+        ]
+        provenance = ProvenanceTracker()
+
+        with patch("apps.agents.sintese.collector.collect_twitter_sources") as mock_twitter:
+            mock_twitter.return_value = [
+                FeedItem(title="Tweet item", url="https://x.com/1", source_name="twitter_fintech"),
+            ]
+            items = collect_all_sources(sources, provenance)
+
+        mock_twitter.assert_called_once()
+        assert len(items) >= 1
+
+    def test_collect_all_sources_routes_rss(self):
+        """RSS sources should still go through fetch_feed."""
+        from unittest.mock import patch, MagicMock
+        from apps.agents.sintese.collector import collect_all_sources
+        from apps.agents.base.config import DataSourceConfig
+        from apps.agents.base.provenance import ProvenanceTracker
+
+        sources = [
+            DataSourceConfig(name="test_rss", source_type="rss", url="https://example.com/feed"),
+        ]
+        provenance = ProvenanceTracker()
+
+        with patch("apps.agents.sintese.collector.fetch_feed") as mock_fetch:
+            mock_fetch.return_value = [
+                FeedItem(title="RSS item", url="https://example.com/1", source_name="test_rss"),
+            ]
+            items = collect_all_sources(sources, provenance)
+
+        mock_fetch.assert_called_once()
+        assert len(items) == 1
+
+    def test_collect_all_sources_deduplicates_across_types(self):
+        """Same URL from RSS + Twitter should be kept only once."""
+        from unittest.mock import patch, MagicMock
+        from apps.agents.sintese.collector import collect_all_sources
+        from apps.agents.base.config import DataSourceConfig
+        from apps.agents.base.provenance import ProvenanceTracker
+
+        shared_url = "https://techcrunch.com/shared-article"
+        sources = [
+            DataSourceConfig(name="test_rss", source_type="rss", url="https://example.com/feed"),
+            DataSourceConfig(
+                name="twitter_fintech", source_type="api",
+                api_key_env="X_BEARER_TOKEN",
+                params={"territory": "fintech"},
+            ),
+        ]
+        provenance = ProvenanceTracker()
+
+        with patch("apps.agents.sintese.collector.fetch_feed") as mock_rss, \
+             patch("apps.agents.sintese.collector.collect_twitter_sources") as mock_twitter:
+            mock_rss.return_value = [
+                FeedItem(title="Article", url=shared_url, source_name="test_rss"),
+            ]
+            mock_twitter.return_value = [
+                FeedItem(title="Tweet about article", url=shared_url, source_name="twitter_fintech"),
+            ]
+            items = collect_all_sources(sources, provenance)
+
+        # Same URL → only 1 item after dedup
+        assert len(items) == 1
