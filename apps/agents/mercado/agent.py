@@ -19,6 +19,7 @@ from apps.agents.mercado.config import MERCADO_CONFIG
 from apps.agents.mercado.enricher import enrich_all_profiles
 from apps.agents.mercado.scorer import ScoredCompanyProfile, score_all_profiles
 from apps.agents.mercado.synthesizer import synthesize_ecosystem_snapshot
+from apps.agents.mercado.writer import MercadoWriter
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +129,13 @@ class MercadoAgent(BaseAgent):
 
         scored_profiles: list[ScoredCompanyProfile] = scores
 
-        # Generate Markdown report
-        body_md = synthesize_ecosystem_snapshot(scored_profiles, self.week_number)
+        # Instantiate LLM writer (gracefully degrades if unavailable)
+        writer = MercadoWriter()
+
+        # Generate Markdown report with optional LLM enrichment
+        body_md = synthesize_ecosystem_snapshot(
+            scored_profiles, self.week_number, writer=writer
+        )
 
         # Compute aggregate confidence
         if scored_profiles:

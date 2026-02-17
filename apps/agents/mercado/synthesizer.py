@@ -1,12 +1,22 @@
 """Content synthesis for MERCADO agent.
 
 Generates Markdown ecosystem snapshot reports from scored company profiles.
+
+When a MercadoWriter is provided, LLM-generated content enriches the report:
+  - Ecosystem narrative intro (aggregate trends)
+  - Contextual descriptions for top-highlighted companies
+
+Falls back to template-based output when the writer is unavailable or fails.
 """
 
 import logging
 from collections import Counter
+from typing import TYPE_CHECKING, Optional
 
 from apps.agents.mercado.scorer import ScoredCompanyProfile
+
+if TYPE_CHECKING:
+    from apps.agents.mercado.writer import MercadoWriter
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +24,14 @@ logger = logging.getLogger(__name__)
 def synthesize_ecosystem_snapshot(
     scored_profiles: list[ScoredCompanyProfile],
     week_number: int,
+    writer: Optional["MercadoWriter"] = None,
 ) -> str:
     """Generate Markdown ecosystem snapshot report.
 
     Args:
         scored_profiles: List of scored company profiles
         week_number: Week number of the year (1-52)
+        writer: Optional LLM writer for editorial content enrichment
 
     Returns:
         Markdown formatted ecosystem snapshot
@@ -60,16 +72,41 @@ Sem novas startups descobertas esta semana.
         "",
     ]
 
+    # Try LLM-generated ecosystem narrative intro
+    snapshot_intro = None
+    if writer is not None:
+        try:
+            snapshot_intro = writer.write_snapshot_intro(scored_profiles, week_number)
+        except Exception:
+            logger.warning("Writer failed to generate snapshot intro", exc_info=True)
+
+    if snapshot_intro:
+        report_lines.append(snapshot_intro)
+        report_lines.append("")
+
     # Top 3 highlights (highest confidence)
     highlights = scored_profiles[:3]
     report_lines.append("## Destaques da Semana")
     report_lines.append("")
 
-    for scored in highlights:
+    # Try LLM-generated highlight descriptions
+    highlight_descriptions: Optional[list[str]] = None
+    if writer is not None:
+        try:
+            highlight_descriptions = writer.write_highlight_descriptions(highlights)
+        except Exception:
+            logger.warning("Writer failed to generate highlight descriptions", exc_info=True)
+
+    for i, scored in enumerate(highlights):
         p = scored.profile
         report_lines.append(f"### {p.name}")
-        if p.description:
+
+        # Use LLM description if available, otherwise fall back to template
+        if highlight_descriptions is not None and i < len(highlight_descriptions):
+            report_lines.append(highlight_descriptions[i])
+        elif p.description:
             report_lines.append(f"{p.description[:200]}...")
+
         report_lines.append(f"- **Setor**: {p.sector or 'Não classificado'}")
         report_lines.append(f"- **Local**: {p.city}, {p.country}")
         if p.tech_stack:
