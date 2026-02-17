@@ -3,6 +3,38 @@
 Connects the agent lifecycle to editorial review, persistence, and
 evidence item writing in a single coordinated flow.
 
+Editorial-in-the-Loop Flow
+--------------------------
+The orchestrator runs agents through a 3-step pipeline:
+
+    1. agent.run()  →  AgentOutput (title, body_md, confidence, etc.)
+    2. Editorial review  →  EditorialPipeline grades the output and
+       sets review_status to "approved" (publish_ready=True) or
+       "pending_review" (needs human review).  If editorial fails,
+       the output is routed to human review as a safety net.
+    3. Persistence  →  AgentRun + ContentPiece + optional evidence
+       items + optional domain-specific records (e.g. funding rounds).
+
+Atomic Transaction Pattern
+--------------------------
+All persistence in step 3 happens within a **single transaction**:
+persist_agent_run() and persist_content_piece() are called without
+committing, followed by evidence and domain writes, and finally a
+single session.commit().  If any step raises, session.rollback()
+undoes everything — no partial writes.
+
+This differs from persist_agent_output() (the convenience wrapper),
+which commits internally.  The orchestrator intentionally avoids it
+to guarantee atomicity across the full write set.
+
+Design Decisions
+----------------
+- Entity resolver is NOT called here — it's a cross-agent operation
+  that belongs in scripts/run_agents.py after all agents complete.
+- Domain-specific db_writers (funding rounds, company profiles) are
+  passed via domain_persist_fn callback, keeping the orchestrator
+  agent-agnostic.
+
 Usage:
     from apps.agents.base.orchestrator import orchestrate_agent_run
 
@@ -45,30 +77,40 @@ def orchestrate_agent_run(
     persist: bool = True,
     domain_persist_fn: Optional[Callable[..., None]] = None,
 ) -> OrchestrationResult:
-    """Run agent → editorial review → persist → evidence items.
+    """Run agent -> editorial review -> persist -> evidence items.
 
     Flow:
-        1. agent.run() → AgentOutput
-        2. If enable_editorial: EditorialPipeline().review(output)
-           → sets review_status based on publish_ready
-        3. If persist: persist_agent_output() + optionally persist_raw_items()
-           + optionally domain_persist_fn()
+        1. ``agent.run()`` produces an ``AgentOutput``.
+        2. If *enable_editorial*: ``EditorialPipeline().review(output)``
+           grades the content and sets *review_status* to ``"approved"``
+           when ``publish_ready`` is True, or ``"pending_review"`` otherwise.
+           Editorial failures are caught and default to ``"pending_review"``.
+        3. If *persist*: writes AgentRun + ContentPiece + optional evidence
+           items + optional domain records in a **single atomic transaction**
+           (one ``session.commit()``, full ``session.rollback()`` on error).
 
     Entity resolver is NOT called here — that's a cross-agent operation
-    that belongs in scripts/run_agents.py after all agents complete.
+    that belongs in ``scripts/run_agents.py`` after all agents complete.
 
     Args:
-        agent: Agent instance (not yet run).
+        agent: Agent instance (not yet run).  Must implement ``run()``
+            returning ``AgentOutput`` and expose ``agent_name``, ``run_id``.
         session: SQLAlchemy session (required if persist=True).
-        slug: Content slug for persistence.
+        slug: Content slug for persistence (used as ContentPiece unique key).
         enable_editorial: Run editorial pipeline before persistence.
-        enable_evidence: Persist raw items as evidence.
+        enable_evidence: Persist raw items (``agent._collected_data``) as
+            evidence via ``persist_raw_items()``.
         persist: Whether to persist AgentRun + ContentPiece.
-        domain_persist_fn: Optional callback(agent, result, session)
-            for agent-specific persistence (funding rounds, company profiles).
+        domain_persist_fn: Optional ``callback(agent, agent_output, session)``
+            for agent-specific persistence (e.g. funding rounds, company
+            profiles).  Called inside the same transaction.
 
     Returns:
         OrchestrationResult with output, editorial result, and stats.
+
+    Raises:
+        Exception: Re-raises any persistence error after rolling back
+            the transaction.
     """
     # Step 1: Run agent
     logger.info("Orchestrating run for agent '%s'", agent.agent_name)

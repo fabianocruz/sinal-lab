@@ -400,20 +400,116 @@ sources:
 
 ---
 
-## CLI Entry Point (main.py)
+## Runtime Layer (Phase 2)
 
-### Argumentos Padrão
+A infraestrutura de runtime compartilhada que elimina duplicação entre agents.
+
+### Shared CLI (`apps/agents/base/cli.py`)
+
+Cada agent `main.py` delega para `run_agent_cli()`, reduzindo ~100 linhas de
+boilerplate para ~10-25 linhas:
 
 ```python
-parser.add_argument("--dry-run", action="store_true",
-                    help="Run without saving or persisting")
-parser.add_argument("--persist", action="store_true",
-                    help="Save to database")
-parser.add_argument("--output", type=str,
-                    help="Output file path")
-parser.add_argument("--verbose", "-v", action="store_true",
-                    help="Enable debug logging")
+from apps.agents.base.cli import run_agent_cli
+from apps.agents.myagent.agent import MyAgent
+
+def main():
+    run_agent_cli(
+        agent_class=MyAgent,
+        description="MY_AGENT — Description",
+        default_output_dir="apps/agents/myagent/output",
+        slug_fn=lambda agent, args: f"myagent-week-{args.week}",
+        filename_fn=lambda agent, args: f"myagent-week-{args.week}.md",
+        post_run_fn=my_post_run,        # Optional: domain-specific post-processing
+        extra_args_fn=my_extra_args,     # Optional: add agent-specific CLI args
+    )
 ```
+
+Argumentos padrão incluídos automaticamente: `--week/--edition`, `--output`, `--dry-run`, `--persist`, `--verbose`.
+
+### Shared Persistence (`apps/agents/base/persistence.py`)
+
+Três funções para persistir resultados de agents no banco:
+
+| Função | Commit? | Uso |
+|--------|---------|-----|
+| `persist_agent_run(session, agent, result)` | NÃO | Cria AgentRun record |
+| `persist_content_piece(session, result, slug)` | NÃO | Cria/atualiza ContentPiece por slug |
+| `persist_agent_output(session, agent, result, slug)` | SIM | Convenience: ambos + commit/rollback |
+
+As funções low-level (sem commit) são usadas pelo orchestrator para transações atômicas.
+
+### Evidence Writer (`apps/agents/base/evidence_writer.py`)
+
+Persiste dados brutos como evidence items para cross-referência entre agents:
+
+```python
+from apps.agents.base.evidence_writer import persist_raw_items
+
+stats = persist_raw_items(session, agent._collected_data,
+                          agent_name="funding", collector_run_id=agent.run_id)
+# Returns: {"inserted": 5, "updated": 2, "skipped": 1}
+```
+
+Usa upsert por `content_hash` — confidence mais alta vence.
+
+### Orchestrator (`apps/agents/base/orchestrator.py`)
+
+Conecta todo o pipeline: agent → editorial → persist → evidence.
+
+```python
+from apps.agents.base.orchestrator import orchestrate_agent_run
+
+result = orchestrate_agent_run(
+    agent, session=session, slug="radar-week-8",
+    enable_editorial=True,      # Run editorial pipeline
+    enable_evidence=True,       # Persist raw items as evidence
+    persist=True,               # Write AgentRun + ContentPiece
+    domain_persist_fn=my_fn,    # Optional domain-specific writes
+)
+# result.editorial_result.publish_ready → True/False
+# result.persisted → True/False
+# result.evidence_stats → {"inserted": N, ...}
+```
+
+**Transação atômica:** todas as escritas (AgentRun, ContentPiece, evidence,
+domain) acontecem em um único `session.commit()`. Se qualquer etapa falhar,
+`session.rollback()` desfaz tudo.
+
+**Editorial-in-the-loop:** o pipeline editorial classifica o output e define
+`review_status="approved"` (publica automaticamente) ou `"pending_review"`
+(requer revisão humana). Falhas no editorial defaultam para revisão humana.
+
+---
+
+## CLI Entry Point (main.py)
+
+### Usando o Shared CLI
+
+```python
+# apps/agents/myagent/main.py (10-25 linhas)
+from apps.agents.base.cli import run_agent_cli
+from apps.agents.myagent.agent import MyAgent
+
+def main():
+    run_agent_cli(
+        agent_class=MyAgent,
+        description="MY_AGENT — Description",
+        default_output_dir="apps/agents/myagent/output",
+        slug_fn=lambda agent, args: f"myagent-week-{args.week}",
+    )
+
+if __name__ == "__main__":
+    main()
+```
+
+### Argumentos Padrão (automáticos via shared CLI)
+
+- `--week N` / `--edition N`: Período do report
+- `--output PATH`: Caminho para salvar Markdown
+- `--dry-run`: Roda sem salvar
+- `--persist`: Salva AgentRun + ContentPiece no banco
+- `--verbose`: Logging DEBUG
 
 ### Integração com run_agents.py
 
@@ -424,10 +520,35 @@ AGENTS = {
     # ...
     "my_agent": {
         "module": "apps.agents.my_agent.main",
-        "description": "Short description (one line)",
+        "description": "Short description",
+        "class_module": "apps.agents.my_agent.agent",
+        "class_name": "MyAgent",
+        "period_arg": "week",
+        "slug_pattern": "myagent-week-{period}",
     },
 }
 ```
+
+### Modos de Execução via run_agents.py
+
+**Subprocess mode (default):** cada agent roda em processo separado.
+```bash
+python scripts/run_agents.py radar --week 8 --persist
+python scripts/run_agents.py all --persist --dry-run
+```
+
+**Orchestrate mode:** agents rodam in-process com editorial review e evidence persistence.
+```bash
+python scripts/run_agents.py radar --week 8 --orchestrate
+python scripts/run_agents.py all --week 8 --orchestrate --no-editorial
+python scripts/run_agents.py funding --week 8 --orchestrate --no-evidence
+```
+
+| Flag | Descrição |
+|------|-----------|
+| `--orchestrate` | Ativa modo in-process com editorial pipeline |
+| `--no-editorial` | Pula revisão editorial (só orchestrate) |
+| `--no-evidence` | Pula persistência de evidence items (só orchestrate) |
 
 ---
 
@@ -592,11 +713,12 @@ CRUNCHBASE_API_KEY=your_api_key_here
 
 ```bash
 # crontab -e
-# FUNDING agent: Every Monday 7am UTC
+# Subprocess mode (each agent in its own process)
 0 7 * * 1 cd /app && python scripts/run_agents.py funding --persist
-
-# MERCADO agent: Every Wednesday 7am UTC
 0 7 * * 3 cd /app && python scripts/run_agents.py mercado --persist
+
+# Orchestrate mode (in-process with editorial review)
+0 7 * * 1 cd /app && python scripts/run_agents.py all --week $(date +%V) --orchestrate
 ```
 
 ---
@@ -623,9 +745,17 @@ Antes de considerar um agente "completo":
 
 ## Referências
 
+### Core
 - [BaseAgent](../apps/agents/base/base_agent.py) — Classe base
 - [ConfidenceScore](../apps/agents/base/confidence.py) — Sistema de confiança
 - [ProvenanceTracker](../apps/agents/base/provenance.py) — Rastreamento de fontes
 - [AgentOutput](../apps/agents/base/output.py) — Formato de saída
+
+### Runtime Layer (Phase 2)
+- [run_agent_cli](../apps/agents/base/cli.py) — Shared CLI entry point
+- [persistence](../apps/agents/base/persistence.py) — Shared DB persistence
+- [evidence_writer](../apps/agents/base/evidence_writer.py) — Evidence item writer
+- [orchestrator](../apps/agents/base/orchestrator.py) — Editorial-in-the-loop orchestrator
+- [run_agents.py](../scripts/run_agents.py) — Unified agent runner (subprocess + orchestrate)
 
 **Exemplo de referência**: [apps/agents/sintese](../apps/agents/sintese/) — Agente SINTESE completo
