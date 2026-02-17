@@ -3,9 +3,20 @@
 Fetches and parses feeds from RSS/Atom sources and X/Twitter API,
 deduplicates by URL, and returns structured feed items with provenance tracking.
 
-Routes each source to the appropriate collector based on source_type:
-- "rss" → fetch_feed() (RSS/Atom parser)
-- "api" + twitter → collect_twitter_sources() (X API v2)
+Architecture:
+    This is the main collector orchestrator. It routes each DataSourceConfig
+    to the appropriate sub-collector based on source_type:
+
+        collect_all_sources()       ← entry point (called by SinteseAgent.collect)
+        ├── fetch_feed()            ← source_type="rss"  (RSS/Atom parser)
+        └── twitter_collector.py    ← source_type="api" + "twitter" in name
+
+    All sub-collectors produce FeedItem instances. Cross-source deduplication
+    is by content_hash (MD5 of URL), so if a tweet links to the same article
+    as an RSS entry, only one FeedItem is kept (first seen wins).
+
+    twitter_collector is imported lazily inside collect_all_sources() to avoid
+    circular imports (twitter_collector imports FeedItem from this module).
 """
 
 import hashlib
@@ -29,7 +40,15 @@ FEED_FETCH_TIMEOUT = 15.0
 
 @dataclass
 class FeedItem:
-    """A single item collected from an RSS/Atom feed."""
+    """A single item collected from any source (RSS/Atom feed or X/Twitter API).
+
+    This is the shared data model for the SINTESE multi-source collector pipeline.
+    Both RSS feeds (via fetch_feed) and Twitter (via twitter_collector.parse_tweet)
+    produce FeedItems that flow into the scorer for unified relevance ranking.
+
+    The content_hash field enables cross-source deduplication: if a tweet links to
+    the same article URL as an RSS entry, only one FeedItem is kept.
+    """
 
     title: str
     url: str
@@ -195,7 +214,9 @@ def collect_all_sources(
             items = fetch_feed(source, client)
             _add_items(items, source.name, "rss")
 
-    # Collect Twitter sources (handled by twitter_collector module)
+    # Collect Twitter sources (handled by twitter_collector module).
+    # Lazy import: twitter_collector imports FeedItem from this module,
+    # so a top-level import would create a circular dependency.
     if twitter_sources:
         from apps.agents.sintese.twitter_collector import collect_twitter_sources
 

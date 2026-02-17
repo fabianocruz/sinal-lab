@@ -4,6 +4,21 @@ Fetches recent tweets matching editorial territory keywords via the
 X API v2 search/recent endpoint. Converts tweets into FeedItems for
 unified scoring alongside RSS content.
 
+Architecture:
+    This module is one leg of SINTESE's multi-source collector pipeline:
+
+        collector.py (orchestrator)
+        ├── fetch_feed()              ← RSS/Atom sources
+        └── twitter_collector.py      ← X/Twitter API (this module)
+                ├── build_twitter_queries()    → 1 query per editorial territory
+                ├── fetch_twitter_results()    → X API v2 search/recent
+                ├── parse_tweet()              → tweet JSON → FeedItem
+                └── collect_twitter_sources()  → orchestrate all territories
+
+    Both RSS and Twitter produce FeedItem instances (defined in collector.py),
+    which flow into scorer.py for unified relevance ranking. Cross-source
+    deduplication happens via content_hash (MD5 of article URL).
+
 Requires X_BEARER_TOKEN environment variable. Degrades gracefully
 (returns empty list) when the token is not set.
 """
