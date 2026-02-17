@@ -5,6 +5,7 @@ from apps.agents.base.config import AgentCategory
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
 from apps.agents.base.provenance import ProvenanceRecord, ProvenanceTracker
 from apps.agents.base.output import AgentOutput, format_markdown_output
+from apps.agents.base.llm import LLMClient, LLMConfig
 
 __all__ = [
     "BaseAgent",
@@ -15,4 +16,6 @@ __all__ = [
     "ProvenanceTracker",
     "AgentOutput",
     "format_markdown_output",
+    "LLMClient",
+    "LLMConfig",
 ]
