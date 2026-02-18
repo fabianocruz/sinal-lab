@@ -291,3 +291,24 @@ class TestStripHtml:
         assert "<" not in result
         assert ">" not in result
         assert "Brazilian fintech raised $17M" in result
+
+    def test_decodes_numeric_html_entities(self):
+        """Test that numeric HTML entities like &#8230; are decoded."""
+        text = "Some text&#8230; more text"
+        result = strip_html(text)
+        assert "&#" not in result
+        assert "\u2026" in result  # ellipsis character
+
+    def test_decodes_named_html_entities(self):
+        """Test that named HTML entities like &amp; are decoded."""
+        text = "A &amp; B &lt; C"
+        result = strip_html(text)
+        assert result == "A & B < C"
+
+    def test_decodes_entities_and_strips_tags(self):
+        """Test combined HTML tag stripping and entity decoding."""
+        text = "<p>Grupo Colorado&#8230; The post BemAgro raises $5.8M</p>"
+        result = strip_html(text)
+        assert "&#" not in result
+        assert "<" not in result
+        assert "Grupo Colorado" in result

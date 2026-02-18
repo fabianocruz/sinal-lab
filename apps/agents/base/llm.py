@@ -25,6 +25,7 @@ Usage:
     summary = strip_html("<p>Raw HTML</p>", max_length=300)  # Clean RSS summaries
 """
 
+import html as html_module
 import logging
 import os
 import re
@@ -129,6 +130,8 @@ def strip_html(text: str, max_length: int = 300) -> str:
         Cleaned plain text.
     """
     cleaned = re.sub(r"<[^>]+>", "", text).strip()
+    # Decode HTML entities (&#8230; → …, &amp; → &, etc.)
+    cleaned = html_module.unescape(cleaned)
     # Collapse multiple whitespace into single space
     cleaned = re.sub(r"\s+", " ", cleaned)
     if max_length and len(cleaned) > max_length:

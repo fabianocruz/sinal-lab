@@ -176,8 +176,6 @@ def synthesize_funding_report(
                 investors_str = ", ".join(event.lead_investors[:3])
                 lines.append(f"- **Liderado por**: {investors_str}")
 
-            # Add company_slug as location placeholder (we don't have city in FundingEvent)
-            lines.append(f"- **Empresa**: {event.company_slug or 'N/A'}")
             lines.append(f"- **Confiança**: {conf_str}")
 
             if event.notes and not event.notes.startswith("[AMOUNT_CONFLICT"):

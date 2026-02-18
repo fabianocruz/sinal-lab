@@ -47,10 +47,14 @@ class FundingEvent:
     content_hash: str = ""
 
     def __post_init__(self) -> None:
-        """Generate content hash if not provided."""
+        """Generate content hash if not provided.
+
+        Hash is based on (company_name, round_type) only — not source_url —
+        so the same company+round from different RSS sources deduplicates.
+        """
         if not self.content_hash:
             self.content_hash = compute_composite_hash(
-                self.company_name, self.round_type, self.source_url
+                self.company_name.lower().strip(), self.round_type
             )
 
 
@@ -70,6 +74,31 @@ def parse_feed_date(entry: Any) -> Optional[date]:
     if dt is not None:
         return dt.date()
     return None
+
+
+def clean_rss_notes(text: str) -> str:
+    """Strip common RSS boilerplate patterns from notes.
+
+    Removes "The post ... appeared first on ..." and Portuguese variants
+    that RSS feeds append to every summary.
+
+    Args:
+        text: Raw RSS summary text.
+
+    Returns:
+        Cleaned text without boilerplate.
+    """
+    # "The post X appeared first on Y."
+    cleaned = re.sub(
+        r"\s*The post\s+.+?\s+appeared first on\s+.+?\.?\s*$",
+        "", text, flags=re.IGNORECASE,
+    )
+    # "O post X apareceu primeiro em Y."
+    cleaned = re.sub(
+        r"\s*O post\s+.+?\s+apareceu primeiro em\s+.+?\.?\s*$",
+        "", cleaned, flags=re.IGNORECASE,
+    )
+    return cleaned.strip()
 
 
 def extract_funding_from_title(title: str) -> Optional[dict]:
@@ -223,7 +252,7 @@ def parse_funding_event(
         lead_investors=lead_investors,
         source_url=link,
         source_name=source_name,
-        notes=summary[:500] if summary else None,
+        notes=clean_rss_notes(summary[:500]) if summary else None,
     )
 
 
