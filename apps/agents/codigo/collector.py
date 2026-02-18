@@ -174,6 +174,26 @@ def collect_all_sources(
                 signals = collect_github_repos(source, client)
             elif "npm" in source.name:
                 signals = collect_npm_packages(source, client)
+            elif "reddit" in source.name:
+                from apps.agents.sources.reddit import fetch_subreddit_posts
+                subreddit = source.params.get("subreddit", "")
+                sort = source.params.get("sort", "hot")
+                limit = source.params.get("limit", 25)
+                posts = fetch_subreddit_posts(source, client, subreddit=subreddit, sort=sort, limit=limit)
+                signals = [
+                    DevSignal(
+                        title=p.title,
+                        url=p.url,
+                        source_name=source.name,
+                        signal_type="article",
+                        published_at=p.created_utc,
+                        summary=p.selftext[:500] if p.selftext else None,
+                        tags=[f"r/{p.subreddit}"],
+                        metrics={"score": p.score, "comments": p.num_comments},
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
             elif source.source_type == "rss":
                 stype = "package" if "pypi" in source.name else "article"
                 signals = collect_rss_source(source, client, signal_type=stype)

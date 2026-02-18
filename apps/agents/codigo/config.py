@@ -56,6 +56,18 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
         source_type="rss",
         url="https://changelog.com/feed",
     ),
+
+    # --- Reddit (developer communities) ---
+    DataSourceConfig(
+        name="reddit_devops", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "devops", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_webdev", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "webdev", "sort": "hot", "limit": 25},
+    ),
 ]
 
 CODIGO_CONFIG = AgentConfig(

@@ -182,6 +182,45 @@ def collect_all_sources(
                 from apps.agents.sources.google_news import fetch_google_news
                 rss_items = fetch_google_news(source, client)
                 signals = [_rss_to_signal(item, "news") for item in rss_items]
+            elif "reddit" in source.name:
+                from apps.agents.sources.reddit import fetch_subreddit_posts
+                subreddit = source.params.get("subreddit", "")
+                sort = source.params.get("sort", "hot")
+                limit = source.params.get("limit", 25)
+                posts = fetch_subreddit_posts(source, client, subreddit=subreddit, sort=sort, limit=limit)
+                signals = [
+                    TrendSignal(
+                        title=p.title,
+                        url=p.url,
+                        source_name=source.name,
+                        source_type="community",
+                        published_at=p.created_utc,
+                        summary=p.selftext[:500] if p.selftext else None,
+                        author=p.author,
+                        metrics={"score": p.score, "comments": p.num_comments},
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
+            elif "bluesky" in source.name:
+                from apps.agents.sources.bluesky import fetch_bluesky_search
+                query = source.params.get("query", "")
+                limit = source.params.get("limit", 25)
+                posts = fetch_bluesky_search(source, client, query=query, limit=limit)
+                signals = [
+                    TrendSignal(
+                        title=p.text[:100] + ("..." if len(p.text) > 100 else ""),
+                        url=p.external_url or p.url,
+                        source_name=source.name,
+                        source_type="community",
+                        published_at=p.created_at,
+                        summary=p.text[:500] if p.text else None,
+                        author=f"@{p.author_handle}" if p.author_handle else None,
+                        metrics={"likes": p.like_count, "reposts": p.repost_count},
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
             else:
                 signals = collect_rss_source(source, client, source_type="community")
 

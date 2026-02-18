@@ -101,6 +101,25 @@ RADAR_SOURCES: list[DataSourceConfig] = [
         url=None,
         params={"query": "tech startup Latin America trending", "language": "en", "country": "BR"},
     ),
+
+    # --- Reddit (community signals) ---
+    DataSourceConfig(
+        name="reddit_programming", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "programming", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_machinelearning", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "MachineLearning", "sort": "hot", "limit": 25},
+    ),
+
+    # --- Bluesky (AT Protocol, no auth) ---
+    DataSourceConfig(
+        name="bluesky_tech_trends", source_type="api",
+        url="https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+        params={"query": "tech startup AI open source", "limit": 25},
+    ),
 ]
 
 RADAR_CONFIG = AgentConfig(
