@@ -122,12 +122,60 @@ TWITTER_SOURCES: list[DataSourceConfig] = [
     ),
 ]
 
+# LinkedIn RapidAPI — experimental, disabled by default.
+# Requires RAPIDAPI_KEY env var. ~20 calls/run within free tier.
+LINKEDIN_SOURCES: list[DataSourceConfig] = [
+    DataSourceConfig(
+        name="linkedin_fintech_posts", source_type="api",
+        url="https://linkedin-data-api.p.rapidapi.com/search-posts",
+        api_key_env="RAPIDAPI_KEY", enabled=False,
+        params={"query": "fintech open finance pix Brasil", "limit": 10},
+    ),
+    DataSourceConfig(
+        name="linkedin_ai_posts", source_type="api",
+        url="https://linkedin-data-api.p.rapidapi.com/search-posts",
+        api_key_env="RAPIDAPI_KEY", enabled=False,
+        params={"query": "AI machine learning startup LATAM", "limit": 10},
+    ),
+]
+
+# Reddit API — requires REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET env vars.
+REDDIT_SOURCES: list[DataSourceConfig] = [
+    DataSourceConfig(
+        name="reddit_brdev", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "brdev", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_startups", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "startups", "sort": "hot", "limit": 25},
+    ),
+]
+
+# Bluesky AT Protocol — no auth required.
+BLUESKY_SOURCES: list[DataSourceConfig] = [
+    DataSourceConfig(
+        name="bluesky_fintech", source_type="api",
+        url="https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+        params={"query": "fintech pix open finance Brasil", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="bluesky_ai", source_type="api",
+        url="https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+        params={"query": "AI startup machine learning LATAM", "limit": 25},
+    ),
+]
+
 SINTESE_CONFIG = AgentConfig(
     agent_name="sintese",
     agent_category=AgentCategory.CONTENT,
     version="0.2.0",
     description="Newsletter Synthesizer — aggregates and curates LATAM tech news into Sinal Semanal",
-    data_sources=LATAM_TECH_FEEDS + GOOGLE_NEWS_SOURCES + TWITTER_SOURCES,
+    data_sources=(
+        LATAM_TECH_FEEDS + GOOGLE_NEWS_SOURCES + TWITTER_SOURCES
+        + LINKEDIN_SOURCES + REDDIT_SOURCES + BLUESKY_SOURCES
+    ),
     schedule_cron="0 6 * * 1",  # Every Monday at 6am UTC
     output_content_type="DATA_REPORT",
     min_confidence_to_publish=0.3,

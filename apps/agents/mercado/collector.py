@@ -267,6 +267,38 @@ def collect_all_sources(
             )
             continue
 
+        if "linkedin" in source.name:
+            # LinkedIn company discovery — converts LinkedInCompany to CompanyProfile
+            from apps.agents.sources.linkedin import fetch_linkedin_companies
+
+            query = source.params.get("query", "")
+            limit = source.params.get("limit", 10)
+            with httpx.Client(timeout=15.0) as li_client:
+                companies = fetch_linkedin_companies(source, li_client, query=query, limit=limit)
+            for c in companies:
+                profile = CompanyProfile(
+                    name=c.name,
+                    slug=c.name.lower().replace(" ", "-"),
+                    website=c.website,
+                    description=c.description,
+                    sector=c.industry,
+                    linkedin_url=c.url,
+                    source_url=c.url,
+                    source_name=source.name,
+                )
+                if c.headquarters:
+                    parts = c.headquarters.split(", ", 1)
+                    profile.city = parts[0]
+                    if len(parts) > 1:
+                        profile.country = parts[1]
+                all_profiles.append(profile)
+                provenance.track(
+                    source_url=c.url,
+                    source_name=source.name,
+                    extraction_method="api",
+                )
+            continue
+
         logger.info("Collecting from source: %s (%s)", source.name, source.source_type)
 
         if source.source_type == "api":

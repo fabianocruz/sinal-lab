@@ -92,6 +92,12 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "twitter_fintech": 0.40, "twitter_ai": 0.40,
     "twitter_cripto": 0.40, "twitter_engenharia": 0.40,
     "twitter_venture": 0.40, "twitter_green_agritech": 0.40,
+    # LinkedIn RapidAPI (experimental, unverified scraper)
+    "linkedin_fintech_posts": 0.35, "linkedin_ai_posts": 0.35,
+    # Reddit (community signals, variable quality)
+    "reddit_brdev": 0.45, "reddit_startups": 0.40,
+    # Bluesky (emerging community, lower than Twitter due to smaller user base)
+    "bluesky_fintech": 0.35, "bluesky_ai": 0.35,
 }
 
 DEFAULT_SOURCE_AUTHORITY = 0.5

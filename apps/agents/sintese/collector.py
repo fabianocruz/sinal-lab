@@ -135,6 +135,18 @@ def collect_all_sources(
         s for s in sources
         if s.source_type == "api" and "twitter" in s.name and s.enabled
     ]
+    linkedin_sources = [
+        s for s in sources
+        if s.source_type == "api" and "linkedin" in s.name and s.enabled
+    ]
+    reddit_sources = [
+        s for s in sources
+        if s.source_type == "api" and "reddit" in s.name and s.enabled
+    ]
+    bluesky_sources = [
+        s for s in sources
+        if s.source_type == "api" and "bluesky" in s.name and s.enabled
+    ]
 
     all_items: List[FeedItem] = []
     seen_hashes: set = set()
@@ -184,10 +196,88 @@ def collect_all_sources(
         )
         _add_items(twitter_items, "api")
 
-    total_sources = len(rss_sources) + len(gnews_sources) + len(twitter_sources)
+    # Collect LinkedIn sources (experimental, disabled by default)
+    if linkedin_sources:
+        from apps.agents.sources.linkedin import fetch_linkedin_posts
+
+        with create_http_client() as li_client:
+            for source in linkedin_sources:
+                query = source.params.get("query", "")
+                limit = source.params.get("limit", 10)
+                posts = fetch_linkedin_posts(source, li_client, query=query, limit=limit)
+                li_items = [
+                    FeedItem(
+                        title=p.title,
+                        url=p.external_url or p.url,
+                        source_name=source.name,
+                        published_at=p.published_at,
+                        summary=p.text[:1000] if p.text else None,
+                        author=p.author_name,
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
+                _add_items(li_items, "api")
+
+    # Collect Reddit sources
+    if reddit_sources:
+        from apps.agents.sources.reddit import fetch_subreddit_posts
+
+        with create_http_client() as reddit_client:
+            for source in reddit_sources:
+                subreddit = source.params.get("subreddit", "")
+                sort = source.params.get("sort", "hot")
+                limit = source.params.get("limit", 25)
+                posts = fetch_subreddit_posts(
+                    source, reddit_client, subreddit=subreddit, sort=sort, limit=limit,
+                )
+                reddit_items = [
+                    FeedItem(
+                        title=p.title,
+                        url=p.url,
+                        source_name=source.name,
+                        published_at=p.created_utc,
+                        summary=p.selftext[:1000] if p.selftext else None,
+                        author=p.author,
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
+                _add_items(reddit_items, "api")
+
+    # Collect Bluesky sources (no auth required)
+    if bluesky_sources:
+        from apps.agents.sources.bluesky import fetch_bluesky_search
+
+        with create_http_client() as bsky_client:
+            for source in bluesky_sources:
+                query = source.params.get("query", "")
+                limit = source.params.get("limit", 25)
+                posts = fetch_bluesky_search(source, bsky_client, query=query, limit=limit)
+                bsky_items = [
+                    FeedItem(
+                        title=p.text[:100] + ("..." if len(p.text) > 100 else ""),
+                        url=p.external_url or p.url,
+                        source_name=source.name,
+                        published_at=p.created_at,
+                        summary=p.text[:1000] if p.text else None,
+                        author=f"@{p.author_handle}" if p.author_handle else None,
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
+                _add_items(bsky_items, "api")
+
+    total_sources = (
+        len(rss_sources) + len(gnews_sources) + len(twitter_sources)
+        + len(linkedin_sources) + len(reddit_sources) + len(bluesky_sources)
+    )
     logger.info(
-        "Collected %d unique items from %d sources (%d RSS, %d Google News, %d Twitter)",
-        len(all_items), total_sources, len(rss_sources), len(gnews_sources), len(twitter_sources),
+        "Collected %d unique items from %d sources "
+        "(%d RSS, %d GNews, %d Twitter, %d LinkedIn, %d Reddit, %d Bluesky)",
+        len(all_items), total_sources,
+        len(rss_sources), len(gnews_sources), len(twitter_sources),
+        len(linkedin_sources), len(reddit_sources), len(bluesky_sources),
     )
 
     return all_items

@@ -58,6 +58,14 @@ MERCADO_SOURCES: list[DataSourceConfig] = [
         url=None,
         params={"method": "related_queries", "region": "BR", "keywords": "startup,fintech,AI,venture capital"},
     ),
+
+    # LinkedIn RapidAPI — company discovery (experimental, disabled by default)
+    DataSourceConfig(
+        name="linkedin_latam_companies", source_type="api",
+        url="https://linkedin-data-api.p.rapidapi.com/search-companies",
+        api_key_env="RAPIDAPI_KEY", enabled=False,
+        params={"query": "startup fintech AI Brazil LATAM", "limit": 10},
+    ),
 ]
 
 MERCADO_CONFIG = AgentConfig(
