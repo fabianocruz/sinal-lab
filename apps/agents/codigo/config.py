@@ -68,6 +68,14 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
         url=None, api_key_env="REDDIT_CLIENT_ID",
         params={"subreddit": "webdev", "sort": "hot", "limit": 25},
     ),
+
+    # --- ProductHunt GraphQL (dev token, free) ---
+    DataSourceConfig(
+        name="producthunt_tools", source_type="api",
+        url="https://api.producthunt.com/v2/api/graphql",
+        api_key_env="PRODUCTHUNT_TOKEN",
+        params={"limit": 20},
+    ),
 ]
 
 CODIGO_CONFIG = AgentConfig(

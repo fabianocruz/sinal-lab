@@ -194,6 +194,24 @@ def collect_all_sources(
                     )
                     for p in posts
                 ]
+            elif "producthunt" in source.name:
+                from apps.agents.sources.producthunt import fetch_producthunt_posts
+                limit = source.params.get("limit", 20)
+                posts = fetch_producthunt_posts(source, client, limit=limit)
+                signals = [
+                    DevSignal(
+                        title=f"{p.name} — {p.tagline}",
+                        url=p.website or p.url,
+                        source_name=source.name,
+                        signal_type="package",
+                        published_at=p.created_at,
+                        summary=p.description or p.tagline,
+                        tags=[t.lower() for t in p.topics[:5]],
+                        metrics={"votes": p.votes_count, "comments": p.comments_count},
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
             elif source.source_type == "rss":
                 stype = "package" if "pypi" in source.name else "article"
                 signals = collect_rss_source(source, client, signal_type=stype)
