@@ -14,31 +14,31 @@ MERCADO_SOURCES: list[DataSourceConfig] = [
         name="github_sao_paulo",
         source_type="api",
         url="https://api.github.com/search/users",
-        params={"q": 'location:"São Paulo" type:org repos:>5', "sort": "repositories", "per_page": 100},
+        params={"q": 'location:"São Paulo" type:org repos:>5', "sort": "repositories", "per_page": 30},
     ),
     DataSourceConfig(
         name="github_rio",
         source_type="api",
         url="https://api.github.com/search/users",
-        params={"q": 'location:"Rio de Janeiro" type:org repos:>5', "sort": "repositories", "per_page": 100},
+        params={"q": 'location:"Rio de Janeiro" type:org repos:>5', "sort": "repositories", "per_page": 30},
     ),
     DataSourceConfig(
         name="github_mexico_city",
         source_type="api",
         url="https://api.github.com/search/users",
-        params={"q": 'location:"Mexico City" type:org repos:>5', "sort": "repositories", "per_page": 100},
+        params={"q": 'location:"Mexico City" type:org repos:>5', "sort": "repositories", "per_page": 30},
     ),
     DataSourceConfig(
         name="github_buenos_aires",
         source_type="api",
         url="https://api.github.com/search/users",
-        params={"q": 'location:"Buenos Aires" type:org repos:>3', "sort": "repositories", "per_page": 100},
+        params={"q": 'location:"Buenos Aires" type:org repos:>3', "sort": "repositories", "per_page": 30},
     ),
     DataSourceConfig(
         name="github_bogota",
         source_type="api",
         url="https://api.github.com/search/users",
-        params={"q": 'location:"Bogotá" type:org repos:>3', "sort": "repositories", "per_page": 100},
+        params={"q": 'location:"Bogotá" type:org repos:>3', "sort": "repositories", "per_page": 30},
     ),
 
     # Dealroom API (freemium tier: 100 req/day)

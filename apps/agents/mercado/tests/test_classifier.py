@@ -114,7 +114,7 @@ def test_classify_sector_no_match():
 
 
 def test_classify_sector_no_description():
-    """Test classification when description is missing."""
+    """Test classification when description is missing and name has no keywords."""
     profile = CompanyProfile(
         name="NoDesc",
         slug="nodesc",
@@ -128,6 +128,23 @@ def test_classify_sector_no_description():
     sector = classify_sector(profile)
 
     assert sector is None
+
+
+def test_classify_sector_from_name_only():
+    """Test classification when only the org name/slug contains keywords."""
+    profile = CompanyProfile(
+        name="Nubank",
+        slug="nubank",
+        description="",
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/nubank",
+        source_name="github_sao_paulo",
+    )
+
+    sector = classify_sector(profile)
+
+    assert sector == "Fintech"
 
 
 def test_generate_tags_with_sector():

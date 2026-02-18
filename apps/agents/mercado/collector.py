@@ -55,6 +55,50 @@ class CompanyProfile:
     source_name: str = ""
 
 
+# Patterns indicating non-startup organizations (matched case-insensitive).
+# Universities, government, training platforms, archives, etc.
+_NON_STARTUP_PATTERNS = [
+    "prefeitura", "governo", "gov-",
+    "universid", "university",
+    "faculdade", "fatec", "fiap", "espm", "puc-",
+    "escola", "school", "college",
+    "curso", "treinaweb", "alura", "platzi",
+    "archive",
+]
+
+
+def is_likely_startup(org_login: str, description: str = "") -> bool:
+    """Check if a GitHub org is likely a startup vs an institution.
+
+    Filters out universities, government orgs, training platforms, and
+    archives based on keyword matching against login and description.
+
+    Args:
+        org_login: GitHub organization login handle.
+        description: Organization description (may be empty).
+
+    Returns:
+        True if the org is likely a startup/tech company.
+    """
+    text = (org_login + " " + description).lower()
+    for pattern in _NON_STARTUP_PATTERNS:
+        if pattern in text:
+            return False
+    return True
+
+
+def _format_display_name(org_login: str) -> str:
+    """Convert GitHub login to a human-readable display name.
+
+    Args:
+        org_login: GitHub organization login (e.g., "stone-payments").
+
+    Returns:
+        Formatted name (e.g., "Stone Payments").
+    """
+    return org_login.replace("-", " ").replace("_", " ").title()
+
+
 def _resolve_location(query: str) -> tuple:
     """Extract (city, country) from the GitHub search query string."""
     for loc_name, (city, country) in _LOCATION_MAP.items():
@@ -106,17 +150,24 @@ def collect_from_github(
         query = source.params.get("q", "")
         city, country = _resolve_location(query)
 
+        filtered_count = 0
         for org in data.get("items", []):
             org_login = org.get("login", "")
             org_url = org.get("html_url", "")
+            description = org.get("description") or ""
 
             if not org_login:
                 continue
 
+            # Filter out non-startup organizations
+            if not is_likely_startup(org_login, description):
+                filtered_count += 1
+                continue
+
             profile = CompanyProfile(
-                name=org_login,
-                slug=org_login.lower().replace(" ", "-"),
-                description=org.get("description") or "",
+                name=_format_display_name(org_login),
+                slug=org_login.lower(),
+                description=description,
                 city=city,
                 country=country,
                 github_url=org_url,
@@ -131,6 +182,9 @@ def collect_from_github(
                 source_name=source.name,
                 extraction_method="api",
             )
+
+        if filtered_count:
+            logger.info("Filtered out %d non-startup orgs from %s", filtered_count, source.name)
 
     except httpx.TimeoutException:
         logger.error("Timeout fetching GitHub API: %s", source.name)

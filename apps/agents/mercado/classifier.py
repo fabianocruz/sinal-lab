@@ -109,21 +109,33 @@ SECTOR_KEYWORDS = {
 def classify_sector(profile: CompanyProfile) -> Optional[str]:
     """Classify company sector based on keywords.
 
+    Checks both the org description and name/slug for keyword matches.
+    Name matches count less (0.5 per hit) to avoid over-weighting short names.
+
     Args:
         profile: CompanyProfile to classify
 
     Returns:
         Sector name (e.g., "Fintech") or None if unclassified
     """
-    if not profile.description:
+    # Build searchable text from description and name
+    text_parts = []
+    if profile.description:
+        text_parts.append(profile.description.lower())
+    if profile.slug:
+        text_parts.append(profile.slug.lower())
+    if profile.name:
+        text_parts.append(profile.name.lower())
+
+    if not text_parts:
         return None
 
-    description_lower = profile.description.lower()
+    searchable_text = " ".join(text_parts)
 
     # Check each sector's keywords
-    sector_scores = {}
+    sector_scores: dict[str, float] = {}
     for sector, keywords in SECTOR_KEYWORDS.items():
-        score = sum(1 for keyword in keywords if keyword in description_lower)
+        score = sum(1 for keyword in keywords if keyword in searchable_text)
         if score > 0:
             sector_scores[sector] = score
 

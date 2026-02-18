@@ -9,6 +9,7 @@ from apps.agents.mercado.collector import (
     CompanyProfile,
     collect_from_github,
     collect_all_sources,
+    is_likely_startup,
 )
 
 
@@ -65,11 +66,12 @@ def test_collect_from_github_success(mock_get, mock_github_response, github_sour
     profiles = collect_from_github(github_source, provenance)
 
     assert len(profiles) == 2
-    assert profiles[0].name == "nubank"
+    assert profiles[0].name == "Nubank"
+    assert profiles[0].slug == "nubank"
     assert profiles[0].city == "São Paulo"
     assert profiles[0].country == "Brasil"
     assert profiles[0].github_url == "https://github.com/nubank"
-    assert profiles[1].name == "stone-payments"
+    assert profiles[1].name == "Stone Payments"
 
 
 @patch("httpx.get")
@@ -126,7 +128,7 @@ def test_collect_from_github_skips_items_without_login(mock_get, github_source, 
     profiles = collect_from_github(github_source, provenance)
 
     assert len(profiles) == 1
-    assert profiles[0].name == "acme-corp"
+    assert profiles[0].name == "Acme Corp"
 
 
 def test_collect_all_sources_skips_disabled(provenance):
@@ -179,3 +181,93 @@ def test_collect_all_sources_multiple(mock_collect_github, provenance):
     # Should call GitHub collector twice
     assert mock_collect_github.call_count == 2
     assert len(profiles) == 2
+
+
+class TestIsLikelyStartup:
+    """Test non-startup filtering logic."""
+
+    def test_filters_university_by_login(self):
+        assert not is_likely_startup("FIAP", "")
+
+    def test_filters_university_by_description(self):
+        assert not is_likely_startup("some-org", "Universidade de São Paulo")
+
+    def test_filters_government(self):
+        assert not is_likely_startup("prefeiturasp", "")
+
+    def test_filters_training_platform(self):
+        assert not is_likely_startup("treinaweb", "")
+
+    def test_filters_course_provider(self):
+        assert not is_likely_startup("curso-r", "R courses for data science")
+
+    def test_filters_alura(self):
+        assert not is_likely_startup("alura-es-cursos", "")
+
+    def test_filters_fatec(self):
+        assert not is_likely_startup("FatecFranca", "")
+
+    def test_filters_archive(self):
+        assert not is_likely_startup("alexfalcucci-archive", "")
+
+    def test_allows_real_startup(self):
+        assert is_likely_startup("nubank", "Functional machine learning")
+
+    def test_allows_tech_company(self):
+        assert is_likely_startup("stone-payments", "Microservice gateway")
+
+    def test_allows_startup_with_empty_description(self):
+        assert is_likely_startup("vtex", "")
+
+    def test_filters_platzi(self):
+        assert not is_likely_startup("PlatziMaster", "Learning platform")
+
+    def test_filters_school(self):
+        assert not is_likely_startup("tech-school", "")
+
+    def test_filters_gov(self):
+        assert not is_likely_startup("gov-digital", "Government digital services")
+
+
+@patch("httpx.get")
+def test_collect_from_github_filters_non_startups(mock_get, github_source, provenance):
+    """Test that non-startup organizations are filtered out."""
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "total_count": 4,
+        "items": [
+            {
+                "login": "nubank",
+                "html_url": "https://github.com/nubank",
+                "type": "Organization",
+                "description": "Functional machine learning",
+            },
+            {
+                "login": "prefeiturasp",
+                "html_url": "https://github.com/prefeiturasp",
+                "type": "Organization",
+                "description": "Prefeitura de São Paulo",
+            },
+            {
+                "login": "FIAP",
+                "html_url": "https://github.com/FIAP",
+                "type": "Organization",
+                "description": "Faculdade de Informática",
+            },
+            {
+                "login": "stone-payments",
+                "html_url": "https://github.com/stone-payments",
+                "type": "Organization",
+                "description": "Payment platform",
+            },
+        ],
+    }
+    mock_response.raise_for_status = Mock()
+    mock_get.return_value = mock_response
+
+    profiles = collect_from_github(github_source, provenance)
+
+    assert len(profiles) == 2
+    names = [p.name for p in profiles]
+    assert "Nubank" in names
+    assert "Stone Payments" in names

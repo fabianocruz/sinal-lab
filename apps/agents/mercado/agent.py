@@ -166,7 +166,10 @@ class MercadoAgent(BaseAgent):
             confidence=aggregate_confidence,
             sources=source_urls,
             content_type="DATA_REPORT",
-            summary=f"Discovered {len(scored_profiles)} new startups in LATAM ecosystem",
+            summary=(
+                f"Semana {self.week_number}: {len(scored_profiles)} organizacoes tech "
+                f"descobertas no ecossistema LATAM."
+            ),
         )
 
         logger.info("OUTPUT phase complete: %s", output.title)
