@@ -66,6 +66,18 @@ MERCADO_SOURCES: list[DataSourceConfig] = [
         api_key_env="RAPIDAPI_KEY", enabled=False,
         params={"query": "startup fintech AI Brazil LATAM", "limit": 10},
     ),
+
+    # --- Crunchbase Basic API (free tier: 200 req/day) ---
+    DataSourceConfig(
+        name="crunchbase_companies_latam", source_type="api",
+        url="https://api.crunchbase.com/api/v4/searches/organizations",
+        api_key_env="CRUNCHBASE_API_KEY",
+        params={
+            "locations": "Brazil,Mexico,Argentina,Colombia,Chile",
+            "categories": "fintech,artificial-intelligence,saas,marketplace",
+            "limit": 30,
+        },
+    ),
 ]
 
 MERCADO_CONFIG = AgentConfig(

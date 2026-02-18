@@ -378,6 +378,32 @@ def collect_all_sources(
         elif source.source_type == "rss":
             events = fetch_feed(source, provenance, agent_name, run_id)
             all_events.extend(events)
+        elif source.source_type == "api" and "crunchbase" in source.name:
+            from apps.agents.sources.crunchbase import fetch_funding_rounds
+
+            locations_str = source.params.get("locations", "")
+            locations = [loc.strip() for loc in locations_str.split(",") if loc.strip()] if locations_str else None
+            limit = source.params.get("limit", 25)
+
+            with create_http_client() as cb_client:
+                rounds = fetch_funding_rounds(source, cb_client, locations=locations, limit=limit)
+
+            for r in rounds:
+                event = FundingEvent(
+                    company_name=r.company_name,
+                    round_type=r.round_type,
+                    source_url=r.source_url,
+                    source_name=source.name,
+                    amount_usd=r.amount_usd,
+                    announced_date=r.announced_date,
+                    lead_investors=r.lead_investors,
+                )
+                all_events.append(event)
+                provenance.track(
+                    source_url=r.source_url,
+                    source_name=source.name,
+                    extraction_method="api",
+                )
         elif source.source_type == "api":
             logger.info("API source %s not yet implemented, skipping", source.name)
         else:

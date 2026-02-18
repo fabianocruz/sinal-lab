@@ -267,6 +267,40 @@ def collect_all_sources(
             )
             continue
 
+        if "crunchbase" in source.name:
+            # Crunchbase company discovery — converts CrunchbaseCompany to CompanyProfile
+            from apps.agents.sources.crunchbase import fetch_companies
+
+            locations_str = source.params.get("locations", "")
+            locations = [loc.strip() for loc in locations_str.split(",") if loc.strip()] if locations_str else None
+            categories_str = source.params.get("categories", "")
+            categories = [c.strip() for c in categories_str.split(",") if c.strip()] if categories_str else None
+            limit = source.params.get("limit", 25)
+
+            with httpx.Client(timeout=15.0) as cb_client:
+                companies = fetch_companies(source, cb_client, locations=locations, categories=categories, limit=limit)
+            for c in companies:
+                profile = CompanyProfile(
+                    name=c.name,
+                    slug=c.permalink,
+                    website=c.website_url,
+                    description=c.short_description,
+                    tags=[cat.lower() for cat in c.categories[:5]],
+                    source_url=c.source_url,
+                    source_name=source.name,
+                )
+                if c.headquarters_location:
+                    profile.city = c.headquarters_location
+                if c.founded_on:
+                    profile.founded_date = c.founded_on
+                all_profiles.append(profile)
+                provenance.track(
+                    source_url=c.source_url,
+                    source_name=source.name,
+                    extraction_method="api",
+                )
+            continue
+
         if "linkedin" in source.name:
             # LinkedIn company discovery — converts LinkedInCompany to CompanyProfile
             from apps.agents.sources.linkedin import fetch_linkedin_companies

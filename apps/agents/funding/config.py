@@ -54,6 +54,14 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
         enabled=False,  # Enable when API key is available
         params={"countries": "BR,MX,AR,CO,CL,PE,UY", "days_ago": 7},
     ),
+
+    # --- Crunchbase Basic API (free tier: 200 req/day) ---
+    DataSourceConfig(
+        name="crunchbase_funding_latam", source_type="api",
+        url="https://api.crunchbase.com/api/v4/searches/funding_rounds",
+        api_key_env="CRUNCHBASE_API_KEY",
+        params={"locations": "Brazil,Mexico,Argentina,Colombia,Chile", "limit": 50},
+    ),
 ]
 
 FUNDING_CONFIG = AgentConfig(
