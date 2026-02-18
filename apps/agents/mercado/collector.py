@@ -70,15 +70,34 @@ _NON_STARTUP_PATTERNS = [
 def is_likely_startup(org_login: str, description: str = "") -> bool:
     """Check if a GitHub org is likely a startup vs an institution.
 
-    Filters out universities, government orgs, training platforms, and
-    archives based on keyword matching against login and description.
+    Concatenates org_login and description into a single lowercase string,
+    then checks for substring matches against ``_NON_STARTUP_PATTERNS``.
+    A single match is enough to reject the org.
+
+    Filtered categories:
+        - Government: ``prefeitura``, ``governo``, ``gov-``
+        - Universities: ``universid``, ``university``, ``faculdade``,
+          ``fatec``, ``fiap``, ``espm``, ``puc-``
+        - Schools: ``escola``, ``school``, ``college``
+        - Training platforms: ``curso``, ``treinaweb``, ``alura``, ``platzi``
+        - Archives: ``archive``
+
+    Examples:
+        >>> is_likely_startup("nubank")
+        True
+        >>> is_likely_startup("prefeiturasp", "Prefeitura de São Paulo")
+        False
+        >>> is_likely_startup("fiap", "")
+        False
 
     Args:
-        org_login: GitHub organization login handle.
-        description: Organization description (may be empty).
+        org_login: GitHub organization login handle (e.g., ``"nubank"``).
+        description: Organization description from GitHub API (may be empty
+            or None-like; defaults to ``""``).
 
     Returns:
-        True if the org is likely a startup/tech company.
+        True if no blocklist pattern matches — the org is likely a startup
+        or tech company. False if any pattern matches.
     """
     text = (org_login + " " + description).lower()
     for pattern in _NON_STARTUP_PATTERNS:

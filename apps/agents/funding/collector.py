@@ -79,14 +79,33 @@ def parse_feed_date(entry: Any) -> Optional[date]:
 def clean_rss_notes(text: str) -> str:
     """Strip common RSS boilerplate patterns from notes.
 
-    Removes "The post ... appeared first on ..." and Portuguese variants
-    that RSS feeds append to every summary.
+    Many RSS feeds (WordPress, LatamList, etc.) append attribution
+    boilerplate to every entry summary. This function removes those
+    trailing patterns so notes contain only editorial content.
+
+    Patterns removed:
+        - English: ``"The post {title} appeared first on {site}."``
+        - Portuguese: ``"O post {title} apareceu primeiro em {site}."``
+
+    Both patterns are matched case-insensitively and anchored to the
+    end of the string (``$``). The result is stripped of leading/trailing
+    whitespace.
+
+    Examples:
+        >>> clean_rss_notes("Great funding round. The post Avenia raises $17M appeared first on LatamList.")
+        'Great funding round.'
+        >>> clean_rss_notes("Rodada seed. O post Lebane apareceu primeiro em Startupi.")
+        'Rodada seed.'
+        >>> clean_rss_notes("No boilerplate here")
+        'No boilerplate here'
 
     Args:
-        text: Raw RSS summary text.
+        text: Raw RSS summary text (already truncated to 500 chars
+            by the caller ``parse_funding_event``).
 
     Returns:
-        Cleaned text without boilerplate.
+        Cleaned text with boilerplate removed and whitespace trimmed.
+        Returns empty string if the input is only boilerplate.
     """
     # "The post X appeared first on Y."
     cleaned = re.sub(

@@ -131,7 +131,9 @@ All agents support an optional LLM-powered editorial writer (`writer.py`) that g
 
 ### Shared Infrastructure
 
-- **`apps/agents/base/llm.py`** — `LLMClient` (Anthropic Claude API) + `strip_code_fences()` utility
+- **`apps/agents/base/llm.py`** — `LLMClient` (Anthropic Claude API) + shared utilities:
+  - `strip_code_fences()` — removes ````json ... ```` wrappers from LLM JSON output
+  - `strip_html()` — strips HTML tags, decodes entities (`&#8230;` → `…`, `&amp;` → `&`), collapses whitespace, optionally truncates
 - Model: `claude-sonnet-4-5-20250929`, temperature 0.7
 - All writers import from `base/llm.py` — no direct SDK usage in agent modules
 
@@ -159,6 +161,38 @@ All agents support an optional LLM-powered editorial writer (`writer.py`) that g
 ### Graceful Degradation
 
 Every LLM call returns `Optional`. Synthesizers check `writer.is_available` before calling and handle `None` returns. No agent breaks without `ANTHROPIC_API_KEY`.
+
+---
+
+## Data Quality Pipeline
+
+Collector-level data quality improvements that run before scoring and synthesis.
+
+### FUNDING — Deduplication and Note Cleaning
+
+**Deduplication by (company, round):** `FundingEvent.content_hash` uses `compute_composite_hash(company_name.lower().strip(), round_type)` — intentionally excludes `source_url` so the same deal from different RSS sources (e.g., startupi.com.br + latamlist.com) is deduplicated. First-seen source wins.
+
+**RSS boilerplate stripping:** `clean_rss_notes()` in `funding/collector.py` removes common RSS boilerplate patterns before storing notes:
+- English: `"The post {title} appeared first on {site}."`
+- Portuguese: `"O post {title} apareceu primeiro em {site}."`
+
+**HTML entity decoding:** `strip_html()` in `base/llm.py` decodes HTML entities (`&#8230;` → `…`, `&amp;` → `&`) in addition to stripping HTML tags. Applied to all RSS summaries and notes in synthesizers.
+
+### MERCADO — Organization Filtering and Classification
+
+**Non-startup filter:** `is_likely_startup()` in `mercado/collector.py` filters GitHub organizations against a blocklist of institutional patterns before creating `CompanyProfile` objects. Catches:
+- Universities and schools: `fiap`, `fatec`, `faculdade`, `escola`, `universid`
+- Government: `prefeitura`, `governo`, `gov-`
+- Training platforms: `treinaweb`, `alura`, `platzi`, `curso`
+- Archives: `archive`
+
+Matching is case-insensitive against both `org_login` and `description`.
+
+**Display name formatting:** `_format_display_name()` converts GitHub logins to title-cased names (`stone-payments` → `Stone Payments`). The raw login is preserved as `slug`.
+
+**Sector classification from name:** `classify_sector()` in `mercado/classifier.py` checks both `description` and `name`/`slug` for keyword matches, so orgs like `nubank` can be classified as Fintech even with empty descriptions.
+
+**Realistic distribution:** GitHub search `per_page` set to 30 (not 100) to avoid artificial uniform counts across cities.
 
 ---
 
