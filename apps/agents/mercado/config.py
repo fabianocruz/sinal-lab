@@ -50,6 +50,14 @@ MERCADO_SOURCES: list[DataSourceConfig] = [
         params={"filter": "hq_location:latam", "limit": 100},
         rate_limit_per_minute=2,
     ),
+
+    # Google Trends — enriched tech trend signals for market context
+    DataSourceConfig(
+        name="gtrends_latam_tech",
+        source_type="api",
+        url=None,
+        params={"method": "related_queries", "region": "BR", "keywords": "startup,fintech,AI,venture capital"},
+    ),
 ]
 
 MERCADO_CONFIG = AgentConfig(

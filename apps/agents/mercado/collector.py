@@ -257,6 +257,16 @@ def collect_all_sources(
             logger.debug("Skipping disabled source: %s", source.name)
             continue
 
+        if "gtrends" in source.name:
+            # Google Trends data is supplementary — collected separately
+            # by the agent via collect_market_trends()
+            logger.debug(
+                "Skipping gtrends source %s in profile collection "
+                "(used by synthesizer)",
+                source.name,
+            )
+            continue
+
         logger.info("Collecting from source: %s (%s)", source.name, source.source_type)
 
         if source.source_type == "api":
@@ -277,3 +287,29 @@ def collect_all_sources(
     )
 
     return all_profiles
+
+
+def collect_market_trends(
+    sources: list[DataSourceConfig],
+) -> list:
+    """Collect Google Trends data for market context.
+
+    Returns GoogleTrendItem list for use by synthesizer/writer.
+    Separate from CompanyProfile collection pipeline.
+    """
+    from apps.agents.sources.google_trends import fetch_related_queries
+
+    all_items: list = []
+    for source in sources:
+        if "gtrends" not in source.name or not source.enabled:
+            continue
+
+        keywords_str = source.params.get("keywords", "")
+        keywords = [k.strip() for k in keywords_str.split(",") if k.strip()]
+        region = source.params.get("region", "BR")
+
+        items = fetch_related_queries(source, keywords=keywords, region=region)
+        all_items.extend(items)
+
+    logger.info("Collected %d market trend signals", len(all_items))
+    return all_items
