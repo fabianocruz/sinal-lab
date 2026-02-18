@@ -425,6 +425,161 @@ AGENT_CONFIG = AgentConfig(
 )
 ```
 
+### Shared Source Modules (`apps/agents/sources/`)
+
+Reusable data source modules shared across multiple agents. Each module follows the same pattern: dataclass(es) + fetch function(s) + graceful degradation when credentials are missing.
+
+All modules return `[]` on error (no exceptions propagate to callers). Cross-source deduplication is supported via `content_hash` on every dataclass.
+
+#### Google News RSS (`google_news.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `https://news.google.com/rss/search?q=...` |
+| **Auth** | None |
+| **Rate Limits** | No official limit (practical: ~100 req/hour) |
+| **Agents** | SINTESE (`gnews_fintech_br`, `gnews_ai_latam`, `gnews_venture_br`), RADAR (`gnews_tech_trends_br`, `gnews_tech_trends_latam`), FUNDING (`gnews_funding_br`, `gnews_funding_latam`) |
+| **Dataclass** | Reuses `RSSItem` from `rss.py` |
+| **Tests** | 24 tests in `test_google_news.py` |
+
+Key functions:
+- `build_google_news_url(query, language, country, time_range)` — constructs RSS URL with regional ceid mapping
+- `build_google_news_sources(queries, prefix)` — convenience for config files
+- `fetch_google_news(source, client)` — builds URL from `source.params`, delegates to `fetch_rss_feed()`
+
+#### Google Trends (`google_trends.py`)
+
+| | |
+|---|---|
+| **Library** | `pytrends` (unofficial, no API key) |
+| **Auth** | None |
+| **Rate Limits** | Subject to Google throttling (exponential backoff recommended) |
+| **Agents** | RADAR (`gtrends_br_trending`, `gtrends_related_ai`), MERCADO (`gtrends_latam_tech`) |
+| **Dataclass** | `GoogleTrendItem` (keyword, trend_type, region, traffic_value) |
+| **Tests** | 25 tests in `test_google_trends.py` |
+
+Key functions:
+- `fetch_trending_searches(source, region)` — today's trending searches via `pytrends.trending_searches()`
+- `fetch_related_queries(source, keywords, region)` — rising/top queries for seed keywords (max 5 per API call)
+
+**Fallback:** degrades gracefully if `pytrends` is not installed.
+
+#### LinkedIn via RapidAPI (`linkedin.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `https://linkedin-data-api.p.rapidapi.com/search-posts` and `/search-companies` |
+| **Auth** | `RAPIDAPI_KEY` env var (free tier: ~100-500 calls/month) |
+| **Rate Limits** | Varies by RapidAPI provider |
+| **Agents** | SINTESE (`linkedin_fintech_posts`, `linkedin_ai_posts` — disabled by default), MERCADO (`linkedin_latam_companies` — disabled by default) |
+| **Dataclasses** | `LinkedInPost` (title, text, engagement metrics, external_url), `LinkedInCompany` (name, industry, headquarters, website) |
+| **Tests** | 31 tests in `test_linkedin.py` |
+
+Key functions:
+- `fetch_linkedin_posts(source, client, query, limit)` — search posts with engagement data
+- `fetch_linkedin_companies(source, client, query, limit)` — search company profiles
+
+**Classification: EXPERIMENTAL.** Sources are `enabled=False` by default. Provider URL is stored in `DataSourceConfig.url` — switching providers requires only URL/params changes.
+
+**Cross-source dedup:** `LinkedInPost.content_hash` uses `external_url` when present, so the same article shared on LinkedIn, HN, and Google News deduplicates.
+
+#### Reddit API (`reddit.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `https://oauth.reddit.com/r/{subreddit}/{sort}` |
+| **Auth** | `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` (OAuth2 client_credentials) |
+| **Rate Limits** | 100 req/min (free tier) |
+| **Agents** | SINTESE (`reddit_brdev`, `reddit_startups`), RADAR (`reddit_programming`, `reddit_machinelearning`), CODIGO (`reddit_devops`, `reddit_webdev`) |
+| **Dataclass** | `RedditPost` (title, url, subreddit, score, num_comments, selftext) |
+| **Tests** | 25 tests in `test_reddit.py` |
+
+Key functions:
+- `authenticate_reddit(client)` — OAuth2 client_credentials token exchange
+- `fetch_subreddit_posts(source, client, subreddit, sort, time_filter, limit)` — fetch subreddit listings
+
+**Cross-source dedup:** link posts hash the external URL; self posts hash the permalink.
+
+#### Bluesky AT Protocol (`bluesky.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts` |
+| **Auth** | None (public API) |
+| **Rate Limits** | No official limit for public search |
+| **Agents** | SINTESE (`bluesky_fintech`, `bluesky_ai`), RADAR (`bluesky_tech_trends`) |
+| **Dataclass** | `BlueskyPost` (text, url, author_handle, external_url, engagement metrics) |
+| **Tests** | 29 tests in `test_bluesky.py` |
+
+Key functions:
+- `build_post_url(handle, rkey)` — construct bsky.app permalink
+- `parse_bluesky_post(raw_post, source_name)` — parse AT Protocol post object
+- `fetch_bluesky_search(source, client, query, limit)` — search posts
+
+**Cross-source dedup:** hashes `external_url` from `app.bsky.embed.external` when present.
+
+#### ProductHunt GraphQL (`producthunt.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `https://api.producthunt.com/v2/api/graphql` |
+| **Auth** | `PRODUCTHUNT_TOKEN` env var (Bearer token from OAuth2) |
+| **Rate Limits** | 450 req/15min (free tier) |
+| **Agents** | RADAR (`producthunt_daily`), CODIGO (`producthunt_tools`) |
+| **Dataclass** | `ProductHuntPost` (name, tagline, website, topics, makers, votes, comments) |
+| **Tests** | 23 tests in `test_producthunt.py` |
+
+Key functions:
+- `fetch_producthunt_posts(source, client, limit, posted_after)` — GraphQL query with Relay-style pagination
+
+**Cross-source dedup:** hashes `website` URL when present (same product on HN/GitHub deduplicates).
+
+#### Crunchbase Basic API (`crunchbase.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `https://api.crunchbase.com/api/v4/searches/funding_rounds` and `/searches/organizations` |
+| **Auth** | `CRUNCHBASE_API_KEY` env var (`X-cb-user-key` header) |
+| **Rate Limits** | 200 req/day (free tier) |
+| **Agents** | FUNDING (`crunchbase_funding_latam`), MERCADO (`crunchbase_companies_latam`) |
+| **Dataclasses** | `CrunchbaseFundingRound` (company, round_type, amount, investors), `CrunchbaseCompany` (name, permalink, categories, funding_total) |
+| **Tests** | 31 tests in `test_crunchbase.py` |
+
+Key functions:
+- `fetch_funding_rounds(source, client, locations, limit)` — search funding rounds by location
+- `fetch_companies(source, client, locations, categories, limit)` — search company profiles
+
+**Cross-source dedup:** `CrunchbaseFundingRound.content_hash` uses `company_name-round_type` (compatible with FUNDING agent's `FundingEvent` dedup).
+
+#### Environment Variables Summary
+
+| Variable | Source | Required |
+|---|---|---|
+| — | Google News RSS | No credentials needed |
+| — | Google Trends (pytrends) | No credentials needed |
+| `RAPIDAPI_KEY` | LinkedIn (RapidAPI) | Optional (sources disabled by default) |
+| `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` | Reddit API | Optional |
+| — | Bluesky (AT Protocol) | No credentials needed |
+| `PRODUCTHUNT_TOKEN` | ProductHunt GraphQL | Optional |
+| `CRUNCHBASE_API_KEY` | Crunchbase Basic API | Optional |
+
+All agents produce valid output without any API keys. Sources degrade independently — a missing key skips only that source.
+
+#### Test Coverage (188 tests across 7 modules)
+
+```
+apps/agents/sources/tests/
+├── test_google_news.py      # 24 tests
+├── test_google_trends.py    # 25 tests
+├── test_linkedin.py         # 31 tests
+├── test_reddit.py           # 25 tests
+├── test_bluesky.py          # 29 tests
+├── test_producthunt.py      # 23 tests
+└── test_crunchbase.py       # 31 tests
+```
+
+Run all source tests: `pytest apps/agents/sources/tests/ -v`
+
 ---
 
 ## Output Format
@@ -778,8 +933,19 @@ pytest apps/agents/my_agent/tests/ --cov=apps/agents/my_agent --cov-report=term-
 ```bash
 # .env (NEVER commit this file)
 DATABASE_URL=postgresql://user:pass@localhost:5432/dbname
-DEALROOM_API_KEY=your_api_key_here
-CRUNCHBASE_API_KEY=your_api_key_here
+
+# Data source API keys (all optional — agents degrade gracefully)
+X_BEARER_TOKEN=            # X/Twitter App-Only Bearer Token
+PRODUCTHUNT_TOKEN=         # ProductHunt OAuth2 Bearer Token
+REDDIT_CLIENT_ID=          # Reddit OAuth2 App ID
+REDDIT_CLIENT_SECRET=      # Reddit OAuth2 App Secret
+CRUNCHBASE_API_KEY=        # Crunchbase Basic API key
+RAPIDAPI_KEY=              # LinkedIn RapidAPI key (experimental)
+GITHUB_TOKEN=              # GitHub Personal Access Token (optional, higher rate limits)
+DEALROOM_API_KEY=          # Dealroom API key (disabled source)
+
+# LLM (optional — agents fall back to template output)
+ANTHROPIC_API_KEY=
 ```
 
 ### Cron Schedule
@@ -813,11 +979,15 @@ All RSS/Atom and API data sources should be periodically validated. Common failu
 
 ### Current Status (Feb 2026)
 
-**SINTESE** (34 total, 29 enabled): 5 feeds disabled (startse HTML, contxto SSL, netlify 404, fintechfutures 403, a16z 404). Vercel feed updated from `/blog/rss.xml` to `/atom` with `max_items=20`.
+**SINTESE** (34+ RSS, +5 API sources): 5 RSS feeds disabled (startse HTML, contxto SSL, netlify 404, fintechfutures 403, a16z 404). Vercel feed updated from `/blog/rss.xml` to `/atom` with `max_items=20`. Added: Google News (3 queries), LinkedIn posts (2 queries, disabled), Reddit (brdev, startups), Bluesky (fintech, ai).
 
-**FUNDING** (15 total, 8 enabled): 12 original VC feeds broken (404s, SSL errors, HTML responses). Added 5 cross-validated news sources from SINTESE (crunchbase_news, techcrunch_latam, latamlist, abstartups, blocknews). 3 original feeds healthy (kaszek, neofeed, startupi).
+**RADAR** (20+ sources): RSS feeds + GitHub + Google Trends. Added: Google News (2 queries), Google Trends pytrends (trending + related), Reddit (programming, MachineLearning), Bluesky (tech_trends), ProductHunt GraphQL (daily).
 
-**MERCADO** (6 total, 5 enabled): GitHub API sources switched from `/search/repositories` to `/search/users` (the `location:` qualifier only works on user/org profiles, not repositories). Dealroom API remains disabled pending API key.
+**CODIGO** (10+ sources): RSS feeds + GitHub trending. Added: Reddit (devops, webdev), ProductHunt (tools).
+
+**FUNDING** (15+ total, 8+ enabled): 12 original VC feeds broken (404s, SSL errors, HTML responses). Added 5 cross-validated news sources from SINTESE. Added: Google News (2 funding queries), Crunchbase API (funding rounds LATAM).
+
+**MERCADO** (6+ total, 5+ enabled): GitHub API sources switched from `/search/repositories` to `/search/users`. Dealroom API remains disabled. Added: Google Trends (latam_tech), LinkedIn companies (disabled), Crunchbase API (companies LATAM).
 
 ### `max_items` Field
 
@@ -859,5 +1029,14 @@ Antes de considerar um agente "completo":
 - [evidence_writer](../apps/agents/base/evidence_writer.py) — Evidence item writer
 - [orchestrator](../apps/agents/base/orchestrator.py) — Editorial-in-the-loop orchestrator
 - [run_agents.py](../scripts/run_agents.py) — Unified agent runner (subprocess + orchestrate)
+
+### Shared Data Sources (Phase 3)
+- [google_news](../apps/agents/sources/google_news.py) — Google News RSS
+- [google_trends](../apps/agents/sources/google_trends.py) — Google Trends (pytrends)
+- [linkedin](../apps/agents/sources/linkedin.py) — LinkedIn via RapidAPI (experimental)
+- [reddit](../apps/agents/sources/reddit.py) — Reddit API (OAuth2)
+- [bluesky](../apps/agents/sources/bluesky.py) — Bluesky AT Protocol
+- [producthunt](../apps/agents/sources/producthunt.py) — ProductHunt GraphQL API
+- [crunchbase](../apps/agents/sources/crunchbase.py) — Crunchbase Basic API
 
 **Exemplo de referência**: [apps/agents/sintese](../apps/agents/sintese/) — Agente SINTESE completo
