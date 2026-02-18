@@ -25,8 +25,14 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from dotenv import load_dotenv
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load .env so all API keys (X_BEARER_TOKEN, PRODUCTHUNT_TOKEN, etc.)
+# are available to agents run as subprocesses via os.environ.
+load_dotenv(PROJECT_ROOT / ".env")
 
 AGENTS = {
     "sintese": {

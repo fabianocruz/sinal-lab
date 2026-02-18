@@ -3,6 +3,7 @@ httpx
 feedparser
 pydantic
 pytrends
+python-dotenv>=1.0,<2.0
 
 # LLM integration (optional — agents degrade gracefully without it)
 anthropic>=0.40.0
