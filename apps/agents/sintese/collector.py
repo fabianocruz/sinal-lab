@@ -123,7 +123,14 @@ def collect_all_sources(
         Deduplicated list of FeedItems from all sources.
     """
     # Separate sources by type
-    rss_sources = [s for s in sources if s.source_type == "rss" and s.enabled]
+    gnews_sources = [
+        s for s in sources
+        if s.source_type == "rss" and "gnews" in s.name and s.enabled
+    ]
+    rss_sources = [
+        s for s in sources
+        if s.source_type == "rss" and "gnews" not in s.name and s.enabled
+    ]
     twitter_sources = [
         s for s in sources
         if s.source_type == "api" and "twitter" in s.name and s.enabled
@@ -154,6 +161,15 @@ def collect_all_sources(
             items = fetch_feed(source, client)
             _add_items(items, "rss")
 
+        # Collect Google News sources (URL built from params at fetch time)
+        if gnews_sources:
+            from apps.agents.sources.google_news import fetch_google_news
+
+            for source in gnews_sources:
+                rss_items = fetch_google_news(source, client)
+                gnews_items = [_rss_to_feed(ri) for ri in rss_items]
+                _add_items(gnews_items, "rss")
+
     # Collect Twitter sources (handled by twitter_collector module).
     # Lazy import: twitter_collector imports FeedItem from this module,
     # so a top-level import would create a circular dependency.
@@ -168,10 +184,10 @@ def collect_all_sources(
         )
         _add_items(twitter_items, "api")
 
-    total_sources = len(rss_sources) + len(twitter_sources)
+    total_sources = len(rss_sources) + len(gnews_sources) + len(twitter_sources)
     logger.info(
-        "Collected %d unique items from %d sources (%d RSS, %d Twitter)",
-        len(all_items), total_sources, len(rss_sources), len(twitter_sources),
+        "Collected %d unique items from %d sources (%d RSS, %d Google News, %d Twitter)",
+        len(all_items), total_sources, len(rss_sources), len(gnews_sources), len(twitter_sources),
     )
 
     return all_items

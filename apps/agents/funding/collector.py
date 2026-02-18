@@ -349,7 +349,33 @@ def collect_all_sources(
     all_events: List[FundingEvent] = []
 
     for source in sources:
-        if source.source_type == "rss":
+        if source.source_type == "rss" and "gnews" in source.name:
+            # Google News: URL built from params at fetch time
+            from apps.agents.sources.google_news import fetch_google_news
+
+            with create_http_client() as client:
+                rss_items = fetch_google_news(source, client)
+
+            for rss_item in rss_items:
+                title_info = extract_funding_from_title(rss_item.title)
+                if title_info:
+                    event = FundingEvent(
+                        company_name=title_info.get("company_name", ""),
+                        round_type=title_info.get("round_type", "unknown"),
+                        amount_usd=title_info.get("amount") if title_info.get("currency") == "USD" else None,
+                        amount_local=title_info.get("amount") if title_info.get("currency") != "USD" else None,
+                        currency=title_info.get("currency", "USD"),
+                        source_url=rss_item.url,
+                        source_name=source.name,
+                        notes=clean_rss_notes(rss_item.summary[:500]) if rss_item.summary else None,
+                    )
+                    all_events.append(event)
+                    provenance.track(
+                        source_url=rss_item.url,
+                        source_name=source.name,
+                        extraction_method="rss",
+                    )
+        elif source.source_type == "rss":
             events = fetch_feed(source, provenance, agent_name, run_id)
             all_events.extend(events)
         elif source.source_type == "api":

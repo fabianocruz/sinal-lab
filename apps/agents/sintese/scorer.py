@@ -85,6 +85,9 @@ SOURCE_AUTHORITY: dict[str, float] = {
     # Newsletters
     "tldrnewsletter": 0.70, "bytebytego": 0.75,
     "pragmatic_engineer": 0.90, "simonwillison": 0.80,
+    # Google News RSS (aggregator — moderate authority, multi-source but unverified)
+    "gnews_fintech_br": 0.55, "gnews_ai_latam": 0.55,
+    "gnews_venture_br": 0.55,
     # Twitter/X API (signals, lower authority than editorial sources)
     "twitter_fintech": 0.40, "twitter_ai": 0.40,
     "twitter_cripto": 0.40, "twitter_engenharia": 0.40,

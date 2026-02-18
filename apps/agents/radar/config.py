@@ -60,6 +60,20 @@ RADAR_SOURCES: list[DataSourceConfig] = [
         params={"geo": "BR"},
     ),
 
+    # --- Google Trends (enriched via pytrends) ---
+    DataSourceConfig(
+        name="gtrends_br_trending",
+        source_type="api",
+        url=None,
+        params={"method": "trending_searches", "region": "brazil"},
+    ),
+    DataSourceConfig(
+        name="gtrends_related_ai",
+        source_type="api",
+        url=None,
+        params={"method": "related_queries", "region": "BR", "keywords": "AI,machine learning,LLM,startup"},
+    ),
+
     # --- Lobsters (tech community) ---
     DataSourceConfig(
         name="lobsters",
@@ -72,6 +86,20 @@ RADAR_SOURCES: list[DataSourceConfig] = [
         name="producthunt",
         source_type="rss",
         url="https://www.producthunt.com/feed",
+    ),
+
+    # --- Google News (LATAM tech trends) ---
+    DataSourceConfig(
+        name="gnews_tech_trends_br",
+        source_type="rss",
+        url=None,
+        params={"query": "tecnologia tendencia startup inovacao Brasil", "language": "pt-BR", "country": "BR"},
+    ),
+    DataSourceConfig(
+        name="gnews_tech_trends_latam",
+        source_type="rss",
+        url=None,
+        params={"query": "tech startup Latin America trending", "language": "en", "country": "BR"},
     ),
 ]
 

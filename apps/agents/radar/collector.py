@@ -83,6 +83,48 @@ def _github_to_signal(repo: GitHubRepoItem) -> TrendSignal:
     )
 
 
+def _gtrend_to_signal(item: "GoogleTrendItem") -> TrendSignal:
+    """Convert a GoogleTrendItem to a RADAR TrendSignal."""
+    return TrendSignal(
+        title=item.keyword,
+        url=item.url,
+        source_name=item.source_name,
+        source_type="trends",
+        published_at=item.collected_at,
+        summary="Trending: {}".format(item.keyword)
+        + (" ({})".format(item.traffic_value) if item.traffic_value else ""),
+        tags=["trend"] + [q.lower() for q in item.related_queries[:5]],
+        content_hash=item.content_hash,
+    )
+
+
+def collect_google_trends(source: DataSourceConfig) -> List[TrendSignal]:
+    """Fetch Google Trends data via pytrends and convert to TrendSignals.
+
+    Routes to fetch_trending_searches or fetch_related_queries based
+    on the 'method' param in the source config.
+    """
+    method = source.params.get("method", "trending_searches")
+
+    if method == "trending_searches":
+        from apps.agents.sources.google_trends import fetch_trending_searches
+
+        region = source.params.get("region", "brazil")
+        items = fetch_trending_searches(source, region=region)
+    elif method == "related_queries":
+        from apps.agents.sources.google_trends import fetch_related_queries
+
+        region = source.params.get("region", "BR")
+        keywords_str = source.params.get("keywords", "")
+        keywords = [k.strip() for k in keywords_str.split(",") if k.strip()]
+        items = fetch_related_queries(source, keywords=keywords, region=region)
+    else:
+        logger.warning("Unknown gtrends method: %s", method)
+        return []
+
+    return [_gtrend_to_signal(item) for item in items]
+
+
 def collect_rss_source(
     source: DataSourceConfig,
     client: httpx.Client,
@@ -132,8 +174,14 @@ def collect_all_sources(
                 signals = collect_rss_source(source, client, source_type="arxiv")
             elif "hn" in source.name:
                 signals = collect_rss_source(source, client, source_type="hn")
+            elif "gtrends" in source.name:
+                signals = collect_google_trends(source)
             elif "google_trends" in source.name:
                 signals = collect_rss_source(source, client, source_type="trends")
+            elif "gnews" in source.name:
+                from apps.agents.sources.google_news import fetch_google_news
+                rss_items = fetch_google_news(source, client)
+                signals = [_rss_to_signal(item, "news") for item in rss_items]
             else:
                 signals = collect_rss_source(source, client, source_type="community")
 

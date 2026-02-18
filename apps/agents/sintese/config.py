@@ -65,6 +65,22 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="simonwillison", source_type="rss", url="https://simonwillison.net/atom/everything/"),
 ]
 
+# Google News RSS — zero-auth, query-based news aggregation
+GOOGLE_NEWS_SOURCES: list[DataSourceConfig] = [
+    DataSourceConfig(
+        name="gnews_fintech_br", source_type="rss", url=None,
+        params={"query": "fintech open finance pix banco digital Brasil", "language": "pt-BR", "country": "BR"},
+    ),
+    DataSourceConfig(
+        name="gnews_ai_latam", source_type="rss", url=None,
+        params={"query": "artificial intelligence AI startup Latin America", "language": "en", "country": "BR"},
+    ),
+    DataSourceConfig(
+        name="gnews_venture_br", source_type="rss", url=None,
+        params={"query": "venture capital investimento startup rodada Brasil", "language": "pt-BR", "country": "BR"},
+    ),
+]
+
 # X/Twitter API sources — one per editorial territory.
 # Requires X_BEARER_TOKEN env var. Gracefully skipped when not set.
 TWITTER_SOURCES: list[DataSourceConfig] = [
@@ -111,7 +127,7 @@ SINTESE_CONFIG = AgentConfig(
     agent_category=AgentCategory.CONTENT,
     version="0.2.0",
     description="Newsletter Synthesizer — aggregates and curates LATAM tech news into Sinal Semanal",
-    data_sources=LATAM_TECH_FEEDS + TWITTER_SOURCES,
+    data_sources=LATAM_TECH_FEEDS + GOOGLE_NEWS_SOURCES + TWITTER_SOURCES,
     schedule_cron="0 6 * * 1",  # Every Monday at 6am UTC
     output_content_type="DATA_REPORT",
     min_confidence_to_publish=0.3,

@@ -32,6 +32,20 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
     DataSourceConfig(name="abstartups", source_type="rss", url="https://abstartups.com.br/feed/"),
     DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/"),
 
+    # --- Google News (LATAM funding) ---
+    DataSourceConfig(
+        name="gnews_funding_br",
+        source_type="rss",
+        url=None,
+        params={"query": "startup investimento rodada aporte Brasil", "language": "pt-BR", "country": "BR"},
+    ),
+    DataSourceConfig(
+        name="gnews_funding_latam",
+        source_type="rss",
+        url=None,
+        params={"query": "startup funding round Latin America Series", "language": "en", "country": "BR"},
+    ),
+
     # --- Dealroom API (freemium) ---
     DataSourceConfig(
         name="dealroom_api", source_type="api",
