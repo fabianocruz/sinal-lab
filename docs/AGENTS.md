@@ -190,19 +190,84 @@ Collector-level data quality improvements that run before scoring and synthesis.
 
 **HTML entity decoding:** `strip_html()` in `base/llm.py` decodes HTML entities (`&#8230;` → `…`, `&amp;` → `&`) in addition to stripping HTML tags. Applied to all RSS summaries and notes in synthesizers.
 
-### MERCADO — Organization Filtering and Classification
+### MERCADO — Organization Filtering, Classification, and Enrichment
 
-**Non-startup filter:** `is_likely_startup()` in `mercado/collector.py` filters GitHub organizations against a blocklist of institutional patterns before creating `CompanyProfile` objects. Catches:
-- Universities and schools: `fiap`, `fatec`, `faculdade`, `escola`, `universid`
-- Government: `prefeitura`, `governo`, `gov-`
-- Training platforms: `treinaweb`, `alura`, `platzi`, `curso`
-- Archives: `archive`
+#### Startup Filter (`mercado/collector.py`)
 
-Matching is case-insensitive against both `org_login` and `description`.
+`is_likely_startup()` filters GitHub organizations using a two-mechanism approach:
+
+**1. Exact-login blocklist** (`_KNOWN_NON_STARTUP_LOGINS` frozenset): For short or ambiguous names where substring matching would cause false positives.
+- Large companies: `vtex`, `vtex-apps`, `globocom`, `globo`, `wizeline`, `mercadolibre`, `mercadolivre`, `totvs`
+- Academic groups: `udistrital`, `uspgamedev`, `thesoftwaredesignlab`, `capitulojaverianoacm`, `thunderatz`
+- Nonprofits/orgs: `bireme`, `hacklabr`, `openingdesign`
+- Personal: `geosaber`
+
+**2. Categorized substring patterns** (8 categories, ~60 patterns total):
+
+| Category | Examples | Rationale |
+|----------|----------|-----------|
+| `_GOVT_PATTERNS` | prefeitura, gobierno, ministerio | Government orgs |
+| `_UNIVERSITY_PATTERNS` | universid, faculdade, fatec, fiap, puc-, unam, unicamp | Universities and faculties |
+| `_EDUCATION_PATTERNS` | escola, school, curso, alura, platzi, bootcamp | Training/education platforms |
+| `_ACADEMIC_PATTERNS` | -lab, research-, capitulo, -acm, gamedev | Research labs and student chapters |
+| `_NONPROFIT_PATTERNS` | bireme, paho, -ngo, fundacion | NGOs and international orgs |
+| `_PERSONAL_PATTERNS` | -eti, consulting, consultoria | Freelancers and consultants |
+| `_KNOWN_LARGE_COMPANIES` | globo, wizeline, mercadolibre, totvs, embraer | Established companies, not startups |
+| `_ARCHIVE_PATTERNS` | archive, mirror, backup | Mirror/archive repos |
+
+Matching is case-insensitive against `login + description`. The exact-login check runs first (O(1) frozenset lookup), then substring patterns.
+
+**False-positive safety:** Legitimate startups like `nubank`, `stone`, `entria`, `creditas`, `cloudwalk`, `nuvemshop`, `loft` are verified to pass the filter.
+
+#### Sector Classifier (`mercado/classifier.py`)
+
+**14 sectors** with weighted keyword matching:
+
+| Sector | Example Keywords |
+|--------|-----------------|
+| Fintech | payment, credit, pix, neobank, crypto, blockchain, checkout |
+| HealthTech | saude, health, telemedicine, hospital, pharma |
+| Edtech | educacao, learning, escola, curso, student |
+| E-commerce | marketplace, loja, varejo, shop, inventory, fulfillment |
+| SaaS | saas, enterprise, crm, erp, b2b, dashboard, workflow |
+| Logistics | logistica, delivery, transporte, frete, shipping |
+| Agritech | agricultura, agro, farm, crop, plantio |
+| PropTech | imovel, real estate, property, aluguel, housing |
+| DevTools | developer, devops, ci/cd, sdk, open-source, kubernetes, terraform |
+| Cybersecurity | security, segurança, cyber, encryption, fraud |
+| CleanTech | solar, renewable, energia, sustentavel, carbono, climate |
+| HRTech | recruiting, talent, hiring, payroll, workforce |
+| InsurTech | seguro, insurance, insurtech, sinistro |
+| LegalTech | juridico, legal, contrato, compliance, lawtech |
+
+**Weighted matching** uses three text sources with different weights:
+- Description match: **1.0** per keyword (most reliable)
+- Tags match: **0.7** per keyword (from Crunchbase/LinkedIn categories)
+- Name/slug match: **0.5** per keyword (less reliable for short names)
+
+The highest-scoring sector wins. This ensures an org with a strong description match is not overridden by a weaker name-only match.
+
+#### GitHub Org Enrichment (`mercado/enricher.py`)
+
+`enrich_from_github_org()` calls the GitHub `/orgs/{login}` API for each profile, enriching:
+
+| API Field | Profile Field | Logic |
+|-----------|--------------|-------|
+| `blog` | `website` | Only if profile has no website; auto-prepends `https://` |
+| `description` | `description` | Only if API description is longer than existing |
+| `name` | `name` | Only if different from login |
+| `created_at` | `founded_date` | Parsed as `date.fromisoformat()` |
+| `public_repos` | `tags` | Added as `repos:N` tag |
+
+**Rate limiting:** 0.1s sleep between org API calls. With ~120 orgs/run, stays well within GitHub's 5000 req/hour (authenticated) limit.
+
+**Auth:** Uses `GITHUB_TOKEN` env var if set (5000 req/hour). Without it, falls back to unauthenticated (60 req/hour) — will hit rate limits on typical runs.
+
+**Pipeline order:** Enricher runs before classifier in `agent.py`, so richer descriptions from the org API feed directly into sector classification.
+
+#### Other MERCADO Patterns
 
 **Display name formatting:** `_format_display_name()` converts GitHub logins to title-cased names (`stone-payments` → `Stone Payments`). The raw login is preserved as `slug`.
-
-**Sector classification from name:** `classify_sector()` in `mercado/classifier.py` checks both `description` and `name`/`slug` for keyword matches, so orgs like `nubank` can be classified as Fintech even with empty descriptions.
 
 **Realistic distribution:** GitHub search `per_page` set to 30 (not 100) to avoid artificial uniform counts across cities.
 
