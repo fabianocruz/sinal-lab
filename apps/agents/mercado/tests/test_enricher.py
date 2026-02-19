@@ -1,9 +1,11 @@
 """Tests for MERCADO agent enricher."""
 
 import pytest
+from unittest.mock import Mock, patch
 
 from apps.agents.mercado.collector import CompanyProfile
 from apps.agents.mercado.enricher import (
+    enrich_from_github_org,
     enrich_profile,
     enrich_all_profiles,
 )
@@ -115,3 +117,139 @@ def test_enrich_all_profiles_handles_errors():
 
     # Should return original profile even if enrichment fails
     assert len(enriched) == 1
+
+
+# --- GitHub Org API enrichment tests ---
+
+
+@patch("httpx.get")
+def test_enrich_from_github_org_populates_fields(mock_get):
+    """Test that GitHub org API enriches website, description, name, and founded_date."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "blog": "https://testcorp.com",
+        "description": "A longer description from the org API",
+        "name": "TestCorp Inc",
+        "public_repos": 42,
+        "created_at": "2020-03-15T00:00:00Z",
+    }
+    mock_response.raise_for_status = Mock()
+    mock_get.return_value = mock_response
+
+    profile = CompanyProfile(
+        name="Testcorp",
+        slug="testcorp",
+        description="Short",
+        github_url="https://github.com/testcorp",
+        source_url="https://github.com/testcorp",
+        source_name="github_sao_paulo",
+    )
+
+    enriched = enrich_from_github_org(profile)
+
+    assert enriched.website == "https://testcorp.com"
+    assert enriched.description == "A longer description from the org API"
+    assert enriched.name == "TestCorp Inc"
+    assert enriched.founded_date is not None
+    assert enriched.founded_date.year == 2020
+
+
+@patch("httpx.get")
+def test_enrich_from_github_org_handles_404(mock_get):
+    """Test graceful handling of non-existent org."""
+    mock_response = Mock()
+    mock_response.status_code = 404
+    mock_get.return_value = mock_response
+
+    profile = CompanyProfile(
+        name="Ghost",
+        slug="ghost-org",
+        github_url="https://github.com/ghost-org",
+        source_url="https://github.com/ghost-org",
+        source_name="github_sao_paulo",
+    )
+
+    enriched = enrich_from_github_org(profile)
+
+    assert enriched.name == "Ghost"  # unchanged
+
+
+@patch("httpx.get")
+def test_enrich_preserves_existing_website(mock_get):
+    """Test that enricher does not overwrite existing website."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "blog": "https://github-blog.com",
+        "description": "",
+        "public_repos": 10,
+    }
+    mock_response.raise_for_status = Mock()
+    mock_get.return_value = mock_response
+
+    profile = CompanyProfile(
+        name="ExistingWebsite",
+        slug="existing",
+        website="https://existing.com",
+        github_url="https://github.com/existing",
+        source_url="https://github.com/existing",
+        source_name="github_sao_paulo",
+    )
+
+    enriched = enrich_from_github_org(profile)
+
+    assert enriched.website == "https://existing.com"  # not overwritten
+
+
+@patch("httpx.get")
+def test_enrich_adds_https_to_bare_blog(mock_get):
+    """Test that blog URLs without protocol get https:// prepended."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "blog": "testcorp.com",
+        "description": "",
+        "public_repos": 5,
+    }
+    mock_response.raise_for_status = Mock()
+    mock_get.return_value = mock_response
+
+    profile = CompanyProfile(
+        name="Testcorp",
+        slug="testcorp",
+        github_url="https://github.com/testcorp",
+        source_url="https://github.com/testcorp",
+        source_name="github_sao_paulo",
+    )
+
+    enriched = enrich_from_github_org(profile)
+
+    assert enriched.website == "https://testcorp.com"
+
+
+@patch("httpx.get")
+def test_enrich_keeps_shorter_description(mock_get):
+    """Test that a shorter API description does not overwrite a longer existing one."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "blog": "",
+        "description": "Short",
+        "public_repos": 3,
+    }
+    mock_response.raise_for_status = Mock()
+    mock_get.return_value = mock_response
+
+    profile = CompanyProfile(
+        name="Testcorp",
+        slug="testcorp",
+        description="This is a much longer and more detailed description of the company",
+        github_url="https://github.com/testcorp",
+        source_url="https://github.com/testcorp",
+        source_name="github_sao_paulo",
+    )
+
+    enriched = enrich_from_github_org(profile)
+
+    assert "much longer" in enriched.description
