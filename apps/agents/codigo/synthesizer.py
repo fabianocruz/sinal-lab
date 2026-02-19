@@ -21,11 +21,11 @@ TOP_SIGNALS_COUNT = 15
 MIN_SCORE_THRESHOLD = 0.10
 
 CATEGORY_DISPLAY: dict[str, str] = {
-    "ai_frameworks": "AI Frameworks & Tools",
-    "web_frameworks": "Web Frameworks",
-    "developer_tools": "Developer Tools",
+    "ai_frameworks": "Frameworks & Ferramentas de IA",
+    "web_frameworks": "Frameworks Web",
+    "developer_tools": "Ferramentas de Desenvolvimento",
     "infrastructure": "Infraestrutura & DevOps",
-    "databases": "Databases & Data Tools",
+    "databases": "Bancos de Dados & Data Tools",
     "security": "Seguranca",
     "general": "Outros Destaques",
 }
@@ -120,7 +120,7 @@ def format_signal_markdown(
 
     meta_parts = [f"Fonte: {signal.signal.source_name}"]
     if signal.signal.language:
-        meta_parts.append(f"Lang: {signal.signal.language}")
+        meta_parts.append(f"Linguagem: {signal.signal.language}")
     lines.append(f"*{' | '.join(meta_parts)}*")
 
     summary = summary_override
@@ -133,7 +133,7 @@ def format_signal_markdown(
     metrics = signal.signal.metrics
     metric_parts = []
     if metrics.get("stars"):
-        metric_parts.append(f"Stars: {metrics['stars']:,}")
+        metric_parts.append(f"Estrelas: {metrics['stars']:,}")
     if metrics.get("forks"):
         metric_parts.append(f"Forks: {metrics['forks']:,}")
     if metric_parts:

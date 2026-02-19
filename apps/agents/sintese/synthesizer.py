@@ -23,11 +23,11 @@ MIN_SCORE_THRESHOLD = 0.35
 
 # Category definitions for grouping newsletter items
 CATEGORIES: dict[str, list[str]] = {
-    "AI & Machine Learning": [
+    "IA & Machine Learning": [
         "inteligencia artificial", "machine learning", "llm", "gpt", "claude",
         "deep learning", "ai agent", "generative ai", "ia generativa", "nlp",
     ],
-    "Startups & Funding": [
+    "Startups & Investimento": [
         "startup", "venture capital", "investimento", "rodada", "funding",
         "serie a", "serie b", "seed", "unicornio", "ipo", "aquisicao",
         "fundraising", "acquisition",

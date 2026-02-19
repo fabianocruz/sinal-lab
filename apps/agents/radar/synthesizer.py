@@ -23,14 +23,14 @@ MIN_SCORE_THRESHOLD = 0.10
 
 # Display names for topic categories
 TOPIC_DISPLAY_NAMES: dict[str, str] = {
-    "ai_ml": "AI & Machine Learning",
+    "ai_ml": "IA & Machine Learning",
     "infrastructure": "Infraestrutura Cloud & DevOps",
-    "developer_tools": "Developer Tools & Open Source",
+    "developer_tools": "Ferramentas de Desenvolvimento & Open Source",
     "startup_ecosystem": "Startups & Ecossistema",
     "fintech": "Fintech & Pagamentos",
     "latam_tech": "Ecossistema LATAM",
     "security": "Seguranca & Privacidade",
-    "data_engineering": "Data Engineering & Analytics",
+    "data_engineering": "Engenharia de Dados & Analytics",
     "uncategorized": "Outros Sinais",
 }
 
@@ -136,7 +136,7 @@ def format_signal_markdown(signal: ClassifiedSignal, index: int) -> str:
     # Show key metrics if available
     metrics = signal.signal.metrics
     if metrics.get("stars"):
-        lines.append(f"  Stars: {metrics['stars']:,} | Language: {metrics.get('language', 'N/A')}")
+        lines.append(f"  Estrelas: {metrics['stars']:,} | Linguagem: {metrics.get('language', 'N/A')}")
 
     lines.append("")
     return "\n".join(lines)
@@ -170,7 +170,7 @@ def format_signal_markdown_with_summary(
     # Show key metrics if available
     metrics = signal.signal.metrics
     if metrics.get("stars"):
-        lines.append(f"  Stars: {metrics['stars']:,} | Language: {metrics.get('language', 'N/A')}")
+        lines.append(f"  Estrelas: {metrics['stars']:,} | Linguagem: {metrics.get('language', 'N/A')}")
 
     lines.append("")
     return "\n".join(lines)

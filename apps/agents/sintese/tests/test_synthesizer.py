@@ -47,11 +47,11 @@ class TestCategorizeItem:
 
     def test_ai_category(self):
         item = make_scored_item(title="New machine learning model released")
-        assert categorize_item(item) == "AI & Machine Learning"
+        assert categorize_item(item) == "IA & Machine Learning"
 
     def test_startup_category(self):
         item = make_scored_item(title="Startup raises venture capital funding")
-        assert categorize_item(item) == "Startups & Funding"
+        assert categorize_item(item) == "Startups & Investimento"
 
     def test_fintech_category(self):
         item = make_scored_item(title="New fintech pagamento solution launches")
