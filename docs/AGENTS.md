@@ -162,6 +162,18 @@ All agents support an optional LLM-powered editorial writer (`writer.py`) that g
 
 Every LLM call returns `Optional`. Synthesizers check `writer.is_available` before calling and handle `None` returns. No agent breaks without `ANTHROPIC_API_KEY`.
 
+### Editorial Copy Guidelines
+
+All writer `SYSTEM_PROMPT`s enforce:
+
+- **Language:** PT-BR obrigatório (`"Escreva SEMPRE em portugues brasileiro"`)
+- **Anti-AI tells:** Evitar frases típicas de IA (`"vale ressaltar"`, `"neste contexto"`, `"é importante destacar"`, `"no cenário atual"`)
+- **Specificity:** Números e exemplos concretos > afirmações vagas
+
+Synthesizer templates (fallback sem LLM) também usam nomes de categorias e labels em PT-BR.
+
+**Contexto editorial:** O arquivo [`.claude/product-marketing-context.md`](../.claude/product-marketing-context.md) define audiência, tom de voz, regras de copy e territórios editoriais. É consultado automaticamente pelo skill de copywriting e serve como referência para todos os writers. Derivado de [`docs/EDITORIAL.md`](EDITORIAL.md).
+
 ---
 
 ## Data Quality Pipeline
