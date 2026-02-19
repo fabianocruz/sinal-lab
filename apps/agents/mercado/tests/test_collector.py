@@ -216,8 +216,11 @@ class TestIsLikelyStartup:
     def test_allows_tech_company(self):
         assert is_likely_startup("stone-payments", "Microservice gateway")
 
-    def test_allows_startup_with_empty_description(self):
-        assert is_likely_startup("vtex", "")
+    def test_filters_known_large_company_vtex(self):
+        assert not is_likely_startup("vtex", "")
+
+    def test_filters_known_large_company_vtex_apps(self):
+        assert not is_likely_startup("vtex-apps", "")
 
     def test_filters_platzi(self):
         assert not is_likely_startup("PlatziMaster", "Learning platform")
@@ -227,6 +230,72 @@ class TestIsLikelyStartup:
 
     def test_filters_gov(self):
         assert not is_likely_startup("gov-digital", "Government digital services")
+
+    # --- Known large companies ---
+    def test_filters_globocom(self):
+        assert not is_likely_startup("globocom", "")
+
+    def test_filters_wizeline(self):
+        assert not is_likely_startup("wizeline", "Open source projects")
+
+    def test_filters_mercadolibre(self):
+        assert not is_likely_startup("mercadolibre", "")
+
+    def test_filters_totvs(self):
+        assert not is_likely_startup("totvs", "")
+
+    # --- Academic/research groups ---
+    def test_filters_software_design_lab(self):
+        assert not is_likely_startup("TheSoftwareDesignLab", "Software engineering research")
+
+    def test_filters_university_chapter(self):
+        assert not is_likely_startup("CapituloJaverianoACM", "")
+
+    def test_filters_udistrital(self):
+        assert not is_likely_startup("Udistrital", "")
+
+    def test_filters_uspgamedev(self):
+        assert not is_likely_startup("uspgamedev", "")
+
+    def test_filters_thunderatz(self):
+        assert not is_likely_startup("ThundeRatz", "USP robotics team")
+
+    # --- Non-profits/NGOs ---
+    def test_filters_bireme(self):
+        assert not is_likely_startup("bireme", "PAHO/WHO")
+
+    def test_filters_hacklabr(self):
+        assert not is_likely_startup("hacklabr", "")
+
+    # --- Personal accounts ---
+    def test_filters_personal_eti(self):
+        assert not is_likely_startup("thiagobruno-eti", "")
+
+    def test_filters_geosaber(self):
+        assert not is_likely_startup("geosaber", "")
+
+    # --- False positive safety: real startups must still pass ---
+    def test_allows_entria(self):
+        assert is_likely_startup("entria", "")
+
+    def test_allows_cloudwalk(self):
+        assert is_likely_startup("cloudwalk-inc", "Payments infrastructure")
+
+    def test_allows_nuvemshop(self):
+        assert is_likely_startup("nuvemshop", "E-commerce platform for LATAM")
+
+    def test_allows_creditas(self):
+        assert is_likely_startup("creditas", "")
+
+    def test_allows_loft(self):
+        assert is_likely_startup("loft-br", "Real estate platform")
+
+    # --- Government (Spanish) ---
+    def test_filters_gobierno(self):
+        assert not is_likely_startup("gobierno-digital", "")
+
+    def test_filters_municipio(self):
+        assert not is_likely_startup("municipio-mx", "Servicios municipales")
 
 
 @patch("httpx.get")

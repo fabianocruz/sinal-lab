@@ -11,106 +11,93 @@ from apps.agents.mercado.collector import CompanyProfile
 logger = logging.getLogger(__name__)
 
 # Sector classification keywords
-SECTOR_KEYWORDS = {
+SECTOR_KEYWORDS: dict[str, list[str]] = {
     "Fintech": [
-        "pagamento",
-        "payment",
-        "credito",
-        "credit",
-        "bank",
-        "banco",
-        "pix",
-        "financial",
-        "financeira",
-        "cartão",
-        "card",
-        "wallet",
-        "carteira",
+        "pagamento", "payment", "credito", "credit",
+        "bank", "banco", "pix", "financial", "financeira",
+        "cartão", "card", "wallet", "carteira",
+        "fintech", "neobank", "neobanco", "lending", "emprestimo",
+        "investimento", "investment", "crypto", "blockchain",
+        "remessa", "remittance", "checkout",
     ],
     "HealthTech": [
-        "saude",
-        "health",
-        "telemedicine",
-        "telemedicina",
-        "clinica",
-        "clinic",
-        "hospital",
-        "medical",
-        "medico",
-        "pharma",
-        "farmacia",
+        "saude", "health", "telemedicine", "telemedicina",
+        "clinica", "clinic", "hospital", "medical", "medico",
+        "pharma", "farmacia",
     ],
     "Edtech": [
-        "educacao",
-        "education",
-        "ensino",
-        "learning",
-        "escola",
-        "school",
-        "curso",
-        "course",
-        "estudante",
-        "student",
+        "educacao", "education", "ensino", "learning",
+        "escola", "school", "curso", "course",
+        "estudante", "student",
     ],
     "E-commerce": [
-        "ecommerce",
-        "e-commerce",
-        "marketplace",
-        "loja",
-        "store",
-        "varejo",
-        "retail",
-        "compra",
-        "shopping",
+        "ecommerce", "e-commerce", "marketplace",
+        "loja", "store", "varejo", "retail",
+        "compra", "shopping",
+        "shop", "vendas", "sales", "catalog", "catalogo",
+        "inventory", "estoque", "fulfillment",
     ],
     "SaaS": [
-        "software",
-        "platform",
-        "saas",
-        "enterprise",
-        "cloud",
-        "api",
-        "automation",
-        "automação",
+        "saas", "enterprise",
+        "automation", "automação",
+        "crm", "erp", "b2b",
+        "dashboard", "workflow", "integration",
     ],
     "Logistics": [
-        "logistica",
-        "logistics",
-        "entrega",
-        "delivery",
-        "transporte",
-        "transport",
-        "frete",
-        "shipping",
+        "logistica", "logistics", "entrega", "delivery",
+        "transporte", "transport", "frete", "shipping",
     ],
     "Agritech": [
-        "agricultura",
-        "agriculture",
-        "agro",
-        "farm",
-        "fazenda",
-        "rural",
-        "crop",
-        "plantio",
+        "agricultura", "agriculture", "agro", "farm",
+        "fazenda", "rural", "crop", "plantio",
     ],
     "PropTech": [
-        "imovel",
-        "real estate",
-        "property",
-        "propriedade",
-        "aluguel",
-        "rent",
-        "moradia",
-        "housing",
+        "imovel", "real estate", "property", "propriedade",
+        "aluguel", "rent", "moradia", "housing",
+    ],
+    "DevTools": [
+        "developer", "devops", "ci/cd", "cicd", "pipeline",
+        "infrastructure", "infra", "microservice", "sdk",
+        "open-source", "open source", "monitoring",
+        "observability", "deployment", "container", "kubernetes",
+        "terraform", "serverless",
+    ],
+    "Cybersecurity": [
+        "security", "segurança", "seguridad", "cyber",
+        "encryption", "criptografia", "firewall",
+        "vulnerability", "pentest", "authentication",
+        "identity", "identidade", "fraud", "fraude",
+    ],
+    "CleanTech": [
+        "solar", "renewable", "renovavel", "energia",
+        "energy", "sustentavel", "sustainable", "carbono",
+        "carbon", "climate", "clima", "cleantech",
+        "reciclagem", "recycling",
+    ],
+    "HRTech": [
+        "recruiting", "recrutamento",
+        "talent", "talento", "hiring", "contratacao",
+        "payroll", "folha", "workforce",
+    ],
+    "InsurTech": [
+        "seguro", "insurance", "insurtech",
+        "apolice", "sinistro", "corretora",
+    ],
+    "LegalTech": [
+        "juridico", "legal", "advogado", "lawyer",
+        "contrato", "contract", "compliance",
+        "regulatorio", "regulatory", "lawtech", "legaltech",
     ],
 }
 
 
 def classify_sector(profile: CompanyProfile) -> Optional[str]:
-    """Classify company sector based on keywords.
+    """Classify company sector based on weighted keyword matching.
 
-    Checks both the org description and name/slug for keyword matches.
-    Name matches count less (0.5 per hit) to avoid over-weighting short names.
+    Uses three text sources with different weights:
+    - Description: 1.0 per keyword hit (most reliable)
+    - Tags: 0.7 per keyword hit (from Crunchbase/LinkedIn categories)
+    - Name/slug: 0.5 per keyword hit (less reliable for short names)
 
     Args:
         profile: CompanyProfile to classify
@@ -118,34 +105,32 @@ def classify_sector(profile: CompanyProfile) -> Optional[str]:
     Returns:
         Sector name (e.g., "Fintech") or None if unclassified
     """
-    # Build searchable text from description and name
-    text_parts = []
-    if profile.description:
-        text_parts.append(profile.description.lower())
-    if profile.slug:
-        text_parts.append(profile.slug.lower())
-    if profile.name:
-        text_parts.append(profile.name.lower())
+    description_text = (profile.description or "").lower()
+    name_text = ((profile.slug or "") + " " + (profile.name or "")).lower()
+    tags_text = " ".join(t.lower() for t in profile.tags) if profile.tags else ""
 
-    if not text_parts:
+    if not description_text and not name_text.strip() and not tags_text:
         return None
 
-    searchable_text = " ".join(text_parts)
-
-    # Check each sector's keywords
     sector_scores: dict[str, float] = {}
     for sector, keywords in SECTOR_KEYWORDS.items():
-        score = sum(1 for keyword in keywords if keyword in searchable_text)
+        score = 0.0
+        for kw in keywords:
+            if kw in description_text:
+                score += 1.0
+            if kw in name_text:
+                score += 0.5
+            if kw in tags_text:
+                score += 0.7
         if score > 0:
             sector_scores[sector] = score
 
     if not sector_scores:
         return None
 
-    # Return sector with highest score
     best_sector = max(sector_scores.items(), key=lambda x: x[1])
     logger.debug(
-        "Classified %s as %s (score: %d)",
+        "Classified %s as %s (score: %.1f)",
         profile.name,
         best_sector[0],
         best_sector[1],

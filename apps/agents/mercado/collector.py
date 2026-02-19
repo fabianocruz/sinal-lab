@@ -55,39 +55,104 @@ class CompanyProfile:
     source_name: str = ""
 
 
-# Patterns indicating non-startup organizations (matched case-insensitive).
-# Universities, government, training platforms, archives, etc.
-_NON_STARTUP_PATTERNS = [
-    "prefeitura", "governo", "gov-",
-    "universid", "university",
-    "faculdade", "fatec", "fiap", "espm", "puc-",
-    "escola", "school", "college",
-    "curso", "treinaweb", "alura", "platzi",
-    "archive",
+# --- Blocklist patterns by category (matched as substrings, case-insensitive) ---
+
+_GOVT_PATTERNS = [
+    "prefeitura", "governo", "gov-", "gobierno",
+    "ministerio", "municipio",
 ]
+
+_UNIVERSITY_PATTERNS = [
+    "universid", "university",
+    "faculdade", "faculdad",
+    "fatec", "fiap", "espm", "puc-",
+    "politecnic", "politecn",
+    "instituto-", "itesm", "unam", "unicamp",
+    "ufmg", "ufrj", "ufpr", "ufsc", "ufrgs",
+    "uniandes", "javeriana",
+]
+
+_EDUCATION_PATTERNS = [
+    "escola", "school", "college", "colegio",
+    "curso", "treinaweb", "alura", "platzi",
+    "bootcamp", "academia-",
+]
+
+_ACADEMIC_PATTERNS = [
+    "-lab", "research-",
+    "capitulo", "chapter", "-acm",
+    "gamedev", "thunderatz",
+]
+
+_NONPROFIT_PATTERNS = [
+    "bireme", "paho", "opas",
+    "-ngo", "ong-", "fundacion", "fundacao",
+    "opendesign",
+]
+
+_PERSONAL_PATTERNS = [
+    "-eti", "consulting", "consultoria",
+]
+
+_KNOWN_LARGE_COMPANIES_PATTERNS = [
+    "globo", "globocom",
+    "wizeline",
+    "mercadolibre", "mercadolivre",
+    "despegar", "decolar",
+    "totvs",
+    "b2w-", "americanas",
+    "embraer",
+]
+
+_ARCHIVE_PATTERNS = [
+    "archive", "mirror", "backup",
+]
+
+# Combined substring blocklist (tuple for faster iteration)
+_NON_STARTUP_PATTERNS = tuple(
+    _GOVT_PATTERNS
+    + _UNIVERSITY_PATTERNS
+    + _EDUCATION_PATTERNS
+    + _ACADEMIC_PATTERNS
+    + _NONPROFIT_PATTERNS
+    + _PERSONAL_PATTERNS
+    + _KNOWN_LARGE_COMPANIES_PATTERNS
+    + _ARCHIVE_PATTERNS
+)
+
+# Exact-login blocklist for short names that would cause false-positive
+# substring matches (e.g., "vtex" is too short for safe substring matching).
+_KNOWN_NON_STARTUP_LOGINS = frozenset([
+    "vtex", "vtex-apps",
+    "globocom", "globo",
+    "wizeline",
+    "mercadolibre", "mercadolivre",
+    "totvs",
+    "udistrital",
+    "bireme",
+    "hacklabr",
+    "geosaber",
+    "uspgamedev",
+    "thesoftwaredesignlab",
+    "capitulojaverianoacm",
+    "thunderatz",
+    "openingdesign",
+])
 
 
 def is_likely_startup(org_login: str, description: str = "") -> bool:
     """Check if a GitHub org is likely a startup vs an institution.
 
-    Concatenates org_login and description into a single lowercase string,
-    then checks for substring matches against ``_NON_STARTUP_PATTERNS``.
-    A single match is enough to reject the org.
-
-    Filtered categories:
-        - Government: ``prefeitura``, ``governo``, ``gov-``
-        - Universities: ``universid``, ``university``, ``faculdade``,
-          ``fatec``, ``fiap``, ``espm``, ``puc-``
-        - Schools: ``escola``, ``school``, ``college``
-        - Training platforms: ``curso``, ``treinaweb``, ``alura``, ``platzi``
-        - Archives: ``archive``
+    Uses two checks in order:
+    1. Exact login match against ``_KNOWN_NON_STARTUP_LOGINS``.
+    2. Substring match of login+description against ``_NON_STARTUP_PATTERNS``.
 
     Examples:
         >>> is_likely_startup("nubank")
         True
         >>> is_likely_startup("prefeiturasp", "Prefeitura de São Paulo")
         False
-        >>> is_likely_startup("fiap", "")
+        >>> is_likely_startup("vtex", "")
         False
 
     Args:
@@ -96,13 +161,21 @@ def is_likely_startup(org_login: str, description: str = "") -> bool:
             or None-like; defaults to ``""``).
 
     Returns:
-        True if no blocklist pattern matches — the org is likely a startup
-        or tech company. False if any pattern matches.
+        True if the org passes all checks (likely a startup).
+        False if any check rejects it.
     """
-    text = (org_login + " " + description).lower()
+    login_lower = org_login.lower()
+
+    # Check 1: exact login blocklist
+    if login_lower in _KNOWN_NON_STARTUP_LOGINS:
+        return False
+
+    # Check 2: substring pattern matching
+    text = (login_lower + " " + (description or "")).lower()
     for pattern in _NON_STARTUP_PATTERNS:
         if pattern in text:
             return False
+
     return True
 
 
