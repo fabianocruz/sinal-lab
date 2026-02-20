@@ -1,3 +1,4 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": "next/core-web-vitals",
+  "ignorePatterns": ["**/*.test.ts", "**/*.test.tsx", "test/", "vitest.config.mts"]
 }
