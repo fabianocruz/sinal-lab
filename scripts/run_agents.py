@@ -288,6 +288,10 @@ Available agents:
         help="Skip evidence item persistence (orchestrate mode only)",
     )
     parser.add_argument(
+        "--publish", action="store_true",
+        help="Publish unified newsletter to Beehiiv after all agents complete",
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true",
         help="Verbose logging",
     )
@@ -370,6 +374,17 @@ Available agents:
     if failed:
         logger.error("%d agent(s) failed", failed)
         sys.exit(1)
+
+    # Publish unified newsletter if requested and all agents succeeded
+    if args.publish and failed == 0:
+        from scripts.publish_newsletter import publish_newsletter
+
+        logger.info("Publishing unified newsletter to Beehiiv...")
+        publish_newsletter(
+            edition=args.edition,
+            week=week_val,
+            dry_run=args.dry_run,
+        )
 
 
 if __name__ == "__main__":
