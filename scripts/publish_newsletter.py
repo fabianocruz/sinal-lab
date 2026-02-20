@@ -6,8 +6,11 @@ converts to HTML, and publishes as a draft on Beehiiv.
 
 Usage:
     python scripts/publish_newsletter.py --edition 8 --week 8
-    python scripts/publish_newsletter.py --edition 8 --week 8 --html output.html --dry-run
-    python scripts/publish_newsletter.py --edition 8
+    python scripts/publish_newsletter.py --edition 8 --week 8 --dry-run
+    python scripts/publish_newsletter.py --edition 8 --html /custom/path.html
+
+HTML output is always saved to output/newsletters/sinal-semanal-{edition}-week-{week}.html.
+Use --html to save an additional copy to a custom path.
 """
 
 import argparse
@@ -42,6 +45,9 @@ AGENT_SECTIONS: Dict[str, str] = {
 
 # Order in which agent sections appear after SINTESE.
 SECTION_ORDER = ["radar", "codigo", "funding", "mercado"]
+
+# Default output subdirectory for composed newsletters (relative to project root).
+NEWSLETTER_OUTPUT_SUBDIR = Path("output") / "newsletters"
 
 
 def load_agent_output(filepath: Path) -> Optional[dict]:
@@ -159,10 +165,18 @@ def publish_newsletter(
     subject = f"Sinal Semanal #{edition}"
     html_full = wrap_in_email_template(html_body, subject)
 
-    # Save HTML if requested
+    # Always save HTML to standard output directory
+    newsletter_dir = root / NEWSLETTER_OUTPUT_SUBDIR
+    newsletter_dir.mkdir(parents=True, exist_ok=True)
+    default_filename = f"sinal-semanal-{edition}-week-{week}.html"
+    default_path = newsletter_dir / default_filename
+    default_path.write_text(html_full, encoding="utf-8")
+    logger.info("HTML saved to %s", default_path)
+
+    # Save additional copy if custom path requested
     if html_path:
         Path(html_path).write_text(html_full, encoding="utf-8")
-        logger.info("HTML saved to %s", html_path)
+        logger.info("HTML copy saved to %s", html_path)
 
     # Publish to Beehiiv
     if not dry_run:
@@ -189,7 +203,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--html", type=str, default=None,
-        help="Path to save the composed HTML",
+        help="Save an additional HTML copy to this path (default output is always saved to output/newsletters/)",
     )
     parser.add_argument(
         "--dry-run", action="store_true",

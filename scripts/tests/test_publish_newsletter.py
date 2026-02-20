@@ -311,10 +311,27 @@ class TestPublishNewsletter:
         mock_beehiiv.assert_not_called()
 
     @patch("scripts.publish_newsletter.send_via_beehiiv")
-    def test_saves_html_to_path(
+    def test_always_saves_html_to_default_path(
+        self, mock_beehiiv, tmp_output_dir: Path
+    ):
+        publish_newsletter(
+            edition=8,
+            week=8,
+            dry_run=True,
+            project_root=tmp_output_dir,
+        )
+
+        default_path = tmp_output_dir / "output" / "newsletters" / "sinal-semanal-8-week-8.html"
+        assert default_path.exists()
+        content = default_path.read_text(encoding="utf-8")
+        assert "<html" in content
+        assert "Sinal Semanal" in content
+
+    @patch("scripts.publish_newsletter.send_via_beehiiv")
+    def test_saves_additional_copy_to_custom_path(
         self, mock_beehiiv, tmp_output_dir: Path, tmp_path: Path
     ):
-        html_path = tmp_path / "output.html"
+        html_path = tmp_path / "custom_output.html"
 
         publish_newsletter(
             edition=8,
@@ -324,10 +341,10 @@ class TestPublishNewsletter:
             project_root=tmp_output_dir,
         )
 
+        # Both default and custom paths should exist
+        default_path = tmp_output_dir / "output" / "newsletters" / "sinal-semanal-8-week-8.html"
+        assert default_path.exists()
         assert html_path.exists()
-        content = html_path.read_text(encoding="utf-8")
-        assert "<html" in content
-        assert "Sinal Semanal" in content
 
     @patch("scripts.publish_newsletter.send_via_beehiiv")
     def test_calls_beehiiv_with_correct_subject(

@@ -60,6 +60,9 @@ Desktop.ini
 airflow/logs/
 airflow/dags/__pycache__/
 
+# Agent and newsletter outputs
+output/
+
 # Plan files
 PLAN.md
 SCRATCHPAD.md
