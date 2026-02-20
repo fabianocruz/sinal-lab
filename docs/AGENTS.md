@@ -854,6 +854,39 @@ python scripts/run_agents.py funding --week 8 --orchestrate --no-evidence
 | `--orchestrate` | Ativa modo in-process com editorial pipeline |
 | `--no-editorial` | Pula revisão editorial (só orchestrate) |
 | `--no-evidence` | Pula persistência de evidence items (só orchestrate) |
+| `--publish` | Publica newsletter unificada no Beehiiv após todos os agents completarem |
+
+### Newsletter Publisher (`scripts/publish_newsletter.py`)
+
+Combina outputs dos 5 agents num único newsletter e publica como draft no Beehiiv.
+
+**Estrutura do newsletter composto:**
+1. **SINTESE** — lead editorial (corpo completo)
+2. **RADAR** — "Tendências da Semana"
+3. **CODIGO** — "Código & Infraestrutura"
+4. **FUNDING** — "Investimentos"
+5. **MERCADO** — "Ecossistema LATAM"
+
+Agents sem output são silenciosamente omitidos.
+
+**Uso standalone:**
+```bash
+# Compor + publicar como draft no Beehiiv
+python scripts/publish_newsletter.py --edition 8 --week 8
+
+# Compor + salvar HTML apenas (sem publicar)
+python scripts/publish_newsletter.py --edition 8 --week 8 --html output.html --dry-run
+```
+
+**Uso integrado com run_agents.py:**
+```bash
+# Rodar todos os agents + publicar newsletter automaticamente
+python scripts/run_agents.py all --week 8 --edition 8 --output --publish
+```
+
+O publisher reutiliza `markdown_to_html()`, `wrap_in_email_template()` e `send_via_beehiiv()` de `apps/agents/sintese/newsletter.py`. Requer `BEEHIIV_API_KEY` e `BEEHIIV_PUBLICATION_ID` no `.env`.
+
+**Testes:** 15 tests em `scripts/tests/test_publish_newsletter.py` (YAML parser, composição, HTML output, Beehiiv mock).
 
 ---
 
@@ -1023,6 +1056,10 @@ DEALROOM_API_KEY=          # Dealroom API key (disabled source)
 
 # LLM (optional — agents fall back to template output)
 ANTHROPIC_API_KEY=
+
+# Newsletter publishing (optional — publisher skips if not set)
+BEEHIIV_API_KEY=
+BEEHIIV_PUBLICATION_ID=
 ```
 
 ### Cron Schedule
@@ -1035,6 +1072,9 @@ ANTHROPIC_API_KEY=
 
 # Orchestrate mode (in-process with editorial review)
 0 7 * * 1 cd /app && python scripts/run_agents.py all --week $(date +%V) --orchestrate
+
+# Full pipeline: run all agents + publish newsletter as Beehiiv draft
+0 7 * * 1 cd /app && python scripts/run_agents.py all --week $(date +%V) --edition $(date +%V) --output --publish
 ```
 
 ---
@@ -1106,6 +1146,7 @@ Antes de considerar um agente "completo":
 - [evidence_writer](../apps/agents/base/evidence_writer.py) — Evidence item writer
 - [orchestrator](../apps/agents/base/orchestrator.py) — Editorial-in-the-loop orchestrator
 - [run_agents.py](../scripts/run_agents.py) — Unified agent runner (subprocess + orchestrate)
+- [publish_newsletter.py](../scripts/publish_newsletter.py) — Newsletter publisher (compose + Beehiiv)
 
 ### Shared Data Sources (Phase 3)
 - [google_news](../apps/agents/sources/google_news.py) — Google News RSS
