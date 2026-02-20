@@ -1,6 +1,6 @@
 """Configuration for the CODIGO agent — data sources and parameters."""
 
-from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, DataSourceConfig
 
 CODIGO_SOURCES: list[DataSourceConfig] = [
     # --- GitHub Trending ---
@@ -78,6 +78,14 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
     ),
 ]
 
+CODIGO_PERSONA = AgentPersona(
+    display_name="Marina Costa",
+    role_title="Pesquisadora de Tecnologia",
+    nationality="Brasileira",
+    bio_short="Engenheira focada em ecossistema dev e infraestrutura",
+    avatar_filename="marina-costa.jpg",
+)
+
 CODIGO_CONFIG = AgentConfig(
     agent_name="codigo",
     agent_category=AgentCategory.CONTENT,
@@ -88,4 +96,5 @@ CODIGO_CONFIG = AgentConfig(
     output_content_type="ANALYSIS",
     min_confidence_to_publish=0.3,
     max_items_per_run=500,
+    persona=CODIGO_PERSONA,
 )

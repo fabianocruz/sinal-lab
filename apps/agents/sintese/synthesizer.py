@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from apps.agents.base.persona_registry import get_display_name
 from apps.agents.sintese.scorer import ScoredItem
 
 if TYPE_CHECKING:
@@ -208,7 +209,8 @@ def synthesize_newsletter(
     # Header
     lines.append(f"# Sinal Semanal #{edition_number}")
     lines.append("")
-    lines.append(f"*Edicao de {date_str} — Curado pelo agente SINTESE*")
+    persona_name = get_display_name("sintese")
+    lines.append(f"*Edicao de {date_str} — Curado por {persona_name} (SINTESE)*")
     lines.append("")
     lines.append("---")
     lines.append("")

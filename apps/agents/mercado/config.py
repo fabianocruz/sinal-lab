@@ -3,7 +3,7 @@
 Data sources for startup discovery and ecosystem mapping across LATAM.
 """
 
-from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, DataSourceConfig
 
 # GitHub Search API: Discover tech companies via org profiles
 # Free tier: 30 req/min, 5000 req/hour
@@ -80,6 +80,14 @@ MERCADO_SOURCES: list[DataSourceConfig] = [
     ),
 ]
 
+MERCADO_PERSONA = AgentPersona(
+    display_name="Valentina Rojas",
+    role_title="Especialista LATAM",
+    nationality="Colombiana",
+    bio_short="Analista de ecossistemas e mapeamento de startups",
+    avatar_filename="valentina-rojas.jpg",
+)
+
 MERCADO_CONFIG = AgentConfig(
     agent_name="mercado",
     agent_category=AgentCategory.DATA,
@@ -90,4 +98,5 @@ MERCADO_CONFIG = AgentConfig(
     output_content_type="DATA_REPORT",
     min_confidence_to_publish=0.4,
     max_items_per_run=500,
+    persona=MERCADO_PERSONA,
 )

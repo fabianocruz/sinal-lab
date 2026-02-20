@@ -1,6 +1,6 @@
 """Configuration for the FUNDING agent — data sources and parameters."""
 
-from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, DataSourceConfig
 
 # LATAM VC firms and investment news sources (RSS/Atom feeds)
 FUNDING_SOURCES: list[DataSourceConfig] = [
@@ -64,6 +64,14 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
     ),
 ]
 
+FUNDING_PERSONA = AgentPersona(
+    display_name="Rafael Oliveira",
+    role_title="Analista de Investimentos",
+    nationality="Brasileiro",
+    bio_short="Especialista em capital de risco e rodadas LATAM",
+    avatar_filename="rafael-oliveira.jpg",
+)
+
 FUNDING_CONFIG = AgentConfig(
     agent_name="funding",
     agent_category=AgentCategory.DATA,
@@ -74,4 +82,5 @@ FUNDING_CONFIG = AgentConfig(
     output_content_type="DATA_REPORT",
     min_confidence_to_publish=0.4,  # Lower than SINTESE due to single-source funding announcements
     max_items_per_run=200,
+    persona=FUNDING_PERSONA,
 )

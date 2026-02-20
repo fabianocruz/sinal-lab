@@ -1,6 +1,6 @@
 """Configuration for the SINTESE agent — data sources, parameters, and feed list."""
 
-from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, DataSourceConfig
 
 # LATAM tech RSS/Atom feeds organized by category.
 # Each feed is a DataSourceConfig for consistent handling.
@@ -167,6 +167,14 @@ BLUESKY_SOURCES: list[DataSourceConfig] = [
     ),
 ]
 
+SINTESE_PERSONA = AgentPersona(
+    display_name="Clara Medeiros",
+    role_title="Editora-chefe",
+    nationality="Brasileira",
+    bio_short="Jornalista especializada em tecnologia e startups LATAM",
+    avatar_filename="clara-medeiros.jpg",
+)
+
 SINTESE_CONFIG = AgentConfig(
     agent_name="sintese",
     agent_category=AgentCategory.CONTENT,
@@ -180,4 +188,5 @@ SINTESE_CONFIG = AgentConfig(
     output_content_type="DATA_REPORT",
     min_confidence_to_publish=0.3,
     max_items_per_run=500,
+    persona=SINTESE_PERSONA,
 )

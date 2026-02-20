@@ -50,7 +50,15 @@ def markdown_to_html(markdown_content: str) -> str:
 
 
 def wrap_in_email_template(html_body: str, edition_title: str) -> str:
-    """Wrap newsletter HTML in a responsive email template."""
+    """Wrap newsletter HTML in a responsive email template.
+
+    Uses Sinal.lab brand colors:
+    - body background: #0A0A0B (sinal-black)
+    - container: #1A1A1F (graphite) with subtle border
+    - accent: #E8FF59 (sinal-lime)
+    - text: #C4C4CC (muted), headings: #FAFAF8 / #F0EDE8
+    - font: IBM Plex Sans
+    """
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -59,55 +67,57 @@ def wrap_in_email_template(html_body: str, edition_title: str) -> str:
     <title>{edition_title}</title>
     <style>
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #1a1a1a;
+            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.65;
+            color: #C4C4CC;
             max-width: 640px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f8f9fa;
+            background-color: #0A0A0B;
         }}
         .container {{
-            background-color: #ffffff;
+            background-color: #1A1A1F;
             padding: 32px;
-            border-radius: 8px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }}
         h1 {{
-            color: #111827;
+            font-family: 'DM Serif Display', 'IBM Plex Sans', serif;
+            color: #FAFAF8;
             font-size: 24px;
-            border-bottom: 2px solid #2563eb;
+            border-bottom: 2px solid #E8FF59;
             padding-bottom: 12px;
         }}
         h2 {{
-            color: #1f2937;
+            color: #F0EDE8;
             font-size: 18px;
             margin-top: 28px;
         }}
         a {{
-            color: #2563eb;
+            color: #E8FF59;
             text-decoration: none;
         }}
         a:hover {{
             text-decoration: underline;
         }}
         blockquote {{
-            border-left: 3px solid #d1d5db;
+            border-left: 3px solid #2A2A32;
             margin: 8px 0;
             padding: 4px 16px;
-            color: #4b5563;
+            color: #8A8A96;
             font-size: 14px;
         }}
         hr {{
             border: none;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
             margin: 24px 0;
         }}
         .footer {{
             margin-top: 32px;
             padding-top: 16px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
             font-size: 13px;
-            color: #6b7280;
+            color: #8A8A96;
             text-align: center;
         }}
     </style>

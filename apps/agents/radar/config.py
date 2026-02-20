@@ -1,6 +1,6 @@
 """Configuration for the RADAR agent — data sources and parameters."""
 
-from apps.agents.base.config import AgentCategory, AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, DataSourceConfig
 
 RADAR_SOURCES: list[DataSourceConfig] = [
     # --- Hacker News ---
@@ -130,6 +130,14 @@ RADAR_SOURCES: list[DataSourceConfig] = [
     ),
 ]
 
+RADAR_PERSONA = AgentPersona(
+    display_name="Tomas Aguirre",
+    role_title="Analista de Tendencias",
+    nationality="Argentino",
+    bio_short="Pesquisador de sinais emergentes em tecnologia",
+    avatar_filename="tomas-aguirre.jpg",
+)
+
 RADAR_CONFIG = AgentConfig(
     agent_name="radar",
     agent_category=AgentCategory.CONTENT,
@@ -140,4 +148,5 @@ RADAR_CONFIG = AgentConfig(
     output_content_type="ANALYSIS",
     min_confidence_to_publish=0.3,
     max_items_per_run=1000,
+    persona=RADAR_PERSONA,
 )

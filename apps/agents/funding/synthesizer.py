@@ -8,6 +8,7 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 from apps.agents.base.llm import strip_html
+from apps.agents.base.persona_registry import get_display_name
 from apps.agents.funding.scorer import ScoredFundingEvent
 
 if TYPE_CHECKING:
@@ -269,6 +270,7 @@ def synthesize_funding_report(
     # Footer
     lines.append("---")
     lines.append("")
-    lines.append("*Relatório gerado pelo agente FUNDING — Sinal.lab*")
+    persona_name = get_display_name("funding")
+    lines.append(f"*Relatorio gerado por {persona_name} (FUNDING) — Sinal.lab*")
 
     return "\n".join(lines)

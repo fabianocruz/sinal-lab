@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from apps.agents.base.llm import strip_html
+from apps.agents.base.persona_registry import get_display_name
 from apps.agents.codigo.analyzer import AnalyzedSignal
 
 if TYPE_CHECKING:
@@ -179,7 +180,8 @@ def synthesize_dev_report(
     # Header
     lines.append(f"# CODIGO Semanal — Semana {week_number}")
     lines.append("")
-    lines.append(f"*{date_str} — Monitorado pelo agente CODIGO*")
+    persona_name = get_display_name("codigo")
+    lines.append(f"*{date_str} — Monitorado por {persona_name} (CODIGO)*")
     lines.append("")
     lines.append("---")
     lines.append("")

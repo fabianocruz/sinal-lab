@@ -23,6 +23,21 @@ class AgentCategory(str, Enum):
 
 
 @dataclass
+class AgentPersona:
+    """Public-facing persona for an AI agent.
+
+    Each agent has a fictional human persona used in bylines,
+    newsletters, and the frontend agent profile pages.
+    """
+
+    display_name: str  # e.g., "Clara Medeiros"
+    role_title: str  # e.g., "Editora-chefe"
+    nationality: str  # e.g., "Brasileira"
+    bio_short: str  # One-liner bio
+    avatar_filename: str  # e.g., "clara-medeiros.jpg"
+
+
+@dataclass
 class DataSourceConfig:
     """Configuration for a single data source."""
 
@@ -49,6 +64,7 @@ class AgentConfig:
     output_content_type: str = "DATA_REPORT"
     min_confidence_to_publish: float = 0.3
     max_items_per_run: int = 1000
+    persona: Optional[AgentPersona] = None
 
     def get_enabled_sources(self) -> list[DataSourceConfig]:
         """Return only enabled data sources."""
