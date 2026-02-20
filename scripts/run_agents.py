@@ -343,7 +343,7 @@ Available agents:
                 if args.send:
                     extra_args.append("--send")
 
-            if args.week is not None:
+            if args.week is not None and cfg["period_arg"] == "week":
                 extra_args.extend(["--week", str(args.week)])
 
             if args.persist:
