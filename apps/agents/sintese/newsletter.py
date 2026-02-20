@@ -197,6 +197,10 @@ def send_via_beehiiv(
                 "status": "draft",
             },
         )
+        if response.status_code >= 400:
+            logger.error(
+                "Beehiiv API error %d: %s", response.status_code, response.text
+            )
         response.raise_for_status()
         logger.info("Newsletter published as draft on Beehiiv")
         return True
