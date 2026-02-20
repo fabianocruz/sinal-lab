@@ -557,3 +557,21 @@ class TestMainSubprocessMode:
         extra_args = mock_run.call_args[0][1]
         assert "--week" in extra_args
         assert "8" in extra_args
+
+    @patch("scripts.run_agents.run_agent")
+    @patch("sys.argv", ["run_agents.py", "all", "--week", "8"])
+    def test_subprocess_sintese_does_not_get_week_arg(self, mock_run):
+        """SINTESE uses --edition, not --week. Passing --week causes exit code 2."""
+        mock_run.return_value = 0
+        main()
+        # Find the call for sintese
+        for call in mock_run.call_args_list:
+            agent_name = call[0][0]
+            extra_args = call[0][1]
+            if agent_name == "sintese":
+                assert "--week" not in extra_args, (
+                    "SINTESE should not receive --week (it only accepts --edition)"
+                )
+                break
+        else:
+            pytest.fail("sintese was never called")
