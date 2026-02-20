@@ -150,7 +150,7 @@ export default function LoginForm() {
 
       {/* Sign-up link */}
       <p className="mt-6 text-center font-body text-[14px] text-ash">
-        Nao tem conta?{" "}
+        Não tem conta?{" "}
         <Link href="/cadastro" className="text-signal transition-colors hover:text-signal-dim">
           Crie uma
         </Link>

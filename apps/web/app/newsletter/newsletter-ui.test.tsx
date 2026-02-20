@@ -36,7 +36,7 @@ describe("NewsletterArchiveError", () => {
     render(<NewsletterArchiveError error={makeError()} reset={vi.fn()} />);
 
     expect(
-      screen.getByText("Nao foi possivel carregar o arquivo de edicoes. Tente novamente."),
+      screen.getByText("Não foi possível carregar o arquivo de edições. Tente novamente."),
     ).toBeInTheDocument();
   });
 
@@ -65,13 +65,13 @@ describe("NewsletterArchiveError", () => {
   it("test_archive_error_renders_voltar_ao_inicio_link", () => {
     render(<NewsletterArchiveError error={makeError()} reset={vi.fn()} />);
 
-    expect(screen.getByRole("link", { name: "Voltar ao inicio" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Voltar ao início" })).toBeInTheDocument();
   });
 
   it("test_archive_error_voltar_ao_inicio_link_points_to_root", () => {
     render(<NewsletterArchiveError error={makeError()} reset={vi.fn()} />);
 
-    expect(screen.getByRole("link", { name: "Voltar ao inicio" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Voltar ao início" })).toHaveAttribute("href", "/");
   });
 
   it("test_archive_error_has_min_h_screen_centering_wrapper", () => {
@@ -165,7 +165,7 @@ describe("NewsletterSlugError", () => {
   it("test_slug_error_renders_edicao_nao_encontrada_label", () => {
     render(<NewsletterSlugError error={makeError()} reset={vi.fn()} />);
 
-    expect(screen.getByText("Edicao nao encontrada")).toBeInTheDocument();
+    expect(screen.getByText("Edição não encontrada")).toBeInTheDocument();
   });
 
   it("test_slug_error_renders_algo_deu_errado_heading", () => {
@@ -179,7 +179,7 @@ describe("NewsletterSlugError", () => {
 
     expect(
       screen.getByText(
-        "Nao foi possivel carregar esta edicao. Ela pode ter sido movida ou removida.",
+        "Não foi possível carregar esta edição. Ela pode ter sido movida ou removida.",
       ),
     ).toBeInTheDocument();
   });
@@ -209,13 +209,13 @@ describe("NewsletterSlugError", () => {
   it("test_slug_error_renders_ver_todas_as_edicoes_link", () => {
     render(<NewsletterSlugError error={makeError()} reset={vi.fn()} />);
 
-    expect(screen.getByRole("link", { name: "Ver todas as edicoes" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver todas as edições" })).toBeInTheDocument();
   });
 
   it("test_slug_error_ver_todas_link_points_to_newsletter_archive", () => {
     render(<NewsletterSlugError error={makeError()} reset={vi.fn()} />);
 
-    expect(screen.getByRole("link", { name: "Ver todas as edicoes" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Ver todas as edições" })).toHaveAttribute(
       "href",
       "/newsletter",
     );
@@ -242,7 +242,7 @@ describe("NewsletterSlugError", () => {
     render(<NewsletterSlugError error={makeError()} reset={vi.fn()} />);
 
     expect(screen.queryByText("Erro")).not.toBeInTheDocument();
-    expect(screen.getByText("Edicao nao encontrada")).toBeInTheDocument();
+    expect(screen.getByText("Edição não encontrada")).toBeInTheDocument();
   });
 });
 

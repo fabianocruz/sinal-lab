@@ -12,11 +12,11 @@ export default function NewsletterSlugError({ reset }: ErrorProps) {
     <div className="flex min-h-screen items-center justify-center pt-[72px]">
       <div className="mx-auto max-w-[480px] px-6 text-center">
         <p className="mb-2 font-mono text-[11px] uppercase tracking-[2px] text-signal">
-          Edicao nao encontrada
+          Edição não encontrada
         </p>
         <h1 className="mb-4 font-display text-[28px] text-sinal-white">Algo deu errado</h1>
         <p className="mb-8 text-[15px] text-ash">
-          Nao foi possivel carregar esta edicao. Ela pode ter sido movida ou removida.
+          Não foi possível carregar esta edição. Ela pode ter sido movida ou removida.
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <button
@@ -29,7 +29,7 @@ export default function NewsletterSlugError({ reset }: ErrorProps) {
             href="/newsletter"
             className="rounded-lg border border-[rgba(255,255,255,0.06)] px-6 py-3 font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
           >
-            Ver todas as edicoes
+            Ver todas as edições
           </Link>
         </div>
       </div>

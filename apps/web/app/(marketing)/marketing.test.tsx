@@ -40,7 +40,7 @@ describe("SobrePage", () => {
 
     it("test_sobre_metadata_has_correct_description", () => {
       expect(sobreMetadata.description).toBe(
-        "Inteligencia aberta para quem constroi na America Latina.",
+        "Inteligência aberta para quem constrói na América Latina.",
       );
     });
 
@@ -62,7 +62,7 @@ describe("SobrePage", () => {
     it("test_sobre_renders_h1_o_que_e_o_sinal", () => {
       render(<SobrePage />);
       expect(
-        screen.getByRole("heading", { level: 1, name: "O que e o Sinal." }),
+        screen.getByRole("heading", { level: 1, name: "O que é o Sinal." }),
       ).toBeInTheDocument();
     });
   });
@@ -70,13 +70,13 @@ describe("SobrePage", () => {
   describe("MISSAO section", () => {
     it("test_sobre_renders_section_label_missao", () => {
       render(<SobrePage />);
-      expect(screen.getByText("MISSAO")).toBeInTheDocument();
+      expect(screen.getByText("MISSÃO")).toBeInTheDocument();
     });
 
     it("test_sobre_renders_h2_inteligencia_aberta", () => {
       render(<SobrePage />);
       expect(
-        screen.getByRole("heading", { level: 2, name: "Inteligencia aberta para quem constroi." }),
+        screen.getByRole("heading", { level: 2, name: "Inteligência aberta para quem constrói." }),
       ).toBeInTheDocument();
     });
   });
@@ -90,7 +90,7 @@ describe("SobrePage", () => {
     it("test_sobre_renders_h2_pesquisa_automatizada", () => {
       render(<SobrePage />);
       expect(
-        screen.getByRole("heading", { level: 2, name: "Pesquisa automatizada, revisao humana." }),
+        screen.getByRole("heading", { level: 2, name: "Pesquisa automatizada, revisão humana." }),
       ).toBeInTheDocument();
     });
 
@@ -152,7 +152,7 @@ describe("SobrePage", () => {
 
     it("test_sobre_renders_agent_name_tomas_aguirre", () => {
       render(<SobrePage />);
-      expect(screen.getByText("Tomas Aguirre")).toBeInTheDocument();
+      expect(screen.getByText("Tomás Aguirre")).toBeInTheDocument();
     });
 
     it("test_sobre_renders_agent_name_marina_costa", () => {
@@ -177,7 +177,7 @@ describe("SobrePage", () => {
 
     it("test_sobre_renders_agent_role_analista_de_tendencias", () => {
       render(<SobrePage />);
-      expect(screen.getByText("Analista de Tendencias")).toBeInTheDocument();
+      expect(screen.getByText("Analista de Tendências")).toBeInTheDocument();
     });
 
     it("test_sobre_renders_agent_role_pesquisadora_de_tecnologia", () => {
@@ -236,7 +236,7 @@ describe("MetodologiaPage", () => {
 
     it("test_metodologia_metadata_has_correct_description", () => {
       expect(metodologiaMetadata.description).toBe(
-        "Como os agentes do Sinal pesquisam, validam e entregam inteligencia.",
+        "Como os agentes do Sinal pesquisam, validam e entregam inteligência.",
       );
     });
 
@@ -290,7 +290,7 @@ describe("MetodologiaPage", () => {
 
     it("test_metodologia_renders_step_title_validacao", () => {
       render(<MetodologiaPage />);
-      expect(screen.getByRole("heading", { level: 3, name: "Validacao" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 3, name: "Validação" })).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_step_title_filtragem_editorial", () => {
@@ -302,12 +302,12 @@ describe("MetodologiaPage", () => {
 
     it("test_metodologia_renders_step_title_sintese", () => {
       render(<MetodologiaPage />);
-      expect(screen.getByRole("heading", { level: 3, name: "Sintese" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 3, name: "Síntese" })).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_step_title_revisao_humana", () => {
       render(<MetodologiaPage />);
-      expect(screen.getByRole("heading", { level: 3, name: "Revisao Humana" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 3, name: "Revisão Humana" })).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_all_six_step_numbers", () => {
@@ -366,17 +366,17 @@ describe("MetodologiaPage", () => {
 
     it("test_metodologia_renders_dq_label_plausivel", () => {
       render(<MetodologiaPage />);
-      expect(screen.getByText("Plausivel")).toBeInTheDocument();
+      expect(screen.getByText("Plausível")).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_dq_label_nao_verificado", () => {
       render(<MetodologiaPage />);
-      expect(screen.getByText("Nao verificado")).toBeInTheDocument();
+      expect(screen.getByText("Não verificado")).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_dq_label_contradatorio", () => {
       render(<MetodologiaPage />);
-      expect(screen.getByText("Contradatorio")).toBeInTheDocument();
+      expect(screen.getByText("Contraditório")).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_all_four_dq_grades", () => {
@@ -390,34 +390,34 @@ describe("MetodologiaPage", () => {
   describe("TRANSPARENCIA section", () => {
     it("test_metodologia_renders_section_label_transparencia", () => {
       render(<MetodologiaPage />);
-      expect(screen.getByText("TRANSPARENCIA")).toBeInTheDocument();
+      expect(screen.getByText("TRANSPARÊNCIA")).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_h2_cada_dado_rastreavel", () => {
       render(<MetodologiaPage />);
       expect(
-        screen.getByRole("heading", { level: 2, name: "Cada dado, rastreavel ate a fonte." }),
+        screen.getByRole("heading", { level: 2, name: "Cada dado, rastreável até a fonte." }),
       ).toBeInTheDocument();
     });
 
     it("test_metodologia_renders_github_link_with_correct_href", () => {
       render(<MetodologiaPage />);
-      const link = screen.getByRole("link", { name: "Ver codigo no GitHub" });
+      const link = screen.getByRole("link", { name: "Ver código no GitHub" });
       expect(link).toHaveAttribute("href", "https://github.com/fabianocruz/sinal-lab");
     });
 
     it("test_metodologia_github_link_opens_in_new_tab", () => {
       render(<MetodologiaPage />);
-      const link = screen.getByRole("link", { name: "Ver codigo no GitHub" });
+      const link = screen.getByRole("link", { name: "Ver código no GitHub" });
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
     });
 
     it("test_metodologia_renders_log_de_correcoes_link", () => {
       render(<MetodologiaPage />);
-      // "Log de Correcoes" appears in both the TRANSPARENCIA section and the
+      // "Log de Correções" appears in both the TRANSPARENCIA section and the
       // Footer column — assert at least one instance is present.
-      const links = screen.getAllByRole("link", { name: "Log de Correcoes" });
+      const links = screen.getAllByRole("link", { name: "Log de Correções" });
       expect(links.length).toBeGreaterThanOrEqual(1);
     });
   });

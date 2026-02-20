@@ -6,10 +6,10 @@ import { AGENT_PERSONAS } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Sobre o Sinal",
-  description: "Inteligencia aberta para quem constroi na America Latina.",
+  description: "Inteligência aberta para quem constrói na América Latina.",
   openGraph: {
     title: "Sobre o Sinal | Sinal",
-    description: "Inteligencia aberta para quem constroi na America Latina.",
+    description: "Inteligência aberta para quem constrói na América Latina.",
     type: "website",
   },
 };
@@ -32,37 +32,37 @@ export default function SobrePage() {
         {/* Header */}
         <Section label="SOBRE">
           <h1 className="font-display text-[clamp(32px,5vw,56px)] leading-tight text-sinal-white">
-            O que e o Sinal.
+            O que é o Sinal.
           </h1>
           <p className="mt-6 max-w-[640px] text-[17px] leading-relaxed text-silver">
-            O Sinal e uma plataforma de inteligencia sobre o ecossistema tech da America Latina,
-            construida para fundadores tecnicos, CTOs e engenheiros seniores que precisam de dados
-            confiaveis para tomar decisoes.
+            O Sinal é uma plataforma de inteligência sobre o ecossistema tech da América Latina,
+            construída para fundadores técnicos, CTOs e engenheiros seniores que precisam de dados
+            confiáveis para tomar decisões.
           </p>
         </Section>
 
         {/* Mission */}
-        <Section label="MISSAO">
+        <Section label="MISSÃO">
           <h2 className="font-display text-[clamp(24px,4vw,40px)] leading-tight text-sinal-white">
-            Inteligencia aberta para quem constroi.
+            Inteligência aberta para quem constrói.
           </h2>
           <div className="mt-8 max-w-[680px] space-y-6 text-[16px] leading-relaxed text-silver">
             <p>
               Toda semana, centenas de agentes especializados pesquisam, validam e sintetizam os
-              dados mais relevantes sobre startups, investimentos, tecnologia e tendencias na
-              regiao. O resultado e entregue no formato de um briefing semanal — conciso, auditavel
+              dados mais relevantes sobre startups, investimentos, tecnologia e tendências na
+              região. O resultado é entregue no formato de um briefing semanal — conciso, auditável
               e baseado em dados.
             </p>
             <p>
-              O Sinal nasceu da frustracao com a escassez de inteligencia de qualidade sobre o
-              ecossistema latinoamericano de tecnologia. A maioria das publicacoes existentes cobre
-              o mercado de forma superficial, sem fontes verificaveis, sem metodologia transparente
-              e sem foco no publico tecnico que de fato constroi as empresas da regiao.
+              O Sinal nasceu da frustração com a escassez de inteligência de qualidade sobre o
+              ecossistema latinoamericano de tecnologia. A maioria das publicações existentes cobre
+              o mercado de forma superficial, sem fontes verificáveis, sem metodologia transparente
+              e sem foco no público técnico que de fato constrói as empresas da região.
             </p>
             <p>
-              Nossa aposta e diferente: transparencia radical, metodologia aberta e dados
-              verificaveis. Cada informacao publicada tem fonte, data de coleta e score de
-              confianca. Voce sabe exatamente de onde vem cada dado.
+              Nossa aposta é diferente: transparência radical, metodologia aberta e dados
+              verificáveis. Cada informação publicada tem fonte, data de coleta e score de
+              confiança. Você sabe exatamente de onde vem cada dado.
             </p>
           </div>
         </Section>
@@ -70,12 +70,12 @@ export default function SobrePage() {
         {/* How it works */}
         <Section label="COMO FUNCIONA">
           <h2 className="font-display text-[clamp(24px,4vw,40px)] leading-tight text-sinal-white">
-            Pesquisa automatizada, revisao humana.
+            Pesquisa automatizada, revisão humana.
           </h2>
           <p className="mt-6 max-w-[640px] text-[16px] leading-relaxed text-silver">
             O processo do Sinal combina escala computacional com julgamento editorial humano.
             Agentes de IA pesquisam e normalizam dados continuamente; um pipeline editorial filtra e
-            prioriza; editores humanos revisam e aprovam antes de qualquer publicacao.
+            prioriza; editores humanos revisam e aprovam antes de qualquer publicação.
           </p>
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-6">
@@ -86,8 +86,8 @@ export default function SobrePage() {
                 Agentes pesquisam
               </h3>
               <p className="mt-2 text-[14px] leading-relaxed text-ash">
-                Centenas de agentes monitoram fontes publicas verificaveis em tempo real — noticias,
-                repositorios, bases de dados abertas e registros publicos.
+                Centenas de agentes monitoram fontes públicas verificáveis em tempo real — notícias,
+                repositórios, bases de dados abertas e registros públicos.
               </p>
             </div>
             <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-6">
@@ -98,8 +98,8 @@ export default function SobrePage() {
                 Pipeline filtra
               </h3>
               <p className="mt-2 text-[14px] leading-relaxed text-ash">
-                Um pipeline editorial automatizado atribui scores de confianca, remove duplicatas e
-                seleciona os itens mais relevantes para a audiencia tecnica.
+                Um pipeline editorial automatizado atribui scores de confiança, remove duplicatas e
+                seleciona os itens mais relevantes para a audiência técnica.
               </p>
             </div>
             <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-6">
@@ -110,8 +110,8 @@ export default function SobrePage() {
                 Humanos revisam
               </h3>
               <p className="mt-2 text-[14px] leading-relaxed text-ash">
-                Editores revisam, contextualizam e aprovam cada item antes da publicacao. Nenhum
-                dado entra no briefing sem revisao humana.
+                Editores revisam, contextualizam e aprovam cada item antes da publicação. Nenhum
+                dado entra no briefing sem revisão humana.
               </p>
             </div>
           </div>
@@ -123,8 +123,8 @@ export default function SobrePage() {
             Quem pesquisa o Sinal.
           </h2>
           <p className="mt-4 max-w-[560px] text-[16px] leading-relaxed text-silver">
-            Cada agente e especializado em uma area do ecossistema tech LATAM e opera de forma
-            continua, com metodologia propria e auditavel.
+            Cada agente é especializado em uma área do ecossistema tech LATAM e opera de forma
+            contínua, com metodologia própria e auditável.
           </p>
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {agentes.map((agent) => {

@@ -20,7 +20,7 @@ export default function FeaturedCard({ newsletter }: FeaturedCardProps) {
     <Link
       href={`/newsletter/${newsletter.slug}`}
       className="group col-span-full grid overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite transition-colors duration-300 hover:border-[rgba(255,255,255,0.10)] md:grid-cols-[1.2fr_1fr]"
-      aria-label={`Ler edicao em destaque: ${newsletter.title}`}
+      aria-label={`Ler edição em destaque: ${newsletter.title}`}
     >
       {/* Image */}
       <div

@@ -48,7 +48,7 @@ export default function AgentCard({ agentKey }: AgentCardProps) {
 
           {/* Agent code badge */}
           <span
-            aria-label={`Codigo do agente: ${persona.agentCode}`}
+            aria-label={`Código do agente: ${persona.agentCode}`}
             className="mt-2 inline-block rounded-full px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider"
             style={{
               backgroundColor: BADGE_BG[agentKey],

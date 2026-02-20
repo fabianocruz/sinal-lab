@@ -73,7 +73,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
             color: COLOR.ash,
           }}
         >
-          Inteligencia aberta para quem constroi.
+          Inteligência aberta para quem constrói.
         </div>
 
         {/* Bottom gradient bar */}
@@ -104,7 +104,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
   }
 
   // --- Newsletter-specific OG image ---
-  const editionLine = `Edicao #${newsletter.edition} · ${newsletter.date}`;
+  const editionLine = `Edição #${newsletter.edition} · ${newsletter.date}`;
 
   return new ImageResponse(
     <div

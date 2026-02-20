@@ -14,7 +14,7 @@ export default function NewsletterArchiveError({ reset }: ErrorProps) {
         <p className="mb-2 font-mono text-[11px] uppercase tracking-[2px] text-signal">Erro</p>
         <h1 className="mb-4 font-display text-[28px] text-sinal-white">Algo deu errado</h1>
         <p className="mb-8 text-[15px] text-ash">
-          Nao foi possivel carregar o arquivo de edicoes. Tente novamente.
+          Não foi possível carregar o arquivo de edições. Tente novamente.
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <button
@@ -27,7 +27,7 @@ export default function NewsletterArchiveError({ reset }: ErrorProps) {
             href="/"
             className="rounded-lg border border-[rgba(255,255,255,0.06)] px-6 py-3 font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
           >
-            Voltar ao inicio
+            Voltar ao início
           </Link>
         </div>
       </div>

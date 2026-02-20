@@ -8,7 +8,7 @@ import { useSession } from "next-auth/react";
 const NAV_LINKS = [
   { href: "/#briefing", label: "Briefing" },
   { href: "/#metodologia", label: "Metodologia" },
-  { href: "/#precos", label: "Precos" },
+  { href: "/#precos", label: "Preços" },
   { href: "/#empresas", label: "Para Empresas" },
 ];
 

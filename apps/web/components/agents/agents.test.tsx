@@ -169,7 +169,7 @@ describe("AgentCard", () => {
 
     expect(
       screen.getByRole("generic", {
-        name: `Codigo do agente: ${AGENT_PERSONAS.radar.agentCode}`,
+        name: `Código do agente: ${AGENT_PERSONAS.radar.agentCode}`,
       }),
     ).toBeInTheDocument();
   });

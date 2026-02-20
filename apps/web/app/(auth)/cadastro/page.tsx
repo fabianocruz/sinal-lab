@@ -4,7 +4,7 @@ import SignupForm from "@/components/auth/SignupForm";
 
 export const metadata: Metadata = {
   title: "Criar conta",
-  description: "Crie sua conta Sinal e acesse inteligencia tech LATAM.",
+  description: "Crie sua conta Sinal e acesse inteligência tech LATAM.",
 };
 
 export default function CadastroPage() {
@@ -21,7 +21,7 @@ export default function CadastroPage() {
         <div className="mb-7 text-center">
           <h1 className="font-display text-[26px] text-sinal-white">Crie sua conta</h1>
           <p className="mt-1.5 font-body text-[14px] text-ash">
-            Inteligencia aberta para quem constroi.
+            Inteligência aberta para quem constrói.
           </p>
         </div>
 

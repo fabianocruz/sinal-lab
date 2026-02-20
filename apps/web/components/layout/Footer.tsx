@@ -1,43 +1,43 @@
-import Link from 'next/link';
+import Link from "next/link";
 
 const FOOTER_COLUMNS = [
   {
-    title: 'Produto',
+    title: "Produto",
     links: [
-      { label: 'Briefing Semanal', href: '/newsletter' },
-      { label: 'Indices LATAM', href: '#' },
-      { label: 'Deep Dives', href: '#' },
-      { label: 'API de Dados', href: '#' },
-      { label: 'Para Empresas', href: '/#empresas' },
+      { label: "Briefing Semanal", href: "/newsletter" },
+      { label: "Índices LATAM", href: "#" },
+      { label: "Deep Dives", href: "#" },
+      { label: "API de Dados", href: "#" },
+      { label: "Para Empresas", href: "/#empresas" },
     ],
   },
   {
-    title: 'Comunidade',
+    title: "Comunidade",
     links: [
-      { label: 'Comunidade de Builders', href: '#' },
-      { label: 'Embaixadores Locais', href: '#' },
-      { label: 'Painel de Especialistas', href: '#' },
-      { label: 'Contribua com Dados', href: '#' },
+      { label: "Comunidade de Builders", href: "#" },
+      { label: "Embaixadores Locais", href: "#" },
+      { label: "Painel de Especialistas", href: "#" },
+      { label: "Contribua com Dados", href: "#" },
     ],
   },
   {
-    title: 'Transparencia',
+    title: "Transparência",
     links: [
-      { label: 'Metodologia', href: '/#metodologia' },
-      { label: 'Fontes de Dados', href: '#' },
-      { label: 'Log de Correcoes', href: '#' },
-      { label: 'Dashboard de Vies', href: '#' },
-      { label: 'Changelog dos Agentes', href: '#' },
+      { label: "Metodologia", href: "/#metodologia" },
+      { label: "Fontes de Dados", href: "#" },
+      { label: "Log de Correções", href: "#" },
+      { label: "Dashboard de Viés", href: "#" },
+      { label: "Changelog dos Agentes", href: "#" },
     ],
   },
   {
-    title: 'Institucional',
+    title: "Institucional",
     links: [
-      { label: 'Sobre', href: '/sobre' },
-      { label: 'Manifesto', href: '/#manifesto' },
-      { label: 'Contato', href: '#' },
-      { label: 'Termos', href: '#' },
-      { label: 'Privacidade (LGPD)', href: '#' },
+      { label: "Sobre", href: "/sobre" },
+      { label: "Manifesto", href: "/#manifesto" },
+      { label: "Contato", href: "#" },
+      { label: "Termos", href: "#" },
+      { label: "Privacidade (LGPD)", href: "#" },
     ],
   },
 ];
@@ -51,13 +51,11 @@ export default function Footer() {
           {/* Brand column */}
           <div>
             <Link href="/" className="mb-4 flex items-center gap-1.5">
-              <span className="font-display text-xl text-sinal-white">
-                Sinal
-              </span>
+              <span className="font-display text-xl text-sinal-white">Sinal</span>
               <span className="inline-block h-[6px] w-[6px] rounded-full bg-signal shadow-[0_0_12px_rgba(232,255,89,0.4)]" />
             </Link>
             <p className="mt-3 max-w-[240px] text-[14px] leading-relaxed text-ash">
-              Inteligencia aberta para quem constroi.
+              Inteligência aberta para quem constrói.
             </p>
           </div>
 
@@ -86,7 +84,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-[rgba(255,255,255,0.04)] pt-8 sm:flex-row">
           <p className="font-mono text-[12px] text-ash">
-            Transparencia radical. Metodologia aberta. Dados verificaveis.
+            Transparência radical. Metodologia aberta. Dados verificáveis.
           </p>
           <div className="flex items-center gap-6">
             <a
@@ -118,8 +116,7 @@ export default function Footer() {
 
         {/* Copyright */}
         <p className="mt-6 text-center font-mono text-[11px] text-ash/60">
-          &copy; {new Date().getFullYear()} Sinal.lab. Todos os direitos
-          reservados.
+          &copy; {new Date().getFullYear()} Sinal.lab. Todos os direitos reservados.
         </p>
       </div>
     </footer>

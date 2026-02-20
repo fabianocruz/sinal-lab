@@ -104,7 +104,7 @@ describe("LoginForm", () => {
 
     it("test_loginform_renders_no_ten_conta_text", () => {
       render(<LoginForm />);
-      expect(screen.getByText(/nao tem conta/i)).toBeInTheDocument();
+      expect(screen.getByText(/Não tem conta/i)).toBeInTheDocument();
     });
 
     it("test_loginform_does_not_show_error_on_initial_render", () => {
@@ -318,7 +318,7 @@ describe("SignupForm", () => {
 
     it("test_signupform_renders_ja_tem_conta_text", () => {
       render(<SignupForm />);
-      expect(screen.getByText(/ja tem conta/i)).toBeInTheDocument();
+      expect(screen.getByText(/Já tem conta/i)).toBeInTheDocument();
     });
 
     it("test_signupform_does_not_show_error_on_initial_render", () => {
@@ -524,7 +524,7 @@ describe("SignupForm", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
-          "Este email ja esta em uso. Tente fazer login ou use outro email.",
+          "Este email já está em uso. Tente fazer login ou use outro email.",
         );
       });
     });
@@ -584,7 +584,7 @@ describe("SignupForm", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
-          "Erro de conexao. Verifique sua internet e tente novamente.",
+          "Erro de conexão. Verifique sua internet e tente novamente.",
         );
       });
     });
@@ -600,7 +600,7 @@ describe("SignupForm", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
-          "Conta criada! Faca login para continuar.",
+          "Conta criada! Faça login para continuar.",
         );
       });
     });

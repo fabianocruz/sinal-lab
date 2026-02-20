@@ -11,11 +11,11 @@ import { MOCK_NEWSLETTERS } from "@/lib/newsletter";
 export const metadata: Metadata = {
   title: "Arquivo",
   description:
-    "Todas as edicoes do Briefing Sinal — inteligencia tech LATAM com fontes e scores de confianca.",
+    "Todas as edições do Briefing Sinal — inteligência tech LATAM com fontes e scores de confiança.",
   openGraph: {
     title: "Arquivo | Sinal",
     description:
-      "Todas as edicoes do Briefing Sinal — inteligencia tech LATAM com fontes e scores de confianca.",
+      "Todas as edições do Briefing Sinal — inteligência tech LATAM com fontes e scores de confiança.",
     type: "website",
   },
 };
@@ -33,7 +33,7 @@ export default function NewsletterArchivePage() {
             <div>
               <h1 className="font-display text-[clamp(28px,4vw,40px)] text-sinal-white">Arquivo</h1>
               <p className="mt-1 text-[15px] text-ash">
-                Todas as edicoes do Briefing Sinal, com fontes e scores de confianca.
+                Todas as edições do Briefing Sinal, com fontes e scores de confiança.
               </p>
             </div>
             <SearchBar />

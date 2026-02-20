@@ -62,7 +62,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
 
           {/* Edition + date */}
           <span className="font-mono text-[11px] tracking-[0.5px] text-ash">
-            Edicao #{newsletter.edition} &middot; {newsletter.date}
+            Edição #{newsletter.edition} &middot; {newsletter.date}
           </span>
 
           {/* DQ badge */}
@@ -131,7 +131,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
         <>
           <div className="mt-12 rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-6">
             <p className="font-mono text-[12px] text-ash">
-              <strong className="text-bone">Sinal</strong> e gerado por 5 agentes de IA e revisado
+              <strong className="text-bone">Sinal</strong> é gerado por 5 agentes de IA e revisado
               por editores humanos.{" "}
               <Link href="/#metodologia" className="text-signal underline underline-offset-2">
                 Metodologia
@@ -148,7 +148,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
               href="/newsletter"
               className="inline-flex items-center gap-2 font-mono text-[12px] text-ash transition-colors hover:text-sinal-white"
             >
-              &larr; Ver todas as edicoes
+              &larr; Ver todas as edições
             </Link>
           </div>
         </>
@@ -161,7 +161,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
             href="/newsletter"
             className="inline-flex items-center gap-2 font-mono text-[12px] text-ash transition-colors hover:text-sinal-white"
           >
-            &larr; Ver todas as edicoes
+            &larr; Ver todas as edições
           </Link>
         </div>
       )}

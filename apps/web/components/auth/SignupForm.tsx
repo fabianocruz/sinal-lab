@@ -48,7 +48,7 @@ export default function SignupForm() {
 
         // 409 = duplicate email
         if (registerRes.status === 409) {
-          setErrorMsg("Este email ja esta em uso. Tente fazer login ou use outro email.");
+          setErrorMsg("Este email já está em uso. Tente fazer login ou use outro email.");
         } else {
           setErrorMsg(body.detail ?? "Erro ao criar conta. Tente novamente.");
         }
@@ -57,7 +57,7 @@ export default function SignupForm() {
         return;
       }
     } catch {
-      setErrorMsg("Erro de conexao. Verifique sua internet e tente novamente.");
+      setErrorMsg("Erro de conexão. Verifique sua internet e tente novamente.");
       setStatus("error");
       return;
     }
@@ -71,7 +71,7 @@ export default function SignupForm() {
 
     if (result?.error) {
       // Registration succeeded but sign-in failed — tell the user to log in.
-      setErrorMsg("Conta criada! Faca login para continuar.");
+      setErrorMsg("Conta criada! Faça login para continuar.");
       setStatus("error");
       return;
     }
@@ -143,7 +143,7 @@ export default function SignupForm() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Minimo 8 caracteres"
+            placeholder="Mínimo 8 caracteres"
             disabled={isLoading}
             className="rounded-lg border border-[rgba(255,255,255,0.06)] bg-sinal-graphite px-4 py-3 font-body text-[15px] text-sinal-white placeholder:text-ash outline-none transition-colors focus:border-[rgba(232,255,89,0.3)] disabled:opacity-50"
           />
@@ -205,7 +205,7 @@ export default function SignupForm() {
 
       {/* Login link */}
       <p className="mt-6 text-center font-body text-[14px] text-ash">
-        Ja tem conta?{" "}
+        Já tem conta?{" "}
         <Link href="/login" className="text-signal transition-colors hover:text-signal-dim">
           Entre
         </Link>

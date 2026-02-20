@@ -81,7 +81,7 @@ function queryFooterNote(): HTMLElement | null {
   return screen.queryByText(
     (_content, element) =>
       element?.tagName === "P" &&
-      (element.textContent ?? "").includes("e gerado por 5 agentes de IA"),
+      (element.textContent ?? "").includes("é gerado por 5 agentes de IA"),
   );
 }
 
@@ -120,7 +120,7 @@ describe("GatedOverlay", () => {
     render(<GatedOverlay />);
 
     expect(
-      screen.getByText("Crie sua conta gratuita para acessar todas as edicoes do Sinal."),
+      screen.getByText("Crie sua conta gratuita para acessar todas as edições do Sinal."),
     ).toBeInTheDocument();
   });
 
@@ -135,7 +135,7 @@ describe("GatedOverlay", () => {
   it("test_gatedoverlay_render_shows_ja_tenho_conta_link_to_login", () => {
     render(<GatedOverlay />);
 
-    const link = screen.getByRole("link", { name: "Ja tenho conta" });
+    const link = screen.getByRole("link", { name: "Já tenho conta" });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/login");
   });
@@ -143,7 +143,7 @@ describe("GatedOverlay", () => {
   it("test_gatedoverlay_render_shows_disclaimer_text", () => {
     render(<GatedOverlay />);
 
-    expect(screen.getByText("Gratis. Sem spam. Cancele quando quiser.")).toBeInTheDocument();
+    expect(screen.getByText("Grátis. Sem spam. Cancele quando quiser.")).toBeInTheDocument();
   });
 
   it("test_gatedoverlay_render_has_gradient_fade_div_with_aria_hidden", () => {
@@ -200,8 +200,8 @@ describe("NewsletterContent — unauthenticated", () => {
   it("test_newslettercontent_unauth_render_shows_edition_number_and_date", () => {
     render(<NewsletterContent newsletter={mockNewsletter} />);
 
-    // Rendered as: "Edicao #99 · 20 Jan 2026"
-    expect(screen.getByText(new RegExp(`Edicao #${mockNewsletter.edition}`))).toBeInTheDocument();
+    // Rendered as: "Edição #99 · 20 Jan 2026"
+    expect(screen.getByText(new RegExp(`Edição #${mockNewsletter.edition}`))).toBeInTheDocument();
   });
 
   it("test_newslettercontent_unauth_render_shows_dq_badge_when_present", () => {
@@ -286,7 +286,7 @@ describe("NewsletterContent — unauthenticated", () => {
     render(<NewsletterContent newsletter={mockNewsletter} />);
 
     // Unauthenticated users with remaining gated paragraphs still get the bottom link
-    const bottomLinks = screen.getAllByText(/Ver todas as edicoes/);
+    const bottomLinks = screen.getAllByText(/Ver todas as edições/);
     expect(bottomLinks.length).toBeGreaterThanOrEqual(1);
     expect(bottomLinks[0].closest("a")).toHaveAttribute("href", "/newsletter");
   });
@@ -354,7 +354,7 @@ describe("NewsletterContent — authenticated", () => {
   it("test_newslettercontent_auth_render_shows_ver_todas_as_edicoes_link", () => {
     render(<NewsletterContent newsletter={mockNewsletter} />);
 
-    const link = screen.getByRole("link", { name: /Ver todas as edicoes/ });
+    const link = screen.getByRole("link", { name: /Ver todas as edições/ });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/newsletter");
   });
@@ -397,8 +397,8 @@ describe("NewsletterContent — edge cases", () => {
     };
     render(<NewsletterContent newsletter={radarNewsletter} />);
 
-    expect(screen.getByText("Tomas Aguirre")).toBeInTheDocument();
-    expect(screen.getByText("Analista de Tendencias")).toBeInTheDocument();
+    expect(screen.getByText("Tomás Aguirre")).toBeInTheDocument();
+    expect(screen.getByText("Analista de Tendências")).toBeInTheDocument();
   });
 
   it("test_newslettercontent_funding_agent_shows_persona_rafael_oliveira", () => {

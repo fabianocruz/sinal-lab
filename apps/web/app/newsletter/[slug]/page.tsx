@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const newsletter = MOCK_NEWSLETTERS.find((n) => n.slug === params.slug);
 
   if (!newsletter) {
-    return { title: "Edicao nao encontrada" };
+    return { title: "Edição não encontrada" };
   }
 
   return {

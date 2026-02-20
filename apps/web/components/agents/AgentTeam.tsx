@@ -16,7 +16,7 @@ export default function AgentTeam() {
         Nosso time de agentes.
       </h2>
       <p className="mb-12 max-w-[640px] text-[17px] leading-[1.7] text-silver">
-        Cinco personalidades especializadas. Centenas de agentes executores. Uma inteligencia
+        Cinco personalidades especializadas. Centenas de agentes executores. Uma inteligência
         coletiva.
       </p>
 

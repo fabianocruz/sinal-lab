@@ -5,10 +5,10 @@ import Section from "@/components/layout/Section";
 
 export const metadata: Metadata = {
   title: "Metodologia",
-  description: "Como os agentes do Sinal pesquisam, validam e entregam inteligencia.",
+  description: "Como os agentes do Sinal pesquisam, validam e entregam inteligência.",
   openGraph: {
     title: "Metodologia | Sinal",
-    description: "Como os agentes do Sinal pesquisam, validam e entregam inteligencia.",
+    description: "Como os agentes do Sinal pesquisam, validam e entregam inteligência.",
     type: "website",
   },
 };
@@ -18,37 +18,37 @@ const PIPELINE_STEPS = [
     number: "01",
     title: "Coleta",
     description:
-      "Centenas de agentes coletam dados de fontes publicas verificaveis — noticias, repositorios de codigo, bases de dados abertas, registros de empresas e publicacoes especializadas.",
+      "Centenas de agentes coletam dados de fontes públicas verificáveis — notícias, repositórios de código, bases de dados abertas, registros de empresas e publicações especializadas.",
   },
   {
     number: "02",
     title: "Processamento",
     description:
-      "Cada item e normalizado, categorizado e enriquecido. Valores monetarios sao convertidos para USD com taxa de cambio registrada. Entidades (empresas, pessoas, investidores) sao identificadas e vinculadas.",
+      "Cada item é normalizado, categorizado e enriquecido. Valores monetários são convertidos para USD com taxa de câmbio registrada. Entidades (empresas, pessoas, investidores) são identificadas e vinculadas.",
   },
   {
     number: "03",
-    title: "Validacao",
+    title: "Validação",
     description:
-      'Score de confianca atribuido com base no numero de fontes independentes, consistencia entre elas e proximidade com a data do evento. Dados financeiros exigem no minimo 2 fontes para status "verificado".',
+      'Score de confiança atribuído com base no número de fontes independentes, consistência entre elas e proximidade com a data do evento. Dados financeiros exigem no mínimo 2 fontes para status "verificado".',
   },
   {
     number: "04",
     title: "Filtragem Editorial",
     description:
-      "Pipeline editorial seleciona os itens mais relevantes para a audiencia — fundadores tecnicos, CTOs e engenheiros seniores da America Latina. Itens sem relevancia tecnica ou regional sao descartados.",
+      "Pipeline editorial seleciona os itens mais relevantes para a audiência — fundadores técnicos, CTOs e engenheiros seniores da América Latina. Itens sem relevância técnica ou regional são descartados.",
   },
   {
     number: "05",
-    title: "Sintese",
+    title: "Síntese",
     description:
-      "Agentes especializados redigem analises concisas e contextualizadas. Cada analise cita as fontes, registra o score de confianca e indica se o dado foi verificado por multiplas fontes.",
+      "Agentes especializados redigem análises concisas e contextualizadas. Cada análise cita as fontes, registra o score de confiança e indica se o dado foi verificado por múltiplas fontes.",
   },
   {
     number: "06",
-    title: "Revisao Humana",
+    title: "Revisão Humana",
     description:
-      "Editores revisam, validam e aprovam antes da publicacao. Nenhum conteudo vai ao ar sem revisao humana. Correcoes sao publicadas no Log de Correcoes com referencia ao item original.",
+      "Editores revisam, validam e aprovam antes da publicação. Nenhum conteúdo vai ao ar sem revisão humana. Correções são publicadas no Log de Correções com referência ao item original.",
   },
 ] as const;
 
@@ -64,27 +64,27 @@ const DQ_GRADES = [
   },
   {
     grade: "B",
-    label: "Plausivel",
+    label: "Plausível",
     description:
-      "Fonte unica confiavel, recente. Nao contradiz outras informacoes publicas disponiveis.",
+      "Fonte única confiável, recente. Não contradiz outras informações públicas disponíveis.",
     color: "text-agent-sintese",
     borderColor: "border-agent-sintese/30",
     bgColor: "bg-agent-sintese/10",
   },
   {
     grade: "C",
-    label: "Nao verificado",
+    label: "Não verificado",
     description:
-      "Fonte unica sem corroboracao ou dado com mais de 90 dias. Requer revisao humana antes do uso editorial.",
+      "Fonte única sem corroboração ou dado com mais de 90 dias. Requer revisão humana antes do uso editorial.",
     color: "text-agent-funding",
     borderColor: "border-agent-funding/30",
     bgColor: "bg-agent-funding/10",
   },
   {
     grade: "D",
-    label: "Contradatorio",
+    label: "Contraditório",
     description:
-      "Fontes divergentes ou dado que contradiz registros publicos. Escalado para editor antes de qualquer publicacao.",
+      "Fontes divergentes ou dado que contradiz registros públicos. Escalado para editor antes de qualquer publicação.",
     color: "text-agent-mercado",
     borderColor: "border-agent-mercado/30",
     bgColor: "bg-agent-mercado/10",
@@ -102,9 +102,9 @@ export default function MetodologiaPage() {
             Como funciona o Sinal.
           </h1>
           <p className="mt-6 max-w-[640px] text-[17px] leading-relaxed text-silver">
-            Toda informacao publicada no Sinal passa por um pipeline de 6 etapas — da coleta
-            automatizada a revisao humana. Esta pagina documenta cada etapa de forma aberta e
-            auditavel.
+            Toda informação publicada no Sinal passa por um pipeline de 6 etapas — da coleta
+            automatizada à revisão humana. Esta página documenta cada etapa de forma aberta e
+            auditável.
           </p>
         </Section>
 
@@ -137,8 +137,8 @@ export default function MetodologiaPage() {
             DQ Score — Data Quality.
           </h2>
           <p className="mt-4 max-w-[640px] text-[16px] leading-relaxed text-silver">
-            Cada dado publicado carrega um DQ Score que sinaliza o nivel de verificacao. A escala
-            vai de A (completamente verificado) a D (contradatorio, requer investigacao).
+            Cada dado publicado carrega um DQ Score que sinaliza o nível de verificação. A escala
+            vai de A (completamente verificado) a D (contraditório, requer investigação).
           </p>
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {DQ_GRADES.map((item) => (
@@ -163,23 +163,23 @@ export default function MetodologiaPage() {
         </Section>
 
         {/* Transparency */}
-        <Section label="TRANSPARENCIA">
+        <Section label="TRANSPARÊNCIA">
           <h2 className="font-display text-[clamp(24px,4vw,40px)] leading-tight text-sinal-white">
-            Cada dado, rastreavel ate a fonte.
+            Cada dado, rastreável até a fonte.
           </h2>
           <div className="mt-8 max-w-[680px] space-y-6 text-[16px] leading-relaxed text-silver">
             <p>
-              Cada dado publicado inclui fonte, data de coleta e score de confianca. Nao ha
-              &ldquo;dados de mercado&rdquo; sem origem ou &ldquo;fontes proximo ao setor&rdquo; sem
-              identificacao — se nao e verificavel, nao e publicado.
+              Cada dado publicado inclui fonte, data de coleta e score de confiança. Não há
+              &ldquo;dados de mercado&rdquo; sem origem ou &ldquo;fontes próximo ao setor&rdquo; sem
+              identificação — se não é verificável, não é publicado.
             </p>
             <p>
-              Quando erramos, corrigimos publicamente. O Log de Correcoes registra cada alteracao
-              com referencia ao item original, data da correcao e descricao do que mudou.
-              Transparencia total, inclusive nos erros.
+              Quando erramos, corrigimos publicamente. O Log de Correções registra cada alteração
+              com referência ao item original, data da correção e descrição do que mudou.
+              Transparência total, inclusive nos erros.
             </p>
             <p>
-              O codigo dos agentes e aberto no GitHub. Qualquer pessoa pode auditar a metodologia,
+              O código dos agentes é aberto no GitHub. Qualquer pessoa pode auditar a metodologia,
               propor melhorias ou identificar vieses no processo de coleta e curadoria.
             </p>
           </div>
@@ -190,13 +190,13 @@ export default function MetodologiaPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] px-5 py-2.5 font-mono text-[13px] text-silver transition-colors hover:border-[rgba(255,255,255,0.24)] hover:text-sinal-white"
             >
-              Ver codigo no GitHub
+              Ver código no GitHub
             </a>
             <a
               href="#"
               className="inline-flex items-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] px-5 py-2.5 font-mono text-[13px] text-silver transition-colors hover:border-[rgba(255,255,255,0.24)] hover:text-sinal-white"
             >
-              Log de Correcoes
+              Log de Correções
             </a>
           </div>
         </Section>
