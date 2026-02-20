@@ -1,15 +1,78 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Menu, X } from 'lucide-react';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 const NAV_LINKS = [
-  { href: '/#briefing', label: 'Briefing' },
-  { href: '/#metodologia', label: 'Metodologia' },
-  { href: '/#precos', label: 'Precos' },
-  { href: '/#empresas', label: 'Para Empresas' },
+  { href: "/#briefing", label: "Briefing" },
+  { href: "/#metodologia", label: "Metodologia" },
+  { href: "/#precos", label: "Precos" },
+  { href: "/#empresas", label: "Para Empresas" },
 ];
+
+/**
+ * Renders auth-aware UI: nothing while loading, "Entrar" link when
+ * unauthenticated, or a user-initial avatar circle when authenticated.
+ * Isolated as a subcomponent so the auth check is self-contained.
+ */
+function NavbarAuthState({ mobile = false }: { mobile?: boolean }) {
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return <span className="h-8 w-8" aria-hidden="true" />;
+  }
+
+  if (status === "authenticated" && session?.user) {
+    const initial = (session.user.name ?? session.user.email ?? "U").charAt(0).toUpperCase();
+
+    if (mobile) {
+      return (
+        <Link
+          href="/newsletter"
+          className="flex items-center gap-3 rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-signal font-mono text-[12px] font-semibold text-sinal-black">
+            {initial}
+          </span>
+          <span>Minha conta</span>
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        href="/newsletter"
+        aria-label="Minha conta"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-signal font-mono text-[13px] font-semibold text-sinal-black transition-opacity hover:opacity-80"
+      >
+        {initial}
+      </Link>
+    );
+  }
+
+  // unauthenticated
+  if (mobile) {
+    return (
+      <Link
+        href="/login"
+        className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
+      >
+        Entrar
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/login"
+      className="font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
+    >
+      Entrar
+    </Link>
+  );
+}
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -17,16 +80,16 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <nav
       className={`fixed top-0 z-50 w-full transition-all duration-300 ${
         scrolled
-          ? 'bg-[rgba(10,10,11,0.85)] backdrop-blur-xl border-b border-[rgba(255,255,255,0.04)]'
-          : 'bg-transparent'
+          ? "bg-[rgba(10,10,11,0.85)] backdrop-blur-xl border-b border-[rgba(255,255,255,0.04)]"
+          : "bg-transparent"
       }`}
     >
       <div className="mx-auto flex h-[72px] max-w-container items-center justify-between px-6 md:px-10">
@@ -55,19 +118,22 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* CTA */}
-        <Link
-          href="/#hero"
-          className="hidden rounded-lg bg-signal px-5 py-2.5 font-mono text-[13px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim md:inline-block"
-        >
-          Assine o Briefing
-        </Link>
+        {/* Desktop: auth state + CTA */}
+        <div className="hidden items-center gap-4 md:flex">
+          <NavbarAuthState />
+          <Link
+            href="/#hero"
+            className="rounded-lg bg-signal px-5 py-2.5 font-mono text-[13px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim"
+          >
+            Assine o Briefing
+          </Link>
+        </div>
 
         {/* Mobile toggle */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="text-sinal-white md:hidden"
-          aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
+          aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
         >
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -94,6 +160,7 @@ export default function Navbar() {
             >
               Arquivo
             </Link>
+            <NavbarAuthState mobile />
             <Link
               href="/#hero"
               onClick={() => setMobileOpen(false)}
