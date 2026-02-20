@@ -24,6 +24,29 @@ class User(UUIDMixin, TimestampMixin, Base):
     )
     name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Authentication
+    password_hash: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+    auth_provider: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="email", server_default="email"
+    )
+    auth_provider_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    avatar_url: Mapped[Optional[str]] = mapped_column(
+        String(500), nullable=True
+    )
+
     # Professional context
     role: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True, index=True
