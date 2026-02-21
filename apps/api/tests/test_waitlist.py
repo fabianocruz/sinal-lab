@@ -140,7 +140,7 @@ def test_signup_waitlist_email_normalization(client):
     }
     response2 = client.post("/api/waitlist", json=payload2)
     assert response2.status_code == 409
-    assert "ja cadastrado" in response2.json()["detail"].lower()
+    assert "já cadastrado" in response2.json()["detail"].lower()
 
 
 def test_signup_waitlist_duplicate_email(client, sample_waitlist_users):
@@ -154,7 +154,7 @@ def test_signup_waitlist_duplicate_email(client, sample_waitlist_users):
     response = client.post("/api/waitlist", json=payload)
 
     assert response.status_code == 409
-    assert "ja cadastrado" in response.json()["detail"].lower()
+    assert "já cadastrado" in response.json()["detail"].lower()
 
 
 def test_signup_waitlist_invalid_email(client):
@@ -175,7 +175,7 @@ def test_signup_waitlist_invalid_email(client):
         }
         response = client.post("/api/waitlist", json=payload)
         assert response.status_code == 400
-        assert "invalido" in response.json()["detail"].lower()
+        assert "inválido" in response.json()["detail"].lower()
 
 
 def test_signup_waitlist_missing_fields(client):

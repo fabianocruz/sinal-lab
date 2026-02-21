@@ -33,7 +33,7 @@ def register(
     email = body.email.strip().lower()
 
     if not EMAIL_REGEX.match(email):
-        raise HTTPException(status_code=400, detail="Email invalido.")
+        raise HTTPException(status_code=400, detail="Email inválido.")
 
     existing = db.query(User).filter(User.email == email).first()
     if existing:
@@ -47,7 +47,7 @@ def register(
             db.refresh(existing)
             background_tasks.add_task(send_welcome_email, existing.email, existing.name)
             return UserResponse.model_validate(existing)
-        raise HTTPException(status_code=409, detail="Email ja cadastrado.")
+        raise HTTPException(status_code=409, detail="Email já cadastrado.")
 
     user = User(
         id=uuid.uuid4(),
@@ -78,13 +78,13 @@ def verify_credentials(body: VerifyRequest, db: Session = Depends(get_db)):
 
     user = db.query(User).filter(User.email == email).first()
     if not user:
-        raise HTTPException(status_code=401, detail="Credenciais invalidas.")
+        raise HTTPException(status_code=401, detail="Credenciais inválidas.")
 
     if not user.password_hash:
-        raise HTTPException(status_code=401, detail="Credenciais invalidas.")
+        raise HTTPException(status_code=401, detail="Credenciais inválidas.")
 
     if not bcrypt.verify(body.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Credenciais invalidas.")
+        raise HTTPException(status_code=401, detail="Credenciais inválidas.")
 
     # Update last login timestamp
     user.last_login_at = datetime.now(timezone.utc)
@@ -106,12 +106,12 @@ def get_current_user(
     the associated user profile.
     """
     if not authorization:
-        raise HTTPException(status_code=401, detail="Token de sessao ausente.")
+        raise HTTPException(status_code=401, detail="Token de sessão ausente.")
 
     # Parse "Bearer <token>" format
     parts = authorization.split(" ", 1)
     if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=401, detail="Formato de authorization invalido.")
+        raise HTTPException(status_code=401, detail="Formato de autorização inválido.")
 
     token = parts[1]
 
@@ -119,7 +119,7 @@ def get_current_user(
         db.query(SessionDB).filter(SessionDB.session_token == token).first()
     )
     if not session:
-        raise HTTPException(status_code=401, detail="Sessao invalida.")
+        raise HTTPException(status_code=401, detail="Sessão inválida.")
 
     # Compare expiration: normalize to UTC. SQLite returns naive datetimes,
     # PostgreSQL returns timezone-aware ones.
@@ -128,10 +128,10 @@ def get_current_user(
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
     if expires < now_utc:
-        raise HTTPException(status_code=401, detail="Sessao expirada.")
+        raise HTTPException(status_code=401, detail="Sessão expirada.")
 
     user = db.query(User).filter(User.id == session.user_id).first()
     if not user:
-        raise HTTPException(status_code=401, detail="Usuario nao encontrado.")
+        raise HTTPException(status_code=401, detail="Usuário não encontrado.")
 
     return UserResponse.model_validate(user)

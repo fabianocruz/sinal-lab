@@ -143,7 +143,7 @@ class TestRegister:
         response = client.post("/api/auth/register", json=payload)
 
         assert response.status_code == 409
-        assert "ja cadastrado" in response.json()["detail"].lower()
+        assert "já cadastrado" in response.json()["detail"].lower()
 
     def test_register_invalid_email(self, client):
         """Registering with a malformed email returns 400."""
@@ -154,7 +154,7 @@ class TestRegister:
         response = client.post("/api/auth/register", json=payload)
 
         assert response.status_code == 400
-        assert "invalido" in response.json()["detail"].lower()
+        assert "inválido" in response.json()["detail"].lower()
 
     def test_register_missing_email(self, client):
         """Omitting the email field returns 422 (validation error)."""
@@ -319,7 +319,7 @@ class TestRegister:
         response = client.post("/api/auth/register", json=payload)
 
         assert response.status_code == 409
-        assert "ja cadastrado" in response.json()["detail"].lower()
+        assert "já cadastrado" in response.json()["detail"].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -353,7 +353,7 @@ class TestVerify:
         response = client.post("/api/auth/verify", json=payload)
 
         assert response.status_code == 401
-        assert "invalidas" in response.json()["detail"].lower()
+        assert "inválidas" in response.json()["detail"].lower()
 
     def test_verify_nonexistent_user(self, client):
         """Email that does not exist returns 401."""
@@ -364,7 +364,7 @@ class TestVerify:
         response = client.post("/api/auth/verify", json=payload)
 
         assert response.status_code == 401
-        assert "invalidas" in response.json()["detail"].lower()
+        assert "inválidas" in response.json()["detail"].lower()
 
     def test_verify_user_without_password(self, client, db_session):
         """A user registered via OAuth (no password_hash) returns 401."""
@@ -437,7 +437,7 @@ class TestMe:
         )
 
         assert response.status_code == 401
-        assert "invalida" in response.json()["detail"].lower()
+        assert "inválida" in response.json()["detail"].lower()
 
     def test_me_with_expired_session(self, client, expired_session):
         """An expired session token returns 401."""
@@ -457,7 +457,7 @@ class TestMe:
         )
 
         assert response.status_code == 401
-        assert "invalido" in response.json()["detail"].lower()
+        assert "inválido" in response.json()["detail"].lower()
 
     def test_me_with_token_only_no_bearer(self, client):
         """Authorization header without 'Bearer' prefix returns 401."""
