@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { Newsletter, AGENT_HEX } from "@/lib/newsletter";
 import { AGENT_PERSONAS } from "@/lib/constants";
 import GatedOverlay from "@/components/newsletter/GatedOverlay";
+import MarkdownRenderer from "@/components/newsletter/MarkdownRenderer";
+import SourcesList from "@/components/newsletter/SourcesList";
 
 interface NewsletterContentProps {
   newsletter: Newsletter;
@@ -26,10 +28,10 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
   const persona = AGENT_PERSONAS[newsletter.agent];
   const agentBgAlpha = AGENT_BG_ALPHA[newsletter.agent] ?? "rgba(255,255,255,0.1)";
 
-  const paragraphs = newsletter.body.split("\n\n").filter((p) => p.trim().length > 0);
-  const previewCount = Math.ceil(paragraphs.length * 0.3);
-  const previewParagraphs = paragraphs.slice(0, previewCount);
-  const remainingParagraphs = paragraphs.slice(previewCount);
+  const blocks = newsletter.body.split("\n\n").filter((p) => p.trim().length > 0);
+  const previewCount = Math.ceil(blocks.length * 0.3);
+  const previewMd = blocks.slice(0, previewCount).join("\n\n");
+  const gatedMd = blocks.slice(previewCount).join("\n\n");
 
   return (
     <article className="mx-auto max-w-[720px] px-6 py-12 md:px-10">
@@ -99,26 +101,15 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
 
       {/* Article body — always-visible preview */}
       <div className="prose-sinal">
-        {previewParagraphs.map((paragraph, index) => (
-          <p key={index} className="mb-6 text-[16px] leading-[1.8] text-silver last:mb-0">
-            {paragraph}
-          </p>
-        ))}
+        <MarkdownRenderer content={previewMd} agentColor={agentColor} />
       </div>
 
-      {/* Gated content or remaining paragraphs */}
-      {remainingParagraphs.length > 0 && (
+      {/* Gated content or remaining body */}
+      {gatedMd && (
         <>
           {isAuthenticated ? (
             <div className="prose-sinal mt-0">
-              {remainingParagraphs.map((paragraph, index) => (
-                <p
-                  key={`gated-${index}`}
-                  className="mb-6 text-[16px] leading-[1.8] text-silver last:mb-0"
-                >
-                  {paragraph}
-                </p>
-              ))}
+              <MarkdownRenderer content={gatedMd} agentColor={agentColor} />
             </div>
           ) : (
             <GatedOverlay />
@@ -126,8 +117,13 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
         </>
       )}
 
+      {/* Sources section — visible when full content is accessible */}
+      {(isAuthenticated || !gatedMd) && newsletter.sources && newsletter.sources.length > 0 && (
+        <SourcesList sources={newsletter.sources} agentColor={agentColor} />
+      )}
+
       {/* Footer note — only visible when authenticated or all content is preview */}
-      {(isAuthenticated || remainingParagraphs.length === 0) && (
+      {(isAuthenticated || !gatedMd) && (
         <>
           <div className="mt-12 rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-6">
             <p className="font-mono text-[12px] text-ash">
@@ -137,7 +133,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
                 Metodologia
               </Link>{" "}
               &middot;{" "}
-              <Link href="#" className="text-signal underline underline-offset-2">
+              <Link href="#fontes" className="text-signal underline underline-offset-2">
                 Fontes
               </Link>
             </p>
@@ -155,7 +151,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
       )}
 
       {/* Back link bottom — always visible for unauthenticated users */}
-      {!isAuthenticated && remainingParagraphs.length > 0 && (
+      {!isAuthenticated && gatedMd && (
         <div className="mt-8">
           <Link
             href="/newsletter"
