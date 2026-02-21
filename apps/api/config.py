@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     beehiiv_api_key: str = ""
     beehiiv_publication_id: str = ""
     resend_api_key: str = ""
-    resend_from_email: str = "newsletter@sinal.ai"
+    resend_from_email: str = "news@sinal.tech"
+    resend_audience_id: str = ""
 
     # AI
     anthropic_api_key: str = ""

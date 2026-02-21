@@ -16,6 +16,7 @@ from apps.api.schemas.auth import (
     VerifyRequest,
 )
 from apps.api.services.email import send_welcome_email
+from apps.api.services.resend_audience import add_contact_to_audience
 from packages.database.models.session import SessionDB
 from packages.database.models.user import User
 
@@ -51,6 +52,7 @@ def register(
             db.commit()
             db.refresh(existing)
             background_tasks.add_task(send_welcome_email, existing.email, existing.name)
+            background_tasks.add_task(add_contact_to_audience, existing.email, existing.name)
             return UserResponse.model_validate(existing)
         raise HTTPException(status_code=409, detail="Email já cadastrado.")
 
@@ -67,6 +69,7 @@ def register(
     db.refresh(user)
 
     background_tasks.add_task(send_welcome_email, user.email, body.name)
+    background_tasks.add_task(add_contact_to_audience, user.email, body.name)
 
     return UserResponse.model_validate(user)
 
@@ -111,6 +114,7 @@ def sync_oauth(
             db.commit()
             db.refresh(existing)
             background_tasks.add_task(send_welcome_email, existing.email, existing.name)
+            background_tasks.add_task(add_contact_to_audience, existing.email, existing.name)
             return UserResponse.model_validate(existing)
 
         # Returning user (active, already registered)
@@ -138,6 +142,7 @@ def sync_oauth(
     db.refresh(user)
 
     background_tasks.add_task(send_welcome_email, user.email, user.name)
+    background_tasks.add_task(add_contact_to_audience, user.email, user.name)
 
     return UserResponse.model_validate(user)
 

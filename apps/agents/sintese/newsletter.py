@@ -88,7 +88,7 @@ def send_via_resend(
         logger.warning("RESEND_API_KEY not set, skipping email send")
         return False
 
-    from_addr = from_email or os.getenv("RESEND_FROM_EMAIL", "newsletter@sinal.ai")
+    from_addr = from_email or os.getenv("RESEND_FROM_EMAIL", "news@sinal.tech")
 
     try:
         import httpx
