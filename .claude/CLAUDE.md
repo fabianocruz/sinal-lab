@@ -53,11 +53,14 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - `uvicorn apps.api.main:app --reload` — Inicia API (porta 8000)
 - `pnpm test` — Roda testes frontend
 - `pytest apps/api/tests/` — Roda testes backend
-- `pytest packages/ apps/agents/ scripts/tests/ -v` — Roda todos os testes Python (957+)
+- `pytest apps/api/tests/test_content.py -v` — Testes do content router (13 testes)
+- `pytest packages/ apps/agents/ scripts/tests/ -v` — Roda todos os testes Python (1370+)
 - `pytest apps/agents/base/tests/ -v` — Testes do framework base + orchestrator
 - `pytest apps/agents/sources/tests/ -v` — Testes da source layer compartilhada
 - `pnpm build` — Build de producao
 - `docker compose up -d` — Sobe PostgreSQL + Redis
+- `python scripts/seed_content.py --dry-run` — Preview seed das newsletters
+- `DATABASE_URL=<url> python scripts/seed_content.py` — Seed newsletters no banco
 
 ### Convencoes de Codigo
 - Python: Black formatter, isort imports, type hints obrigatorios
@@ -76,6 +79,21 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - Programmatic SEO pages sao geradas via SSR com dados do banco
 - Agents de dados (Funding, Mercado, Index) cobrem todo o ecossistema LATAM — sem filtro editorial
 - Todo output destinado a publicacao passa pelo editorial pipeline (filtro editorial + quality check)
+- Newsletter pages (/newsletter, /newsletter/[slug]) sao SSR com ISR (revalidate: 60s lista, 300s detalhe)
+- Frontend faz fallback para FALLBACK_NEWSLETTERS quando API esta offline
+
+### API — Contratos de Resposta
+- `GET /api/content` retorna envelope paginado: `{ items: [...], total, limit, offset }`
+- `GET /api/content/{slug}` retorna ContentDetailResponse (objeto unico)
+- `GET /api/content/newsletter/latest` retorna ContentResponse (objeto unico)
+- Frontend usa `?status=published` por padrao nas chamadas de listagem
+- Filtros disponiveis: `content_type`, `agent_name`, `status`, `search` (ilike no titulo)
+
+### Testes — SQLite com StaticPool
+- Todos os testes de API usam SQLite in-memory com `poolclass=StaticPool`
+- StaticPool garante que todas as threads compartilham a mesma conexao
+- Sem StaticPool, o thread pool do FastAPI cria conexoes separadas que nao veem as tabelas
+- Fixtures devem usar `created_at` explicito para ordenacao deterministica (SQLite tem resolucao de segundo)
 
 ### Variaveis de Ambiente
 - Ver .env.example para lista completa

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { submitWaitlist } from "@/lib/api";
 
 interface WaitlistFormProps {
@@ -14,6 +16,7 @@ export default function WaitlistForm({
   buttonLabel = "Assine o Briefing",
   className = "",
 }: WaitlistFormProps) {
+  const { status: authStatus } = useSession();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -37,6 +40,28 @@ export default function WaitlistForm({
       setStatus("error");
       setErrorMsg(err instanceof Error ? err.message : "Erro ao inscrever. Tente novamente.");
     }
+  }
+
+  // Authenticated users already receive the Briefing
+  if (authStatus === "authenticated") {
+    return (
+      <div
+        className={`flex items-center gap-3 rounded-xl border border-[rgba(232,255,89,0.2)] bg-[rgba(232,255,89,0.06)] px-5 py-4 ${className}`}
+      >
+        <span className="text-signal">✓</span>
+        <p className="font-mono text-[14px] text-signal">
+          Você já recebe o Briefing!{" "}
+          <Link href="/newsletter" className="underline underline-offset-2 hover:opacity-80">
+            Confira as últimas edições →
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
+  // Loading state — placeholder to prevent layout shift
+  if (authStatus === "loading") {
+    return <div className={`h-[56px] rounded-[10px] bg-[rgba(255,255,255,0.03)] ${className}`} />;
   }
 
   if (status === "success") {

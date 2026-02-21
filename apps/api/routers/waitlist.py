@@ -25,12 +25,12 @@ def signup_waitlist(
     email = body.email.strip().lower()
 
     if not EMAIL_REGEX.match(email):
-        raise HTTPException(status_code=400, detail="Email invalido.")
+        raise HTTPException(status_code=400, detail="Email inválido.")
 
     # Check if already signed up
     existing = db.query(User).filter(User.email == email).first()
     if existing:
-        raise HTTPException(status_code=409, detail="Email ja cadastrado na waitlist.")
+        raise HTTPException(status_code=409, detail="Email já cadastrado na waitlist.")
 
     # Determine position
     current_count = db.query(func.count(User.id)).scalar() or 0
@@ -49,7 +49,7 @@ def signup_waitlist(
     db.commit()
 
     return WaitlistResponse(
-        message="Voce esta na lista! Fique de olho no seu email.",
+        message="Você está na lista! Fique de olho no seu email.",
         position=position,
     )
 

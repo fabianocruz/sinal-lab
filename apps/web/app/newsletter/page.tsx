@@ -6,7 +6,8 @@ import ArchiveCard from "@/components/newsletter/ArchiveCard";
 import FilterPills from "@/components/newsletter/FilterPills";
 import SearchBar from "@/components/newsletter/SearchBar";
 import Pagination from "@/components/newsletter/Pagination";
-import { MOCK_NEWSLETTERS } from "@/lib/newsletter";
+import { fetchNewsletters } from "@/lib/api";
+import { mapApiToNewsletter, FALLBACK_NEWSLETTERS } from "@/lib/newsletter";
 
 export const metadata: Metadata = {
   title: "Arquivo",
@@ -20,8 +21,30 @@ export const metadata: Metadata = {
   },
 };
 
-export default function NewsletterArchivePage() {
-  const [featured, ...rest] = MOCK_NEWSLETTERS;
+const PAGE_SIZE = 7;
+
+export default async function NewsletterArchivePage({
+  searchParams,
+}: {
+  searchParams: { agent?: string; q?: string; page?: string };
+}) {
+  const page = parseInt(searchParams.page ?? "1", 10);
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const data = await fetchNewsletters({
+    agent_name: searchParams.agent,
+    search: searchParams.q,
+    limit: PAGE_SIZE,
+    offset,
+  });
+
+  const newsletters =
+    data.items.length > 0
+      ? data.items.map((item, i) => mapApiToNewsletter(item, i + offset))
+      : FALLBACK_NEWSLETTERS;
+
+  const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+  const [featured, ...rest] = newsletters;
 
   return (
     <>
@@ -56,7 +79,7 @@ export default function NewsletterArchivePage() {
           </div>
 
           {/* Pagination */}
-          <Pagination currentPage={1} totalPages={5} />
+          <Pagination currentPage={page} totalPages={totalPages} />
         </div>
       </main>
       <Footer />

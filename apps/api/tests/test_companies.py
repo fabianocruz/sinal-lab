@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from apps.api.main import app
 from apps.api.deps import get_db
@@ -14,7 +15,11 @@ from packages.database.models.company import Company
 
 
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    SQLALCHEMY_TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -57,6 +62,8 @@ def sample_companies(db_session):
             country="Brazil",
             status="active",
             website="https://nubank.com.br",
+            created_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
         ),
         Company(
             id=uuid.uuid4(),
@@ -67,6 +74,8 @@ def sample_companies(db_session):
             country="Argentina",
             status="active",
             website="https://mercadolibre.com",
+            created_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
         ),
         Company(
             id=uuid.uuid4(),
@@ -77,6 +86,8 @@ def sample_companies(db_session):
             country="Colombia",
             status="active",
             website="https://rappi.com",
+            created_at=datetime(2026, 2, 12, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 12, 10, 0, 0, tzinfo=timezone.utc),
         ),
         Company(
             id=uuid.uuid4(),
@@ -87,6 +98,8 @@ def sample_companies(db_session):
             country="Brazil",
             status="inactive",
             website="https://example.com",
+            created_at=datetime(2026, 2, 13, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 13, 10, 0, 0, tzinfo=timezone.utc),
         ),
     ]
     for company in companies:

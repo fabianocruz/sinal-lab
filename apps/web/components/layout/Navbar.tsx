@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useSession } from "next-auth/react";
+import UserMenu from "./UserMenu";
 
 const NAV_LINKS = [
   { href: "/#briefing", label: "Briefing" },
@@ -13,9 +14,7 @@ const NAV_LINKS = [
 ];
 
 /**
- * Renders auth-aware UI: nothing while loading, "Entrar" link when
- * unauthenticated, or a user-initial avatar circle when authenticated.
- * Isolated as a subcomponent so the auth check is self-contained.
+ * Auth-aware user state: loading placeholder → "Entrar" link → UserMenu dropdown.
  */
 function NavbarAuthState({ mobile = false }: { mobile?: boolean }) {
   const { data: session, status } = useSession();
@@ -25,34 +24,9 @@ function NavbarAuthState({ mobile = false }: { mobile?: boolean }) {
   }
 
   if (status === "authenticated" && session?.user) {
-    const initial = (session.user.name ?? session.user.email ?? "U").charAt(0).toUpperCase();
-
-    if (mobile) {
-      return (
-        <Link
-          href="/newsletter"
-          className="flex items-center gap-3 rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-signal font-mono text-[12px] font-semibold text-sinal-black">
-            {initial}
-          </span>
-          <span>Minha conta</span>
-        </Link>
-      );
-    }
-
-    return (
-      <Link
-        href="/newsletter"
-        aria-label="Minha conta"
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-signal font-mono text-[13px] font-semibold text-sinal-black transition-opacity hover:opacity-80"
-      >
-        {initial}
-      </Link>
-    );
+    return <UserMenu name={session.user.name} email={session.user.email} />;
   }
 
-  // unauthenticated
   if (mobile) {
     return (
       <Link
@@ -70,6 +44,38 @@ function NavbarAuthState({ mobile = false }: { mobile?: boolean }) {
       className="font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
     >
       Entrar
+    </Link>
+  );
+}
+
+/**
+ * Auth-aware CTA button: "Assine o Briefing" for guests, "Meu Briefing" for logged-in users.
+ */
+function NavbarCTA({ mobile = false, onClick }: { mobile?: boolean; onClick?: () => void }) {
+  const { status } = useSession();
+  const isAuth = status === "authenticated";
+
+  const label = isAuth ? "Meu Briefing" : "Assine o Briefing";
+  const href = isAuth ? "/newsletter" : "/#hero";
+
+  if (mobile) {
+    return (
+      <Link
+        href={href}
+        onClick={onClick}
+        className="mt-2 block rounded-lg bg-signal px-4 py-3 text-center font-mono text-[14px] font-semibold text-sinal-black"
+      >
+        {label}
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className="rounded-lg bg-signal px-5 py-2.5 font-mono text-[13px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim"
+    >
+      {label}
     </Link>
   );
 }
@@ -121,12 +127,7 @@ export default function Navbar() {
         {/* Desktop: auth state + CTA */}
         <div className="hidden items-center gap-4 md:flex">
           <NavbarAuthState />
-          <Link
-            href="/#hero"
-            className="rounded-lg bg-signal px-5 py-2.5 font-mono text-[13px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim"
-          >
-            Assine o Briefing
-          </Link>
+          <NavbarCTA />
         </div>
 
         {/* Mobile toggle */}
@@ -161,13 +162,7 @@ export default function Navbar() {
               Arquivo
             </Link>
             <NavbarAuthState mobile />
-            <Link
-              href="/#hero"
-              onClick={() => setMobileOpen(false)}
-              className="mt-2 block rounded-lg bg-signal px-4 py-3 text-center font-mono text-[14px] font-semibold text-sinal-black"
-            >
-              Assine o Briefing
-            </Link>
+            <NavbarCTA mobile onClick={() => setMobileOpen(false)} />
           </div>
         </div>
       )}

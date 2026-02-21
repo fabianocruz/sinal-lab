@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { MOCK_NEWSLETTERS } from "@/lib/newsletter";
+import { FALLBACK_NEWSLETTERS, type Newsletter } from "@/lib/newsletter";
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sinal.ai";
 
@@ -26,7 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  const newsletterPages: MetadataRoute.Sitemap = MOCK_NEWSLETTERS.map((n) => ({
+  const newsletterPages: MetadataRoute.Sitemap = FALLBACK_NEWSLETTERS.map((n: Newsletter) => ({
     url: `${BASE_URL}/newsletter/${n.slug}`,
     lastModified: new Date(n.dateISO),
     changeFrequency: "never" as const,

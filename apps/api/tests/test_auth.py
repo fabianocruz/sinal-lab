@@ -143,7 +143,7 @@ class TestRegister:
         response = client.post("/api/auth/register", json=payload)
 
         assert response.status_code == 409
-        assert "ja cadastrado" in response.json()["detail"].lower()
+        assert "já cadastrado" in response.json()["detail"].lower()
 
     def test_register_invalid_email(self, client):
         """Registering with a malformed email returns 400."""
@@ -154,7 +154,7 @@ class TestRegister:
         response = client.post("/api/auth/register", json=payload)
 
         assert response.status_code == 400
-        assert "invalido" in response.json()["detail"].lower()
+        assert "inválido" in response.json()["detail"].lower()
 
     def test_register_missing_email(self, client):
         """Omitting the email field returns 422 (validation error)."""
@@ -260,6 +260,67 @@ class TestRegister:
         assert calls[0]["email"] == "noname-welcome@example.com"
         assert calls[0]["name"] is None
 
+    def test_register_upgrades_waitlist_user(self, client, db_session):
+        """A waitlist user (no password) is upgraded to active on register."""
+        waitlist_user = User(
+            id=uuid.uuid4(),
+            email="waitlist@example.com",
+            name="Waitlist User",
+            password_hash=None,
+            auth_provider="email",
+            status="waitlist",
+            waitlist_position=42,
+        )
+        db_session.add(waitlist_user)
+        db_session.commit()
+        original_id = str(waitlist_user.id)
+
+        payload = {
+            "email": "waitlist@example.com",
+            "password": "new-password-123",
+            "name": "Upgraded User",
+        }
+        response = client.post("/api/auth/register", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["status"] == "active"
+        assert data["id"] == original_id  # Same user, not a new one
+        assert data["name"] == "Upgraded User"
+
+    def test_register_upgrade_preserves_waitlist_position(self, client, db_session):
+        """Upgrading a waitlist user preserves their waitlist_position."""
+        waitlist_user = User(
+            id=uuid.uuid4(),
+            email="keeper@example.com",
+            password_hash=None,
+            status="waitlist",
+            waitlist_position=7,
+        )
+        db_session.add(waitlist_user)
+        db_session.commit()
+
+        payload = {
+            "email": "keeper@example.com",
+            "password": "new-password-123",
+        }
+        client.post("/api/auth/register", json=payload)
+
+        db_session.refresh(waitlist_user)
+        assert waitlist_user.status == "active"
+        assert waitlist_user.waitlist_position == 7
+
+    def test_register_rejects_active_duplicate(self, client, registered_user):
+        """An active user with password cannot be 're-registered'."""
+        payload = {
+            "email": "existing@example.com",
+            "password": "another-password-456",
+        }
+        response = client.post("/api/auth/register", json=payload)
+
+        assert response.status_code == 409
+        assert "já cadastrado" in response.json()["detail"].lower()
+
 
 # ---------------------------------------------------------------------------
 # POST /api/auth/verify
@@ -292,7 +353,7 @@ class TestVerify:
         response = client.post("/api/auth/verify", json=payload)
 
         assert response.status_code == 401
-        assert "invalidas" in response.json()["detail"].lower()
+        assert "inválidas" in response.json()["detail"].lower()
 
     def test_verify_nonexistent_user(self, client):
         """Email that does not exist returns 401."""
@@ -303,7 +364,7 @@ class TestVerify:
         response = client.post("/api/auth/verify", json=payload)
 
         assert response.status_code == 401
-        assert "invalidas" in response.json()["detail"].lower()
+        assert "inválidas" in response.json()["detail"].lower()
 
     def test_verify_user_without_password(self, client, db_session):
         """A user registered via OAuth (no password_hash) returns 401."""
@@ -376,7 +437,7 @@ class TestMe:
         )
 
         assert response.status_code == 401
-        assert "invalida" in response.json()["detail"].lower()
+        assert "inválida" in response.json()["detail"].lower()
 
     def test_me_with_expired_session(self, client, expired_session):
         """An expired session token returns 401."""
@@ -396,7 +457,7 @@ class TestMe:
         )
 
         assert response.status_code == 401
-        assert "invalido" in response.json()["detail"].lower()
+        assert "inválido" in response.json()["detail"].lower()
 
     def test_me_with_token_only_no_bearer(self, client):
         """Authorization header without 'Bearer' prefix returns 401."""
