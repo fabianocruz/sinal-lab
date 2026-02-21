@@ -24,7 +24,8 @@ function NavbarAuthState({ mobile = false }: { mobile?: boolean }) {
   }
 
   if (status === "authenticated" && session?.user) {
-    return <UserMenu name={session.user.name} email={session.user.email} />;
+    const isAdmin = (session.user as { isAdmin?: boolean }).isAdmin ?? false;
+    return <UserMenu name={session.user.name} email={session.user.email} isAdmin={isAdmin} />;
   }
 
   if (mobile) {
