@@ -854,11 +854,11 @@ python scripts/run_agents.py funding --week 8 --orchestrate --no-evidence
 | `--orchestrate` | Ativa modo in-process com editorial pipeline |
 | `--no-editorial` | Pula revisão editorial (só orchestrate) |
 | `--no-evidence` | Pula persistência de evidence items (só orchestrate) |
-| `--publish` | Publica newsletter unificada no Beehiiv após todos os agents completarem |
+| `--publish` | Envia newsletter unificada via Resend Broadcasts após todos os agents completarem |
 
 ### Newsletter Publisher (`scripts/publish_newsletter.py`)
 
-Combina outputs dos 5 agents num único newsletter e publica como draft no Beehiiv.
+Combina outputs dos 5 agents num único newsletter e envia via Resend Broadcasts.
 
 **Estrutura do newsletter composto:**
 1. **SINTESE** — lead editorial (corpo completo)
@@ -871,7 +871,7 @@ Agents sem output são silenciosamente omitidos.
 
 **Uso standalone:**
 ```bash
-# Compor + publicar como draft no Beehiiv
+# Compor + enviar via Resend Broadcasts
 python scripts/publish_newsletter.py --edition 8 --week 8
 
 # Compor + salvar HTML apenas (sem publicar)
@@ -884,9 +884,9 @@ python scripts/publish_newsletter.py --edition 8 --week 8 --html output.html --d
 python scripts/run_agents.py all --week 8 --edition 8 --output --publish
 ```
 
-O publisher reutiliza `markdown_to_html()`, `wrap_in_email_template()` e `send_via_beehiiv()` de `apps/agents/sintese/newsletter.py`. Requer `BEEHIIV_API_KEY` e `BEEHIIV_PUBLICATION_ID` no `.env`.
+O publisher reutiliza `markdown_to_html()`, `wrap_in_email_template()` e `send_broadcast()` de `apps/agents/sintese/newsletter.py`. Requer `RESEND_API_KEY` e `RESEND_AUDIENCE_ID` no `.env`.
 
-**Testes:** 15 tests em `scripts/tests/test_publish_newsletter.py` (YAML parser, composição, HTML output, Beehiiv mock).
+**Testes:** 15 tests em `scripts/tests/test_publish_newsletter.py` (YAML parser, composição, HTML output, broadcast mock).
 
 ---
 
@@ -1057,9 +1057,9 @@ DEALROOM_API_KEY=          # Dealroom API key (disabled source)
 # LLM (optional — agents fall back to template output)
 ANTHROPIC_API_KEY=
 
-# Newsletter publishing (optional — publisher skips if not set)
-BEEHIIV_API_KEY=
-BEEHIIV_PUBLICATION_ID=
+# Newsletter publishing via Resend (optional — publisher skips if not set)
+RESEND_API_KEY=
+RESEND_AUDIENCE_ID=
 ```
 
 ### Cron Schedule
@@ -1073,7 +1073,7 @@ BEEHIIV_PUBLICATION_ID=
 # Orchestrate mode (in-process with editorial review)
 0 7 * * 1 cd /app && python scripts/run_agents.py all --week $(date +%V) --orchestrate
 
-# Full pipeline: run all agents + publish newsletter as Beehiiv draft
+# Full pipeline: run all agents + send newsletter via Resend Broadcasts
 0 7 * * 1 cd /app && python scripts/run_agents.py all --week $(date +%V) --edition $(date +%V) --output --publish
 ```
 
@@ -1146,7 +1146,7 @@ Antes de considerar um agente "completo":
 - [evidence_writer](../apps/agents/base/evidence_writer.py) — Evidence item writer
 - [orchestrator](../apps/agents/base/orchestrator.py) — Editorial-in-the-loop orchestrator
 - [run_agents.py](../scripts/run_agents.py) — Unified agent runner (subprocess + orchestrate)
-- [publish_newsletter.py](../scripts/publish_newsletter.py) — Newsletter publisher (compose + Beehiiv)
+- [publish_newsletter.py](../scripts/publish_newsletter.py) — Newsletter publisher (compose + Resend Broadcasts)
 
 ### Shared Data Sources (Phase 3)
 - [google_news](../apps/agents/sources/google_news.py) — Google News RSS

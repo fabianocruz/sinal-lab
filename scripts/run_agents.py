@@ -289,7 +289,7 @@ Available agents:
     )
     parser.add_argument(
         "--publish", action="store_true",
-        help="Publish unified newsletter to Beehiiv after all agents complete",
+        help="Send unified newsletter via Resend Broadcasts after all agents complete",
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true",
@@ -379,7 +379,7 @@ Available agents:
     if args.publish and failed == 0:
         from scripts.publish_newsletter import publish_newsletter
 
-        logger.info("Publishing unified newsletter to Beehiiv...")
+        logger.info("Sending unified newsletter broadcast via Resend...")
         publish_newsletter(
             edition=args.edition,
             week=week_val,

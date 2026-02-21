@@ -23,9 +23,7 @@ class Settings(BaseSettings):
     api_env: str = "development"
     cors_origins: str = "http://localhost:3000"
 
-    # Newsletter
-    beehiiv_api_key: str = ""
-    beehiiv_publication_id: str = ""
+    # Newsletter (Resend)
     resend_api_key: str = ""
     resend_from_email: str = "news@sinal.tech"
     resend_audience_id: str = ""
