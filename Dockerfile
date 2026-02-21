@@ -30,8 +30,5 @@ ENV PORT=8000
 
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
-
-CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Railway sets PORT dynamically; use shell form so $PORT is expanded at runtime
+CMD uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
