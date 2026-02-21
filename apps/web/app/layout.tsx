@@ -26,6 +26,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://sinal.ai"),
   title: {
     template: "%s | Sinal",
     default: "Sinal — Inteligência essencial sobre o ecossistema tech LATAM",
