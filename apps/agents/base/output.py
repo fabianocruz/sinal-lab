@@ -24,6 +24,7 @@ class AgentOutput:
     generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     sources: list[str] = field(default_factory=list)
     content_type: str = "DATA_REPORT"
+    agent_category: str = "content"
     summary: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -36,6 +37,7 @@ class AgentOutput:
             f"run_id: \"{self.run_id}\"",
             f"generated_at: \"{self.generated_at.isoformat()}\"",
             f"content_type: {self.content_type}",
+            f"agent_category: {self.agent_category}",
             f"confidence_dq: {self.confidence.data_quality}",
             f"confidence_ac: {self.confidence.analysis_confidence}",
             f"confidence_grade: {self.confidence.grade}",
@@ -64,6 +66,7 @@ class AgentOutput:
             "run_id": self.run_id,
             "generated_at": self.generated_at.isoformat(),
             "content_type": self.content_type,
+            "agent_category": self.agent_category,
             "confidence": self.confidence.to_dict(),
             "sources": self.sources,
             "summary": self.summary,
@@ -107,6 +110,7 @@ def format_markdown_output(
     confidence: ConfidenceScore,
     sources: list[str],
     content_type: str = "DATA_REPORT",
+    agent_category: str = "content",
     summary: Optional[str] = None,
 ) -> AgentOutput:
     """Helper to build an AgentOutput from structured sections.
@@ -119,6 +123,7 @@ def format_markdown_output(
         confidence: Confidence score for this output.
         sources: List of source URLs or names.
         content_type: Classification (DATA_REPORT, ANALYSIS, etc.).
+        agent_category: Agent scope (data, content, quality).
         summary: Optional one-paragraph summary.
 
     Returns:
@@ -149,5 +154,6 @@ def format_markdown_output(
         confidence=confidence,
         sources=sources,
         content_type=content_type,
+        agent_category=agent_category,
         summary=summary,
     )

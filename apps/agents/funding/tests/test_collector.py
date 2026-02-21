@@ -5,6 +5,7 @@ from datetime import date
 
 from apps.agents.funding.collector import (
     FundingEvent,
+    clean_rss_notes,
     extract_funding_from_title,
     parse_funding_event,
 )
@@ -93,3 +94,98 @@ def test_parse_funding_event_invalid():
     event = parse_funding_event(entry, "test_source")
 
     assert event is None
+
+
+class TestFundingEventDedup:
+    """Test that FundingEvent deduplicates by company+round, not source URL."""
+
+    def test_same_company_different_sources_same_hash(self):
+        """Same company + round from different sources should have same hash."""
+        event1 = FundingEvent(
+            company_name="Avenia",
+            round_type="series_a",
+            source_url="https://startupi.com.br/avenia",
+            source_name="startupi",
+        )
+        event2 = FundingEvent(
+            company_name="Avenia",
+            round_type="series_a",
+            source_url="https://latamlist.com/avenia",
+            source_name="latamlist",
+        )
+        assert event1.content_hash == event2.content_hash
+
+    def test_hash_case_insensitive(self):
+        """Hash should be case-insensitive on company name."""
+        event1 = FundingEvent(
+            company_name="Avenia",
+            round_type="series_a",
+            source_url="https://example.com/1",
+            source_name="source1",
+        )
+        event2 = FundingEvent(
+            company_name="avenia",
+            round_type="series_a",
+            source_url="https://example.com/2",
+            source_name="source2",
+        )
+        assert event1.content_hash == event2.content_hash
+
+    def test_different_round_types_different_hash(self):
+        """Different round types should produce different hashes."""
+        event1 = FundingEvent(
+            company_name="Avenia",
+            round_type="series_a",
+            source_url="https://example.com",
+            source_name="source",
+        )
+        event2 = FundingEvent(
+            company_name="Avenia",
+            round_type="seed",
+            source_url="https://example.com",
+            source_name="source",
+        )
+        assert event1.content_hash != event2.content_hash
+
+    def test_different_companies_different_hash(self):
+        """Different companies should produce different hashes."""
+        event1 = FundingEvent(
+            company_name="Avenia",
+            round_type="series_a",
+            source_url="https://example.com",
+            source_name="source",
+        )
+        event2 = FundingEvent(
+            company_name="BemAgro",
+            round_type="series_a",
+            source_url="https://example.com",
+            source_name="source",
+        )
+        assert event1.content_hash != event2.content_hash
+
+
+class TestCleanRssNotes:
+    """Test RSS boilerplate cleaning."""
+
+    def test_strips_english_boilerplate(self):
+        text = "Brazilian fintech raised $17M. The post Avenia raises $17M Series A appeared first on LatamList."
+        result = clean_rss_notes(text)
+        assert result == "Brazilian fintech raised $17M."
+
+    def test_strips_portuguese_boilerplate(self):
+        text = "Startup brasileira levantou $17M. O post Avenia levanta $17M apareceu primeiro em Startupi."
+        result = clean_rss_notes(text)
+        assert result == "Startup brasileira levantou $17M."
+
+    def test_no_boilerplate_unchanged(self):
+        text = "Normal notes without boilerplate."
+        result = clean_rss_notes(text)
+        assert result == "Normal notes without boilerplate."
+
+    def test_empty_string(self):
+        assert clean_rss_notes("") == ""
+
+    def test_only_boilerplate(self):
+        text = "The post Something appeared first on LatamList."
+        result = clean_rss_notes(text)
+        assert result == ""

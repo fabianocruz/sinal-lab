@@ -1,6 +1,6 @@
 """Configuration for the RADAR agent — data sources and parameters."""
 
-from apps.agents.base.config import AgentConfig, DataSourceConfig
+from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, DataSourceConfig
 
 RADAR_SOURCES: list[DataSourceConfig] = [
     # --- Hacker News ---
@@ -60,6 +60,20 @@ RADAR_SOURCES: list[DataSourceConfig] = [
         params={"geo": "BR"},
     ),
 
+    # --- Google Trends (enriched via pytrends) ---
+    DataSourceConfig(
+        name="gtrends_br_trending",
+        source_type="api",
+        url=None,
+        params={"method": "trending_searches", "region": "brazil"},
+    ),
+    DataSourceConfig(
+        name="gtrends_related_ai",
+        source_type="api",
+        url=None,
+        params={"method": "related_queries", "region": "BR", "keywords": "AI,machine learning,LLM,startup"},
+    ),
+
     # --- Lobsters (tech community) ---
     DataSourceConfig(
         name="lobsters",
@@ -73,10 +87,60 @@ RADAR_SOURCES: list[DataSourceConfig] = [
         source_type="rss",
         url="https://www.producthunt.com/feed",
     ),
+
+    # --- Google News (LATAM tech trends) ---
+    DataSourceConfig(
+        name="gnews_tech_trends_br",
+        source_type="rss",
+        url=None,
+        params={"query": "tecnologia tendencia startup inovacao Brasil", "language": "pt-BR", "country": "BR"},
+    ),
+    DataSourceConfig(
+        name="gnews_tech_trends_latam",
+        source_type="rss",
+        url=None,
+        params={"query": "tech startup Latin America trending", "language": "en", "country": "BR"},
+    ),
+
+    # --- Reddit (community signals) ---
+    DataSourceConfig(
+        name="reddit_programming", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "programming", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_machinelearning", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "MachineLearning", "sort": "hot", "limit": 25},
+    ),
+
+    # --- Bluesky (AT Protocol, no auth) ---
+    DataSourceConfig(
+        name="bluesky_tech_trends", source_type="api",
+        url="https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+        params={"query": "tech startup AI open source", "limit": 25},
+    ),
+
+    # --- ProductHunt GraphQL (dev token, free) ---
+    DataSourceConfig(
+        name="producthunt_daily", source_type="api",
+        url="https://api.producthunt.com/v2/api/graphql",
+        api_key_env="PRODUCTHUNT_TOKEN",
+        params={"limit": 20},
+    ),
 ]
+
+RADAR_PERSONA = AgentPersona(
+    display_name="Tomas Aguirre",
+    role_title="Analista de Tendencias",
+    nationality="Argentino",
+    bio_short="Pesquisador de sinais emergentes em tecnologia",
+    avatar_filename="tomas-aguirre.jpg",
+)
 
 RADAR_CONFIG = AgentConfig(
     agent_name="radar",
+    agent_category=AgentCategory.CONTENT,
     version="0.1.0",
     description="Trend Intelligence — detects emerging signals from HN, GitHub, arXiv, and Google Trends",
     data_sources=RADAR_SOURCES,
@@ -84,4 +148,5 @@ RADAR_CONFIG = AgentConfig(
     output_content_type="ANALYSIS",
     min_confidence_to_publish=0.3,
     max_items_per_run=1000,
+    persona=RADAR_PERSONA,
 )

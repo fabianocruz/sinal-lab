@@ -9,11 +9,13 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
-from apps.agents.sintese.collector import FeedItem, collect_all_feeds
+from apps.agents.sintese.collector import FeedItem, collect_all_sources
 from apps.agents.sintese.config import SINTESE_CONFIG
 from apps.agents.sintese.scorer import ScoredItem, score_items
 from apps.agents.sintese.synthesizer import synthesize_newsletter
+from apps.agents.sintese.writer import SinteseWriter
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class SinteseAgent(BaseAgent):
     """
 
     agent_name = "sintese"
+    agent_category = AgentCategory.CONTENT.value
     version = SINTESE_CONFIG.version
 
     def __init__(self, edition_number: int = 1) -> None:
@@ -34,11 +37,11 @@ class SinteseAgent(BaseAgent):
         self.edition_number = edition_number
 
     def collect(self) -> list[Any]:
-        """Fetch all configured RSS/Atom feeds."""
+        """Fetch all configured sources (RSS + Twitter)."""
         sources = self.config.get_enabled_sources()
         logger.info("Collecting from %d enabled sources", len(sources))
 
-        items = collect_all_feeds(
+        items = collect_all_sources(
             sources=sources,
             provenance=self.provenance,
             agent_name=self.agent_name,
@@ -84,9 +87,11 @@ class SinteseAgent(BaseAgent):
             data_quality=0.3, analysis_confidence=0.3
         )
 
+        writer = SinteseWriter()
         newsletter_md = synthesize_newsletter(
             scored_items=scored_items,
             edition_number=self.edition_number,
+            writer=writer,
         )
 
         source_urls = self.provenance.get_source_urls()[:20]
@@ -95,6 +100,7 @@ class SinteseAgent(BaseAgent):
             title=f"Sinal Semanal #{self.edition_number}",
             body_md=newsletter_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=confidence,
             sources=source_urls,

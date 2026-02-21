@@ -1,31 +1,56 @@
-"""RSS/Atom feed collector for SINTESE agent.
+"""Multi-source collector for SINTESE agent.
 
-Fetches and parses feeds from configured sources, deduplicates by URL,
-and returns structured feed items with provenance tracking.
+Fetches and parses feeds from RSS/Atom sources and X/Twitter API,
+deduplicates by URL, and returns structured feed items with provenance tracking.
+
+Architecture:
+    This is the main collector orchestrator. It routes each DataSourceConfig
+    to the appropriate sub-collector based on source_type:
+
+        collect_all_sources()       <- entry point (called by SinteseAgent.collect)
+        |- fetch_rss_feed()         <- source_type="rss"  (shared RSS parser)
+        +- twitter_collector.py     <- source_type="api" + "twitter" in name
+
+    All sub-collectors produce FeedItem instances. Cross-source deduplication
+    is by content_hash (MD5 of URL), so if a tweet links to the same article
+    as an RSS entry, only one FeedItem is kept (first seen wins).
+
+    twitter_collector is imported lazily inside collect_all_sources() to avoid
+    circular imports (twitter_collector imports FeedItem from this module).
 """
 
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
-from time import mktime
-
-import feedparser
-import httpx
+from datetime import datetime
+from typing import List, Optional
 
 from apps.agents.base.config import DataSourceConfig
 from apps.agents.base.provenance import ProvenanceTracker
+import httpx
+
+from apps.agents.sources.http import create_http_client
+from apps.agents.sources.rss import RSSItem, fetch_rss_feed as _fetch_rss_feed
+from apps.agents.sources.rss import (  # noqa: F401 — re-exports
+    extract_tags,
+    parse_feed_date,
+    parse_rss_entry as _parse_rss_entry,
+)
 
 logger = logging.getLogger(__name__)
-
-# Timeout for individual feed fetches (seconds)
-FEED_FETCH_TIMEOUT = 15.0
 
 
 @dataclass
 class FeedItem:
-    """A single item collected from an RSS/Atom feed."""
+    """A single item collected from any source (RSS/Atom feed or X/Twitter API).
+
+    This is the shared data model for the SINTESE multi-source collector pipeline.
+    Both RSS feeds (via fetch_rss_feed) and Twitter (via twitter_collector.parse_tweet)
+    produce FeedItems that flow into the scorer for unified relevance ranking.
+
+    The content_hash field enables cross-source deduplication: if a tweet links to
+    the same article URL as an RSS entry, only one FeedItem is kept.
+    """
 
     title: str
     url: str
@@ -33,7 +58,7 @@ class FeedItem:
     published_at: Optional[datetime] = None
     summary: Optional[str] = None
     author: Optional[str] = None
-    tags: list[str] = field(default_factory=list)
+    tags: List[str] = field(default_factory=list)
     content_hash: str = ""
 
     def __post_init__(self) -> None:
@@ -41,110 +66,55 @@ class FeedItem:
             self.content_hash = hashlib.md5(self.url.encode()).hexdigest()
 
 
-def parse_feed_date(entry: Any) -> Optional[datetime]:
-    """Extract and parse the publication date from a feed entry.
-
-    Handles multiple date formats commonly found in RSS/Atom feeds.
-    Returns None if no valid date is found.
-    """
-    for date_field in ("published_parsed", "updated_parsed", "created_parsed"):
-        parsed = getattr(entry, date_field, None)
-        if parsed:
-            try:
-                return datetime.fromtimestamp(mktime(parsed), tz=timezone.utc)
-            except (ValueError, OverflowError, OSError):
-                continue
-    return None
-
-
-def extract_tags(entry: Any) -> list[str]:
-    """Extract tags/categories from a feed entry."""
-    tags = []
-    if hasattr(entry, "tags"):
-        for tag in entry.tags:
-            term = tag.get("term", "") if isinstance(tag, dict) else getattr(tag, "term", "")
-            if term:
-                tags.append(term.strip().lower())
-    return tags[:10]  # Cap at 10 tags
-
-
-def parse_feed_entry(entry: Any, source_name: str) -> Optional[FeedItem]:
-    """Parse a single feed entry into a FeedItem.
-
-    Returns None if the entry lacks required fields (title + link).
-    """
-    title = getattr(entry, "title", None)
-    link = getattr(entry, "link", None)
-
-    if not title or not link:
-        return None
-
-    summary = getattr(entry, "summary", None)
-    if summary and len(summary) > 1000:
-        summary = summary[:1000] + "..."
-
-    author = getattr(entry, "author", None)
-
+def _rss_to_feed(rss_item: RSSItem) -> FeedItem:
+    """Convert shared RSSItem to SINTESE-specific FeedItem."""
     return FeedItem(
-        title=title.strip(),
-        url=link.strip(),
-        source_name=source_name,
-        published_at=parse_feed_date(entry),
-        summary=summary,
-        author=author,
-        tags=extract_tags(entry),
+        title=rss_item.title,
+        url=rss_item.url,
+        source_name=rss_item.source_name,
+        published_at=rss_item.published_at,
+        summary=rss_item.summary,
+        author=rss_item.author,
+        tags=rss_item.tags,
+        content_hash=rss_item.content_hash,
     )
+
+
+# Backward-compatible wrappers (used by existing tests and downstream code)
+def parse_feed_entry(entry: object, source_name: str) -> Optional[FeedItem]:
+    """Parse a feed entry into a FeedItem. Wraps shared parse_rss_entry."""
+    rss_item = _parse_rss_entry(entry, source_name)
+    if rss_item is None:
+        return None
+    return _rss_to_feed(rss_item)
 
 
 def fetch_feed(
     source: DataSourceConfig,
     client: httpx.Client,
-) -> list[FeedItem]:
-    """Fetch and parse a single RSS/Atom feed.
-
-    Returns a list of FeedItems. Returns empty list on any error
-    (network, parse, timeout) rather than raising.
-    """
-    if not source.url:
-        logger.warning("Source %s has no URL, skipping", source.name)
-        return []
-
-    try:
-        response = client.get(source.url, timeout=FEED_FETCH_TIMEOUT)
-        response.raise_for_status()
-    except httpx.HTTPError as e:
-        logger.warning("Failed to fetch %s (%s): %s", source.name, source.url, e)
-        return []
-
-    feed = feedparser.parse(response.text)
-
-    if feed.bozo and not feed.entries:
-        logger.warning("Feed %s is malformed and has no entries", source.name)
-        return []
-
-    items: list[FeedItem] = []
-    for entry in feed.entries:
-        item = parse_feed_entry(entry, source.name)
-        if item:
-            items.append(item)
-
-    logger.info("Fetched %d items from %s", len(items), source.name)
-    return items
+) -> List[FeedItem]:
+    """Fetch and parse a single RSS feed. Wraps shared fetch_rss_feed."""
+    rss_items = _fetch_rss_feed(source, client)
+    return [_rss_to_feed(ri) for ri in rss_items]
 
 
-def collect_all_feeds(
-    sources: list[DataSourceConfig],
+def collect_all_sources(
+    sources: List[DataSourceConfig],
     provenance: ProvenanceTracker,
     agent_name: str = "sintese",
     run_id: str = "",
-) -> list[FeedItem]:
-    """Fetch all configured feeds and return deduplicated items.
+) -> List[FeedItem]:
+    """Fetch all configured sources (RSS + Twitter) and return deduplicated items.
 
-    Deduplication is by URL (content_hash). Items from the same URL
-    across different feeds are kept only once (first seen wins).
+    Routes each source to the appropriate collector based on source_type:
+    - "api" sources with "twitter" in the name -> collect_twitter_sources()
+    - all other sources -> fetch_rss_feed() (shared RSS parser)
+
+    Deduplication is by content_hash (MD5 of URL). Items from the same URL
+    across different sources/types are kept only once (first seen wins).
 
     Args:
-        sources: List of feed source configurations.
+        sources: List of source configurations (RSS + API).
         provenance: Tracker to record data provenance.
         agent_name: Name of the collecting agent.
         run_id: Current run identifier.
@@ -152,38 +122,166 @@ def collect_all_feeds(
     Returns:
         Deduplicated list of FeedItems from all sources.
     """
-    all_items: list[FeedItem] = []
-    seen_urls: set[str] = set()
+    # Separate sources by type
+    gnews_sources = [
+        s for s in sources
+        if s.source_type == "rss" and "gnews" in s.name and s.enabled
+    ]
+    rss_sources = [
+        s for s in sources
+        if s.source_type == "rss" and "gnews" not in s.name and s.enabled
+    ]
+    twitter_sources = [
+        s for s in sources
+        if s.source_type == "api" and "twitter" in s.name and s.enabled
+    ]
+    linkedin_sources = [
+        s for s in sources
+        if s.source_type == "api" and "linkedin" in s.name and s.enabled
+    ]
+    reddit_sources = [
+        s for s in sources
+        if s.source_type == "api" and "reddit" in s.name and s.enabled
+    ]
+    bluesky_sources = [
+        s for s in sources
+        if s.source_type == "api" and "bluesky" in s.name and s.enabled
+    ]
 
-    with httpx.Client(
-        follow_redirects=True,
-        headers={"User-Agent": "Sinal.lab/0.1 (newsletter aggregator)"},
-    ) as client:
-        for source in sources:
-            if not source.enabled:
-                continue
+    all_items: List[FeedItem] = []
+    seen_hashes: set = set()
 
+    def _add_items(items: List[FeedItem], method: str) -> None:
+        """Add items to the collection, deduplicating by content_hash."""
+        for item in items:
+            if item.content_hash not in seen_hashes:
+                seen_hashes.add(item.content_hash)
+                all_items.append(item)
+
+                provenance.track(
+                    source_url=item.url,
+                    source_name=item.source_name,
+                    extraction_method=method,
+                    confidence=0.6 if method == "rss" else 0.4,
+                    collector_agent=agent_name,
+                    collector_run_id=run_id,
+                )
+
+    # Collect RSS sources using shared source layer
+    with create_http_client() as client:
+        for source in rss_sources:
             items = fetch_feed(source, client)
+            _add_items(items, "rss")
 
-            for item in items:
-                if item.content_hash not in seen_urls:
-                    seen_urls.add(item.content_hash)
-                    all_items.append(item)
+        # Collect Google News sources (URL built from params at fetch time)
+        if gnews_sources:
+            from apps.agents.sources.google_news import fetch_google_news
 
-                    provenance.track(
-                        source_url=item.url,
+            for source in gnews_sources:
+                rss_items = fetch_google_news(source, client)
+                gnews_items = [_rss_to_feed(ri) for ri in rss_items]
+                _add_items(gnews_items, "rss")
+
+    # Collect Twitter sources (handled by twitter_collector module).
+    # Lazy import: twitter_collector imports FeedItem from this module,
+    # so a top-level import would create a circular dependency.
+    if twitter_sources:
+        from apps.agents.sintese.twitter_collector import collect_twitter_sources
+
+        twitter_items = collect_twitter_sources(
+            sources=twitter_sources,
+            provenance=ProvenanceTracker(),  # Separate tracker (twitter_collector tracks internally)
+            agent_name=agent_name,
+            run_id=run_id,
+        )
+        _add_items(twitter_items, "api")
+
+    # Collect LinkedIn sources (experimental, disabled by default)
+    if linkedin_sources:
+        from apps.agents.sources.linkedin import fetch_linkedin_posts
+
+        with create_http_client() as li_client:
+            for source in linkedin_sources:
+                query = source.params.get("query", "")
+                limit = source.params.get("limit", 10)
+                posts = fetch_linkedin_posts(source, li_client, query=query, limit=limit)
+                li_items = [
+                    FeedItem(
+                        title=p.title,
+                        url=p.external_url or p.url,
                         source_name=source.name,
-                        extraction_method="rss",
-                        confidence=0.6,
-                        collector_agent=agent_name,
-                        collector_run_id=run_id,
+                        published_at=p.published_at,
+                        summary=p.text[:1000] if p.text else None,
+                        author=p.author_name,
+                        content_hash=p.content_hash,
                     )
+                    for p in posts
+                ]
+                _add_items(li_items, "api")
 
+    # Collect Reddit sources
+    if reddit_sources:
+        from apps.agents.sources.reddit import fetch_subreddit_posts
+
+        with create_http_client() as reddit_client:
+            for source in reddit_sources:
+                subreddit = source.params.get("subreddit", "")
+                sort = source.params.get("sort", "hot")
+                limit = source.params.get("limit", 25)
+                posts = fetch_subreddit_posts(
+                    source, reddit_client, subreddit=subreddit, sort=sort, limit=limit,
+                )
+                reddit_items = [
+                    FeedItem(
+                        title=p.title,
+                        url=p.url,
+                        source_name=source.name,
+                        published_at=p.created_utc,
+                        summary=p.selftext[:1000] if p.selftext else None,
+                        author=p.author,
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
+                _add_items(reddit_items, "api")
+
+    # Collect Bluesky sources (no auth required)
+    if bluesky_sources:
+        from apps.agents.sources.bluesky import fetch_bluesky_search
+
+        with create_http_client() as bsky_client:
+            for source in bluesky_sources:
+                query = source.params.get("query", "")
+                limit = source.params.get("limit", 25)
+                posts = fetch_bluesky_search(source, bsky_client, query=query, limit=limit)
+                bsky_items = [
+                    FeedItem(
+                        title=p.text[:100] + ("..." if len(p.text) > 100 else ""),
+                        url=p.external_url or p.url,
+                        source_name=source.name,
+                        published_at=p.created_at,
+                        summary=p.text[:1000] if p.text else None,
+                        author=f"@{p.author_handle}" if p.author_handle else None,
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
+                _add_items(bsky_items, "api")
+
+    total_sources = (
+        len(rss_sources) + len(gnews_sources) + len(twitter_sources)
+        + len(linkedin_sources) + len(reddit_sources) + len(bluesky_sources)
+    )
     logger.info(
-        "Collected %d unique items from %d sources (%d duplicates removed)",
-        len(all_items),
-        len([s for s in sources if s.enabled]),
-        len(seen_urls) - len(all_items) if len(seen_urls) > len(all_items) else 0,
+        "Collected %d unique items from %d sources "
+        "(%d RSS, %d GNews, %d Twitter, %d LinkedIn, %d Reddit, %d Bluesky)",
+        len(all_items), total_sources,
+        len(rss_sources), len(gnews_sources), len(twitter_sources),
+        len(linkedin_sources), len(reddit_sources), len(bluesky_sources),
     )
 
     return all_items
+
+
+# Backward-compatible alias
+collect_all_feeds = collect_all_sources

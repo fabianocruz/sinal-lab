@@ -29,6 +29,7 @@ class BaseAgent(ABC):
     """
 
     agent_name: str = "base"
+    agent_category: str = "content"
     version: str = "0.1.0"
 
     def __init__(self) -> None:

@@ -5,7 +5,36 @@ parameters, and scheduling. This module provides the base structure.
 """
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Optional
+
+
+class AgentCategory(str, Enum):
+    """Classification of agent scope and purpose.
+
+    DATA: Collects and indexes all LATAM startups/companies regardless of editorial line.
+    CONTENT: Produces content filtered by editorial guidelines for the target audience.
+    QUALITY: Filters, validates, and optimizes content for publication.
+    """
+
+    DATA = "data"
+    CONTENT = "content"
+    QUALITY = "quality"
+
+
+@dataclass
+class AgentPersona:
+    """Public-facing persona for an AI agent.
+
+    Each agent has a fictional human persona used in bylines,
+    newsletters, and the frontend agent profile pages.
+    """
+
+    display_name: str  # e.g., "Clara Medeiros"
+    role_title: str  # e.g., "Editora-chefe"
+    nationality: str  # e.g., "Brasileira"
+    bio_short: str  # One-liner bio
+    avatar_filename: str  # e.g., "clara-medeiros.jpg"
 
 
 @dataclass
@@ -18,6 +47,7 @@ class DataSourceConfig:
     api_key_env: Optional[str] = None  # environment variable name for API key
     rate_limit_per_minute: int = 60
     enabled: bool = True
+    max_items: Optional[int] = None  # Cap entries per fetch (None = no limit)
     params: dict[str, Any] = field(default_factory=dict)
 
 
@@ -26,6 +56,7 @@ class AgentConfig:
     """Base configuration shared by all agents."""
 
     agent_name: str
+    agent_category: AgentCategory = AgentCategory.CONTENT
     version: str = "0.1.0"
     description: str = ""
     data_sources: list[DataSourceConfig] = field(default_factory=list)
@@ -33,6 +64,7 @@ class AgentConfig:
     output_content_type: str = "DATA_REPORT"
     min_confidence_to_publish: float = 0.3
     max_items_per_run: int = 1000
+    persona: Optional[AgentPersona] = None
 
     def get_enabled_sources(self) -> list[DataSourceConfig]:
         """Return only enabled data sources."""

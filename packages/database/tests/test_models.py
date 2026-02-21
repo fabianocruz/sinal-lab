@@ -60,10 +60,11 @@ class TestBase:
         assert "funding_rounds" in table_names
         assert "ecosystems" in table_names
         assert "users" in table_names
+        assert "evidence_items" in table_names
 
     def test_table_count(self, engine):
         inspector = inspect(engine)
-        assert len(inspector.get_table_names()) == 8
+        assert len(inspector.get_table_names()) == 9
 
 
 class TestCompany:

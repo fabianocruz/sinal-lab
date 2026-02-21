@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from apps.agents.base.output import AgentOutput
+from apps.agents.base.persona_registry import get_display_name
 from apps.agents.editorial.models import (
     FlagCategory,
     FlagSeverity,
@@ -54,8 +55,9 @@ def run_sintese_final(
         prior_layer_results = []
 
     # --- Generate byline ---
-    agent_display = agent_output.agent_name.upper()
-    byline = f"Pesquisado pelo agente {agent_display}, revisado pelo pipeline editorial Sinal.lab"
+    persona_name = get_display_name(agent_output.agent_name)
+    agent_upper = agent_output.agent_name.upper()
+    byline = f"Pesquisado por {persona_name} ({agent_upper}), revisado pelo pipeline editorial Sinal.lab"
     metadata["byline"] = byline
     modifications["byline"] = byline
 

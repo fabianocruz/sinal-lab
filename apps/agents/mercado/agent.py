@@ -10,6 +10,7 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.base.provenance import ProvenanceTracker
 from apps.agents.mercado.classifier import classify_all_profiles
@@ -18,6 +19,7 @@ from apps.agents.mercado.config import MERCADO_CONFIG
 from apps.agents.mercado.enricher import enrich_all_profiles
 from apps.agents.mercado.scorer import ScoredCompanyProfile, score_all_profiles
 from apps.agents.mercado.synthesizer import synthesize_ecosystem_snapshot
+from apps.agents.mercado.writer import MercadoWriter
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class MercadoAgent(BaseAgent):
     """MERCADO agent for LATAM startup mapping and ecosystem intelligence."""
 
     agent_name = "mercado"
+    agent_category = AgentCategory.DATA.value
 
     def __init__(self, week_number: int):
         """Initialize MERCADO agent.
@@ -126,8 +129,13 @@ class MercadoAgent(BaseAgent):
 
         scored_profiles: list[ScoredCompanyProfile] = scores
 
-        # Generate Markdown report
-        body_md = synthesize_ecosystem_snapshot(scored_profiles, self.week_number)
+        # Instantiate LLM writer (gracefully degrades if unavailable)
+        writer = MercadoWriter()
+
+        # Generate Markdown report with optional LLM enrichment
+        body_md = synthesize_ecosystem_snapshot(
+            scored_profiles, self.week_number, writer=writer
+        )
 
         # Compute aggregate confidence
         if scored_profiles:
@@ -153,11 +161,15 @@ class MercadoAgent(BaseAgent):
             title=f"MERCADO Report — Semana {self.week_number}/2026",
             body_md=body_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=aggregate_confidence,
             sources=source_urls,
             content_type="DATA_REPORT",
-            summary=f"Discovered {len(scored_profiles)} new startups in LATAM ecosystem",
+            summary=(
+                f"Semana {self.week_number}: {len(scored_profiles)} organizacoes tech "
+                f"descobertas no ecossistema LATAM."
+            ),
         )
 
         logger.info("OUTPUT phase complete: %s", output.title)

@@ -8,14 +8,16 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from time import mktime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
-import feedparser
 import httpx
 
 from apps.agents.base.config import DataSourceConfig
 from apps.agents.base.provenance import ProvenanceTracker
+from apps.agents.sources.dedup import deduplicate_by_hash
+from apps.agents.sources.github import GitHubRepoItem, fetch_github_repos
+from apps.agents.sources.http import create_http_client
+from apps.agents.sources.rss import RSSItem, fetch_rss_feed
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +35,8 @@ class DevSignal:
     published_at: Optional[datetime] = None
     summary: Optional[str] = None
     language: Optional[str] = None
-    tags: list[str] = field(default_factory=list)
-    metrics: dict[str, Any] = field(default_factory=dict)
+    tags: List[str] = field(default_factory=list)
+    metrics: dict = field(default_factory=dict)
     content_hash: str = ""
 
     def __post_init__(self) -> None:
@@ -42,73 +44,55 @@ class DevSignal:
             self.content_hash = hashlib.md5(self.url.encode()).hexdigest()
 
 
+def _rss_to_signal(item: RSSItem, signal_type: str) -> DevSignal:
+    """Convert a shared RSSItem to a CODIGO DevSignal."""
+    return DevSignal(
+        title=item.title,
+        url=item.url,
+        source_name=item.source_name,
+        signal_type=signal_type,
+        published_at=item.published_at,
+        summary=item.summary,
+        tags=item.tags,
+        content_hash=item.content_hash,
+    )
+
+
+def _github_to_signal(repo: GitHubRepoItem) -> DevSignal:
+    """Convert a shared GitHubRepoItem to a CODIGO DevSignal."""
+    return DevSignal(
+        title=repo.full_name,
+        url=repo.url,
+        source_name=repo.source_name,
+        signal_type="repo",
+        published_at=repo.created_at,
+        summary=repo.description or "",
+        language=repo.language,
+        tags=[repo.language.lower()] if repo.language else [],
+        metrics={
+            "stars": repo.stars,
+            "forks": repo.forks,
+            "open_issues": repo.open_issues,
+            "watchers": 0,
+        },
+        content_hash=repo.content_hash,
+    )
+
+
 def collect_github_repos(
     source: DataSourceConfig,
     client: httpx.Client,
-) -> list[DevSignal]:
+) -> List[DevSignal]:
     """Fetch trending GitHub repos via the search API."""
-    if not source.url:
-        return []
-
     window = source.params.get("window", "daily")
-    date_qualifier = "created:>2026-02-10" if window == "daily" else "created:>2026-02-03"
-
-    params = {
-        "q": f"stars:>20 {date_qualifier}",
-        "sort": "stars",
-        "order": "desc",
-        "per_page": 30,
-    }
-
-    headers = {"Accept": "application/vnd.github+json"}
-    import os
-    token = os.getenv("GITHUB_TOKEN")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-
-    try:
-        response = client.get(source.url, params=params, headers=headers, timeout=FETCH_TIMEOUT)
-        response.raise_for_status()
-    except httpx.HTTPError as e:
-        logger.warning("GitHub API error for %s: %s", source.name, e)
-        return []
-
-    data = response.json()
-    signals: list[DevSignal] = []
-
-    for repo in data.get("items", []):
-        created_at = None
-        if repo.get("created_at"):
-            try:
-                created_at = datetime.fromisoformat(repo["created_at"].replace("Z", "+00:00"))
-            except ValueError:
-                pass
-
-        signals.append(DevSignal(
-            title=repo.get("full_name", "unknown"),
-            url=repo.get("html_url", ""),
-            source_name=source.name,
-            signal_type="repo",
-            published_at=created_at,
-            summary=repo.get("description", ""),
-            language=repo.get("language"),
-            tags=[repo.get("language", "").lower()] if repo.get("language") else [],
-            metrics={
-                "stars": repo.get("stargazers_count", 0),
-                "forks": repo.get("forks_count", 0),
-                "open_issues": repo.get("open_issues_count", 0),
-                "watchers": repo.get("watchers_count", 0),
-            },
-        ))
-
-    logger.info("Collected %d repos from %s", len(signals), source.name)
-    return signals
+    repos = fetch_github_repos(source, client, min_stars=20, window=window)
+    return [_github_to_signal(repo) for repo in repos]
 
 
 def collect_npm_packages(
     source: DataSourceConfig,
     client: httpx.Client,
-) -> list[DevSignal]:
+) -> List[DevSignal]:
     """Fetch popular npm packages via the registry search API."""
     if not source.url:
         return []
@@ -128,7 +112,7 @@ def collect_npm_packages(
         return []
 
     data = response.json()
-    signals: list[DevSignal] = []
+    signals: List[DevSignal] = []
 
     for obj in data.get("objects", []):
         pkg = obj.get("package", {})
@@ -146,7 +130,7 @@ def collect_npm_packages(
 
         signals.append(DevSignal(
             title=name,
-            url=pkg.get("links", {}).get("npm", f"https://www.npmjs.com/package/{name}"),
+            url=pkg.get("links", {}).get("npm", "https://www.npmjs.com/package/{}".format(name)),
             source_name=source.name,
             signal_type="package",
             published_at=published_at,
@@ -166,78 +150,22 @@ def collect_rss_source(
     source: DataSourceConfig,
     client: httpx.Client,
     signal_type: str = "article",
-) -> list[DevSignal]:
+) -> List[DevSignal]:
     """Fetch and parse an RSS/Atom feed into DevSignals."""
-    if not source.url:
-        return []
-
-    try:
-        response = client.get(source.url, timeout=FETCH_TIMEOUT)
-        response.raise_for_status()
-    except httpx.HTTPError as e:
-        logger.warning("Failed to fetch %s: %s", source.name, e)
-        return []
-
-    feed = feedparser.parse(response.text)
-    if feed.bozo and not feed.entries:
-        return []
-
-    signals: list[DevSignal] = []
-    for entry in feed.entries:
-        title = getattr(entry, "title", None)
-        link = getattr(entry, "link", None)
-        if not title or not link:
-            continue
-
-        published_at = None
-        for date_field in ("published_parsed", "updated_parsed"):
-            parsed = getattr(entry, date_field, None)
-            if parsed:
-                try:
-                    published_at = datetime.fromtimestamp(mktime(parsed), tz=timezone.utc)
-                    break
-                except (ValueError, OverflowError, OSError):
-                    continue
-
-        summary = getattr(entry, "summary", None)
-        if summary and len(summary) > 1000:
-            summary = summary[:1000] + "..."
-
-        tags = []
-        if hasattr(entry, "tags"):
-            for tag in entry.tags:
-                term = tag.get("term", "") if isinstance(tag, dict) else getattr(tag, "term", "")
-                if term:
-                    tags.append(term.strip().lower())
-
-        signals.append(DevSignal(
-            title=title.strip(),
-            url=link.strip(),
-            source_name=source.name,
-            signal_type=signal_type,
-            published_at=published_at,
-            summary=summary,
-            tags=tags[:10],
-        ))
-
-    logger.info("Collected %d signals from %s", len(signals), source.name)
-    return signals
+    rss_items = fetch_rss_feed(source, client)
+    return [_rss_to_signal(item, signal_type) for item in rss_items]
 
 
 def collect_all_sources(
-    sources: list[DataSourceConfig],
+    sources: List[DataSourceConfig],
     provenance: ProvenanceTracker,
     agent_name: str = "codigo",
     run_id: str = "",
-) -> list[DevSignal]:
+) -> List[DevSignal]:
     """Fetch all configured sources and return deduplicated signals."""
-    all_signals: list[DevSignal] = []
-    seen_urls: set[str] = set()
+    all_signals: List[DevSignal] = []
 
-    with httpx.Client(
-        follow_redirects=True,
-        headers={"User-Agent": "Sinal.lab/0.1 (dev ecosystem monitor)"},
-    ) as client:
+    with create_http_client() as client:
         for source in sources:
             if not source.enabled:
                 continue
@@ -246,6 +174,44 @@ def collect_all_sources(
                 signals = collect_github_repos(source, client)
             elif "npm" in source.name:
                 signals = collect_npm_packages(source, client)
+            elif "reddit" in source.name:
+                from apps.agents.sources.reddit import fetch_subreddit_posts
+                subreddit = source.params.get("subreddit", "")
+                sort = source.params.get("sort", "hot")
+                limit = source.params.get("limit", 25)
+                posts = fetch_subreddit_posts(source, client, subreddit=subreddit, sort=sort, limit=limit)
+                signals = [
+                    DevSignal(
+                        title=p.title,
+                        url=p.url,
+                        source_name=source.name,
+                        signal_type="article",
+                        published_at=p.created_utc,
+                        summary=p.selftext[:500] if p.selftext else None,
+                        tags=[f"r/{p.subreddit}"],
+                        metrics={"score": p.score, "comments": p.num_comments},
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
+            elif "producthunt" in source.name:
+                from apps.agents.sources.producthunt import fetch_producthunt_posts
+                limit = source.params.get("limit", 20)
+                posts = fetch_producthunt_posts(source, client, limit=limit)
+                signals = [
+                    DevSignal(
+                        title=f"{p.name} — {p.tagline}",
+                        url=p.website or p.url,
+                        source_name=source.name,
+                        signal_type="package",
+                        published_at=p.created_at,
+                        summary=p.description or p.tagline,
+                        tags=[t.lower() for t in p.topics[:5]],
+                        metrics={"votes": p.votes_count, "comments": p.comments_count},
+                        content_hash=p.content_hash,
+                    )
+                    for p in posts
+                ]
             elif source.source_type == "rss":
                 stype = "package" if "pypi" in source.name else "article"
                 signals = collect_rss_source(source, client, signal_type=stype)
@@ -253,22 +219,22 @@ def collect_all_sources(
                 signals = collect_rss_source(source, client, signal_type="article")
 
             for signal in signals:
-                if signal.content_hash not in seen_urls:
-                    seen_urls.add(signal.content_hash)
-                    all_signals.append(signal)
+                provenance.track(
+                    source_url=signal.url,
+                    source_name=source.name,
+                    extraction_method="api" if source.source_type == "api" else "rss",
+                    confidence=0.6,
+                    collector_agent=agent_name,
+                    collector_run_id=run_id,
+                )
 
-                    provenance.track(
-                        source_url=signal.url,
-                        source_name=source.name,
-                        extraction_method="api" if source.source_type == "api" else "rss",
-                        confidence=0.6,
-                        collector_agent=agent_name,
-                        collector_run_id=run_id,
-                    )
+            all_signals.extend(signals)
+
+    unique_signals = deduplicate_by_hash(all_signals, hash_fn=lambda s: s.content_hash)
 
     logger.info(
         "CODIGO collected %d unique signals from %d sources",
-        len(all_signals),
+        len(unique_signals),
         len([s for s in sources if s.enabled]),
     )
-    return all_signals
+    return unique_signals

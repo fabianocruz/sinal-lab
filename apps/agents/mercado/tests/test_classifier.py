@@ -114,7 +114,7 @@ def test_classify_sector_no_match():
 
 
 def test_classify_sector_no_description():
-    """Test classification when description is missing."""
+    """Test classification when description is missing and name has no keywords."""
     profile = CompanyProfile(
         name="NoDesc",
         slug="nodesc",
@@ -128,6 +128,23 @@ def test_classify_sector_no_description():
     sector = classify_sector(profile)
 
     assert sector is None
+
+
+def test_classify_sector_from_name_only():
+    """Test classification when only the org name/slug contains keywords."""
+    profile = CompanyProfile(
+        name="Nubank",
+        slug="nubank",
+        description="",
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/nubank",
+        source_name="github_sao_paulo",
+    )
+
+    sector = classify_sector(profile)
+
+    assert sector == "Fintech"
 
 
 def test_generate_tags_with_sector():
@@ -170,6 +187,91 @@ def test_generate_tags_no_duplicates():
 
     # Should only have one "python" tag
     assert tags.count("python") == 1
+
+
+def test_classify_sector_devtools():
+    """Test classification of devtools company."""
+    profile = CompanyProfile(
+        name="DevPlatform",
+        slug="devplatform",
+        description="CI/CD pipeline and deployment automation for developers",
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/devplatform",
+        source_name="github_sao_paulo",
+    )
+    assert classify_sector(profile) == "DevTools"
+
+
+def test_classify_sector_cybersecurity():
+    """Test classification of cybersecurity company."""
+    profile = CompanyProfile(
+        name="SecureApp",
+        slug="secureapp",
+        description="Vulnerability scanning and encryption platform",
+        city="Mexico City",
+        country="Mexico",
+        source_url="https://github.com/secureapp",
+        source_name="github_mexico_city",
+    )
+    assert classify_sector(profile) == "Cybersecurity"
+
+
+def test_classify_sector_cleantech():
+    """Test classification of cleantech company."""
+    profile = CompanyProfile(
+        name="SolarTech",
+        slug="solartech",
+        description="Renewable solar energy platform for sustainable businesses",
+        city="Buenos Aires",
+        country="Argentina",
+        source_url="https://github.com/solartech",
+        source_name="github_buenos_aires",
+    )
+    assert classify_sector(profile) == "CleanTech"
+
+
+def test_classify_sector_hrtech():
+    """Test classification of HRTech company."""
+    profile = CompanyProfile(
+        name="TalentHub",
+        slug="talenthub",
+        description="Recruiting and hiring platform for talent acquisition",
+        city="Bogotá",
+        country="Colombia",
+        source_url="https://github.com/talenthub",
+        source_name="github_bogota",
+    )
+    assert classify_sector(profile) == "HRTech"
+
+
+def test_classify_sector_from_tags():
+    """Test classification from tags (Crunchbase/LinkedIn categories)."""
+    profile = CompanyProfile(
+        name="GenericName",
+        slug="genericname",
+        description="",
+        tags=["fintech", "payments"],
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/genericname",
+        source_name="github_sao_paulo",
+    )
+    assert classify_sector(profile) == "Fintech"
+
+
+def test_classify_description_beats_name():
+    """When description points to Fintech but name contains 'health', description wins."""
+    profile = CompanyProfile(
+        name="HealthPay",
+        slug="healthpay",
+        description="Digital payment and banking platform for credit card processing",
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/healthpay",
+        source_name="github_sao_paulo",
+    )
+    assert classify_sector(profile) == "Fintech"
 
 
 def test_classify_all_profiles():

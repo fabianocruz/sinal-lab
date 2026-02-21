@@ -60,6 +60,13 @@ Desktop.ini
 airflow/logs/
 airflow/dags/__pycache__/
 
+# Agent and newsletter outputs
+output/
+output.html
+
+# Claude agents working state
+.agents/
+
 # Plan files
 PLAN.md
 SCRATCHPAD.md

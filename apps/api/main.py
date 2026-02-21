@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.config import get_settings
-from apps.api.routers import agents, companies, content, editorial, health, waitlist
+from apps.api.routers import agents, auth, companies, content, editorial, health, waitlist
 
 settings = get_settings()
 
@@ -38,6 +38,7 @@ app.add_middleware(
 # Routers
 app.include_router(health.router)
 app.include_router(agents.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 app.include_router(content.router, prefix="/api")
 app.include_router(companies.router, prefix="/api")
 app.include_router(waitlist.router, prefix="/api")

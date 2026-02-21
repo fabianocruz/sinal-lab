@@ -8,23 +8,27 @@ summaries and commentary for "Sinal Semanal".
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
+from apps.agents.base.persona_registry import get_display_name
 from apps.agents.sintese.scorer import ScoredItem
+
+if TYPE_CHECKING:
+    from apps.agents.sintese.writer import SinteseWriter
 
 logger = logging.getLogger(__name__)
 
 # How many items to include in the newsletter
 TOP_ITEMS_COUNT = 18
-MIN_SCORE_THRESHOLD = 0.15
+MIN_SCORE_THRESHOLD = 0.35
 
 # Category definitions for grouping newsletter items
 CATEGORIES: dict[str, list[str]] = {
-    "AI & Machine Learning": [
+    "IA & Machine Learning": [
         "inteligencia artificial", "machine learning", "llm", "gpt", "claude",
         "deep learning", "ai agent", "generative ai", "ia generativa", "nlp",
     ],
-    "Startups & Funding": [
+    "Startups & Investimento": [
         "startup", "venture capital", "investimento", "rodada", "funding",
         "serie a", "serie b", "seed", "unicornio", "ipo", "aquisicao",
         "fundraising", "acquisition",
@@ -135,21 +139,33 @@ def group_by_category(items: list[ScoredItem]) -> list[NewsletterSection]:
     return sections
 
 
-def format_item_markdown(item: ScoredItem, index: int) -> str:
-    """Format a single newsletter item as Markdown."""
+def format_item_markdown(
+    item: ScoredItem,
+    index: int,
+    summary_override: Optional[str] = None,
+) -> str:
+    """Format a single newsletter item as Markdown.
+
+    Args:
+        item: The scored item to format.
+        index: The item number in the newsletter.
+        summary_override: If provided, use this instead of the RSS summary.
+    """
     lines: list[str] = []
 
     lines.append(f"**{index}. [{item.item.title}]({item.item.url})**")
     lines.append(f"*Fonte: {item.item.source_name}*")
 
-    if item.item.summary:
-        # Clean and truncate summary
+    summary = summary_override
+    if summary is None and item.item.summary:
+        # Clean and truncate RSS summary
         summary = item.item.summary.strip()
-        # Remove HTML tags if present
         import re
         summary = re.sub(r"<[^>]+>", "", summary)
         if len(summary) > 300:
             summary = summary[:297] + "..."
+
+    if summary:
         lines.append(f"> {summary}")
 
     lines.append("")
@@ -160,13 +176,20 @@ def synthesize_newsletter(
     scored_items: list[ScoredItem],
     edition_number: int = 1,
     edition_date: Optional[datetime] = None,
+    writer: Optional["SinteseWriter"] = None,
 ) -> str:
     """Produce the full newsletter draft in Markdown.
+
+    When a writer is provided and available, generates LLM-powered editorial
+    content (intro paragraph, section commentary, rewritten summaries).
+    Falls back to template-based output per-piece when the LLM is unavailable
+    or returns None.
 
     Args:
         scored_items: All scored items (will be filtered and ranked).
         edition_number: Sequential newsletter edition number.
         edition_date: Date for the newsletter (defaults to now).
+        writer: Optional LLM editorial writer for enhanced content.
 
     Returns:
         Complete newsletter Markdown ready for review and publication.
@@ -179,36 +202,62 @@ def synthesize_newsletter(
     top_items = select_top_items(scored_items)
     sections = group_by_category(top_items)
 
+    use_writer = writer is not None and writer.is_available
+
     lines: list[str] = []
 
     # Header
     lines.append(f"# Sinal Semanal #{edition_number}")
     lines.append("")
-    lines.append(f"*Edicao de {date_str} — Curado pelo agente SINTESE*")
+    persona_name = get_display_name("sintese")
+    lines.append(f"*Edicao de {date_str} — Curado por {persona_name} (SINTESE)*")
     lines.append("")
     lines.append("---")
     lines.append("")
 
-    # Intro
-    lines.append(
-        f"Esta semana reunimos **{len(top_items)} destaques** do ecossistema "
-        f"tech da America Latina e do mundo, selecionados de "
-        f"**{len(set(i.item.source_name for i in top_items))} fontes** "
-        f"por relevancia para fundadores tecnicos, CTOs e engenheiros seniores."
-    )
+    # Intro: try LLM, fallback to template
+    llm_intro = None
+    if use_writer:
+        llm_intro = writer.write_newsletter_intro(sections, edition_number)
+
+    if llm_intro:
+        lines.append(llm_intro)
+    else:
+        lines.append(
+            f"Esta semana reunimos **{len(top_items)} destaques** do ecossistema "
+            f"tech da America Latina e do mundo, selecionados de "
+            f"**{len(set(i.item.source_name for i in top_items))} fontes** "
+            f"por relevancia para fundadores tecnicos, CTOs e engenheiros seniores."
+        )
     lines.append("")
     lines.append("---")
     lines.append("")
 
-    # Sections
+    # Sections: try LLM per section, fallback to template
     item_index = 1
     for section in sections:
         lines.append(f"## {section.heading}")
         lines.append("")
 
-        for scored_item in section.items:
-            lines.append(format_item_markdown(scored_item, item_index))
-            item_index += 1
+        section_content = None
+        if use_writer:
+            section_content = writer.write_section_content(section)
+
+        if section_content:
+            # LLM editorial commentary
+            lines.append(section_content.intro)
+            lines.append("")
+            for i, scored_item in enumerate(section.items):
+                lines.append(format_item_markdown(
+                    scored_item, item_index,
+                    summary_override=section_content.summaries[i],
+                ))
+                item_index += 1
+        else:
+            # Template fallback
+            for scored_item in section.items:
+                lines.append(format_item_markdown(scored_item, item_index))
+                item_index += 1
 
         lines.append("---")
         lines.append("")

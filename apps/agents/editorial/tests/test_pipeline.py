@@ -232,3 +232,62 @@ class TestPipelineEdgeCases:
         pipeline = EditorialPipeline()
         names = pipeline.get_layer_names()
         assert names == ["pesquisa", "validacao", "verificacao", "vies", "seo", "sintese_final"]
+
+
+class TestDataAgentWarning:
+    """Data agent outputs should trigger a warning when entering editorial pipeline."""
+
+    def test_data_agent_gets_warning_flag(self):
+        """Output from a DATA agent should receive a WARNING flag."""
+        pipeline = EditorialPipeline()
+        output = _make_output(agent_name="funding", agent_category="data")
+        result = pipeline.review(output)
+
+        data_warnings = [
+            f for f in result.all_flags
+            if f.severity == FlagSeverity.WARNING
+            and "data" in f.message.lower()
+        ]
+        assert len(data_warnings) >= 1
+
+    def test_data_agent_warning_does_not_block(self):
+        """Data agent warning should NOT prevent publication."""
+        pipeline = EditorialPipeline()
+        output = _make_output(agent_name="mercado", agent_category="data")
+        result = pipeline.review(output)
+
+        # The warning alone should not block — other layers determine publish_ready
+        data_blockers = [
+            f for f in result.all_flags
+            if f.severity == FlagSeverity.BLOCKER
+            and "data" in f.message.lower()
+            and "agent" in f.message.lower()
+        ]
+        assert len(data_blockers) == 0
+
+    def test_content_agent_no_data_warning(self):
+        """Output from a CONTENT agent should NOT get the data agent warning."""
+        pipeline = EditorialPipeline()
+        output = _make_output(agent_name="sintese", agent_category="content")
+        result = pipeline.review(output)
+
+        data_warnings = [
+            f for f in result.all_flags
+            if "data" in f.message.lower()
+            and "agent" in f.message.lower()
+            and f.layer == "pipeline"
+        ]
+        assert len(data_warnings) == 0
+
+    def test_default_category_no_warning(self):
+        """Output without explicit agent_category (default 'content') should NOT warn."""
+        pipeline = EditorialPipeline()
+        output = _make_output()  # default agent_category="content"
+        result = pipeline.review(output)
+
+        data_warnings = [
+            f for f in result.all_flags
+            if f.layer == "pipeline"
+            and "data" in f.message.lower()
+        ]
+        assert len(data_warnings) == 0

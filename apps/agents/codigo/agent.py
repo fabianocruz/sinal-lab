@@ -9,11 +9,13 @@ from typing import Any
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.codigo.analyzer import AnalyzedSignal, analyze_signals
 from apps.agents.codigo.collector import DevSignal, collect_all_sources
 from apps.agents.codigo.config import CODIGO_CONFIG
 from apps.agents.codigo.synthesizer import synthesize_dev_report
+from apps.agents.codigo.writer import CodigoWriter
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,7 @@ class CodigoAgent(BaseAgent):
     """
 
     agent_name = "codigo"
+    agent_category = AgentCategory.CONTENT.value
     version = CODIGO_CONFIG.version
 
     def __init__(self, week_number: int = 1) -> None:
@@ -80,9 +83,11 @@ class CodigoAgent(BaseAgent):
             data_quality=0.3, analysis_confidence=0.3
         )
 
+        writer = CodigoWriter()
         report_md = synthesize_dev_report(
             analyzed=analyzed,
             week_number=self.week_number,
+            writer=writer,
         )
 
         source_urls = self.provenance.get_source_urls()[:20]
@@ -91,6 +96,7 @@ class CodigoAgent(BaseAgent):
             title=f"CODIGO Semanal — Semana {self.week_number}",
             body_md=report_md,
             agent_name=self.agent_name,
+            agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=confidence,
             sources=source_urls,
