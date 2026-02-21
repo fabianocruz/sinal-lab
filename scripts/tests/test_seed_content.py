@@ -53,9 +53,9 @@ def session(engine):
 # ---------------------------------------------------------------------------
 
 
-def test_newsletters_has_seven_items():
-    """All 7 founding newsletters are defined."""
-    assert len(NEWSLETTERS) == 7
+def test_newsletters_has_twenty_items():
+    """All 20 founding newsletters are defined."""
+    assert len(NEWSLETTERS) == 20
 
 
 def test_newsletters_have_required_fields():
@@ -92,9 +92,9 @@ def test_seed_inserts_all(session):
     """seed() inserts all newsletters into an empty database."""
     inserted = seed(session, NEWSLETTERS)
 
-    assert inserted == 7
+    assert inserted == 20
     count = session.execute(text("SELECT count(*) FROM content_pieces")).scalar()
-    assert count == 7
+    assert count == 20
 
 
 def test_seed_sets_published_status(session):
@@ -131,11 +131,11 @@ def test_seed_skips_existing_slugs(session):
     first_run = seed(session, NEWSLETTERS)
     second_run = seed(session, NEWSLETTERS)
 
-    assert first_run == 7
+    assert first_run == 20
     assert second_run == 0
 
     count = session.execute(text("SELECT count(*) FROM content_pieces")).scalar()
-    assert count == 7
+    assert count == 20
 
 
 def test_seed_idempotent_with_subset(session):
@@ -143,10 +143,10 @@ def test_seed_idempotent_with_subset(session):
     seed(session, NEWSLETTERS[:3])
     inserted = seed(session, NEWSLETTERS)
 
-    assert inserted == 4  # only the 4 new ones
+    assert inserted == 17  # only the 17 new ones
 
     count = session.execute(text("SELECT count(*) FROM content_pieces")).scalar()
-    assert count == 7
+    assert count == 20
 
 
 # ---------------------------------------------------------------------------
