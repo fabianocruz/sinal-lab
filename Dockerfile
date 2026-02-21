@@ -26,9 +26,6 @@ COPY apps/agents/ /app/apps/agents/
 
 # Ensure Python can find our packages
 ENV PYTHONPATH=/app
-ENV PORT=8000
 
-EXPOSE 8000
-
-# Railway sets PORT dynamically; use shell form so $PORT is expanded at runtime
+# Railway injects PORT at runtime; default to 8000 for local dev
 CMD uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
