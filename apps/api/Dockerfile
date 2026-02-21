@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS base
+FROM python:3.12-slim AS base
 
 WORKDIR /app
 
@@ -16,7 +16,8 @@ RUN pip install --no-cache-dir \
     pydantic-settings \
     python-dotenv \
     feedparser \
-    httpx
+    httpx \
+    passlib[bcrypt]
 
 # Application code
 COPY packages/ /app/packages/
@@ -31,6 +32,6 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
 CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
