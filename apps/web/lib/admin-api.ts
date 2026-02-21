@@ -1,11 +1,9 @@
 /**
  * Admin API client — CRUD operations for content management.
  *
- * All functions send the session token via Authorization header.
- * Used by /admin/* pages to interact with the FastAPI backend.
+ * Calls the same-origin Next.js API route proxy (/api/admin/content/...),
+ * which verifies the session cookie and forwards to the FastAPI backend.
  */
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface AdminContent {
   id: string;
@@ -52,7 +50,7 @@ export interface ContentUpdateData {
 }
 
 async function adminFetch<T>(path: string, options: globalThis.RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}/api/admin/content${path}`, {
+  const res = await fetch(`/api/admin/content${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

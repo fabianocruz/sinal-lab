@@ -33,6 +33,7 @@ class Settings(BaseSettings):
 
     # Admin
     admin_emails: str = ""
+    admin_api_secret: str = ""
 
     # Data Sources
     github_token: str = ""
