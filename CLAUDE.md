@@ -5,22 +5,25 @@
 
 ---
 
-## Project Status (Updated: 2026-02-17)
+## Project Status (Updated: 2026-02-21)
 
 **Repository:** https://github.com/fabianocruz/sinal-lab
-**Branch:** main (5 commits)
-**Test Coverage:** 50 test files covering critical modules
+**Branch:** main (PR #14 merged)
+**Test Coverage:** 88 Python tests + 63 frontend tests (Vitest)
 
-### Completed Setup:
-- ✅ Initial project structure committed
-- ✅ API routers tested (6/6 = 100%)
+### Completed:
+- ✅ Initial project structure + GitHub repo
+- ✅ API routers tested (7/7 = 100%, includes auth + waitlist)
 - ✅ Editorial package tested (3/3 = 100%)
 - ✅ Agent system documented and tested
-- ✅ GitHub repository initialized
+- ✅ Newsletter SSR dinâmica (API → frontend com paginação)
+- ✅ Seed expandido (20 newsletters, 5 agents, 5 meses)
+- ✅ Logout + área do usuário (UserMenu dropdown + /conta)
+- ✅ Waitlist-auth unificado (form auth-aware + upgrade waitlist→active)
+- ✅ 63 testes frontend (UserMenu, AccountDetails, Navbar auth, WaitlistForm auth, ContaPage)
 
 ### Next Steps:
-- Create feature branches for new work (follow Git Workflow below)
-- Run tests before every commit: `pytest apps/ packages/ -v`
+- Run tests before every commit: `pytest apps/ packages/ -v && pnpm test`
 - Keep main branch stable (no direct commits except hotfixes)
 
 ---
@@ -252,15 +255,20 @@ alembic -c packages/database/alembic.ini revision --autogenerate -m "description
 
 ### Local Development
 ```bash
-# Start infrastructure
-docker compose up -d
+# Start PostgreSQL (Homebrew)
+brew services start postgresql@16
 
 # Start API server
 uvicorn apps.api.main:app --reload --port 8000
 
 # Start frontend
-pnpm dev
+cd apps/web && pnpm dev
 ```
+
+**Environment files:**
+- `.env` (repo root) — database, API keys, backend config
+- `apps/web/.env.local` — frontend-specific (AUTH_SECRET, NEXTAUTH_URL, NEXT_PUBLIC_*)
+- Next.js only loads `.env` from its own directory (`apps/web/`), not from repo root
 
 ---
 
@@ -292,10 +300,11 @@ pnpm dev
 - Editorial pipeline: 100% (all layers tested)
 
 **Current Status:**
-- ✅ API routers: 6/6 = 100%
+- ✅ API routers: 7/7 = 100% (includes auth + waitlist)
 - ✅ Editorial package: 3/3 = 100%
 - ✅ Agent base framework: 100%
-- ✅ Overall: 50 test files
+- ✅ Frontend components: 63 tests (Vitest + Testing Library)
+- ✅ Overall: 88 Python + 63 frontend tests
 
 **Before Committing:**
 1. Run full test suite: `pytest apps/ packages/ -v`
