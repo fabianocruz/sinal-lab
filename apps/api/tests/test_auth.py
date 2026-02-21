@@ -208,6 +208,58 @@ class TestRegister:
         assert user.password_hash != "my-secret-password"
         assert bcrypt.verify("my-secret-password", user.password_hash)
 
+    def test_register_triggers_welcome_email(self, client, monkeypatch):
+        """Registration queues a welcome email via BackgroundTasks.
+
+        FastAPI TestClient runs BackgroundTasks synchronously, so the
+        send_welcome_email function will be called before the response
+        is returned.
+        """
+        import apps.api.routers.auth as auth_module
+
+        calls = []
+
+        def fake_send_welcome_email(email: str, name=None):
+            calls.append({"email": email, "name": name})
+            return True
+
+        monkeypatch.setattr(auth_module, "send_welcome_email", fake_send_welcome_email)
+
+        payload = {
+            "email": "welcome-test@example.com",
+            "password": "strong-password-123",
+            "name": "Welcome User",
+        }
+        response = client.post("/api/auth/register", json=payload)
+
+        assert response.status_code == 201
+        assert len(calls) == 1
+        assert calls[0]["email"] == "welcome-test@example.com"
+        assert calls[0]["name"] == "Welcome User"
+
+    def test_register_triggers_welcome_email_without_name(self, client, monkeypatch):
+        """Welcome email is triggered even when name is not provided."""
+        import apps.api.routers.auth as auth_module
+
+        calls = []
+
+        def fake_send_welcome_email(email: str, name=None):
+            calls.append({"email": email, "name": name})
+            return True
+
+        monkeypatch.setattr(auth_module, "send_welcome_email", fake_send_welcome_email)
+
+        payload = {
+            "email": "noname-welcome@example.com",
+            "password": "strong-password-123",
+        }
+        response = client.post("/api/auth/register", json=payload)
+
+        assert response.status_code == 201
+        assert len(calls) == 1
+        assert calls[0]["email"] == "noname-welcome@example.com"
+        assert calls[0]["name"] is None
+
 
 # ---------------------------------------------------------------------------
 # POST /api/auth/verify
