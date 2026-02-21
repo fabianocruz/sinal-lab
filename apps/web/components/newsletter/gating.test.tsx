@@ -49,6 +49,10 @@ const mockNewsletter: Newsletter = {
   dqScore: "A",
   likes: 0,
   gradientIndex: 1,
+  sources: [
+    "https://techcrunch.com/2026/02/08/ai-commoditization-latam",
+    "https://www.bloomberg.com/news/articles/2026-02-07/ai-startups-vertical",
+  ],
 };
 
 /**
@@ -58,6 +62,7 @@ const mockNewsletterNoDq: Newsletter = {
   ...mockNewsletter,
   slug: "test-edition-no-dq",
   dqScore: null,
+  sources: [],
 };
 
 /**
@@ -69,6 +74,7 @@ const mockNewsletterShortBody: Newsletter = {
   ...mockNewsletter,
   slug: "test-edition-short",
   body: "Only one paragraph.",
+  sources: [],
 };
 
 // ---------------------------------------------------------------------------
@@ -282,6 +288,13 @@ describe("NewsletterContent — unauthenticated", () => {
     expect(screen.queryByRole("link", { name: "Fontes" })).not.toBeInTheDocument();
   });
 
+  it("test_newslettercontent_unauth_render_does_not_show_sources_section", () => {
+    render(<NewsletterContent newsletter={mockNewsletter} />);
+
+    // Sources section should be hidden when content is gated and user is unauthenticated
+    expect(screen.queryByText("Fontes", { selector: "h3" })).not.toBeInTheDocument();
+  });
+
   it("test_newslettercontent_unauth_render_shows_bottom_ver_todas_link", () => {
     render(<NewsletterContent newsletter={mockNewsletter} />);
 
@@ -349,6 +362,22 @@ describe("NewsletterContent — authenticated", () => {
     render(<NewsletterContent newsletter={mockNewsletter} />);
 
     expect(screen.getByRole("link", { name: "Fontes" })).toBeInTheDocument();
+  });
+
+  it("test_newslettercontent_auth_render_shows_sources_section_when_sources_exist", () => {
+    render(<NewsletterContent newsletter={mockNewsletter} />);
+
+    // Sources section heading is visible for authenticated users when sources exist
+    const heading = screen.getByText("Fontes", { selector: "h3" });
+    expect(heading).toBeInTheDocument();
+  });
+
+  it("test_newslettercontent_auth_render_hides_sources_section_when_sources_empty", () => {
+    const noSourcesNewsletter: Newsletter = { ...mockNewsletter, sources: [] };
+    render(<NewsletterContent newsletter={noSourcesNewsletter} />);
+
+    // Sources section should not render when sources array is empty
+    expect(screen.queryByText("Fontes", { selector: "h3" })).not.toBeInTheDocument();
   });
 
   it("test_newslettercontent_auth_render_shows_ver_todas_as_edicoes_link", () => {

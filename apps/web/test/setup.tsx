@@ -46,3 +46,17 @@ vi.mock("next-auth/react", () => ({
   useSession: () => ({ data: null, status: "unauthenticated" }),
   SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+
+// Mock react-markdown — split content by blank lines and render each block as
+// a <p> so gating tests can still find individual paragraphs with getByText().
+// MarkdownRenderer-specific tests unmock this to test the real component.
+vi.mock("react-markdown", () => ({
+  default: ({ children }: { children: string }) => (
+    <div data-testid="markdown">
+      {children.split("\n\n").filter(Boolean).map((block: string, i: number) => (
+        <p key={i}>{block}</p>
+      ))}
+    </div>
+  ),
+}));
+vi.mock("remark-gfm", () => ({ default: () => {} }));
