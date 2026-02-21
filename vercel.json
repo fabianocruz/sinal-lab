@@ -5,7 +5,6 @@
   "outputDirectory": "apps/web/.next",
   "installCommand": "pnpm install",
   "devCommand": "cd apps/web && pnpm dev",
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- apps/web/ packages/shared/",
   "headers": [
     {
       "source": "/(.*)",
