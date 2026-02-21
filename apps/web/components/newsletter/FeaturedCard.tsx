@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AGENT_PERSONAS } from "@/lib/constants";
 import { Newsletter, CARD_GRADIENTS, AGENT_HEX } from "@/lib/newsletter";
 
 interface FeaturedCardProps {
@@ -6,6 +7,7 @@ interface FeaturedCardProps {
 }
 
 export default function FeaturedCard({ newsletter }: FeaturedCardProps) {
+  const persona = AGENT_PERSONAS[newsletter.agent];
   const agentInitial = newsletter.agentLabel.charAt(0);
 
   const bgAlpha: Record<string, string> = {
@@ -82,8 +84,8 @@ export default function FeaturedCard({ newsletter }: FeaturedCardProps) {
             {agentInitial}&middot;
           </div>
           <div className="text-[13px]">
-            <strong className="block text-bone">Agente {newsletter.agentLabel}</strong>
-            <span className="text-[12px] text-ash">+ 4 agentes</span>
+            <strong className="block text-bone">{persona.name}</strong>
+            <span className="text-[12px] text-ash">{persona.role}</span>
           </div>
         </div>
       </div>
