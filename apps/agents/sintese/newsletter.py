@@ -8,7 +8,6 @@ of truth for all branded emails).
 """
 
 import logging
-import os
 from typing import Optional
 
 from apps.api.services.email_template import build_brand_html
@@ -78,17 +77,19 @@ def send_via_resend(
     to_email: str,
     from_email: Optional[str] = None,
 ) -> bool:
-    """Send newsletter via Resend API (transactional email).
+    """Send newsletter via Resend API (transactional email to one recipient).
 
     Requires RESEND_API_KEY environment variable.
     Returns True on success, False on failure.
     """
-    api_key = os.getenv("RESEND_API_KEY")
-    if not api_key:
+    from apps.api.config import get_settings
+
+    settings = get_settings()
+    if not settings.resend_api_key:
         logger.warning("RESEND_API_KEY not set, skipping email send")
         return False
 
-    from_addr = from_email or os.getenv("RESEND_FROM_EMAIL", "news@sinal.tech")
+    from_addr = from_email or settings.resend_from_email
 
     try:
         import httpx
@@ -96,7 +97,7 @@ def send_via_resend(
         response = httpx.post(
             "https://api.resend.com/emails",
             headers={
-                "Authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {settings.resend_api_key}",
                 "Content-Type": "application/json",
             },
             json={
@@ -105,6 +106,7 @@ def send_via_resend(
                 "subject": subject,
                 "html": html_content,
             },
+            timeout=10.0,
         )
         response.raise_for_status()
         logger.info("Email sent to %s via Resend", to_email)
@@ -114,44 +116,65 @@ def send_via_resend(
         return False
 
 
-def send_via_beehiiv(
+def send_broadcast(
     html_content: str,
     subject: str,
 ) -> bool:
-    """Publish newsletter via Beehiiv API.
+    """Send newsletter to all Audience subscribers via Resend Broadcasts.
 
-    Requires BEEHIIV_API_KEY and BEEHIIV_PUBLICATION_ID environment variables.
+    Two-step process:
+    1. POST /broadcasts — create broadcast draft
+    2. POST /broadcasts/{id}/send — send to audience
+
+    Requires RESEND_API_KEY and RESEND_AUDIENCE_ID.
     Returns True on success, False on failure.
     """
-    api_key = os.getenv("BEEHIIV_API_KEY")
-    pub_id = os.getenv("BEEHIIV_PUBLICATION_ID")
+    from apps.api.config import get_settings
 
-    if not api_key or not pub_id:
-        logger.warning("BEEHIIV_API_KEY or BEEHIIV_PUBLICATION_ID not set, skipping")
+    settings = get_settings()
+    if not settings.resend_api_key or not settings.resend_audience_id:
+        logger.warning(
+            "RESEND_API_KEY or RESEND_AUDIENCE_ID not set, skipping broadcast"
+        )
         return False
+
+    headers = {
+        "Authorization": f"Bearer {settings.resend_api_key}",
+        "Content-Type": "application/json",
+    }
 
     try:
         import httpx
 
-        response = httpx.post(
-            f"https://api.beehiiv.com/v2/publications/{pub_id}/posts",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+        # Step 1: Create broadcast
+        create_response = httpx.post(
+            "https://api.resend.com/broadcasts",
+            headers=headers,
             json={
-                "title": subject,
-                "content_html": html_content,
-                "status": "draft",
+                "audience_id": settings.resend_audience_id,
+                "from": settings.resend_from_email,
+                "subject": subject,
+                "html": html_content,
             },
+            timeout=15.0,
         )
-        if response.status_code >= 400:
-            logger.error(
-                "Beehiiv API error %d: %s", response.status_code, response.text
-            )
-        response.raise_for_status()
-        logger.info("Newsletter published as draft on Beehiiv")
+        create_response.raise_for_status()
+        broadcast_id = create_response.json().get("id")
+
+        if not broadcast_id:
+            logger.error("Resend Broadcasts API returned no broadcast ID")
+            return False
+
+        # Step 2: Send broadcast
+        send_response = httpx.post(
+            f"https://api.resend.com/broadcasts/{broadcast_id}/send",
+            headers=headers,
+            timeout=15.0,
+        )
+        send_response.raise_for_status()
+        logger.info("Newsletter broadcast sent via Resend (ID: %s)", broadcast_id)
         return True
+
     except Exception as e:
-        logger.error("Failed to publish to Beehiiv: %s", e)
+        logger.error("Failed to send broadcast via Resend: %s", e)
         return False

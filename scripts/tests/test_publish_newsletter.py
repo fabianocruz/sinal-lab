@@ -1,7 +1,7 @@
 """Tests for scripts/publish_newsletter.py — unified newsletter publisher.
 
 Covers YAML frontmatter parsing, newsletter composition from multiple
-agent outputs, HTML generation, and Beehiiv publishing flow.
+agent outputs, HTML generation, and Resend Broadcasts flow.
 """
 
 from pathlib import Path
@@ -297,9 +297,9 @@ class TestComposeNewsletter:
 class TestPublishNewsletter:
     """Tests for publish_newsletter() integration function."""
 
-    @patch("scripts.publish_newsletter.send_via_beehiiv")
-    def test_dry_run_does_not_call_beehiiv(
-        self, mock_beehiiv, tmp_output_dir: Path
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_dry_run_does_not_send_broadcast(
+        self, mock_broadcast, tmp_output_dir: Path
     ):
         publish_newsletter(
             edition=8,
@@ -308,11 +308,11 @@ class TestPublishNewsletter:
             project_root=tmp_output_dir,
         )
 
-        mock_beehiiv.assert_not_called()
+        mock_broadcast.assert_not_called()
 
-    @patch("scripts.publish_newsletter.send_via_beehiiv")
+    @patch("scripts.publish_newsletter.send_broadcast")
     def test_always_saves_html_to_default_path(
-        self, mock_beehiiv, tmp_output_dir: Path
+        self, mock_broadcast, tmp_output_dir: Path
     ):
         publish_newsletter(
             edition=8,
@@ -327,9 +327,9 @@ class TestPublishNewsletter:
         assert "<html" in content
         assert "Sinal Semanal" in content
 
-    @patch("scripts.publish_newsletter.send_via_beehiiv")
+    @patch("scripts.publish_newsletter.send_broadcast")
     def test_saves_additional_copy_to_custom_path(
-        self, mock_beehiiv, tmp_output_dir: Path, tmp_path: Path
+        self, mock_broadcast, tmp_output_dir: Path, tmp_path: Path
     ):
         html_path = tmp_path / "custom_output.html"
 
@@ -346,11 +346,11 @@ class TestPublishNewsletter:
         assert default_path.exists()
         assert html_path.exists()
 
-    @patch("scripts.publish_newsletter.send_via_beehiiv")
-    def test_calls_beehiiv_with_correct_subject(
-        self, mock_beehiiv, tmp_output_dir: Path
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_sends_broadcast_with_correct_subject(
+        self, mock_broadcast, tmp_output_dir: Path
     ):
-        mock_beehiiv.return_value = True
+        mock_broadcast.return_value = True
 
         publish_newsletter(
             edition=8,
@@ -358,13 +358,13 @@ class TestPublishNewsletter:
             project_root=tmp_output_dir,
         )
 
-        mock_beehiiv.assert_called_once()
-        call_args = mock_beehiiv.call_args
+        mock_broadcast.assert_called_once()
+        call_args = mock_broadcast.call_args
         assert call_args[0][1] == "Sinal Semanal #8"
 
-    @patch("scripts.publish_newsletter.send_via_beehiiv")
+    @patch("scripts.publish_newsletter.send_broadcast")
     def test_composes_from_available_outputs_only(
-        self, mock_beehiiv, tmp_path: Path
+        self, mock_broadcast, tmp_path: Path
     ):
         """Only SINTESE output exists; publisher should still work."""
         output_dir = tmp_path / "apps" / "agents" / "sintese" / "output"
@@ -372,7 +372,7 @@ class TestPublishNewsletter:
         (output_dir / "sinal-semanal-8.md").write_text(
             SAMPLE_SINTESE_MD, encoding="utf-8"
         )
-        mock_beehiiv.return_value = True
+        mock_broadcast.return_value = True
 
         publish_newsletter(
             edition=8,
@@ -381,4 +381,4 @@ class TestPublishNewsletter:
         )
 
         # Should succeed without error even with missing agent outputs
-        mock_beehiiv.assert_called_once()
+        mock_broadcast.assert_called_once()
