@@ -202,7 +202,7 @@ def seed(session, newsletters: list[dict], *, force: bool = False) -> int:
                 )
             """),
             {
-                "id": uuid.uuid4(),
+                "id": str(uuid.uuid4()),
                 "title": item["title"],
                 "slug": slug,
                 "subtitle": item["subtitle"],
