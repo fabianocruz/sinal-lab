@@ -22,6 +22,20 @@ class VerifyRequest(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+class OAuthSyncRequest(BaseModel):
+    """Request body for syncing an OAuth provider user to the database.
+
+    Called by NextAuth's signIn callback when a user authenticates via
+    Google OAuth. Creates or updates the user in PostgreSQL.
+    """
+
+    email: str = Field(..., min_length=5, max_length=320)
+    name: Optional[str] = Field(None, max_length=255)
+    avatar_url: Optional[str] = Field(None, max_length=500)
+    provider: str = Field(..., max_length=50)  # "google"
+    provider_id: str = Field(..., max_length=255)  # Google sub ID
+
+
 class UserResponse(BaseModel):
     """Public user profile response."""
 

@@ -15,7 +15,7 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - Search: Elasticsearch 8 (future)
 - Data Pipeline: Apache Airflow + dbt (future)
 - CMS: Sanity.io (headless, future)
-- Email: Resend (transactional), Beehiiv (newsletter)
+- Email: Resend (transactional + broadcasts)
 - Analytics: PostHog (self-hosted, future)
 - Hosting: Vercel (frontend), AWS (backend/data), Cloudflare (CDN)
 

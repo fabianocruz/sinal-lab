@@ -73,8 +73,9 @@ This runs 3 migrations: initial schema, evidence items, auth fields.
 | `CORS_ORIGINS` | Vercel frontend URL |
 | `API_ENV` | `staging` |
 | `ANTHROPIC_API_KEY` | For AI agents |
-| `RESEND_API_KEY` | For transactional emails |
-| `RESEND_FROM_EMAIL` | `newsletter@sinal.ai` |
+| `RESEND_API_KEY` | For emails and broadcasts |
+| `RESEND_FROM_EMAIL` | `news@sinal.tech` |
+| `RESEND_AUDIENCE_ID` | Resend Audience for broadcasts |
 
 ## 5. Verification Checklist
 

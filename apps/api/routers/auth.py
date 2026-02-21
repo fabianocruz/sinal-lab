@@ -9,8 +9,14 @@ from passlib.hash import bcrypt
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
-from apps.api.schemas.auth import RegisterRequest, UserResponse, VerifyRequest
+from apps.api.schemas.auth import (
+    OAuthSyncRequest,
+    RegisterRequest,
+    UserResponse,
+    VerifyRequest,
+)
 from apps.api.services.email import send_welcome_email
+from apps.api.services.resend_audience import add_contact_to_audience
 from packages.database.models.session import SessionDB
 from packages.database.models.user import User
 
@@ -46,6 +52,7 @@ def register(
             db.commit()
             db.refresh(existing)
             background_tasks.add_task(send_welcome_email, existing.email, existing.name)
+            background_tasks.add_task(add_contact_to_audience, existing.email, existing.name)
             return UserResponse.model_validate(existing)
         raise HTTPException(status_code=409, detail="Email já cadastrado.")
 
@@ -62,6 +69,80 @@ def register(
     db.refresh(user)
 
     background_tasks.add_task(send_welcome_email, user.email, body.name)
+    background_tasks.add_task(add_contact_to_audience, user.email, body.name)
+
+    return UserResponse.model_validate(user)
+
+
+@router.post("/sync-oauth", response_model=UserResponse)
+def sync_oauth(
+    body: OAuthSyncRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Sync an OAuth provider user to the local database.
+
+    Called by NextAuth's signIn callback when a user authenticates via
+    Google (or other OAuth providers). Handles four cases:
+
+    1. New user → create with auth_provider=provider, email_verified=True
+    2. Returning OAuth user → update last_login_at
+    3. Waitlist user → upgrade to active, send welcome email
+    4. Existing email user → update last_login_at, don't overwrite auth_provider
+    """
+    email = body.email.strip().lower()
+
+    if not EMAIL_REGEX.match(email):
+        raise HTTPException(status_code=422, detail="Email inválido.")
+
+    now = datetime.now(timezone.utc)
+
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        if existing.status == "waitlist":
+            # Upgrade waitlist user to active
+            existing.status = "active"
+            existing.name = body.name or existing.name
+            existing.avatar_url = body.avatar_url or existing.avatar_url
+            existing.email_verified = True
+            existing.email_verified_at = now
+            existing.last_login_at = now
+            # Set provider info only if not already set by email registration
+            if existing.auth_provider == "email" and not existing.password_hash:
+                existing.auth_provider = body.provider
+                existing.auth_provider_id = body.provider_id
+            db.commit()
+            db.refresh(existing)
+            background_tasks.add_task(send_welcome_email, existing.email, existing.name)
+            background_tasks.add_task(add_contact_to_audience, existing.email, existing.name)
+            return UserResponse.model_validate(existing)
+
+        # Returning user (active, already registered)
+        existing.last_login_at = now
+        existing.avatar_url = body.avatar_url or existing.avatar_url
+        db.commit()
+        db.refresh(existing)
+        return UserResponse.model_validate(existing)
+
+    # Brand-new OAuth user
+    user = User(
+        id=uuid.uuid4(),
+        email=email,
+        name=body.name,
+        avatar_url=body.avatar_url,
+        auth_provider=body.provider,
+        auth_provider_id=body.provider_id,
+        email_verified=True,
+        email_verified_at=now,
+        last_login_at=now,
+        status="active",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    background_tasks.add_task(send_welcome_email, user.email, user.name)
+    background_tasks.add_task(add_contact_to_audience, user.email, user.name)
 
     return UserResponse.model_validate(user)
 

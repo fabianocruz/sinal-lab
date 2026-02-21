@@ -73,6 +73,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   callbacks: {
+    async signIn({ user, account }) {
+      // Sync Google OAuth users to FastAPI backend (PostgreSQL).
+      // Creates the user if new, upgrades waitlist users, and triggers
+      // welcome email. Graceful degradation: if backend is down, sign-in
+      // still succeeds (user exists only in JWT until next sync).
+      if (account?.provider === "google" && user.email) {
+        try {
+          await fetch(`${API_BASE}/api/auth/sync-oauth`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name ?? undefined,
+              avatar_url: user.image ?? undefined,
+              provider: "google",
+              provider_id: account.providerAccountId,
+            }),
+          });
+        } catch {
+          // Backend unreachable — allow sign-in anyway
+        }
+      }
+      return true;
+    },
+
     async jwt({ token, user }) {
       // On first sign-in, `user` is populated — persist fields into the token.
       if (user) {

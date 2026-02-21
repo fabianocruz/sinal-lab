@@ -1,12 +1,16 @@
 """Newsletter formatting and delivery for SINTESE agent.
 
 Converts the Markdown newsletter draft into HTML and provides
-integration stubs for Beehiiv and Resend delivery.
+delivery via Resend (transactional and broadcasts).
+
+Brand template lives in apps.api.services.email_template (single source
+of truth for all branded emails).
 """
 
 import logging
-import os
 from typing import Optional
+
+from apps.api.services.email_template import build_brand_html
 
 logger = logging.getLogger(__name__)
 
@@ -49,89 +53,22 @@ def markdown_to_html(markdown_content: str) -> str:
     return html
 
 
-def wrap_in_email_template(html_body: str, edition_title: str) -> str:
-    """Wrap newsletter HTML in a responsive email template.
+def wrap_in_email_template(
+    html_body: str,
+    edition_title: str,
+    unsubscribe_url: Optional[str] = None,
+) -> str:
+    """Wrap newsletter HTML in the Sinal brand template.
 
-    Uses Sinal.lab brand colors:
-    - body background: #0A0A0B (sinal-black)
-    - container: #1A1A1F (graphite) with subtle border
-    - accent: #E8FF59 (sinal-lime)
-    - text: #C4C4CC (muted), headings: #FAFAF8 / #F0EDE8
-    - font: IBM Plex Sans
+    Delegates to the unified brand template with newsletter_styles=True
+    (DM Serif Display h1, h2, blockquotes, horizontal rules).
     """
-    return f"""<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{edition_title}</title>
-    <style>
-        body {{
-            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            line-height: 1.65;
-            color: #C4C4CC;
-            max-width: 640px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #0A0A0B;
-        }}
-        .container {{
-            background-color: #1A1A1F;
-            padding: 32px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }}
-        h1 {{
-            font-family: 'DM Serif Display', 'IBM Plex Sans', serif;
-            color: #FAFAF8;
-            font-size: 24px;
-            border-bottom: 2px solid #E8FF59;
-            padding-bottom: 12px;
-        }}
-        h2 {{
-            color: #F0EDE8;
-            font-size: 18px;
-            margin-top: 28px;
-        }}
-        a {{
-            color: #E8FF59;
-            text-decoration: none;
-        }}
-        a:hover {{
-            text-decoration: underline;
-        }}
-        blockquote {{
-            border-left: 3px solid #2A2A32;
-            margin: 8px 0;
-            padding: 4px 16px;
-            color: #8A8A96;
-            font-size: 14px;
-        }}
-        hr {{
-            border: none;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            margin: 24px 0;
-        }}
-        .footer {{
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            font-size: 13px;
-            color: #8A8A96;
-            text-align: center;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        {html_body}
-        <div class="footer">
-            <p><strong>Sinal.lab</strong> — Inteligencia aberta para quem constroi.</p>
-            <p><a href="https://sinal.ai">sinal.ai</a></p>
-        </div>
-    </div>
-</body>
-</html>"""
+    return build_brand_html(
+        html_body,
+        edition_title,
+        newsletter_styles=True,
+        unsubscribe_url=unsubscribe_url,
+    )
 
 
 def send_via_resend(
@@ -140,17 +77,19 @@ def send_via_resend(
     to_email: str,
     from_email: Optional[str] = None,
 ) -> bool:
-    """Send newsletter via Resend API (transactional email).
+    """Send newsletter via Resend API (transactional email to one recipient).
 
     Requires RESEND_API_KEY environment variable.
     Returns True on success, False on failure.
     """
-    api_key = os.getenv("RESEND_API_KEY")
-    if not api_key:
+    from apps.api.config import get_settings
+
+    settings = get_settings()
+    if not settings.resend_api_key:
         logger.warning("RESEND_API_KEY not set, skipping email send")
         return False
 
-    from_addr = from_email or os.getenv("RESEND_FROM_EMAIL", "newsletter@sinal.ai")
+    from_addr = from_email or settings.resend_from_email
 
     try:
         import httpx
@@ -158,7 +97,7 @@ def send_via_resend(
         response = httpx.post(
             "https://api.resend.com/emails",
             headers={
-                "Authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {settings.resend_api_key}",
                 "Content-Type": "application/json",
             },
             json={
@@ -167,6 +106,7 @@ def send_via_resend(
                 "subject": subject,
                 "html": html_content,
             },
+            timeout=10.0,
         )
         response.raise_for_status()
         logger.info("Email sent to %s via Resend", to_email)
@@ -176,44 +116,65 @@ def send_via_resend(
         return False
 
 
-def send_via_beehiiv(
+def send_broadcast(
     html_content: str,
     subject: str,
 ) -> bool:
-    """Publish newsletter via Beehiiv API.
+    """Send newsletter to all Audience subscribers via Resend Broadcasts.
 
-    Requires BEEHIIV_API_KEY and BEEHIIV_PUBLICATION_ID environment variables.
+    Two-step process:
+    1. POST /broadcasts — create broadcast draft
+    2. POST /broadcasts/{id}/send — send to audience
+
+    Requires RESEND_API_KEY and RESEND_AUDIENCE_ID.
     Returns True on success, False on failure.
     """
-    api_key = os.getenv("BEEHIIV_API_KEY")
-    pub_id = os.getenv("BEEHIIV_PUBLICATION_ID")
+    from apps.api.config import get_settings
 
-    if not api_key or not pub_id:
-        logger.warning("BEEHIIV_API_KEY or BEEHIIV_PUBLICATION_ID not set, skipping")
+    settings = get_settings()
+    if not settings.resend_api_key or not settings.resend_audience_id:
+        logger.warning(
+            "RESEND_API_KEY or RESEND_AUDIENCE_ID not set, skipping broadcast"
+        )
         return False
+
+    headers = {
+        "Authorization": f"Bearer {settings.resend_api_key}",
+        "Content-Type": "application/json",
+    }
 
     try:
         import httpx
 
-        response = httpx.post(
-            f"https://api.beehiiv.com/v2/publications/{pub_id}/posts",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+        # Step 1: Create broadcast
+        create_response = httpx.post(
+            "https://api.resend.com/broadcasts",
+            headers=headers,
             json={
-                "title": subject,
-                "content_html": html_content,
-                "status": "draft",
+                "audience_id": settings.resend_audience_id,
+                "from": settings.resend_from_email,
+                "subject": subject,
+                "html": html_content,
             },
+            timeout=15.0,
         )
-        if response.status_code >= 400:
-            logger.error(
-                "Beehiiv API error %d: %s", response.status_code, response.text
-            )
-        response.raise_for_status()
-        logger.info("Newsletter published as draft on Beehiiv")
+        create_response.raise_for_status()
+        broadcast_id = create_response.json().get("id")
+
+        if not broadcast_id:
+            logger.error("Resend Broadcasts API returned no broadcast ID")
+            return False
+
+        # Step 2: Send broadcast
+        send_response = httpx.post(
+            f"https://api.resend.com/broadcasts/{broadcast_id}/send",
+            headers=headers,
+            timeout=15.0,
+        )
+        send_response.raise_for_status()
+        logger.info("Newsletter broadcast sent via Resend (ID: %s)", broadcast_id)
         return True
+
     except Exception as e:
-        logger.error("Failed to publish to Beehiiv: %s", e)
+        logger.error("Failed to send broadcast via Resend: %s", e)
         return False

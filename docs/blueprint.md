@@ -43,7 +43,7 @@ All 5 agents share a common runtime layer: shared CLI (`base/cli.py`), shared pe
 - **Scoring**: 4-dimensional relevance scoring (topic 35%, recency 25%, authority 15%, LATAM relevance 25%)
 - **Output**: Curated newsletter draft with 18 items grouped by category
 - **Diversity**: Max 3 items per source to prevent domination
-- **Integration**: Beehiiv + Resend for delivery, LLM writer with fallback
+- **Integration**: Resend Broadcasts for delivery, LLM writer with fallback
 - **Persistence**: Shared CLI `--persist` saves AgentRun + ContentPiece to database
 
 #### RADAR (v0.1.0) — Emerging Trend Detection
@@ -147,7 +147,7 @@ Composite score = (DQ * 0.6 + AC * 0.4), mapped to grades A-D and a 1-5 display 
 - **Sections**: AI & ML, Startups & Funding, Fintech, Infrastructure & Dev Tools, LATAM Ecosystem
 - **Format**: 18 curated items with source attribution, summaries, and category grouping
 - **Tone**: Technical, data-driven, Portuguese-first
-- **Delivery**: Beehiiv (primary) + Resend (transactional)
+- **Delivery**: Resend (broadcasts + transactional)
 
 ---
 
@@ -191,7 +191,7 @@ All pages include programmatic SEO: JSON-LD structured data, canonical URLs, Ope
 - Initial Alembic migration (8 tables)
 - Company seeding script + CSV (20 LATAM startups)
 - Frontend→Backend wiring (API proxy, waitlist, live data fetching)
-- Newsletter delivery integration (Resend + Beehiiv)
+- Newsletter delivery integration (Resend Broadcasts)
 - Unified agent runner script + cron schedule
 - Deployment configs (Vercel, Docker, Procfile)
 - Full README rewrite + blueprint update

@@ -2,7 +2,7 @@
 """Unified newsletter publisher for Sinal.lab.
 
 Reads Markdown outputs from all 5 agents, composes a single newsletter,
-converts to HTML, and publishes as a draft on Beehiiv.
+converts to HTML, and sends via Resend Broadcasts.
 
 Usage:
     python scripts/publish_newsletter.py --edition 8 --week 8
@@ -27,7 +27,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from apps.agents.sintese.newsletter import (
     markdown_to_html,
-    send_via_beehiiv,
+    send_broadcast,
     wrap_in_email_template,
 )
 from scripts.run_agents import AGENTS
@@ -120,12 +120,12 @@ def publish_newsletter(
     html_path: Optional[str] = None,
     project_root: Optional[Path] = None,
 ) -> None:
-    """Load agent outputs, compose newsletter, and publish to Beehiiv.
+    """Load agent outputs, compose newsletter, and send via Resend Broadcasts.
 
     Args:
         edition: Newsletter edition number (e.g. 8).
         week: ISO week number for week-based agents. Defaults to current week.
-        dry_run: If True, compose and optionally save HTML but don't publish.
+        dry_run: If True, compose and optionally save HTML but don't send.
         html_path: Optional path to save the composed HTML.
         project_root: Override project root (used in tests).
     """
@@ -178,20 +178,20 @@ def publish_newsletter(
         Path(html_path).write_text(html_full, encoding="utf-8")
         logger.info("HTML copy saved to %s", html_path)
 
-    # Publish to Beehiiv
+    # Send via Resend Broadcasts
     if not dry_run:
-        ok = send_via_beehiiv(html_full, subject)
+        ok = send_broadcast(html_full, subject)
         if ok:
-            logger.info("Newsletter published as draft on Beehiiv")
+            logger.info("Newsletter broadcast sent via Resend")
         else:
-            logger.warning("Beehiiv publish failed or not configured")
+            logger.warning("Broadcast failed or not configured")
     else:
-        logger.info("Dry run — skipping Beehiiv publish")
+        logger.info("Dry run — skipping broadcast")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Sinal.lab newsletter publisher — compose and publish to Beehiiv",
+        description="Sinal.lab newsletter publisher — compose and send via Resend",
     )
     parser.add_argument(
         "--edition", type=int, required=True,
@@ -207,7 +207,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--dry-run", action="store_true",
-        help="Compose newsletter but don't publish to Beehiiv",
+        help="Compose newsletter but don't send broadcast",
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true",

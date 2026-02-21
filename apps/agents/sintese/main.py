@@ -11,8 +11,7 @@ from apps.agents.base.cli import run_agent_cli
 from apps.agents.sintese.agent import SinteseAgent
 from apps.agents.sintese.newsletter import (
     markdown_to_html,
-    send_via_beehiiv,
-    send_via_resend,
+    send_broadcast,
     wrap_in_email_template,
 )
 
@@ -27,7 +26,7 @@ def _add_sintese_args(parser):
     )
     parser.add_argument(
         "--send", action="store_true",
-        help="Send newsletter via Resend/Beehiiv (requires API keys)",
+        help="Send newsletter broadcast via Resend (requires API keys)",
     )
 
 
@@ -42,17 +41,14 @@ def _sintese_post_run(agent, result, args, session):
             f.write(html_full)
         logger.info("HTML saved to %s", args.html)
 
-    # Send newsletter
+    # Send newsletter broadcast
     if hasattr(args, "send") and args.send:
-        logger.info("Sending newsletter...")
+        logger.info("Sending newsletter broadcast...")
         edition = getattr(args, "edition", 1)
         subject = f"Sinal Semanal #{edition}"
-        beehiiv_ok = send_via_beehiiv(html_full, subject)
-        if not beehiiv_ok:
-            logger.info("Beehiiv not configured, skipping")
-        resend_ok = send_via_resend(html_full, subject, to_email="subscribers@sinal.ai")
-        if not resend_ok:
-            logger.info("Resend not configured or send failed")
+        ok = send_broadcast(html_full, subject)
+        if not ok:
+            logger.warning("Broadcast not sent — check RESEND_API_KEY and RESEND_AUDIENCE_ID")
 
 
 def main() -> None:
