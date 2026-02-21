@@ -15,6 +15,7 @@
     "test:agents": "cd apps/agents && pytest",
     "clean": "pnpm -r clean"
   },
+  "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
