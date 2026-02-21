@@ -4,12 +4,13 @@ import re
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header
 from passlib.hash import bcrypt
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
 from apps.api.schemas.auth import RegisterRequest, UserResponse, VerifyRequest
+from apps.api.services.email import send_welcome_email
 from packages.database.models.session import SessionDB
 from packages.database.models.user import User
 
@@ -19,7 +20,11 @@ EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+def register(
+    body: RegisterRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     """Create a new account with email and password.
 
     The password is hashed with bcrypt before storage. The user
@@ -45,6 +50,8 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    background_tasks.add_task(send_welcome_email, user.email, body.name)
 
     return UserResponse.model_validate(user)
 
