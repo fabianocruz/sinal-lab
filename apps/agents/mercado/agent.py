@@ -156,6 +156,27 @@ class MercadoAgent(BaseAgent):
         # Get source URLs
         source_urls = self.provenance.get_source_urls()[:20]  # Top 20 sources
 
+        # Extract structured per-item data for email rendering and API
+        metadata = {
+            "items": [
+                {
+                    "company_name": s.profile.name,
+                    "company_slug": s.profile.slug or "",
+                    "website": s.profile.website or "",
+                    "sector": s.profile.sector or "",
+                    "city": s.profile.city or "",
+                    "country": s.profile.country,
+                    "source_url": s.profile.source_url,
+                    "source_name": s.profile.source_name,
+                    "github_url": s.profile.github_url or "",
+                    "description": (s.profile.description or "")[:200],
+                    "tech_stack": s.profile.tech_stack[:5],
+                }
+                for s in scored_profiles[:10]
+            ],
+            "item_count": len(scored_profiles),
+        }
+
         # Create output
         output = AgentOutput(
             title=f"MERCADO Report — Semana {self.week_number}/2026",
@@ -170,6 +191,7 @@ class MercadoAgent(BaseAgent):
                 f"Semana {self.week_number}: {len(scored_profiles)} organizacoes tech "
                 f"descobertas no ecossistema LATAM."
             ),
+            metadata=metadata,
         )
 
         logger.info("OUTPUT phase complete: %s", output.title)

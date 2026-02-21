@@ -96,6 +96,22 @@ class SinteseAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Extract structured per-item data for email rendering and API
+        metadata = {
+            "items": [
+                {
+                    "title": s.item.title,
+                    "url": s.item.url,
+                    "source_name": s.item.source_name,
+                    "summary": (s.item.summary or "")[:200],
+                    "composite_score": round(s.composite_score, 3),
+                }
+                for s in scored_items[:15]
+            ],
+            "item_count": len(scored_items),
+            "total_sources": len(self.provenance.get_sources()),
+        }
+
         return AgentOutput(
             title=f"Sinal Semanal #{self.edition_number}",
             body_md=newsletter_md,
@@ -109,4 +125,5 @@ class SinteseAgent(BaseAgent):
                 f"Edicao #{self.edition_number} do Sinal Semanal — "
                 f"{len(scored_items)} itens analisados de {len(self.provenance.get_sources())} fontes."
             ),
+            metadata=metadata,
         )

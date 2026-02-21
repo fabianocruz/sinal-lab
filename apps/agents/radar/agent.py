@@ -94,6 +94,25 @@ class RadarAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Extract structured per-item data for email rendering and API
+        metadata = {
+            "items": [
+                {
+                    "title": s.signal.title,
+                    "url": s.signal.url,
+                    "source_name": s.signal.source_name,
+                    "source_type": s.signal.source_type,
+                    "summary": (s.signal.summary or "")[:200],
+                    "metrics": s.signal.metrics,
+                    "momentum_score": round(s.momentum_score, 3),
+                    "primary_topic": s.primary_topic,
+                }
+                for s in classified[:10]
+            ],
+            "item_count": len(classified),
+            "total_sources": len(self.provenance.get_sources()),
+        }
+
         return AgentOutput(
             title=f"RADAR Semanal — Semana {self.week_number}",
             body_md=report_md,
@@ -107,4 +126,5 @@ class RadarAgent(BaseAgent):
                 f"Semana {self.week_number}: {len(classified)} sinais analisados "
                 f"de {len(self.provenance.get_sources())} fontes."
             ),
+            metadata=metadata,
         )

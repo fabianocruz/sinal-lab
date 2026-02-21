@@ -167,6 +167,28 @@ class FundingAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Extract structured per-item data for email rendering and API
+        metadata = {
+            "items": [
+                {
+                    "company_name": s.event.company_name,
+                    "company_slug": s.event.company_slug or "",
+                    "round_type": s.event.round_type,
+                    "amount_usd": s.event.amount_usd,
+                    "currency": s.event.currency,
+                    "source_url": s.event.source_url,
+                    "source_name": s.event.source_name,
+                    "lead_investors": s.event.lead_investors,
+                    "notes": s.event.notes or "",
+                }
+                for s in scored_events[:10]
+            ],
+            "item_count": len(scored_events),
+            "funding_total_usd": sum(
+                s.event.amount_usd or 0 for s in scored_events
+            ),
+        }
+
         return AgentOutput(
             title=f"FUNDING Report — Semana {self.week_number}/2026",
             body_md=report_md,
@@ -180,4 +202,5 @@ class FundingAgent(BaseAgent):
                 f"Semana {self.week_number}: {len(scored_events)} rodadas analisadas "
                 f"de {len(self.provenance.get_sources())} fontes."
             ),
+            metadata=metadata,
         )

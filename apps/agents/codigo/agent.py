@@ -92,6 +92,25 @@ class CodigoAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Extract structured per-item data for email rendering and API
+        metadata = {
+            "items": [
+                {
+                    "title": s.signal.title,
+                    "url": s.signal.url,
+                    "source_name": s.signal.source_name,
+                    "signal_type": s.signal.signal_type,
+                    "language": s.signal.language or "",
+                    "summary": (s.signal.summary or "")[:200],
+                    "metrics": s.signal.metrics,
+                    "category": s.category,
+                    "adoption_indicator": s.adoption_indicator,
+                }
+                for s in analyzed[:10]
+            ],
+            "item_count": len(analyzed),
+        }
+
         return AgentOutput(
             title=f"CODIGO Semanal — Semana {self.week_number}",
             body_md=report_md,
@@ -105,4 +124,5 @@ class CodigoAgent(BaseAgent):
                 f"Semana {self.week_number}: {len(analyzed)} sinais dev analisados "
                 f"de {len(self.provenance.get_sources())} fontes."
             ),
+            metadata=metadata,
         )
