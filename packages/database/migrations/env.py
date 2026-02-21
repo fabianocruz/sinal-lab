@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, pool
 # Add project root to path so we can import models
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-load_dotenv()
+load_dotenv(override=False)
 
 from packages.database.models import Base  # noqa: E402
 
