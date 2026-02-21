@@ -4,13 +4,13 @@
 Reads Markdown outputs from all 5 agents, composes a single newsletter,
 converts to HTML, and sends via Resend Broadcasts.
 
-Usage:
-    python scripts/publish_newsletter.py --edition 8 --week 8
-    python scripts/publish_newsletter.py --edition 8 --week 8 --dry-run
-    python scripts/publish_newsletter.py --edition 8 --html /custom/path.html
+Usage (file-based broadcast):
+    python scripts/publish_newsletter.py broadcast --edition 8 --week 8
+    python scripts/publish_newsletter.py broadcast --edition 8 --week 8 --dry-run
 
-HTML output is always saved to output/newsletters/sinal-semanal-{edition}-week-{week}.html.
-Use --html to save an additional copy to a custom path.
+Usage (DB-based briefing email):
+    python scripts/publish_newsletter.py briefing --edition 48 --week 8 --recipient fabianoc@gmail.com
+    python scripts/publish_newsletter.py briefing --edition 48 --week 8 --dry-run
 """
 
 import argparse
@@ -189,26 +189,113 @@ def publish_newsletter(
         logger.info("Dry run — skipping broadcast")
 
 
+def publish_briefing_email(
+    edition: int,
+    week: Optional[int] = None,
+    dry_run: bool = False,
+    recipient: Optional[str] = None,
+) -> None:
+    """Compose a rich briefing email from DB content and send via Resend.
+
+    Reads published ContentPiece records, extracts structured metadata,
+    and builds a BriefingData payload for the branded email template.
+
+    Args:
+        edition: Newsletter edition number.
+        week: ISO week number. Defaults to current week.
+        dry_run: If True, save HTML preview but don't send.
+        recipient: Email address for test send. Required unless dry_run.
+    """
+    from apps.api.deps import get_session_factory
+    from apps.api.services.briefing_composer import compose_briefing_data
+    from apps.api.services.email import _build_briefing_html, send_newsletter_email
+
+    if week is None:
+        week = datetime.now().isocalendar()[1]
+
+    SessionLocal = get_session_factory()
+    session = SessionLocal()
+    try:
+        data = compose_briefing_data(session, edition, week)
+        if not data:
+            logger.error("No published SINTESE content found. Cannot compose briefing.")
+            return
+
+        logger.info(
+            "Composed briefing #%d (week %d): %s",
+            edition, week, data["sintese_title"],
+        )
+
+        if dry_run:
+            html = _build_briefing_html(data)
+            newsletter_dir = PROJECT_ROOT / NEWSLETTER_OUTPUT_SUBDIR
+            newsletter_dir.mkdir(parents=True, exist_ok=True)
+            preview_path = newsletter_dir / f"briefing-{edition}-preview.html"
+            preview_path.write_text(html, encoding="utf-8")
+            logger.info("Preview saved to %s", preview_path)
+            return
+
+        if not recipient:
+            logger.error("--recipient is required for non-dry-run sends.")
+            return
+
+        ok = send_newsletter_email(recipient, data)
+        if ok:
+            logger.info("Briefing email sent to %s", recipient)
+        else:
+            logger.warning("Failed to send briefing email to %s", recipient)
+    finally:
+        session.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Sinal.lab newsletter publisher — compose and send via Resend",
     )
-    parser.add_argument(
+    subparsers = parser.add_subparsers(dest="command", help="Publishing mode")
+
+    # broadcast — file-based Markdown → Resend Broadcasts (legacy)
+    broadcast_parser = subparsers.add_parser(
+        "broadcast", help="Compose from agent Markdown files and send via Resend Broadcasts",
+    )
+    broadcast_parser.add_argument(
         "--edition", type=int, required=True,
         help="Newsletter edition number",
     )
-    parser.add_argument(
+    broadcast_parser.add_argument(
         "--week", type=int, default=None,
-        help="ISO week number for week-based agents (defaults to current week)",
+        help="ISO week number (defaults to current week)",
     )
-    parser.add_argument(
+    broadcast_parser.add_argument(
         "--html", type=str, default=None,
-        help="Save an additional HTML copy to this path (default output is always saved to output/newsletters/)",
+        help="Save additional HTML copy to this path",
     )
-    parser.add_argument(
+    broadcast_parser.add_argument(
         "--dry-run", action="store_true",
-        help="Compose newsletter but don't send broadcast",
+        help="Compose but don't send",
     )
+
+    # briefing — DB-based structured data → Resend transactional email
+    briefing_parser = subparsers.add_parser(
+        "briefing", help="Compose from DB content and send rich briefing email",
+    )
+    briefing_parser.add_argument(
+        "--edition", type=int, required=True,
+        help="Newsletter edition number",
+    )
+    briefing_parser.add_argument(
+        "--week", type=int, default=None,
+        help="ISO week number (defaults to current week)",
+    )
+    briefing_parser.add_argument(
+        "--recipient", type=str, default=None,
+        help="Email address to send test briefing to",
+    )
+    briefing_parser.add_argument(
+        "--dry-run", action="store_true",
+        help="Save HTML preview but don't send",
+    )
+
     parser.add_argument(
         "--verbose", "-v", action="store_true",
         help="Verbose logging",
@@ -223,12 +310,22 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    publish_newsletter(
-        edition=args.edition,
-        week=args.week,
-        dry_run=args.dry_run,
-        html_path=args.html,
-    )
+    if args.command == "broadcast":
+        publish_newsletter(
+            edition=args.edition,
+            week=args.week,
+            dry_run=args.dry_run,
+            html_path=args.html,
+        )
+    elif args.command == "briefing":
+        publish_briefing_email(
+            edition=args.edition,
+            week=args.week,
+            dry_run=args.dry_run,
+            recipient=args.recipient,
+        )
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
