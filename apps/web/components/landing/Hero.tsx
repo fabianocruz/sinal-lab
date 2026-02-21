@@ -13,14 +13,14 @@ export default function Hero() {
         aria-hidden="true"
         className="pointer-events-none absolute -right-[20%] -top-[30%] h-[70%] w-[70%]"
         style={{
-          background: "radial-gradient(ellipse, rgba(232,255,89,0.04) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse, rgba(232,255,89,0.06) 0%, transparent 60%)",
         }}
       />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -bottom-[20%] -left-[10%] h-[50%] w-[50%]"
         style={{
-          background: "radial-gradient(ellipse, rgba(89,255,180,0.02) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse, rgba(89,255,180,0.04) 0%, transparent 60%)",
         }}
       />
 
