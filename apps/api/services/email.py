@@ -1,7 +1,7 @@
 """Email service — branded transactional emails via Resend.
 
-Provides a reusable brand template and send helpers for transactional
-emails (welcome, password reset, etc.) using the Resend REST API.
+Provides send helpers for transactional emails (welcome, password reset,
+etc.) using the Resend REST API. Brand template lives in email_template.py.
 """
 
 import logging
@@ -10,88 +10,15 @@ from typing import Optional
 import httpx
 
 from apps.api.config import get_settings
+from apps.api.services.email_template import build_brand_html
 
 logger = logging.getLogger(__name__)
 
 
+# Keep backward-compatible alias for existing tests and callers.
 def _wrap_in_brand_template(html_body: str, title: str) -> str:
-    """Wrap transactional email HTML in the Sinal brand template.
-
-    Uses Sinal.lab brand colors:
-    - body background: #0A0A0B (sinal-black)
-    - container: #1A1A1F (graphite) with subtle border
-    - accent: #E8FF59 (signal)
-    - text: #FAFAF8 (bone) for headings, #C4C4CC (muted) for body
-    - font: IBM Plex Sans
-    """
-    return f"""<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <style>
-        body {{
-            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            line-height: 1.65;
-            color: #C4C4CC;
-            max-width: 640px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #0A0A0B;
-        }}
-        .container {{
-            background-color: #1A1A1F;
-            padding: 32px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }}
-        h1 {{
-            color: #FAFAF8;
-            font-size: 24px;
-            margin-top: 0;
-        }}
-        p {{
-            margin: 16px 0;
-            font-size: 16px;
-        }}
-        a {{
-            color: #E8FF59;
-            text-decoration: none;
-        }}
-        a:hover {{
-            text-decoration: underline;
-        }}
-        .cta-button {{
-            display: inline-block;
-            background-color: #E8FF59;
-            color: #0A0A0B;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            text-decoration: none;
-            margin: 16px 0;
-        }}
-        .footer {{
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            font-size: 13px;
-            color: #8A8A96;
-            text-align: center;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        {html_body}
-        <div class="footer">
-            <p><strong>Sinal.lab</strong> \u2014 Intelig\u00eancia aberta para quem constr\u00f3i.</p>
-            <p><a href="https://sinal.ai">sinal.ai</a></p>
-        </div>
-    </div>
-</body>
-</html>"""
+    """Wrap transactional email HTML in the Sinal brand template."""
+    return build_brand_html(html_body, title)
 
 
 def _build_welcome_html(name: Optional[str] = None) -> str:
