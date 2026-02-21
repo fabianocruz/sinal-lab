@@ -467,3 +467,199 @@ class TestMe:
         )
 
         assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# POST /api/auth/sync-oauth
+# ---------------------------------------------------------------------------
+
+
+class TestSyncOAuth:
+    """Tests for POST /api/auth/sync-oauth."""
+
+    GOOGLE_PAYLOAD = {
+        "email": "google-user@gmail.com",
+        "name": "Google User",
+        "avatar_url": "https://lh3.googleusercontent.com/photo.jpg",
+        "provider": "google",
+        "provider_id": "google-sub-123456",
+    }
+
+    def test_sync_new_google_user_creates_user(self, client, db_session):
+        """A brand-new Google user is created in the database."""
+        response = client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["email"] == "google-user@gmail.com"
+        assert data["name"] == "Google User"
+        assert data["status"] == "active"
+
+        user = db_session.query(User).filter(User.email == "google-user@gmail.com").first()
+        assert user is not None
+        assert user.auth_provider == "google"
+        assert user.auth_provider_id == "google-sub-123456"
+        assert user.email_verified is True
+        assert user.password_hash is None
+
+    def test_sync_new_google_user_sends_welcome_email(self, client, monkeypatch):
+        """Creating a new Google user triggers a welcome email."""
+        import apps.api.routers.auth as auth_module
+
+        calls = []
+
+        def fake_send(email, name=None):
+            calls.append({"email": email, "name": name})
+            return True
+
+        monkeypatch.setattr(auth_module, "send_welcome_email", fake_send)
+
+        client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        assert len(calls) == 1
+        assert calls[0]["email"] == "google-user@gmail.com"
+        assert calls[0]["name"] == "Google User"
+
+    def test_sync_returning_google_user_updates_last_login(self, client, db_session):
+        """A returning Google user gets last_login_at updated."""
+        # First sync — creates user
+        client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        user = db_session.query(User).filter(User.email == "google-user@gmail.com").first()
+        first_login = user.last_login_at
+
+        # Second sync — returning user
+        response = client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        assert response.status_code == 200
+        db_session.refresh(user)
+        assert user.last_login_at >= first_login
+
+    def test_sync_returning_user_does_not_send_welcome_email(self, client, db_session, monkeypatch):
+        """A returning user should NOT receive another welcome email."""
+        import apps.api.routers.auth as auth_module
+
+        calls = []
+
+        def fake_send(email, name=None):
+            calls.append({"email": email, "name": name})
+            return True
+
+        monkeypatch.setattr(auth_module, "send_welcome_email", fake_send)
+
+        # First sync — new user, should get welcome
+        client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+        assert len(calls) == 1
+
+        # Second sync — returning user, no welcome
+        client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+        assert len(calls) == 1  # Still 1, not 2
+
+    def test_sync_upgrades_waitlist_user(self, client, db_session):
+        """A waitlist user signing in via Google is upgraded to active."""
+        waitlist_user = User(
+            id=uuid.uuid4(),
+            email="google-user@gmail.com",
+            name="Waitlist Name",
+            status="waitlist",
+            waitlist_position=15,
+        )
+        db_session.add(waitlist_user)
+        db_session.commit()
+        original_id = str(waitlist_user.id)
+
+        response = client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "active"
+        assert data["id"] == original_id
+        assert data["name"] == "Google User"
+
+    def test_sync_waitlist_preserves_position(self, client, db_session):
+        """Upgrading a waitlist user preserves their waitlist_position."""
+        waitlist_user = User(
+            id=uuid.uuid4(),
+            email="google-user@gmail.com",
+            status="waitlist",
+            waitlist_position=42,
+        )
+        db_session.add(waitlist_user)
+        db_session.commit()
+
+        client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        db_session.refresh(waitlist_user)
+        assert waitlist_user.status == "active"
+        assert waitlist_user.waitlist_position == 42
+
+    def test_sync_waitlist_sends_welcome_email(self, client, db_session, monkeypatch):
+        """Upgrading a waitlist user triggers a welcome email."""
+        import apps.api.routers.auth as auth_module
+
+        calls = []
+        monkeypatch.setattr(auth_module, "send_welcome_email", lambda e, n=None: calls.append(1) or True)
+
+        waitlist_user = User(
+            id=uuid.uuid4(),
+            email="google-user@gmail.com",
+            status="waitlist",
+        )
+        db_session.add(waitlist_user)
+        db_session.commit()
+
+        client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        assert len(calls) == 1
+
+    def test_sync_existing_email_user_does_not_overwrite_provider(self, client, db_session):
+        """An email-registered user signing in via Google keeps auth_provider='email'."""
+        email_user = User(
+            id=uuid.uuid4(),
+            email="google-user@gmail.com",
+            name="Email User",
+            password_hash=bcrypt.hash("some-password"),
+            auth_provider="email",
+            status="active",
+        )
+        db_session.add(email_user)
+        db_session.commit()
+
+        response = client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        assert response.status_code == 200
+        db_session.refresh(email_user)
+        assert email_user.auth_provider == "email"
+
+    def test_sync_normalizes_email(self, client, db_session):
+        """Email is lowercased and trimmed."""
+        payload = {**self.GOOGLE_PAYLOAD, "email": "  Google-User@GMAIL.COM  "}
+        response = client.post("/api/auth/sync-oauth", json=payload)
+
+        assert response.status_code == 200
+        assert response.json()["email"] == "google-user@gmail.com"
+
+    def test_sync_sets_email_verified_for_google(self, client, db_session):
+        """Google OAuth users are automatically email_verified."""
+        client.post("/api/auth/sync-oauth", json=self.GOOGLE_PAYLOAD)
+
+        user = db_session.query(User).filter(User.email == "google-user@gmail.com").first()
+        assert user.email_verified is True
+        assert user.email_verified_at is not None
+
+    def test_sync_invalid_email_returns_422(self, client):
+        """Invalid email returns 422."""
+        payload = {**self.GOOGLE_PAYLOAD, "email": "not-an-email"}
+        response = client.post("/api/auth/sync-oauth", json=payload)
+
+        assert response.status_code == 422
+
+    def test_sync_missing_provider_returns_422(self, client):
+        """Missing required provider field returns 422."""
+        payload = {
+            "email": "test@example.com",
+            "provider_id": "123",
+        }
+        response = client.post("/api/auth/sync-oauth", json=payload)
+
+        assert response.status_code == 422
