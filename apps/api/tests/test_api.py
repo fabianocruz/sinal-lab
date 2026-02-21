@@ -167,7 +167,9 @@ class TestContentRouter:
     def test_list_content_empty(self, client: TestClient):
         response = client.get("/api/content")
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
 
     def test_list_content_with_data(self, client: TestClient, db_session: Session):
         piece = ContentPiece(
@@ -184,8 +186,8 @@ class TestContentRouter:
         response = client.get("/api/content")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["title"] == "Sinal Semanal #1"
+        assert data["total"] == 1
+        assert data["items"][0]["title"] == "Sinal Semanal #1"
 
     def test_get_content_by_slug(self, client: TestClient, db_session: Session):
         piece = ContentPiece(
@@ -241,7 +243,8 @@ class TestContentRouter:
         response = client.get("/api/content?content_type=ANALYSIS")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 2
+        assert data["total"] == 2
+        assert len(data["items"]) == 2
 
 
 # ===== Companies Router =====

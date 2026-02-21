@@ -4,8 +4,9 @@
  * Ported from Vite SPA. Uses NEXT_PUBLIC_API_URL instead of VITE_API_BASE_URL.
  */
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import type { ContentApiItem } from "@/lib/newsletter";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,23 +28,11 @@ export interface WaitlistSignupResponse {
 export interface AgentSummary {
   agent_name: string;
   last_run: string | null;
-  status: 'active' | 'idle' | 'error';
+  status: "active" | "idle" | "error";
   items_processed: number;
   avg_confidence: number;
   sources: number;
   error_count: number;
-}
-
-export interface NewsletterItem {
-  id: string;
-  title: string;
-  slug: string;
-  content_type: string;
-  body: string;
-  summary?: string;
-  agent_name?: string;
-  published_at: string;
-  metadata?: Record<string, unknown>;
 }
 
 export interface PaginatedResponse<T> {
@@ -57,20 +46,16 @@ export interface PaginatedResponse<T> {
 // API Functions
 // ---------------------------------------------------------------------------
 
-export async function submitWaitlist(
-  data: WaitlistSignupData,
-): Promise<WaitlistSignupResponse> {
+export async function submitWaitlist(data: WaitlistSignupData): Promise<WaitlistSignupResponse> {
   const response = await fetch(`${API_BASE}/api/waitlist`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 
   if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: 'Failed to submit to waitlist' }));
-    throw new Error(error.detail || 'Failed to submit to waitlist');
+    const error = await response.json().catch(() => ({ detail: "Failed to submit to waitlist" }));
+    throw new Error(error.detail || "Failed to submit to waitlist");
   }
 
   return response.json();
@@ -97,11 +82,11 @@ export async function fetchAgentSummaries(): Promise<AgentSummary[]> {
   }
 }
 
-export async function fetchLatestNewsletter(): Promise<NewsletterItem | null> {
+export async function fetchLatestNewsletter(): Promise<ContentApiItem | null> {
   try {
-    const response = await fetch(
-      `${API_BASE}/api/content/newsletter/latest`,
-    );
+    const response = await fetch(`${API_BASE}/api/content/newsletter/latest`, {
+      next: { revalidate: 60 },
+    });
     if (!response.ok) return null;
     return response.json();
   } catch {
@@ -114,16 +99,17 @@ export async function fetchNewsletters(params?: {
   search?: string;
   limit?: number;
   offset?: number;
-}): Promise<PaginatedResponse<NewsletterItem>> {
+}): Promise<PaginatedResponse<ContentApiItem>> {
   try {
     const searchParams = new URLSearchParams();
-    if (params?.agent_name) searchParams.set('agent_name', params.agent_name);
-    if (params?.search) searchParams.set('search', params.search);
-    if (params?.limit) searchParams.set('limit', String(params.limit));
-    if (params?.offset) searchParams.set('offset', String(params.offset));
+    searchParams.set("status", "published");
+    if (params?.agent_name) searchParams.set("agent_name", params.agent_name);
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
 
     const url = `${API_BASE}/api/content?${searchParams.toString()}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { next: { revalidate: 60 } });
     if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
     return response.json();
   } catch {
@@ -131,11 +117,11 @@ export async function fetchNewsletters(params?: {
   }
 }
 
-export async function fetchNewsletterBySlug(
-  slug: string,
-): Promise<NewsletterItem | null> {
+export async function fetchNewsletterBySlug(slug: string): Promise<ContentApiItem | null> {
   try {
-    const response = await fetch(`${API_BASE}/api/content/${slug}`);
+    const response = await fetch(`${API_BASE}/api/content/${slug}`, {
+      next: { revalidate: 300 },
+    });
     if (!response.ok) return null;
     return response.json();
   } catch {

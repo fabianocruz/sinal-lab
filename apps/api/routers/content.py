@@ -1,4 +1,16 @@
-"""Content router — list and retrieve published content."""
+"""Content router — list and retrieve published content.
+
+Response format for GET /api/content (paginated):
+    {
+        "items": [ContentResponse, ...],
+        "total": <int>,    # total matching records (before pagination)
+        "limit": <int>,    # page size
+        "offset": <int>    # current offset
+    }
+
+The frontend (apps/web/lib/api.ts) expects this paginated envelope.
+Individual endpoints (/{slug}, /newsletter/latest) return a single object.
+"""
 
 from typing import Optional
 
@@ -13,16 +25,19 @@ from packages.database.models.content_piece import ContentPiece
 router = APIRouter(prefix="/content", tags=["content"])
 
 
-@router.get("", response_model=list[ContentResponse])
+# No response_model — we return a dict envelope {items, total, limit, offset}
+# instead of a bare list, so the frontend can handle pagination.
+@router.get("")
 def list_content(
     content_type: Optional[str] = Query(None, description="Filter by content type"),
     agent_name: Optional[str] = Query(None, description="Filter by agent"),
     status: Optional[str] = Query(None, description="Filter by review status"),
+    search: Optional[str] = Query(None, description="Case-insensitive title search (LIKE)"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """List content pieces with optional filtering."""
+    """List content pieces with optional filtering and pagination."""
     query = db.query(ContentPiece)
 
     if content_type:
@@ -31,14 +46,22 @@ def list_content(
         query = query.filter(ContentPiece.agent_name == agent_name)
     if status:
         query = query.filter(ContentPiece.review_status == status)
+    if search:
+        query = query.filter(ContentPiece.title.ilike(f"%{search}%"))
 
+    total = query.count()
     pieces = (
         query.order_by(desc(ContentPiece.created_at))
         .offset(offset)
         .limit(limit)
         .all()
     )
-    return pieces
+    return {
+        "items": [ContentResponse.model_validate(p) for p in pieces],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/newsletter/latest", response_model=Optional[ContentResponse])
@@ -55,7 +78,7 @@ def get_latest_newsletter(db: Session = Depends(get_db)):
         .first()
     )
     if not newsletter:
-        raise HTTPException(status_code=404, detail="No published newsletter found")
+        raise HTTPException(status_code=404, detail="Published newsletter not found")
     return newsletter
 
 

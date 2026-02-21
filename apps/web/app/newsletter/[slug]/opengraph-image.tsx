@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
-import { MOCK_NEWSLETTERS, AGENT_HEX } from "@/lib/newsletter";
+import { AGENT_HEX } from "@/lib/newsletter";
+import { mapApiToNewsletter, FALLBACK_NEWSLETTERS } from "@/lib/newsletter";
+import type { ContentApiItem } from "@/lib/newsletter";
 
 export const runtime = "edge";
 export const alt = "Sinal Newsletter";
@@ -24,11 +26,28 @@ const COLOR = {
   white: "#FAFAF8",
 } as const;
 
+async function fetchApiItem(slug: string): Promise<ContentApiItem | null> {
+  try {
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const response = await fetch(`${base}/api/content/${slug}`);
+    if (!response.ok) return null;
+    return response.json() as Promise<ContentApiItem>;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image({ params }: { params: { slug: string } }) {
-  const newsletter = MOCK_NEWSLETTERS.find((n) => n.slug === params.slug);
+  // Try the live API first, then fall back to static fallback data.
+  const apiItem = await fetchApiItem(params.slug);
+
+  const newsletter = apiItem
+    ? mapApiToNewsletter(apiItem, 0)
+    : (FALLBACK_NEWSLETTERS.find((n) => n.slug === params.slug) ?? null);
+
   const agentColor = newsletter ? AGENT_HEX[newsletter.agent] : COLOR.signal;
 
-  // --- Generic fallback when slug is not found ---
+  // --- Generic fallback when slug is not found anywhere ---
   if (!newsletter) {
     return new ImageResponse(
       <div

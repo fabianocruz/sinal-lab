@@ -1,0 +1,40 @@
+# Dockerfile.agents — Lightweight image for AI agent cron jobs on Railway.
+#
+# This image contains ONLY the agent code and its dependencies (no API server).
+# It is designed to be used with Railway Cron Services, where each service
+# overrides CMD to run a specific agent on a schedule. Example:
+#
+#   Service: sinal-agent-radar
+#   Schedule: 0 8 * * * (daily at 8am UTC)
+#   CMD: python scripts/run_agents.py radar --persist --verbose
+#
+# Required env vars: DATABASE_URL, ANTHROPIC_API_KEY, GITHUB_TOKEN (for radar)
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# gcc + libpq-dev: needed to compile psycopg2 (PostgreSQL driver)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install database layer first (SQLAlchemy, alembic, psycopg2)
+# then agent-specific deps (httpx, feedparser, anthropic, pytrends).
+# Two separate COPY+RUN steps for better Docker layer caching.
+COPY packages/database/requirements.txt /app/requirements-db.txt
+RUN pip install --no-cache-dir -r /app/requirements-db.txt
+COPY apps/agents/requirements.txt /app/requirements-agents.txt
+RUN pip install --no-cache-dir -r /app/requirements-agents.txt
+
+# Copy only what agents need — packages (database models, shared utils)
+# and agent code. No API server code to keep the image small.
+COPY packages/ /app/packages/
+COPY apps/agents/ /app/apps/agents/
+COPY scripts/run_agents.py /app/scripts/run_agents.py
+
+# Allow imports like "from packages.database.models import ..."
+ENV PYTHONPATH=/app
+
+# Default: run all agents. Override per Railway cron service.
+CMD ["python", "scripts/run_agents.py", "all", "--persist", "--verbose"]

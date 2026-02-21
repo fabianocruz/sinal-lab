@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AGENT_HEX } from "@/lib/newsletter";
 
 interface FilterOption {
@@ -19,7 +19,21 @@ const FILTER_OPTIONS: FilterOption[] = [
 ];
 
 export default function FilterPills() {
-  const [active, setActive] = useState("todos");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const active = searchParams.get("agent") ?? "todos";
+
+  function handleSelect(key: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (key === "todos") {
+      params.delete("agent");
+    } else {
+      params.set("agent", key);
+    }
+    // Reset to page 1 whenever the filter changes.
+    params.delete("page");
+    router.push(`/newsletter?${params.toString()}`);
+  }
 
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por agente">
@@ -28,7 +42,7 @@ export default function FilterPills() {
         return (
           <button
             key={option.key}
-            onClick={() => setActive(option.key)}
+            onClick={() => handleSelect(option.key)}
             aria-pressed={isActive}
             className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 font-mono text-[11px] uppercase tracking-[1px] transition-all duration-200 ${
               isActive

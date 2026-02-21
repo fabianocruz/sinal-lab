@@ -10,6 +10,8 @@ RUN apt-get update && \
 # Python dependencies
 COPY packages/database/requirements.txt /app/requirements-db.txt
 RUN pip install --no-cache-dir -r /app/requirements-db.txt
+COPY apps/agents/requirements.txt /app/requirements-agents.txt
+RUN pip install --no-cache-dir -r /app/requirements-agents.txt
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn[standard] \
