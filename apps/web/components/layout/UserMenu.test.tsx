@@ -20,6 +20,7 @@ vi.mock("next-auth/react", async () => {
 // Mock lucide-react icons
 vi.mock("lucide-react", () => ({
   LogOut: () => <span data-testid="logout-icon" />,
+  Settings: () => <span data-testid="settings-icon" />,
   User: () => <span data-testid="user-icon" />,
 }));
 
@@ -190,6 +191,39 @@ describe("UserMenu", () => {
       fireEvent.click(screen.getByRole("button", { name: /Sair/i }));
       expect(mockSignOut).toHaveBeenCalledTimes(1);
       expect(mockSignOut.mock.calls[0][0]).toEqual({ callbackUrl: "/" });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Admin link
+  // -------------------------------------------------------------------------
+
+  describe("admin link", () => {
+    it("test_usermenu_shows_admin_link_when_isAdmin_is_true", () => {
+      render(<UserMenu name="Admin" email="admin@test.com" isAdmin={true} />);
+      fireEvent.click(screen.getByRole("button", { name: "Menu da conta" }));
+      const link = screen.getByRole("link", { name: /Admin/i });
+      expect(link).toBeInTheDocument();
+      expect(link).toHaveAttribute("href", "/admin/content");
+    });
+
+    it("test_usermenu_hides_admin_link_when_isAdmin_is_false", () => {
+      render(<UserMenu name="User" email="user@test.com" isAdmin={false} />);
+      fireEvent.click(screen.getByRole("button", { name: "Menu da conta" }));
+      expect(screen.queryByRole("link", { name: /Admin/i })).not.toBeInTheDocument();
+    });
+
+    it("test_usermenu_hides_admin_link_when_isAdmin_is_undefined", () => {
+      render(<UserMenu name="User" email="user@test.com" />);
+      fireEvent.click(screen.getByRole("button", { name: "Menu da conta" }));
+      expect(screen.queryByRole("link", { name: /Admin/i })).not.toBeInTheDocument();
+    });
+
+    it("test_usermenu_admin_link_closes_dropdown", () => {
+      render(<UserMenu name="Admin" email="admin@test.com" isAdmin={true} />);
+      fireEvent.click(screen.getByRole("button", { name: "Menu da conta" }));
+      fireEvent.click(screen.getByRole("link", { name: /Admin/i }));
+      expect(screen.queryByRole("link", { name: /Admin/i })).not.toBeInTheDocument();
     });
   });
 });

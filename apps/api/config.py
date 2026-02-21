@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # AI
     anthropic_api_key: str = ""
 
+    # Admin
+    admin_emails: str = ""
+
     # Data Sources
     github_token: str = ""
 
@@ -42,6 +45,12 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]
+
+    @property
+    def admin_emails_list(self) -> list[str]:
+        if not self.admin_emails:
+            return []
+        return [e.strip().lower() for e in self.admin_emails.split(",")]
 
 
 @lru_cache

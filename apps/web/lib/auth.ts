@@ -106,14 +106,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // For Google sign-ins it will be undefined; default to "active".
         token.status = (user as { status?: string }).status ?? "active";
       }
+      // Check admin status via email allowlist (ADMIN_EMAILS env var)
+      const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+      token.isAdmin = adminEmails.includes((token.email ?? "").toLowerCase());
       return token;
     },
 
     async session({ session, token }) {
-      // Expose id and status on the client-side session object.
+      // Expose id, status, and isAdmin on the client-side session object.
       if (session.user) {
         session.user.id = token.id as string;
         (session.user as { status?: string }).status = token.status as string;
+        (session.user as { isAdmin?: boolean }).isAdmin = (token.isAdmin as boolean) ?? false;
       }
       return session;
     },

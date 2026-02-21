@@ -3,14 +3,15 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { LogOut, User } from "lucide-react";
+import { LogOut, Settings, User } from "lucide-react";
 
 interface UserMenuProps {
   name?: string | null;
   email?: string | null;
+  isAdmin?: boolean;
 }
 
-export default function UserMenu({ name, email }: UserMenuProps) {
+export default function UserMenu({ name, email, isAdmin }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +64,16 @@ export default function UserMenu({ name, email }: UserMenuProps) {
 
           {/* Menu items */}
           <div className="py-1">
+            {isAdmin && (
+              <Link
+                href="/admin/content"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 font-mono text-[13px] text-signal transition-colors hover:bg-[rgba(255,255,255,0.04)]"
+              >
+                <Settings size={15} />
+                Admin
+              </Link>
+            )}
             <Link
               href="/conta"
               onClick={() => setOpen(false)}
