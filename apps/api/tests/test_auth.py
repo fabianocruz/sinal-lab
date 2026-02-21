@@ -260,6 +260,67 @@ class TestRegister:
         assert calls[0]["email"] == "noname-welcome@example.com"
         assert calls[0]["name"] is None
 
+    def test_register_upgrades_waitlist_user(self, client, db_session):
+        """A waitlist user (no password) is upgraded to active on register."""
+        waitlist_user = User(
+            id=uuid.uuid4(),
+            email="waitlist@example.com",
+            name="Waitlist User",
+            password_hash=None,
+            auth_provider="email",
+            status="waitlist",
+            waitlist_position=42,
+        )
+        db_session.add(waitlist_user)
+        db_session.commit()
+        original_id = str(waitlist_user.id)
+
+        payload = {
+            "email": "waitlist@example.com",
+            "password": "new-password-123",
+            "name": "Upgraded User",
+        }
+        response = client.post("/api/auth/register", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["status"] == "active"
+        assert data["id"] == original_id  # Same user, not a new one
+        assert data["name"] == "Upgraded User"
+
+    def test_register_upgrade_preserves_waitlist_position(self, client, db_session):
+        """Upgrading a waitlist user preserves their waitlist_position."""
+        waitlist_user = User(
+            id=uuid.uuid4(),
+            email="keeper@example.com",
+            password_hash=None,
+            status="waitlist",
+            waitlist_position=7,
+        )
+        db_session.add(waitlist_user)
+        db_session.commit()
+
+        payload = {
+            "email": "keeper@example.com",
+            "password": "new-password-123",
+        }
+        client.post("/api/auth/register", json=payload)
+
+        db_session.refresh(waitlist_user)
+        assert waitlist_user.status == "active"
+        assert waitlist_user.waitlist_position == 7
+
+    def test_register_rejects_active_duplicate(self, client, registered_user):
+        """An active user with password cannot be 're-registered'."""
+        payload = {
+            "email": "existing@example.com",
+            "password": "another-password-456",
+        }
+        response = client.post("/api/auth/register", json=payload)
+
+        assert response.status_code == 409
+        assert "ja cadastrado" in response.json()["detail"].lower()
+
 
 # ---------------------------------------------------------------------------
 # POST /api/auth/verify

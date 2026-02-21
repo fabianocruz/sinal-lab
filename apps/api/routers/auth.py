@@ -37,6 +37,16 @@ def register(
 
     existing = db.query(User).filter(User.email == email).first()
     if existing:
+        # Upgrade waitlist-only users (no password) to active members
+        if existing.status == "waitlist" and not existing.password_hash:
+            existing.password_hash = bcrypt.hash(body.password)
+            existing.name = body.name or existing.name
+            existing.status = "active"
+            existing.auth_provider = "email"
+            db.commit()
+            db.refresh(existing)
+            background_tasks.add_task(send_welcome_email, existing.email, existing.name)
+            return UserResponse.model_validate(existing)
         raise HTTPException(status_code=409, detail="Email ja cadastrado.")
 
     user = User(
