@@ -7,6 +7,7 @@ interface ArchiveCardProps {
 }
 
 export default function ArchiveCard({ newsletter }: ArchiveCardProps) {
+  const persona = AGENT_PERSONAS[newsletter.agent];
   const agentInitial = newsletter.agentLabel.charAt(0);
 
   return (
@@ -64,8 +65,8 @@ export default function ArchiveCard({ newsletter }: ArchiveCardProps) {
         <div className="flex items-center gap-[10px]">
           <AgentAvatar agent={newsletter.agent} initial={agentInitial} />
           <div className="text-[13px]">
-            <strong className="block text-bone">Agente {newsletter.agentLabel}</strong>
-            <span className="text-[12px] text-ash">+ 4 agentes</span>
+            <strong className="block text-bone">{persona.name}</strong>
+            <span className="text-[12px] text-ash">{persona.role}</span>
           </div>
         </div>
       </div>
