@@ -69,8 +69,7 @@ const mockContentList: AdminContentList = {
   offset: 0,
 };
 
-const API_BASE = "http://localhost:8000";
-const ADMIN_PATH = `${API_BASE}/api/admin/content`;
+const ADMIN_PATH = "/api/admin/content";
 
 // ---------------------------------------------------------------------------
 // Setup / teardown
@@ -132,7 +131,7 @@ describe("adminFetch — shared behavior", () => {
     expect(result).toBeUndefined();
   });
 
-  it("calls the correct base URL (http://localhost:8000/api/admin/content)", async () => {
+  it("calls the correct base URL (/api/admin/content)", async () => {
     vi.mocked(fetch).mockResolvedValue(mockResponse(mockContent));
 
     await adminGetContent("test-article");

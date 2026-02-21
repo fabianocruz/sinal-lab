@@ -54,14 +54,40 @@ def get_db() -> Generator[Session, None, None]:
 
 def get_admin_user(
     authorization: str = Header(None),
+    x_admin_email: str = Header(None),
+    x_admin_secret: str = Header(None),
     db: Session = Depends(get_db),
 ) -> User:
     """FastAPI dependency that authenticates an admin user.
 
-    Validates the Bearer session token, checks expiry, and verifies
-    the user's email is in the ADMIN_EMAILS allowlist.
+    Supports two auth methods:
+    1. Service-to-service: X-Admin-Email + X-Admin-Secret headers
+       (used by the Next.js API route proxy)
+    2. Bearer session token: Authorization: Bearer <session_token>
+       (used by direct API calls with database sessions)
+
+    Both methods verify the user's email is in the ADMIN_EMAILS allowlist.
     Returns the User or raises 401/403.
     """
+    settings = get_settings()
+
+    # --- Method 1: Service-to-service auth (Next.js proxy) ---
+    if x_admin_email and x_admin_secret:
+        if not settings.admin_api_secret:
+            raise HTTPException(status_code=500, detail="ADMIN_API_SECRET nao configurado.")
+        if x_admin_secret != settings.admin_api_secret:
+            raise HTTPException(status_code=401, detail="Secret de admin invalido.")
+
+        email = x_admin_email.strip().lower()
+        if email not in settings.admin_emails_list:
+            raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
+
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario nao encontrado.")
+        return user
+
+    # --- Method 2: Bearer session token ---
     if not authorization:
         raise HTTPException(status_code=401, detail="Token de sessao ausente.")
 
@@ -86,7 +112,6 @@ def get_admin_user(
     if not user:
         raise HTTPException(status_code=401, detail="Usuario nao encontrado.")
 
-    settings = get_settings()
     if user.email.lower() not in settings.admin_emails_list:
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
 
