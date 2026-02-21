@@ -47,6 +47,12 @@ export default async function AgentContentPage({
 
   const newsletter = mapApiToNewsletter(apiItem, 0);
 
+  // Validate the fetched content belongs to this agent's route.
+  // e.g. /radar/some-slug should not render funding content.
+  if (newsletter.agent !== agentName) {
+    notFound();
+  }
+
   return (
     <>
       <Navbar />
