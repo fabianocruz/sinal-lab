@@ -130,20 +130,20 @@ describe("GatedOverlay", () => {
     ).toBeInTheDocument();
   });
 
-  it("test_gatedoverlay_render_shows_criar_conta_link_to_cadastro", () => {
+  it("test_gatedoverlay_render_shows_criar_conta_link_to_cadastro_with_callback", () => {
     render(<GatedOverlay />);
 
     const link = screen.getByRole("link", { name: "Criar conta gratuita" });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/cadastro");
+    expect(link).toHaveAttribute("href", "/cadastro?callbackUrl=%2F");
   });
 
-  it("test_gatedoverlay_render_shows_ja_tenho_conta_link_to_login", () => {
+  it("test_gatedoverlay_render_shows_ja_tenho_conta_link_to_login_with_callback", () => {
     render(<GatedOverlay />);
 
     const link = screen.getByRole("link", { name: "Já tenho conta" });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/login");
+    expect(link).toHaveAttribute("href", "/login?callbackUrl=%2F");
   });
 
   it("test_gatedoverlay_render_shows_disclaimer_text", () => {
@@ -171,8 +171,8 @@ describe("GatedOverlay", () => {
 
     const links = screen.getAllByRole("link");
     const hrefs = links.map((l) => l.getAttribute("href"));
-    expect(hrefs).toContain("/cadastro");
-    expect(hrefs).toContain("/login");
+    expect(hrefs).toContain("/cadastro?callbackUrl=%2F");
+    expect(hrefs).toContain("/login?callbackUrl=%2F");
   });
 });
 

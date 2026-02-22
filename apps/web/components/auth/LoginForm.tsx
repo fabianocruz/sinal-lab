@@ -3,12 +3,14 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type FormStatus = "idle" | "loading" | "error";
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<FormStatus>("idle");
@@ -38,15 +40,15 @@ export default function LoginForm() {
       return;
     }
 
-    // Successful login — redirect to the dashboard or home.
-    router.push("/");
+    // Successful login — redirect to callbackUrl or home.
+    router.push(callbackUrl);
     router.refresh();
   }
 
   async function handleGoogleSignIn() {
     setStatus("loading");
     setErrorMsg("");
-    await signIn("google", { callbackUrl: "/" });
+    await signIn("google", { callbackUrl });
   }
 
   const isLoading = status === "loading";

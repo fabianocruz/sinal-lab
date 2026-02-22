@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function GatedOverlay() {
+  const pathname = usePathname();
+  const callbackParam = pathname ? `?callbackUrl=${encodeURIComponent(pathname)}` : "";
+
   return (
     <div className="relative -mt-[100px]">
       {/* Gradient fade that overlaps the last visible paragraph by ~100px */}
@@ -24,14 +28,14 @@ export default function GatedOverlay() {
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link
-            href="/cadastro"
+            href={`/cadastro${callbackParam}`}
             className="w-full rounded-lg bg-signal px-6 py-3 text-center font-mono text-[13px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim sm:w-auto"
           >
             Criar conta gratuita
           </Link>
 
           <Link
-            href="/login"
+            href={`/login${callbackParam}`}
             className="w-full rounded-lg border border-[rgba(255,255,255,0.06)] px-6 py-3 text-center font-mono text-[13px] text-sinal-white transition-colors hover:border-[rgba(255,255,255,0.15)] hover:bg-[rgba(255,255,255,0.04)] sm:w-auto"
           >
             Já tenho conta

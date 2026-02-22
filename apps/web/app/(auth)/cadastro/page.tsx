@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import SignupForm from "@/components/auth/SignupForm";
@@ -25,7 +26,9 @@ export default function CadastroPage() {
           </p>
         </div>
 
-        <SignupForm />
+        <Suspense>
+          <SignupForm />
+        </Suspense>
       </div>
     </main>
   );
