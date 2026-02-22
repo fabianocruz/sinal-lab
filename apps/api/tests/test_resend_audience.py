@@ -223,3 +223,58 @@ class TestBulkSync:
         assert result["synced"] == 0
         assert result["failed"] == 0
         mock_add.assert_not_called()
+
+    @patch("apps.api.services.resend_audience.time.sleep")
+    @patch("apps.api.services.resend_audience.add_contact_to_audience")
+    @patch("apps.api.services.resend_audience.get_settings")
+    def test_rate_limits_between_contacts(self, mock_settings, mock_add, mock_sleep):
+        mock_settings.return_value = _mock_settings()
+        mock_add.return_value = True
+
+        contacts = [
+            {"email": "a@example.com"},
+            {"email": "b@example.com"},
+            {"email": "c@example.com"},
+        ]
+        bulk_sync_contacts(contacts)
+
+        # sleep is called N-1 times — never before the first contact
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_called_with(0.6)
+
+    @patch("apps.api.services.resend_audience.time.sleep")
+    @patch("apps.api.services.resend_audience.add_contact_to_audience")
+    @patch("apps.api.services.resend_audience.get_settings")
+    def test_no_sleep_for_single_contact(self, mock_settings, mock_add, mock_sleep):
+        mock_settings.return_value = _mock_settings()
+        mock_add.return_value = True
+
+        bulk_sync_contacts([{"email": "only@example.com"}])
+
+        mock_sleep.assert_not_called()
+
+    @patch("apps.api.services.resend_audience.time.sleep")
+    @patch("apps.api.services.resend_audience.add_contact_to_audience")
+    @patch("apps.api.services.resend_audience.get_settings")
+    def test_no_sleep_for_empty_list(self, mock_settings, mock_add, mock_sleep):
+        mock_settings.return_value = _mock_settings()
+
+        bulk_sync_contacts([])
+
+        mock_sleep.assert_not_called()
+
+    @patch("apps.api.services.resend_audience.time.sleep")
+    @patch("apps.api.services.resend_audience.add_contact_to_audience")
+    @patch("apps.api.services.resend_audience.get_settings")
+    def test_custom_delay_parameter(self, mock_settings, mock_add, mock_sleep):
+        mock_settings.return_value = _mock_settings()
+        mock_add.return_value = True
+
+        contacts = [
+            {"email": "a@example.com"},
+            {"email": "b@example.com"},
+        ]
+        bulk_sync_contacts(contacts, delay=1.0)
+
+        assert mock_sleep.call_count == 1
+        mock_sleep.assert_called_with(1.0)

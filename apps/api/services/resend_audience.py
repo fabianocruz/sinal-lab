@@ -7,6 +7,7 @@ Requires RESEND_API_KEY and RESEND_AUDIENCE_ID environment variables.
 """
 
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -114,10 +115,16 @@ def remove_contact_from_audience(email: str) -> bool:
 
 def bulk_sync_contacts(
     contacts: list[dict],
+    delay: float = 0.6,
 ) -> dict:
     """Sync a list of contacts to the Resend Audience.
 
     Each contact dict should have 'email' and optionally 'first_name'.
+
+    Args:
+        contacts: List of dicts with 'email' and optional 'first_name'.
+        delay: Seconds to wait between API calls (default 0.6s to stay
+               under Resend's 2 req/s rate limit).
 
     Returns {"synced": N, "failed": N, "skipped": bool}.
     """
@@ -129,7 +136,10 @@ def bulk_sync_contacts(
     synced = 0
     failed = 0
 
-    for contact in contacts:
+    for i, contact in enumerate(contacts):
+        if i > 0:
+            time.sleep(delay)
+
         ok = add_contact_to_audience(
             email=contact["email"],
             first_name=contact.get("first_name"),

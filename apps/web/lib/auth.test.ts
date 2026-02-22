@@ -450,6 +450,92 @@ describe("session callback", () => {
 });
 
 // ---------------------------------------------------------------------------
+// fetchWithRetry (tested indirectly via authorize)
+//
+// fetchWithRetry is a module-private function. We exercise it through the
+// CredentialsProvider authorize function, which is the only caller reachable
+// from tests. The three behaviours we verify are:
+//   1. 502 on first attempt → waits 2 s → retries → returns user on success
+//   2. 502 on both attempts → authorize returns null (response.ok is false)
+//   3. Non-502 error (e.g. 401) → no retry, fetch called exactly once
+//
+// The setTimeout(2000) inside fetchWithRetry is handled with fake timers so
+// the test suite does not block for a real two seconds.
+// ---------------------------------------------------------------------------
+
+describe("fetchWithRetry (via authorize)", () => {
+  it("test_authorize_retries_on_502_and_returns_user_on_second_attempt", async () => {
+    vi.useFakeTimers();
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(mockFetchResponse({}, { ok: false, status: 502 }))
+      .mockResolvedValueOnce(
+        mockFetchResponse({
+          id: 1,
+          email: "u@e.com",
+          name: null,
+          avatar_url: null,
+          status: "active",
+        }),
+      );
+
+    const promise = authorize({ email: "u@e.com", password: "pass" }, {});
+
+    // Advance past the 2-second back-off delay inside fetchWithRetry.
+    await vi.advanceTimersByTimeAsync(2000);
+
+    const result = await promise;
+
+    vi.useRealTimers();
+
+    // Two fetch calls: initial 502 attempt + one retry.
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+    // Second attempt succeeded — authorize should return the mapped user.
+    expect(result).toEqual({
+      id: "1",
+      email: "u@e.com",
+      name: null,
+      image: null,
+      status: "active",
+    });
+  });
+
+  it("test_authorize_returns_null_when_both_attempts_return_502", async () => {
+    vi.useFakeTimers();
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(mockFetchResponse({}, { ok: false, status: 502 }))
+      .mockResolvedValueOnce(mockFetchResponse({}, { ok: false, status: 502 }));
+
+    const promise = authorize({ email: "u@e.com", password: "pass" }, {});
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    const result = await promise;
+
+    vi.useRealTimers();
+
+    // Both attempts returned 502 — response.ok is false so authorize returns null.
+    expect(result).toBeNull();
+    // fetchWithRetry still issued exactly two calls.
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it("test_authorize_does_not_retry_on_non_502_error_status", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockFetchResponse({ detail: "Unauthorized" }, { ok: false, status: 401 }),
+    );
+
+    const result = await authorize({ email: "u@e.com", password: "wrong" }, {});
+
+    // 401 is not a 502 — fetchWithRetry must NOT issue a second fetch call.
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    // Non-ok response → authorize returns null.
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // NextAuth API route (app/api/auth/[...nextauth]/route.ts)
 // ---------------------------------------------------------------------------
 
