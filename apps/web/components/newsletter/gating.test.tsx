@@ -79,7 +79,7 @@ const mockNewsletterShortBody: Newsletter = {
 
 // ---------------------------------------------------------------------------
 // Helper: query the footer note paragraph whose textContent contains "Sinal e
-// gerado por 5 agentes". The paragraph mixes a <strong> child and plain text
+// gerado por centenas de agentes". The paragraph mixes a <strong> child and plain text
 // nodes, so a regex matcher will not find it — we must match by textContent.
 // ---------------------------------------------------------------------------
 
@@ -87,7 +87,7 @@ function queryFooterNote(): HTMLElement | null {
   return screen.queryByText(
     (_content, element) =>
       element?.tagName === "P" &&
-      (element.textContent ?? "").includes("é gerado por 5 agentes de IA"),
+      (element.textContent ?? "").includes("é gerado por centenas de agentes de IA"),
   );
 }
 

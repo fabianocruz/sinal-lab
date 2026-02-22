@@ -236,7 +236,7 @@ a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !im
   </p>
 
   <p style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; color: #C4C4CC; line-height: 1.7; margin: 0 0 20px 0;">
-    A partir de agora, toda segunda-feira voc\u00ea recebe o <strong style="color:#FAFAF8;">Briefing Sinal</strong> \u2014 uma curadoria de intelig\u00eancia sobre o ecossistema tech da Am\u00e9rica Latina, pesquisada por 5 agentes de IA e revisada por editores humanos.
+    A partir de agora, toda segunda-feira voc\u00ea recebe o <strong style="color:#FAFAF8;">Briefing Sinal</strong> \u2014 uma curadoria de intelig\u00eancia sobre o ecossistema tech da Am\u00e9rica Latina, pesquisada por centenas de agentes de IA e revisada por editores humanos.
   </p>
 
   <p style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; color: #C4C4CC; line-height: 1.7; margin: 0 0 20px 0;">
@@ -572,7 +572,7 @@ a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !im
   </p>
 
   <p style="font-family: Georgia, 'Times New Roman', serif; font-size: 20px; color: #FAFAF8; line-height: 1.35; margin: 0 0 20px 0;">
-    Toda segunda-feira, 5 agentes<br>trabalham para voc\u00ea.
+    Toda segunda-feira, centenas de agentes<br>trabalham para voc\u00ea.
   </p>
 
   <!-- Agent list -->
@@ -1599,7 +1599,7 @@ def _briefing_footer() -> str:
         Intelig\u00eancia aberta para quem constr\u00f3i.
       </p>
       <p style="font-family: {_FONT_SANS}; font-size: 11px; color: {_COLOR_BORDER}; margin: 0 0 12px 0;">
-        Gerada por 5 agentes de IA \u00b7 Revisada por editores humanos
+        Gerada por centenas de agentes de IA \u00b7 Revisada por editores humanos
       </p>
 
       <p style="font-family: {_FONT_MONO}; font-size: 11px; color: {_COLOR_MUTED}; margin: 0 0 12px 0; letter-spacing: 0.5px;">

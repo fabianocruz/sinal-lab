@@ -127,8 +127,8 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
         <>
           <div className="mt-12 rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-6">
             <p className="font-mono text-[12px] text-ash">
-              <strong className="text-bone">Sinal</strong> é gerado por 5 agentes de IA e revisado
-              por editores humanos.{" "}
+              <strong className="text-bone">Sinal</strong> é gerado por centenas de agentes de IA e
+              revisado por editores humanos.{" "}
               <Link href="/#metodologia" className="text-signal underline underline-offset-2">
                 Metodologia
               </Link>{" "}
