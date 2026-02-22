@@ -20,6 +20,7 @@ export default function NewContentPage() {
         summary: data.summary || undefined,
         meta_description: data.meta_description || undefined,
         sources: data.sources.length > 0 ? data.sources : undefined,
+        author_name: data.author_name || undefined,
       });
       router.push("/admin/content");
     } catch (err) {
@@ -40,6 +41,7 @@ export default function NewContentPage() {
         summary: data.summary || undefined,
         meta_description: data.meta_description || undefined,
         sources: data.sources.length > 0 ? data.sources : undefined,
+        author_name: data.author_name || undefined,
       });
       await adminPublishContent(created.slug);
       router.push("/admin/content");

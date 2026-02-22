@@ -38,6 +38,7 @@ export default function EditContentPage() {
         summary: data.summary || undefined,
         meta_description: data.meta_description || undefined,
         sources: data.sources.length > 0 ? data.sources : undefined,
+        author_name: data.author_name || undefined,
       });
       router.push("/admin/content");
     } catch (err) {
@@ -71,6 +72,7 @@ export default function EditContentPage() {
           summary: "",
           meta_description: content.meta_description ?? "",
           sources: content.sources ?? [],
+          author_name: content.author_name ?? "",
         }}
         onSave={handleSave}
         saving={saving}
