@@ -232,15 +232,16 @@ def test_get_content_by_slug_not_found(client, sample_content):
 
 
 def test_content_ordering(client, sample_content):
-    """Test that content is ordered by created_at descending."""
+    """Test that content is ordered by published_at descending."""
     response = client.get("/api/content")
 
     assert response.status_code == 200
     data = response.json()
     items = data["items"]
 
-    # Verify descending order (most recent first)
-    assert items[0]["slug"] == "draft-article"
+    # Verify descending order by published_at (most recent first)
+    # newsletter-edition-1 has published_at=Feb 15 (latest)
+    assert items[0]["slug"] == "newsletter-edition-1"
 
 
 def test_content_response_schema(client, sample_content):

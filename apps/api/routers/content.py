@@ -51,7 +51,7 @@ def list_content(
 
     total = query.count()
     pieces = (
-        query.order_by(desc(ContentPiece.created_at))
+        query.order_by(desc(ContentPiece.published_at))
         .offset(offset)
         .limit(limit)
         .all()

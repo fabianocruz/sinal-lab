@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed the content_pieces table with the 20 founding newsletters.
+"""Seed the content_pieces table with the 30 founding newsletters.
 
 Usage:
     python scripts/seed_content.py                  # insert into DB
@@ -336,6 +336,157 @@ Para startups de e-commerce infrastructure, o sinal é importante: o exit mais p
 Brasil lidera com o PL 2338/2023, a regulação mais detalhada e prescritiva da região: classificação de risco obrigatória, sandbox regulatório, e uma autoridade dedicada (que ainda não existe). México optou por uma abordagem de soft law — diretrizes voluntárias sem força de lei. Colômbia criou um framework setorial (regulações diferentes para IA em saúde, finanças e governo). Chile apostou em princípios éticos sem mecanismos de enforcement. Argentina simplesmente não tem regulação — e algumas startups de IA estão se incorporando lá exatamente por isso.
 
 Para quem está construindo: a fragmentação regulatória é um moat para startups que conseguem navegar múltiplas jurisdições. RegTech de IA — ferramentas que ajudam empresas a cumprir regulações de IA em diferentes países LATAM — é uma vertical que não existia há 12 meses e que agora tem pelo menos 4 startups financiadas.""",
+    },
+    # --- Edições 28-19: backlog estendido (set/2025 → jul/2025) ---
+    {
+        "slug": "briefing-28-infraestrutura-pagamentos-latam",
+        "title": "A guerra invisível da infraestrutura de pagamentos na América Latina",
+        "subtitle": "TAMBÉM: Pix internacional · SPEI evolui · Transferencias 3.0 na Argentina",
+        "agent_name": "sintese",
+        "content_type": "DATA_REPORT",
+        "confidence_dq": 5.0,
+        "published_at": "2025-09-22",
+        "meta_description": "Análise da competição entre infraestruturas de pagamento na América Latina.",
+        "body_md": """A batalha mais consequente do ecossistema tech latino-americano não está acontecendo no nível de aplicação — está na camada de infraestrutura de pagamentos. Três sistemas nacionais estão evoluindo em paralelo: Pix no Brasil, SPEI/CoDi no México e Transferencias 3.0 na Argentina.
+
+O Pix completou três anos processando mais de 4 bilhões de transações mensais. O dado mais relevante desta semana: o Banco Central anunciou que o Pix internacional entrará em operação no segundo trimestre de 2026, permitindo transferências instantâneas entre Brasil e países do Mercosul. Isso muda fundamentalmente o cenário para fintechs de remessas.
+
+Para quem está construindo: a interoperabilidade entre sistemas de pagamento nacionais vai criar uma camada de infraestrutura que não existe hoje. Startups que consigam abstrair as diferenças entre Pix, SPEI e Transferencias 3.0 em uma API unificada estão posicionadas para capturar valor desproporcional.""",
+    },
+    {
+        "slug": "briefing-27-devtools-latam-emergem",
+        "title": "DevTools made in LATAM: 8 ferramentas que estão ganhando tração global",
+        "subtitle": "TAMBÉM: CLI tools em Rust · Observability para edge · DX como diferencial",
+        "agent_name": "codigo",
+        "content_type": "ANALYSIS",
+        "confidence_dq": None,
+        "published_at": "2025-09-15",
+        "meta_description": "Mapeamento de developer tools criadas na América Latina com tração global.",
+        "body_md": """Historicamente, a América Latina consumiu ferramentas de desenvolvimento criadas em outros lugares. Em 2025, isso está mudando. Mapeamos 8 developer tools criadas por equipes LATAM que atingiram mais de 1.000 stars no GitHub ou mais de 500 usuários ativos.
+
+O padrão é consistente: nenhuma dessas ferramentas tenta reinventar categorias existentes. Todas resolvem problemas de nicho que os grandes players ignoram — debugging de webhooks em ambientes de pagamento fragmentados, testing de integrações bancárias em sandbox, observability otimizado para edge functions em regiões com alta latência.
+
+O sinal mais forte: duas dessas ferramentas foram aceitas no programa de open source do GitHub (GitHub Sponsors) e uma está no pipeline de aquisição de uma empresa de DevEx americana. Developer tools é uma vertical onde a proximidade com problemas reais de infraestrutura LATAM se torna vantagem competitiva global.""",
+    },
+    {
+        "slug": "briefing-26-venture-debt-latam",
+        "title": "Venture debt chega à América Latina: alternativa ou armadilha?",
+        "subtitle": "TAMBÉM: 5 deals mapeados · US$120M em dívida · Silicon Valley Bank effect",
+        "agent_name": "funding",
+        "content_type": "ANALYSIS",
+        "confidence_dq": 4.0,
+        "published_at": "2025-09-08",
+        "meta_description": "Análise da chegada do venture debt como instrumento de financiamento na América Latina.",
+        "body_md": """Venture debt — dívida estruturada para startups que já captaram equity — está chegando à América Latina com dois anos de atraso em relação ao mercado americano. Nos últimos 90 dias, mapeamos 5 deals de venture debt na região totalizando US$120M. É o começo de um mercado que nos EUA movimenta US$30B por ano.
+
+A chegada é impulsionada por dois fatores: o colapso do SVB abriu espaço para novos players, e o custo de equity na LATAM ficou tão alto que fundadores estão buscando alternativas não-dilutivas. TriplePoint, Hercules e um player local (ainda não anunciado) estão ativando operações na região.
+
+O risco é real: venture debt na LATAM opera em um ambiente onde recuperação de crédito é significativamente mais lenta e complexa que nos EUA. A empresa que usa dívida para estender runway sem resolver unit economics está apenas adiando o problema — com juros. Para as certas (receita recorrente, churn baixo, path to profitability claro), é uma ferramenta poderosa.""",
+    },
+    {
+        "slug": "briefing-25-agritech-latam-dados-satelite",
+        "title": "Agritech LATAM: dados de satélite e IA estão transformando o agro",
+        "subtitle": "TAMBÉM: 3 Series A no setor · US$67M investidos · Precision agriculture",
+        "agent_name": "radar",
+        "content_type": "ANALYSIS",
+        "confidence_dq": None,
+        "published_at": "2025-09-01",
+        "meta_description": "Como dados de satélite e IA estão revolucionando o agritech na América Latina.",
+        "body_md": """O agritech latino-americano está passando por uma transformação silenciosa impulsionada pela convergência de três tecnologias: imagens de satélite de alta resolução (agora acessíveis a US$0.50/hectare), modelos de IA treinados em dados agrícolas regionais, e IoT de baixo custo com conectividade via satélite (Starlink).
+
+Três startups de agritech LATAM fecharam Series A nas últimas 6 semanas — duas no Brasil e uma na Argentina — totalizando US$67M. Todas compartilham uma tese: o agro latino-americano opera com margem bruta alta mas eficiência operacional baixa. Cada 1% de melhoria em rendimento por hectare representa bilhões de dólares em valor capturado.
+
+O dado mais relevante: a adoção de precision agriculture por fazendas acima de 1.000 hectares no Brasil saltou de 12% para 34% entre 2023 e 2025. A barreira não é mais tecnológica — é de go-to-market. Startups que conseguem distribuir via cooperativas e revendas agrícolas estão crescendo 3x mais rápido que as que vendem direto.""",
+    },
+    {
+        "slug": "briefing-24-cybersecurity-latam-gap",
+        "title": "O gap de cybersecurity na LATAM: problema de US$8B que ninguém resolve",
+        "subtitle": "DEEP DIVE: Mapeamento com 15 fontes e 6 entrevistas",
+        "agent_name": "sintese",
+        "content_type": "DEEP_DIVE",
+        "confidence_dq": 5.0,
+        "published_at": "2025-08-25",
+        "meta_description": "Deep dive sobre o gap de cybersecurity na América Latina e oportunidades para startups.",
+        "body_md": """A América Latina tem o maior gap de cybersecurity per capita entre regiões emergentes — e esse gap está crescendo. Com a digitalização acelerada pós-pandemia, a superfície de ataque expandiu massivamente, mas o investimento em segurança não acompanhou. Estimamos o mercado endereçável em US$8B, com menos de 15% servido por soluções locais.
+
+Entrevistamos 6 CISOs de empresas brasileiras e mexicanas de grande porte. O consenso: soluções americanas e israelenses dominam o mercado enterprise, mas são caras demais para o mid-market e completamente inacessíveis para PMEs. O gap real não está no topo da pirâmide — está no meio e na base, onde 90% das empresas LATAM operam sem qualquer proteção além de antivírus básico.
+
+Mapeamos 12 startups de cybersecurity na região. A maioria ataca o segmento enterprise, competindo com incumbentes globais. As duas com melhor traction atacam o mid-market com modelos self-service de preço acessível — exatamente onde o gap é maior. É a mesma lógica que funcionou para fintechs: democratizar acesso a serviços que antes eram exclusivos de grandes empresas.""",
+    },
+    {
+        "slug": "briefing-23-legaltech-compliance-automatizado",
+        "title": "Legaltech LATAM: compliance automatizado é a killer app",
+        "subtitle": "TAMBÉM: 4 startups de RegTech · NLP jurídico em português · Automação fiscal",
+        "agent_name": "mercado",
+        "content_type": "ANALYSIS",
+        "confidence_dq": None,
+        "published_at": "2025-08-18",
+        "meta_description": "Como legaltech e compliance automatizado estão crescendo na América Latina.",
+        "body_md": """Se existe uma vertical onde a complexidade regulatória da América Latina se torna vantagem em vez de obstáculo, é legaltech. A região tem a legislação tributária mais complexa do mundo (o Brasil sozinho tem mais de 60 tributos diferentes), e cada mudança regulatória cria demanda por automação.
+
+Quatro startups de RegTech LATAM captaram nos últimos 60 dias, todas na interseção de NLP + compliance. O caso de uso dominante: monitoramento automático de mudanças regulatórias com alertas contextualizados por setor e jurisdição. Parece simples, mas a execução exige modelos de linguagem treinados em jargão jurídico em português e espanhol — algo que modelos genéricos fazem mal.
+
+O sinal mais forte desta semana: uma das big four de auditoria está testando internamente uma solução de compliance automatizado desenvolvida por uma startup brasileira. Se o piloto escalar, é validação institucional que pode acelerar a adoção por todo o mercado enterprise. A legaltech LATAM está onde a fintech estava em 2017 — prestes a explodir.""",
+    },
+    {
+        "slug": "briefing-22-proptech-real-estate-digital",
+        "title": "PropTech LATAM: o real estate encontra a digitalização (finalmente)",
+        "subtitle": "TAMBÉM: Tokenização de imóveis · Marketplace B2B · Credit scoring imobiliário",
+        "agent_name": "radar",
+        "content_type": "DATA_REPORT",
+        "confidence_dq": 4.0,
+        "published_at": "2025-08-11",
+        "meta_description": "Análise da digitalização do mercado imobiliário na América Latina via proptech.",
+        "body_md": """O mercado imobiliário é a última grande vertical da economia latino-americana a ser digitalizada — e 2025 é o ano em que isso começou a mudar de verdade. Mapeamos 31 proptechs ativas na região, 14 delas fundadas nos últimos 18 meses. O capital acumulado no setor: US$280M.
+
+A tokenização de imóveis emergiu como o caso de uso mais promissor, especialmente no Brasil, onde a CVM (regulador de valores mobiliários) criou um sandbox regulatório específico para tokens imobiliários. Três plataformas já operam com licença experimental, e o volume transacionado triplicou no último trimestre.
+
+Mas o impacto maior pode vir de uma aplicação menos sexy: credit scoring imobiliário baseado em dados alternativos. Na LATAM, 60% dos compradores de primeiro imóvel não têm histórico de crédito tradicional suficiente. Startups que usam dados de aluguel, utilities e comportamento digital para gerar scores estão desbloqueando uma demanda reprimida gigantesca.""",
+    },
+    {
+        "slug": "briefing-21-cloud-soberania-latam",
+        "title": "Soberania digital: por que LATAM precisa de clouds regionais",
+        "subtitle": "TAMBÉM: LGPD enforcement cresce · Data residency no México · Edge computing",
+        "agent_name": "codigo",
+        "content_type": "DEEP_DIVE",
+        "confidence_dq": 4.0,
+        "published_at": "2025-08-04",
+        "meta_description": "Deep dive sobre soberania digital e a necessidade de infraestrutura cloud regional na América Latina.",
+        "body_md": """A discussão sobre soberania digital na América Latina saiu do campo acadêmico e entrou no operacional. Com a LGPD brasileira emitindo suas primeiras multas significativas e o México implementando requisitos de data residency para o setor financeiro, a pergunta "onde estão nossos dados?" deixou de ser teórica.
+
+Os três grandes hyperscalers (AWS, Azure, GCP) têm regiões na América Latina — Brasil e Chile para AWS, Brasil para Azure, Chile e Brasil para GCP. Mas para setores regulados (saúde, finanças, governo), regiões de hyperscalers nem sempre satisfazem os requisitos de soberania. Dados precisam estar em infraestrutura auditável por reguladores locais.
+
+Isso está criando espaço para clouds regionais especializadas. Magalu Cloud no Brasil, KIO Networks no México e Claro Cloud na Colômbia estão investindo pesado em certificações de segurança e compliance. O mercado de cloud soberana na LATAM vai de US$200M em 2024 para uma projeção de US$1.2B em 2027. Para startups de infraestrutura, a oportunidade está em ferramentas que facilitem workloads híbridos entre hyperscalers e clouds regionais.""",
+    },
+    {
+        "slug": "briefing-20-talent-war-engenheiros-senior",
+        "title": "A guerra silenciosa por engenheiros sênior na América Latina",
+        "subtitle": "TAMBÉM: Remote-first vs presencial · Salários em dólar · Brain drain reverso",
+        "agent_name": "mercado",
+        "content_type": "ANALYSIS",
+        "confidence_dq": None,
+        "published_at": "2025-07-28",
+        "meta_description": "Análise da competição por talento técnico sênior na América Latina.",
+        "body_md": """Existe uma guerra silenciosa acontecendo na América Latina por um recurso escasso: engenheiros de software com mais de 8 anos de experiência e fluência em inglês. Empresas americanas contratando remotamente, startups locais, big techs com escritórios na região e consultoras de nearshoring estão todas competindo pelo mesmo pool de ~50 mil profissionais.
+
+O impacto é direto nos salários: um engenheiro sênior em São Paulo que ganhava R$25k/mês em 2022 agora recebe R$35-45k (ou US$6-8k se contratado por empresa americana). A escalada está forçando startups locais — que pagam em reais — a competir em cultura, equity e missão, porque não podem competir em cash.
+
+O fenômeno mais interessante: um brain drain reverso está começando. Engenheiros sênior LATAM que trabalharam 3-5 anos em big techs americanas remotamente estão voltando para startups locais, aceitando salários menores em troca de equity significativo e impacto direto no produto. É o ciclo de maturidade do ecossistema se completando — experiência acumulada retornando como capital humano fundador.""",
+    },
+    {
+        "slug": "briefing-19-marketplace-b2b-verticalizacao",
+        "title": "Marketplaces B2B verticais: a próxima fronteira do e-commerce LATAM",
+        "subtitle": "TAMBÉM: Supply chain digital · GPO models · Unit economics de B2B marketplaces",
+        "agent_name": "funding",
+        "content_type": "DATA_REPORT",
+        "confidence_dq": 4.0,
+        "published_at": "2025-07-21",
+        "meta_description": "Análise do crescimento de marketplaces B2B verticais na América Latina.",
+        "body_md": """Enquanto marketplaces B2C (Mercado Libre, Amazon, Rappi) dominam as manchetes, uma revolução silenciosa está acontecendo no B2B. Mapeamos 19 marketplaces B2B verticais na América Latina — plataformas que conectam compradores e fornecedores em setores específicos: insumos industriais, materiais de construção, insumos agrícolas, material hospitalar.
+
+O investimento acumulado nesses 19 marketplaces: US$340M nos últimos 24 meses. O ticket médio de transação é 40x maior que em B2C, e o churn é significativamente menor — empresas que encontram um fornecedor confiável raramente trocam. Os unit economics são fundamentalmente diferentes e mais favoráveis.
+
+O padrão de sucesso é claro: marketplaces B2B que vencem na LATAM não competem em preço (race to the bottom) mas em confiabilidade e crédito. Oferecer financing para o comprador e garantia de pagamento para o fornecedor é o que desbloqueia liquidez. É embedded finance aplicado a supply chain — e os dados mostram que startups com essa feature crescem 2.5x mais rápido que as sem.""",
     },
 ]
 
