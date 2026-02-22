@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir \
 COPY packages/ /app/packages/
 COPY apps/api/ /app/apps/api/
 COPY apps/agents/ /app/apps/agents/
+COPY scripts/ /app/scripts/
 
 # Ensure Python can find our packages
 ENV PYTHONPATH=/app
