@@ -340,3 +340,253 @@ def test_collect_from_github_filters_non_startups(mock_get, github_source, prove
     names = [p.name for p in profiles]
     assert "Nubank" in names
     assert "Stone Payments" in names
+
+
+# --- BCB Integration Tests ---
+
+
+@patch("apps.agents.sources.bcb_institutions.fetch_bcb_institutions")
+def test_bcb_institutions_converted_to_profiles(mock_fetch_bcb, provenance):
+    """BCB institutions are converted to CompanyProfile objects."""
+    from apps.agents.sources.bcb_institutions import BCBInstitution
+
+    mock_fetch_bcb.return_value = [
+        BCBInstitution(
+            name="Nubank S.A.",
+            cnpj="18.236.120/0001-58",
+            segment="b4",
+            situation="Autorizada",
+            municipality="São Paulo",
+            state="SP",
+        ),
+    ]
+
+    sources = [
+        DataSourceConfig(
+            name="bcb_authorized",
+            source_type="api",
+            url="https://olinda.bcb.gov.br/olinda/servico/DASFN/versao/v1/odata/IfDataDes662",
+            params={"segments": "b4"},
+        ),
+    ]
+
+    profiles = collect_all_sources(sources, provenance)
+
+    assert len(profiles) == 1
+    assert profiles[0].name == "Nubank S.A."
+    assert profiles[0].sector == "Fintech"
+    assert profiles[0].source_name == "bcb_authorized"
+    assert profiles[0].city == "São Paulo"
+
+
+def test_bcb_skipped_when_disabled(provenance):
+    """No BCB calls when source is disabled."""
+    sources = [
+        DataSourceConfig(
+            name="bcb_authorized",
+            source_type="api",
+            url="https://olinda.bcb.gov.br/olinda/servico/DASFN/versao/v1/odata/IfDataDes662",
+            enabled=False,
+        ),
+    ]
+
+    profiles = collect_all_sources(sources, provenance)
+    assert profiles == []
+
+
+@patch("apps.agents.sources.bcb_institutions.fetch_bcb_institutions")
+def test_bcb_graceful_degradation(mock_fetch_bcb, provenance):
+    """BCB API failure doesn't break collection from other sources."""
+    mock_fetch_bcb.side_effect = Exception("BCB API down")
+
+    sources = [
+        DataSourceConfig(
+            name="bcb_authorized",
+            source_type="api",
+            url="https://olinda.bcb.gov.br/olinda/servico/DASFN/versao/v1/odata/IfDataDes662",
+            params={"segments": "b4"},
+        ),
+    ]
+
+    # Should not raise
+    profiles = collect_all_sources(sources, provenance)
+    assert profiles == []
+
+
+@patch("apps.agents.sources.bcb_institutions.fetch_bcb_institutions")
+def test_bcb_profiles_have_correct_tags(mock_fetch_bcb, provenance):
+    """BCB profiles have segment and bcb-authorized tags."""
+    from apps.agents.sources.bcb_institutions import BCBInstitution
+
+    mock_fetch_bcb.return_value = [
+        BCBInstitution(
+            name="PagBank",
+            cnpj="08.561.701/0001-01",
+            segment="b4",
+            situation="Autorizada",
+        ),
+    ]
+
+    sources = [
+        DataSourceConfig(
+            name="bcb_authorized",
+            source_type="api",
+            url="https://olinda.bcb.gov.br/olinda/servico/DASFN/versao/v1/odata/IfDataDes662",
+            params={"segments": "b4"},
+        ),
+    ]
+
+    profiles = collect_all_sources(sources, provenance)
+
+    assert "b4" in profiles[0].tags
+    assert "bcb-authorized" in profiles[0].tags
+
+
+@patch("apps.agents.sources.bcb_institutions.fetch_bcb_institutions")
+def test_bcb_slug_from_cnpj(mock_fetch_bcb, provenance):
+    """BCB profile slug is normalized CNPJ (digits only)."""
+    from apps.agents.sources.bcb_institutions import BCBInstitution
+
+    mock_fetch_bcb.return_value = [
+        BCBInstitution(
+            name="TestBank",
+            cnpj="12.345.678/0001-90",
+            segment="b1",
+            situation="Autorizada",
+        ),
+    ]
+
+    sources = [
+        DataSourceConfig(
+            name="bcb_authorized",
+            source_type="api",
+            url="https://olinda.bcb.gov.br/olinda/servico/DASFN/versao/v1/odata/IfDataDes662",
+            params={"segments": "b1"},
+        ),
+    ]
+
+    profiles = collect_all_sources(sources, provenance)
+    assert profiles[0].slug == "12345678000190"
+
+
+# --- Gupy Enrichment Tests ---
+
+
+@patch("apps.agents.sources.gupy_jobs.fetch_gupy_jobs")
+def test_enrich_from_gupy_adds_tech_stack(mock_fetch_gupy):
+    """Gupy enrichment adds tech_stack to matching profiles."""
+    from apps.agents.sources.gupy_jobs import GupyJobListing
+    from apps.agents.mercado.collector import enrich_from_gupy
+
+    mock_fetch_gupy.return_value = [
+        GupyJobListing(
+            company_slug="nubank",
+            role_title="Backend Engineer",
+            url="https://nubank.gupy.io/job/123",
+            tech_stack=["Python", "Kafka"],
+        ),
+    ]
+
+    profiles = [
+        CompanyProfile(
+            name="Nubank",
+            slug="nubank",
+            source_url="https://github.com/nubank",
+            source_name="github_sao_paulo",
+        ),
+    ]
+
+    gupy_source = DataSourceConfig(name="gupy_jobs", source_type="api", url=None, params={"max_slugs": 20})
+    result = enrich_from_gupy(profiles, gupy_source)
+
+    assert "Python" in result[0].tech_stack
+    assert "Kafka" in result[0].tech_stack
+
+
+@patch("apps.agents.sources.gupy_jobs.fetch_gupy_jobs")
+def test_enrich_from_gupy_no_match(mock_fetch_gupy):
+    """Profiles with no Gupy match keep existing tech_stack."""
+    mock_fetch_gupy.return_value = []  # No jobs found
+
+    from apps.agents.mercado.collector import enrich_from_gupy
+
+    profiles = [
+        CompanyProfile(
+            name="Unknown Co",
+            slug="unknown-co",
+            tech_stack=["React"],
+            source_url="https://github.com/unknown",
+            source_name="github_sao_paulo",
+        ),
+    ]
+
+    gupy_source = DataSourceConfig(name="gupy_jobs", source_type="api", url=None, params={"max_slugs": 20})
+    result = enrich_from_gupy(profiles, gupy_source)
+
+    assert result[0].tech_stack == ["React"]
+
+
+@patch("apps.agents.sources.gupy_jobs.fetch_gupy_jobs")
+def test_enrich_from_gupy_graceful_degradation(mock_fetch_gupy):
+    """Gupy API failure returns profiles unchanged."""
+    from apps.agents.mercado.collector import enrich_from_gupy
+
+    mock_fetch_gupy.side_effect = Exception("Gupy API down")
+
+    profiles = [
+        CompanyProfile(
+            name="TestCo",
+            slug="testco",
+            tech_stack=["Python"],
+            source_url="https://github.com/testco",
+            source_name="github_sao_paulo",
+        ),
+    ]
+
+    gupy_source = DataSourceConfig(name="gupy_jobs", source_type="api", url=None, params={"max_slugs": 20})
+    result = enrich_from_gupy(profiles, gupy_source)
+
+    assert result[0].tech_stack == ["Python"]
+
+
+def test_enrich_from_gupy_empty_profiles():
+    """Empty profile list returns empty."""
+    from apps.agents.mercado.collector import enrich_from_gupy
+
+    gupy_source = DataSourceConfig(name="gupy_jobs", source_type="api", url=None, params={"max_slugs": 20})
+    result = enrich_from_gupy([], gupy_source)
+    assert result == []
+
+
+@patch("apps.agents.sources.gupy_jobs.fetch_gupy_jobs")
+def test_enrich_from_gupy_merges_tech_stacks(mock_fetch_gupy):
+    """Gupy tech_stack merges with existing (union, not replace)."""
+    from apps.agents.sources.gupy_jobs import GupyJobListing
+    from apps.agents.mercado.collector import enrich_from_gupy
+
+    mock_fetch_gupy.return_value = [
+        GupyJobListing(
+            company_slug="testco",
+            role_title="Full Stack Dev",
+            url="https://testco.gupy.io/job/456",
+            tech_stack=["React", "Docker"],
+        ),
+    ]
+
+    profiles = [
+        CompanyProfile(
+            name="TestCo",
+            slug="testco",
+            tech_stack=["Python", "React"],  # React is already there
+            source_url="https://github.com/testco",
+            source_name="github_sao_paulo",
+        ),
+    ]
+
+    gupy_source = DataSourceConfig(name="gupy_jobs", source_type="api", url=None, params={"max_slugs": 20})
+    result = enrich_from_gupy(profiles, gupy_source)
+
+    assert "Python" in result[0].tech_stack
+    assert "React" in result[0].tech_stack
+    assert "Docker" in result[0].tech_stack
+    assert len(result[0].tech_stack) == 3  # No duplicates

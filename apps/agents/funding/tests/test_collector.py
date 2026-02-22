@@ -189,3 +189,169 @@ class TestCleanRssNotes:
         text = "The post Something appeared first on LatamList."
         result = clean_rss_notes(text)
         assert result == ""
+
+
+# --- SEC Form D Integration Tests ---
+
+from unittest.mock import patch, MagicMock
+from apps.agents.base.config import DataSourceConfig
+from apps.agents.base.provenance import ProvenanceTracker
+
+
+@patch("apps.agents.sources.sec_form_d.fetch_sec_form_d")
+def test_sec_form_d_events_collected(mock_fetch_sec):
+    """SEC Form D filings are converted to FundingEvents when SEC source is present."""
+    from apps.agents.sources.sec_form_d import SECFormDFiling
+    from apps.agents.funding.collector import collect_all_sources
+
+    mock_fetch_sec.return_value = [
+        SECFormDFiling(
+            company_name="Nubank Capital LLC",
+            cik="0001234567",
+            source_url="https://www.sec.gov/cgi-bin/browse-edgar?CIK=0001234567",
+            date_filed=date(2026, 2, 15),
+            amount_sold=750_000_000.0,
+        ),
+    ]
+
+    sources = [
+        DataSourceConfig(
+            name="test_rss",
+            source_type="rss",
+            url="https://example.com/feed",
+            enabled=False,  # Disabled to avoid real HTTP calls
+        ),
+        DataSourceConfig(
+            name="sec_form_d",
+            source_type="api",
+            url="https://efts.sec.gov/LATEST/search-index",
+        ),
+    ]
+    provenance = ProvenanceTracker()
+
+    # Need at least one initial event for SEC to trigger
+    with patch("apps.agents.funding.collector.fetch_feed") as mock_feed:
+        mock_feed.return_value = [
+            FundingEvent(
+                company_name="Nubank",
+                round_type="series_g",
+                source_url="https://example.com/nubank",
+                source_name="test_rss",
+                amount_usd=750.0,
+            ),
+        ]
+        # Re-enable RSS source for this path
+        sources[0].enabled = True
+        events = collect_all_sources(sources, provenance, "funding", "test-run")
+
+    # Should have RSS event + SEC event
+    assert any(e.source_name == "sec_form_d" for e in events)
+    sec_event = [e for e in events if e.source_name == "sec_form_d"][0]
+    assert sec_event.round_type == "unknown"
+    assert "SEC CIK" in sec_event.notes
+
+
+def test_sec_skipped_when_no_sec_source():
+    """No SEC calls when sec_form_d source is not configured."""
+    from apps.agents.funding.collector import collect_all_sources
+
+    sources = [
+        DataSourceConfig(
+            name="test_rss",
+            source_type="rss",
+            url="https://example.com/feed",
+            enabled=False,
+        ),
+    ]
+    provenance = ProvenanceTracker()
+
+    # Should not raise, just return empty (no enabled sources)
+    events = collect_all_sources(sources, provenance, "funding", "test-run")
+    assert events == []
+
+
+def test_sec_skipped_when_no_initial_events():
+    """SEC collection skipped when initial RSS/API collection returns nothing."""
+    from apps.agents.funding.collector import collect_all_sources
+
+    sources = [
+        DataSourceConfig(
+            name="sec_form_d",
+            source_type="api",
+            url="https://efts.sec.gov/LATEST/search-index",
+        ),
+    ]
+    provenance = ProvenanceTracker()
+
+    # No initial events → sec_sources check passes but all_events is empty
+    events = collect_all_sources(sources, provenance, "funding", "test-run")
+    assert events == []
+
+
+@patch("apps.agents.sources.sec_form_d.fetch_sec_form_d")
+def test_sec_graceful_degradation(mock_fetch_sec):
+    """SEC API failure doesn't break other event collection."""
+    from apps.agents.funding.collector import collect_all_sources
+
+    mock_fetch_sec.side_effect = Exception("SEC API down")
+
+    sources = [
+        DataSourceConfig(
+            name="sec_form_d",
+            source_type="api",
+            url="https://efts.sec.gov/LATEST/search-index",
+        ),
+    ]
+    provenance = ProvenanceTracker()
+
+    # Pre-populate with a mock RSS event via patching
+    with patch("apps.agents.funding.collector.fetch_feed") as mock_feed:
+        mock_feed.return_value = [
+            FundingEvent(
+                company_name="TestCo",
+                round_type="seed",
+                source_url="https://example.com/testco",
+                source_name="test_rss",
+            ),
+        ]
+        rss_source = DataSourceConfig(name="test_rss", source_type="rss", url="https://example.com/feed")
+        events = collect_all_sources([rss_source] + sources, provenance, "funding", "test-run")
+
+    # RSS events should still be returned despite SEC failure
+    assert len(events) >= 1
+    assert events[0].source_name == "test_rss"
+
+
+@patch("apps.agents.sources.sec_form_d.fetch_sec_form_d")
+def test_company_names_limited_to_20(mock_fetch_sec):
+    """Only top 20 unique company names are sent to SEC."""
+    from apps.agents.funding.collector import collect_all_sources
+    from apps.agents.sources.sec_form_d import SECFormDFiling
+
+    mock_fetch_sec.return_value = []
+
+    # Create 25 unique events
+    rss_events = [
+        FundingEvent(
+            company_name=f"Company_{i}",
+            round_type="seed",
+            source_url=f"https://example.com/{i}",
+            source_name="test_rss",
+        )
+        for i in range(25)
+    ]
+
+    sources = [
+        DataSourceConfig(name="sec_form_d", source_type="api", url="https://efts.sec.gov/LATEST/search-index"),
+    ]
+    provenance = ProvenanceTracker()
+
+    with patch("apps.agents.funding.collector.fetch_feed") as mock_feed:
+        rss_source = DataSourceConfig(name="test_rss", source_type="rss", url="https://example.com/feed")
+        mock_feed.return_value = rss_events
+        collect_all_sources([rss_source] + sources, provenance, "funding", "test-run")
+
+    # Verify SEC was called with at most 20 company names
+    assert mock_fetch_sec.called
+    company_names_arg = mock_fetch_sec.call_args[0][2]  # 3rd positional arg
+    assert len(company_names_arg) <= 20

@@ -62,6 +62,14 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
         api_key_env="CRUNCHBASE_API_KEY",
         params={"locations": "Brazil,Mexico,Argentina,Colombia,Chile", "limit": 50},
     ),
+
+    # --- SEC EDGAR Form D (regulatory cross-validation) ---
+    DataSourceConfig(
+        name="sec_form_d",
+        source_type="api",
+        url="https://efts.sec.gov/LATEST/search-index",
+        params={"forms": "D", "date_range_days": 30},
+    ),
 ]
 
 FUNDING_PERSONA = AgentPersona(

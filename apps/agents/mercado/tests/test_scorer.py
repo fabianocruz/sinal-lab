@@ -222,3 +222,94 @@ def test_score_all_profiles_empty():
     scored = score_all_profiles([])
 
     assert scored == []
+
+
+# --- BCB Regulatory Floor Tests ---
+
+
+def test_bcb_source_gets_regulatory_floor():
+    """BCB-sourced profiles get DQ floor of 0.85."""
+    profile = CompanyProfile(
+        name="PagBank S.A.",
+        slug="08561701000101",
+        sector="Fintech",
+        city="São Paulo",
+        country="Brasil",
+        tags=["b4", "bcb-authorized"],
+        source_url="https://www.bcb.gov.br/estabilidadefinanceira/encontreinstituicao",
+        source_name="bcb_authorized",
+    )
+
+    scored = score_single_profile(profile)
+    assert scored.confidence.data_quality >= 0.85
+
+
+def test_bcb_floor_combined_with_completeness():
+    """BCB floor is combined with field completeness (floor, not override)."""
+    profile = CompanyProfile(
+        name="TestBank",
+        slug="12345678000190",
+        description="A complete bank profile with all details",
+        sector="Fintech",
+        city="São Paulo",
+        country="Brasil",
+        website="https://testbank.com",
+        tags=["b1", "bcb-authorized"],
+        source_url="https://www.bcb.gov.br/estabilidadefinanceira/encontreinstituicao",
+        source_name="bcb_authorized",
+    )
+
+    scored = score_single_profile(profile)
+    # Should be at least 0.85 (regulatory floor)
+    assert scored.confidence.data_quality >= 0.85
+
+
+def test_non_bcb_source_unchanged():
+    """Non-BCB profiles use standard scoring logic."""
+    profile = CompanyProfile(
+        name="GitHubCo",
+        slug="githubco",
+        description="A startup from GitHub",
+        sector="SaaS",
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/githubco",
+        source_name="github_sao_paulo",
+    )
+
+    scored = score_single_profile(profile)
+    # Standard scoring, should NOT have regulatory floor
+    assert scored.confidence.data_quality < 0.85
+
+
+def test_gupy_enriched_profile_scores_higher():
+    """Profile with more tech_stack fields scores higher than without."""
+    bare_profile = CompanyProfile(
+        name="TestCo",
+        slug="testco",
+        description="A test company",
+        sector="SaaS",
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/testco",
+        source_name="github_sao_paulo",
+        tech_stack=[],  # Empty tech_stack
+    )
+
+    enriched_profile = CompanyProfile(
+        name="TestCo",
+        slug="testco",
+        description="A test company",
+        sector="SaaS",
+        city="São Paulo",
+        country="Brasil",
+        source_url="https://github.com/testco",
+        source_name="github_sao_paulo",
+        tech_stack=["Python", "React", "Docker"],
+    )
+
+    bare_scored = score_single_profile(bare_profile)
+    enriched_scored = score_single_profile(enriched_profile)
+
+    # Enriched profile should have higher DQ (more fields filled)
+    assert enriched_scored.confidence.data_quality > bare_scored.confidence.data_quality

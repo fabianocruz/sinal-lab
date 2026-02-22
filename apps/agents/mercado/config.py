@@ -78,6 +78,22 @@ MERCADO_SOURCES: list[DataSourceConfig] = [
             "limit": 30,
         },
     ),
+
+    # --- BCB Authorized Financial Institutions (regulatory) ---
+    DataSourceConfig(
+        name="bcb_authorized",
+        source_type="api",
+        url="https://olinda.bcb.gov.br/olinda/servico/DASFN/versao/v1/odata/IfDataDes662",
+        params={"segments": "b1,b2,b4"},
+    ),
+
+    # --- Gupy Jobs (tech stack enrichment) ---
+    DataSourceConfig(
+        name="gupy_jobs",
+        source_type="api",
+        url=None,  # URL built per-company
+        params={"max_slugs": 20},
+    ),
 ]
 
 MERCADO_PERSONA = AgentPersona(
