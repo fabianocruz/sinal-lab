@@ -409,6 +409,35 @@ def collect_all_sources(
         else:
             logger.warning("Unknown source type %s for %s", source.source_type, source.name)
 
+    # --- Verified Source: SEC Form D (needs company names from initial collection) ---
+    sec_sources = [s for s in sources if s.name == "sec_form_d" and s.source_type == "api"]
+    if sec_sources and all_events:
+        company_names = list({e.company_name for e in all_events})[:20]
+        try:
+            from apps.agents.sources.sec_form_d import fetch_sec_form_d
+
+            with create_http_client() as sec_client:
+                filings = fetch_sec_form_d(sec_sources[0], sec_client, company_names)
+            for f in filings:
+                event = FundingEvent(
+                    company_name=f.company_name,
+                    round_type="unknown",
+                    source_url=f.source_url,
+                    source_name="sec_form_d",
+                    amount_usd=f.amount_sold,
+                    announced_date=f.date_filed,
+                    notes=f"SEC CIK: {f.cik}",
+                )
+                all_events.append(event)
+                provenance.track(
+                    source_url=f.source_url,
+                    source_name="sec_form_d",
+                    extraction_method="api",
+                )
+            logger.info("Collected %d SEC Form D filings", len(filings))
+        except Exception as e:
+            logger.warning("SEC Form D collection failed (graceful degradation): %s", e)
+
     unique_events = deduplicate_by_hash(all_events, hash_fn=lambda e: e.content_hash)
 
     logger.info(

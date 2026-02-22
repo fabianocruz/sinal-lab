@@ -340,6 +340,44 @@ def collect_all_sources(
             )
             continue
 
+        if "bcb" in source.name:
+            try:
+                from apps.agents.sources.bcb_institutions import fetch_bcb_institutions
+
+                segments_str = source.params.get("segments", "")
+                segments = [s.strip() for s in segments_str.split(",") if s.strip()] if segments_str else None
+
+                with httpx.Client(timeout=15.0) as bcb_client:
+                    institutions = fetch_bcb_institutions(source, bcb_client, segments=segments)
+
+                for inst in institutions:
+                    cnpj_clean = inst.cnpj.replace(".", "").replace("/", "").replace("-", "")
+                    profile = CompanyProfile(
+                        name=inst.name,
+                        slug=cnpj_clean,
+                        city=inst.municipality,
+                        country="Brasil",
+                        sector="Fintech",
+                        tags=[inst.segment, "bcb-authorized"],
+                        source_url="https://www.bcb.gov.br/estabilidadefinanceira/encontreinstituicao",
+                        source_name="bcb_authorized",
+                    )
+                    all_profiles.append(profile)
+                    provenance.track(
+                        source_url=profile.source_url,
+                        source_name="bcb_authorized",
+                        extraction_method="api",
+                    )
+                logger.info("Collected %d BCB institutions", len(institutions))
+            except Exception as e:
+                logger.warning("BCB collection failed (graceful degradation): %s", e)
+            continue
+
+        if "gupy" in source.name:
+            # Gupy enrichment handled separately in agent.process()
+            logger.debug("Skipping gupy source %s in profile collection", source.name)
+            continue
+
         if "crunchbase" in source.name:
             # Crunchbase company discovery — converts CrunchbaseCompany to CompanyProfile
             from apps.agents.sources.crunchbase import fetch_companies
@@ -452,3 +490,58 @@ def collect_market_trends(
 
     logger.info("Collected %d market trend signals", len(all_items))
     return all_items
+
+
+def enrich_from_gupy(
+    profiles: list[CompanyProfile],
+    source: DataSourceConfig,
+) -> list[CompanyProfile]:
+    """Enrich company tech_stack using Gupy job listings.
+
+    Uses profile slugs as Gupy company slugs. Profiles without a Gupy
+    match keep their existing tech_stack unchanged.
+
+    Args:
+        profiles: List of CompanyProfile objects to enrich.
+        source: DataSourceConfig for Gupy (used for provenance metadata).
+
+    Returns:
+        List of CompanyProfile objects with enriched tech_stack where available.
+    """
+    if not profiles:
+        return profiles
+
+    max_slugs = source.params.get("max_slugs", 20)
+    slugs = [p.slug for p in profiles if p.slug][:max_slugs]
+
+    if not slugs:
+        return profiles
+
+    try:
+        from apps.agents.sources.gupy_jobs import fetch_gupy_jobs
+
+        with httpx.Client(timeout=15.0) as gupy_client:
+            jobs = fetch_gupy_jobs(source, gupy_client, company_slugs=slugs)
+    except Exception as e:
+        logger.warning("Gupy enrichment failed (graceful degradation): %s", e)
+        return profiles
+
+    # Build slug -> tech_stack mapping from jobs
+    slug_tech: dict[str, set[str]] = {}
+    for job in jobs:
+        if job.tech_stack:
+            slug_tech.setdefault(job.company_slug, set()).update(job.tech_stack)
+
+    # Merge tech stacks into profiles
+    for profile in profiles:
+        if profile.slug in slug_tech:
+            existing = set(profile.tech_stack)
+            merged = list(existing | slug_tech[profile.slug])
+            profile.tech_stack = sorted(merged)
+
+    logger.info(
+        "Gupy enrichment: %d/%d profiles got tech_stack updates",
+        sum(1 for p in profiles if p.slug in slug_tech),
+        len(profiles),
+    )
+    return profiles

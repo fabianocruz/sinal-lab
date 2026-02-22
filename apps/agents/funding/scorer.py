@@ -135,3 +135,77 @@ def score_events(events: list[FundingEvent]) -> list[ScoredFundingEvent]:
     )
 
     return scored
+
+
+def apply_cross_ref_verification(
+    scored_events: list[ScoredFundingEvent],
+) -> list[ScoredFundingEvent]:
+    """Apply cross-reference verification boost to scored events.
+
+    Events sourced from SEC get verification_level=REGULATORY floor.
+    Events confirmed by multiple independent sources get a confidence boost.
+    """
+    from apps.agents.sources.cross_ref_engine import (
+        build_claim_from_funding_event,
+        cross_reference_batch,
+    )
+    from apps.agents.sources.verification import VerificationLevel, verified_dq_floor
+
+    if not scored_events:
+        return scored_events
+
+    # Build available sources from SEC-sourced events for cross-ref
+    sec_sources_data = []
+    for se in scored_events:
+        if se.event.source_name == "sec_form_d":
+            sec_sources_data.append({
+                "entity_name": se.event.company_name,
+                "source_name": "sec_form_d",
+                "amount": se.event.amount_usd,
+            })
+
+    result: list[ScoredFundingEvent] = []
+    for se in scored_events:
+        dq = se.confidence.data_quality
+        ac = se.confidence.analysis_confidence
+        verified = se.confidence.verified
+
+        # SEC-sourced events get regulatory DQ floor
+        if se.event.source_name == "sec_form_d":
+            regulatory_floor = verified_dq_floor(VerificationLevel.REGULATORY)
+            dq = max(dq, regulatory_floor)
+            verified = True
+
+        # Cross-reference non-SEC events against SEC data
+        if sec_sources_data and se.event.source_name != "sec_form_d":
+            claim = build_claim_from_funding_event({
+                "company_name": se.event.company_name,
+                "round_type": se.event.round_type,
+                "amount_usd": se.event.amount_usd,
+                "source_url": se.event.source_url,
+                "source_name": se.event.source_name,
+            })
+            results = cross_reference_batch([claim], sec_sources_data)
+            if results:
+                delta = results[0].confidence_delta
+                dq = max(0.0, min(1.0, dq + delta))
+                if results[0].confirmation_count > 0:
+                    verified = True
+
+        # Rebuild confidence with adjusted scores
+        new_confidence = ConfidenceScore(
+            data_quality=round(dq, 3),
+            analysis_confidence=round(min(dq * 0.9, 0.95), 3),
+            source_count=se.confidence.source_count,
+            verified=verified,
+        )
+
+        result.append(ScoredFundingEvent(
+            event=se.event,
+            confidence=new_confidence,
+            composite_score=new_confidence.composite,
+        ))
+
+    # Re-sort by composite score
+    result.sort(key=lambda x: x.composite_score, reverse=True)
+    return result

@@ -15,7 +15,7 @@ from apps.agents.base.output import AgentOutput
 from apps.agents.funding.collector import FundingEvent, collect_all_sources
 from apps.agents.funding.config import FUNDING_CONFIG
 from apps.agents.funding.processor import process_events
-from apps.agents.funding.scorer import ScoredFundingEvent, score_events
+from apps.agents.funding.scorer import ScoredFundingEvent, apply_cross_ref_verification, score_events
 from apps.agents.funding.synthesizer import synthesize_funding_report
 from apps.agents.funding.writer import FundingWriter
 
@@ -107,6 +107,9 @@ class FundingAgent(BaseAgent):
             return [ConfidenceScore(data_quality=0.1, analysis_confidence=0.1)]
 
         scored: list[ScoredFundingEvent] = score_events(events)
+
+        # Apply cross-reference verification against SEC data
+        scored = apply_cross_ref_verification(scored)
 
         # Extract just the confidence scores
         scores = [s.confidence for s in scored]

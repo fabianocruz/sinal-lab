@@ -1,7 +1,9 @@
 """Tests for confidence scoring module."""
 
 import pytest
+
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
+from apps.agents.sources.verification import VerificationLevel
 
 
 class TestConfidenceScore:
@@ -125,3 +127,68 @@ class TestComputeConfidence:
         assert moderate.data_quality < fresh.data_quality
         stale = compute_confidence(source_count=2, data_freshness_days=100)
         assert stale.data_quality < moderate.data_quality
+
+
+class TestComputeConfidenceVerificationLevel:
+    """Test the verification_level parameter added to compute_confidence."""
+
+    def test_regulatory_floor(self):
+        """REGULATORY level starts DQ at 0.85."""
+        score = compute_confidence(
+            source_count=1,
+            verification_level=VerificationLevel.REGULATORY,
+        )
+        assert score.data_quality == 0.85
+
+    def test_official_floor(self):
+        """OFFICIAL level starts DQ at 0.75."""
+        score = compute_confidence(
+            source_count=1,
+            verification_level=VerificationLevel.OFFICIAL,
+        )
+        assert score.data_quality == 0.75
+
+    def test_community_floor(self):
+        """COMMUNITY level starts DQ at 0.35."""
+        score = compute_confidence(
+            source_count=1,
+            verification_level=VerificationLevel.COMMUNITY,
+        )
+        assert score.data_quality == 0.35
+
+    def test_floor_with_freshness_penalty(self):
+        """Freshness penalty applies on top of the verification floor."""
+        fresh = compute_confidence(
+            source_count=1,
+            verification_level=VerificationLevel.REGULATORY,
+            data_freshness_days=0,
+        )
+        stale = compute_confidence(
+            source_count=1,
+            verification_level=VerificationLevel.REGULATORY,
+            data_freshness_days=100,
+        )
+        assert fresh.data_quality == 0.85
+        assert stale.data_quality < fresh.data_quality
+        # 0.85 * 0.7 = 0.595
+        assert stale.data_quality == round(0.85 * 0.7, 3)
+
+    def test_floor_with_cross_validation_bonus(self):
+        """Cross-validation bonus applies on top of the verification floor."""
+        base = compute_confidence(
+            source_count=1,
+            verification_level=VerificationLevel.OFFICIAL,
+        )
+        boosted = compute_confidence(
+            source_count=1,
+            verification_level=VerificationLevel.OFFICIAL,
+            cross_validated=True,
+        )
+        assert boosted.data_quality > base.data_quality
+        assert boosted.data_quality == min(0.75 + 0.1, 1.0)
+
+    def test_backward_compatible_without_verification_level(self):
+        """Existing callers without verification_level still work identically."""
+        score = compute_confidence(source_count=2, sources_verified=2)
+        assert score.data_quality == 0.65
+        assert score.verified is True

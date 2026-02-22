@@ -154,3 +154,86 @@ def test_agent_run_with_no_events(funding_agent):
         # Should still produce output (empty report)
         assert result is not None
         assert len(result.body_md) > 0
+
+
+# --- SEC Integration Agent Tests ---
+
+
+@patch('apps.agents.funding.agent.collect_all_sources')
+def test_score_calls_cross_ref_verification(mock_collect, funding_agent):
+    """Score method calls apply_cross_ref_verification."""
+    events = [
+        FundingEvent(
+            company_name="TestCo",
+            round_type="series_a",
+            source_url="https://test.com",
+            source_name="test",
+            amount_usd=10.0,
+            announced_date=date.today(),
+        ),
+        FundingEvent(
+            company_name="TestCo",
+            round_type="unknown",
+            source_url="https://sec.gov/testco",
+            source_name="sec_form_d",
+            amount_usd=10.0,
+            announced_date=date.today(),
+        ),
+    ]
+
+    scores = funding_agent.score(events)
+
+    # Should have scores for both events
+    assert len(scores) == 2
+    # SEC event should have regulatory floor
+    sec_scores = [s for s in scores if s.data_quality >= 0.85]
+    assert len(sec_scores) >= 1
+
+
+@patch('apps.agents.funding.agent.collect_all_sources')
+def test_agent_run_without_sec_source(mock_collect, funding_agent):
+    """Agent runs fine without SEC source (backward compatible)."""
+    mock_collect.return_value = [
+        FundingEvent(
+            company_name="Normal Co",
+            round_type="seed",
+            source_url="https://test.com/normal",
+            source_name="startupi",
+            amount_usd=5.0,
+            announced_date=date.today(),
+        ),
+    ]
+
+    result = funding_agent.run()
+
+    assert result is not None
+    assert "Normal Co" in result.body_md
+
+
+@patch('apps.agents.funding.agent.collect_all_sources')
+def test_agent_run_with_sec_source(mock_collect, funding_agent):
+    """Agent integrates SEC events in the run output."""
+    mock_collect.return_value = [
+        FundingEvent(
+            company_name="Big Corp",
+            round_type="series_b",
+            source_url="https://test.com/bigcorp",
+            source_name="crunchbase_news",
+            amount_usd=50.0,
+            announced_date=date.today(),
+            company_slug="big-corp",
+        ),
+        FundingEvent(
+            company_name="Big Corp LLC",
+            round_type="unknown",
+            source_url="https://sec.gov/bigcorp",
+            source_name="sec_form_d",
+            amount_usd=50.0,
+            announced_date=date.today(),
+        ),
+    ]
+
+    result = funding_agent.run()
+
+    assert result is not None
+    assert result.confidence.composite > 0

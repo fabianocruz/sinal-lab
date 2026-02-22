@@ -91,6 +91,12 @@ class MercadoAgent(BaseAgent):
         # Step 2: Classify sector and generate tags
         profiles = classify_all_profiles(profiles)
 
+        # Step 3: Enrich tech_stack from Gupy job listings (if source enabled)
+        gupy_source = self.config.get_source_by_name("gupy_jobs")
+        if gupy_source and gupy_source.enabled:
+            from apps.agents.mercado.collector import enrich_from_gupy
+            profiles = enrich_from_gupy(profiles, gupy_source)
+
         logger.info("PROCESS phase complete: %d profiles processed", len(profiles))
         return profiles
 

@@ -88,6 +88,13 @@ def score_single_profile(profile: CompanyProfile) -> ScoredCompanyProfile:
     if not profile.sector:
         dq *= 0.9
 
+    # Regulatory floor for BCB-verified institutions
+    # Applied AFTER penalties so the floor is a true minimum
+    if "bcb" in profile.source_name:
+        from apps.agents.sources.verification import VerificationLevel, verified_dq_floor
+        regulatory_floor = verified_dq_floor(VerificationLevel.REGULATORY)
+        dq = max(dq, regulatory_floor)
+
     # Analysis Confidence: sector classification quality
     ac = 0.6  # Baseline for keyword-based classification
 
