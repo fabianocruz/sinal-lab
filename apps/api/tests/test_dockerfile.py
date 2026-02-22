@@ -44,9 +44,9 @@ def test_includes_uvicorn(dockerfile_content):
     assert "uvicorn[standard]" in dockerfile_content
 
 
-def test_includes_passlib_bcrypt(dockerfile_content):
-    """Dockerfile must install passlib[bcrypt] for auth."""
-    assert "passlib[bcrypt]" in dockerfile_content
+def test_includes_bcrypt(dockerfile_content):
+    """Dockerfile must install bcrypt for auth."""
+    assert "bcrypt" in dockerfile_content
 
 
 def test_includes_pydantic_settings(dockerfile_content):
