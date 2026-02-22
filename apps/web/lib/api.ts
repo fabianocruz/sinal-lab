@@ -126,7 +126,6 @@ export async function fetchArticles(params?: {
   try {
     const searchParams = new URLSearchParams();
     searchParams.set("status", "published");
-    searchParams.set("content_type", "ARTICLE");
     if (params?.search) searchParams.set("search", params.search);
     if (params?.limit) searchParams.set("limit", String(params.limit));
     if (params?.offset) searchParams.set("offset", String(params.offset));
