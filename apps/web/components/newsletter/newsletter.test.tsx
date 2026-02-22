@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import * as nextNavigation from "next/navigation";
 import { Newsletter, MOCK_NEWSLETTERS } from "@/lib/newsletter";
+import { AGENT_PERSONAS } from "@/lib/constants";
 
 import SearchBar from "@/components/newsletter/SearchBar";
 import FilterPills from "@/components/newsletter/FilterPills";
@@ -276,11 +277,26 @@ describe("ArchiveCard", () => {
     expect(screen.getByText(String(mockNewsletter.likes))).toBeInTheDocument();
   });
 
-  it("test_archivecard_render_shows_agent_label_in_footer", () => {
+  it("test_archivecard_render_shows_persona_name_in_footer", () => {
     render(<ArchiveCard newsletter={mockNewsletter} />);
 
-    // Footer text: "Agente SINTESE"
-    expect(screen.getByText(`Agente ${mockNewsletter.agentLabel}`)).toBeInTheDocument();
+    const persona = AGENT_PERSONAS[mockNewsletter.agent];
+    expect(screen.getByText(persona.name)).toBeInTheDocument();
+  });
+
+  it("test_archivecard_render_shows_persona_role_in_footer", () => {
+    render(<ArchiveCard newsletter={mockNewsletter} />);
+
+    const persona = AGENT_PERSONAS[mockNewsletter.agent];
+    expect(screen.getByText(persona.role)).toBeInTheDocument();
+  });
+
+  it("test_archivecard_render_shows_different_persona_for_radar_agent", () => {
+    render(<ArchiveCard newsletter={mockNewsletterNoDq} />);
+
+    // mockNewsletterNoDq has agent: "radar"
+    expect(screen.getByText("Tomás Aguirre")).toBeInTheDocument();
+    expect(screen.getByText("Analista de Tendências")).toBeInTheDocument();
   });
 });
 
@@ -344,10 +360,26 @@ describe("FeaturedCard", () => {
     expect(screen.getByText(new RegExp(`Ed. #${mockNewsletter.edition}`))).toBeInTheDocument();
   });
 
-  it("test_featuredcard_render_shows_agent_label_in_footer", () => {
+  it("test_featuredcard_render_shows_persona_name_in_footer", () => {
     render(<FeaturedCard newsletter={mockNewsletter} />);
 
-    expect(screen.getByText(`Agente ${mockNewsletter.agentLabel}`)).toBeInTheDocument();
+    const persona = AGENT_PERSONAS[mockNewsletter.agent];
+    expect(screen.getByText(persona.name)).toBeInTheDocument();
+  });
+
+  it("test_featuredcard_render_shows_persona_role_in_footer", () => {
+    render(<FeaturedCard newsletter={mockNewsletter} />);
+
+    const persona = AGENT_PERSONAS[mockNewsletter.agent];
+    expect(screen.getByText(persona.role)).toBeInTheDocument();
+  });
+
+  it("test_featuredcard_render_shows_different_persona_for_radar_agent", () => {
+    render(<FeaturedCard newsletter={mockNewsletterNoDq} />);
+
+    // mockNewsletterNoDq has agent: "radar"
+    expect(screen.getByText("Tomás Aguirre")).toBeInTheDocument();
+    expect(screen.getByText("Analista de Tendências")).toBeInTheDocument();
   });
 });
 
