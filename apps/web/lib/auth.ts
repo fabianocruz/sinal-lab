@@ -15,6 +15,19 @@ import GoogleProvider from "next-auth/providers/google";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+/**
+ * Fetch with a single retry — handles Railway cold-start 502s.
+ * Waits 2s before the retry to give the backend time to wake up.
+ */
+async function fetchWithRetry(url: string, init: globalThis.RequestInit): Promise<Response> {
+  const res = await fetch(url, init);
+  if (res.status === 502) {
+    await new Promise((r) => setTimeout(r, 2000));
+    return fetch(url, init);
+  }
+  return res;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     CredentialsProvider({
@@ -29,7 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
-          const response = await fetch(`${API_BASE}/api/auth/verify`, {
+          const response = await fetchWithRetry(`${API_BASE}/api/auth/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -80,7 +93,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // still succeeds (user exists only in JWT until next sync).
       if (account?.provider === "google" && user.email) {
         try {
-          const res = await fetch(`${API_BASE}/api/auth/sync-oauth`, {
+          const res = await fetchWithRetry(`${API_BASE}/api/auth/sync-oauth`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

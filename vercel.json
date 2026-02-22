@@ -4,6 +4,12 @@
   "buildCommand": "pnpm --filter @sinal/web build",
   "outputDirectory": ".next",
   "installCommand": "pnpm install",
+  "crons": [
+    {
+      "path": "/api/cron/keepalive",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
