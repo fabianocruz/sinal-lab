@@ -12,6 +12,8 @@ Usage:
     python scripts/sync_audience.py --verbose
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import sys
