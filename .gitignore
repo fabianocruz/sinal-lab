@@ -23,6 +23,7 @@ out/
 dist/
 build/
 *.js.map
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -72,3 +73,6 @@ output.html
 # Plan files
 PLAN.md
 SCRATCHPAD.md
+
+# Branding exports (design tool output, not source code)
+branding/
