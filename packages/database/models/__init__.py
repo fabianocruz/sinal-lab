@@ -4,6 +4,7 @@ from packages.database.models.base import Base
 from packages.database.models.account import Account
 from packages.database.models.agent_run import AgentRun
 from packages.database.models.company import Company
+from packages.database.models.company_external_id import CompanyExternalId
 from packages.database.models.content_piece import ContentPiece
 from packages.database.models.data_provenance import DataProvenance
 from packages.database.models.ecosystem import Ecosystem
@@ -19,6 +20,7 @@ __all__ = [
     "Account",
     "AgentRun",
     "Company",
+    "CompanyExternalId",
     "ContentPiece",
     "DataProvenance",
     "Ecosystem",

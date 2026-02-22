@@ -85,6 +85,16 @@ AGENTS = {
         "output_dir": "apps/agents/mercado/output",
         "filename_pattern": "mercado-week-{period}.md",
     },
+    "index": {
+        "module": "apps.agents.index.main",
+        "description": "LATAM Startup Index — comprehensive registry from bulk sources",
+        "class_module": "apps.agents.index.agent",
+        "class_name": "IndexAgent",
+        "period_arg": "week",
+        "slug_pattern": "index-week-{period}",
+        "output_dir": "apps/agents/index/output",
+        "filename_pattern": "index-week-{period}.md",
+    },
 }
 
 
@@ -160,9 +170,20 @@ def _mercado_domain_persist(agent: Any, agent_output: Any, session: Any) -> None
         logging.getLogger("run_agents").info("Persisted company profiles: %s", stats)
 
 
+def _index_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
+    """Persist INDEX-specific data (company registry from bulk sources)."""
+    from apps.agents.index.db_writer import persist_index_results
+
+    scored_companies = getattr(agent, "_scored_companies", [])
+    if scored_companies:
+        stats = persist_index_results(session, scored_companies)
+        logging.getLogger("run_agents").info("Persisted INDEX companies: %s", stats)
+
+
 DOMAIN_PERSIST_FNS: Dict[str, Callable[..., None]] = {
     "funding": _funding_domain_persist,
     "mercado": _mercado_domain_persist,
+    "index": _index_domain_persist,
 }
 
 
@@ -243,6 +264,7 @@ Available agents:
   codigo    Developer ecosystem signals
   funding   Investment tracking (VC announcements, funding rounds)
   mercado   LATAM startup mapping and ecosystem intelligence
+  index     LATAM Startup Index (comprehensive registry from bulk sources)
   all       Run all agents sequentially
         """,
     )
