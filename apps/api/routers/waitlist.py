@@ -3,12 +3,13 @@
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
 from apps.api.schemas.common import WaitlistCountResponse, WaitlistResponse, WaitlistSignup
+from apps.api.services.resend_audience import add_contact_to_audience
 from packages.database.models.user import User
 
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
@@ -19,6 +20,7 @@ EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 @router.post("", response_model=WaitlistResponse)
 def signup_waitlist(
     body: WaitlistSignup,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     """Add an email to the founding member waitlist."""
@@ -47,6 +49,9 @@ def signup_waitlist(
     )
     db.add(user)
     db.commit()
+
+    # Sync to Resend Audience so waitlist subscribers receive newsletters
+    background_tasks.add_task(add_contact_to_audience, email, body.name)
 
     return WaitlistResponse(
         message="Você está na lista! Fique de olho no seu email.",

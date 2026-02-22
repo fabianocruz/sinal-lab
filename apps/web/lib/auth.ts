@@ -80,7 +80,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // still succeeds (user exists only in JWT until next sync).
       if (account?.provider === "google" && user.email) {
         try {
-          await fetch(`${API_BASE}/api/auth/sync-oauth`, {
+          const res = await fetch(`${API_BASE}/api/auth/sync-oauth`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -91,8 +91,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               provider_id: account.providerAccountId,
             }),
           });
-        } catch {
-          // Backend unreachable — allow sign-in anyway
+          if (!res.ok) {
+            console.error(
+              `[auth] sync-oauth failed for ${user.email}: ${res.status} ${res.statusText}`,
+            );
+          }
+        } catch (err) {
+          console.error(`[auth] sync-oauth unreachable for ${user.email}:`, err);
         }
       }
       return true;
