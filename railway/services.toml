@@ -3,32 +3,22 @@
 # This file is NOT read by Railway — config is set via the dashboard.
 # It serves as the source of truth for all Railway services and their settings.
 #
-# To set up a new cron service:
-# 1. Railway Dashboard → New Service → Cron Service → select repo sinal-lab
+# Services:
+#   api          — FastAPI backend (always running)
+#   cron-agents  — Single daily cron that dispatches agents by weekday
+#                  Schedule is defined in scripts/run_cron.py (SCHEDULE dict)
+#                  Mon: codigo, radar, sintese, funding | Wed: mercado
+#
+# To set up in Railway Dashboard:
+# 1. New Service → select repo sinal-lab
 # 2. Builder: Dockerfile (same image as API)
 # 3. Start Command: copy from below
-# 4. Cron Schedule: copy from below
+# 4. Cron Schedule: copy from below (cron-agents only)
 # 5. Variables: use Shared Variables (DATABASE_URL, ANTHROPIC_API_KEY, etc.)
 
 [services.api]
 start_command = "uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"
 
-[services.cron-codigo]
-cron_schedule = "0 4 * * 1"   # Monday 04:00 UTC
-start_command = "python scripts/run_cron.py codigo"
-
-[services.cron-radar]
-cron_schedule = "0 5 * * 1"   # Monday 05:00 UTC
-start_command = "python scripts/run_cron.py radar"
-
-[services.cron-sintese]
-cron_schedule = "0 6 * * 1"   # Monday 06:00 UTC
-start_command = "python scripts/run_cron.py sintese"
-
-[services.cron-funding]
-cron_schedule = "0 7 * * 1"   # Monday 07:00 UTC
-start_command = "python scripts/run_cron.py funding"
-
-[services.cron-mercado]
-cron_schedule = "0 7 * * 3"   # Wednesday 07:00 UTC
-start_command = "python scripts/run_cron.py mercado"
+[services.cron-agents]
+cron_schedule = "0 4 * * *"   # Daily 04:00 UTC — dispatches agents by weekday
+start_command = "python scripts/run_cron.py"

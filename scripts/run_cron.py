@@ -4,10 +4,9 @@
 Thin wrapper over run_agents.py that auto-calculates period values
 (ISO week or next edition from DB) and runs in orchestrate mode.
 
-Usage (Railway cron start command):
-    python scripts/run_cron.py radar
-    python scripts/run_cron.py sintese
-    python scripts/run_cron.py funding
+Usage:
+    python scripts/run_cron.py           # Daily dispatch (Railway cron mode)
+    python scripts/run_cron.py radar     # Run single agent (manual/debug)
 """
 
 import logging
@@ -29,6 +28,12 @@ from packages.database.session import get_session
 from scripts.run_agents import AGENTS, orchestrate_single_agent, setup_logging
 
 logger = logging.getLogger("run_cron")
+
+# isoweekday(): 1=Monday … 7=Sunday
+SCHEDULE: dict[int, list[str]] = {
+    1: ["codigo", "radar", "sintese", "funding"],  # Monday
+    3: ["mercado"],                                  # Wednesday
+}
 
 
 def _get_current_week() -> int:
@@ -76,16 +81,50 @@ def _get_period_value(agent_name: str) -> int:
     return _get_current_week()
 
 
-def main() -> int:
-    """Run a single agent via orchestrator. Returns exit code 0 or 1."""
-    if len(sys.argv) < 2:
-        print(f"Usage: python scripts/run_cron.py <agent>", file=sys.stderr)
-        print(f"Available agents: {', '.join(AGENTS.keys())}", file=sys.stderr)
+def run_daily() -> int:
+    """Dispatch agents based on today's schedule. Returns 0 or 1."""
+    today = datetime.now().isoweekday()
+    agents = SCHEDULE.get(today, [])
+
+    if not agents:
+        logger.info("No agents scheduled for weekday %d. Nothing to do.", today)
+        return 0
+
+    logger.info("Daily dispatch: weekday=%d, agents=%s", today, agents)
+    failures: list[str] = []
+
+    session = get_session()
+    try:
+        for agent_name in agents:
+            period_value = _get_period_value(agent_name)
+            logger.info("Running agent=%s, period=%d", agent_name, period_value)
+
+            exit_code = orchestrate_single_agent(
+                agent_name,
+                period_value=period_value,
+                session=session,
+                enable_editorial=True,
+                enable_evidence=True,
+            )
+
+            if exit_code != 0:
+                logger.error("Agent %s failed with exit_code=%d", agent_name, exit_code)
+                failures.append(agent_name)
+            else:
+                logger.info("Agent %s completed successfully", agent_name)
+    finally:
+        session.close()
+
+    if failures:
+        logger.error("Daily dispatch finished with failures: %s", failures)
         return 1
 
-    agent_name = sys.argv[1]
-    setup_logging(verbose=True)
+    logger.info("Daily dispatch completed successfully")
+    return 0
 
+
+def _run_single(agent_name: str) -> int:
+    """Run a single agent via orchestrator. Returns exit code 0 or 1."""
     if agent_name not in AGENTS:
         logger.error("Unknown agent: %s. Valid: %s", agent_name, list(AGENTS.keys()))
         return 1
@@ -111,6 +150,16 @@ def main() -> int:
         logger.error("Cron run failed: agent=%s, exit_code=%d", agent_name, exit_code)
 
     return exit_code
+
+
+def main() -> int:
+    """Entry point: no args → daily dispatch, with arg → single agent."""
+    setup_logging(verbose=True)
+
+    if len(sys.argv) < 2:
+        return run_daily()
+
+    return _run_single(sys.argv[1])
 
 
 if __name__ == "__main__":
