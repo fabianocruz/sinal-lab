@@ -17,6 +17,7 @@ class ContentCreateRequest(BaseModel):
     summary: Optional[str] = None
     meta_description: Optional[str] = Field(None, max_length=320)
     sources: Optional[list[str]] = None
+    author_name: Optional[str] = Field(None, max_length=255)
 
 
 class ContentUpdateRequest(BaseModel):
@@ -29,6 +30,7 @@ class ContentUpdateRequest(BaseModel):
     summary: Optional[str] = None
     meta_description: Optional[str] = Field(None, max_length=320)
     sources: Optional[list[str]] = None
+    author_name: Optional[str] = Field(None, max_length=255)
 
 
 class AdminContentResponse(BaseModel):
@@ -48,6 +50,7 @@ class AdminContentResponse(BaseModel):
     sources: Optional[list[str]] = None
     confidence_dq: Optional[float] = None
     meta_description: Optional[str] = None
+    author_name: Optional[str] = None
 
     class Config:
         from_attributes = True

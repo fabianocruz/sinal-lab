@@ -30,6 +30,7 @@ export interface ContentApiItem {
   published_at?: string | null;
   sources?: string[] | null;
   meta_description?: string | null;
+  author_name?: string | null;
   subtitle?: string | null;
   body_md?: string;
   body_html?: string | null;

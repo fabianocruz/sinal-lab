@@ -113,6 +113,7 @@ def admin_create_content(
         summary=body.summary,
         meta_description=body.meta_description,
         sources=body.sources,
+        author_name=body.author_name,
         agent_name=None,
         review_status="draft",
     )

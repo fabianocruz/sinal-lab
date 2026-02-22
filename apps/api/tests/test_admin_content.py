@@ -346,6 +346,30 @@ class TestAdminCreateContent:
         assert r2.json()["slug"] == "same-title-2"
         assert r3.json()["slug"] == "same-title-3"
 
+    def test_create_with_author_name(self, client):
+        """Creates content with author_name and returns it in response."""
+        payload = {
+            "title": "Artigo do Fabiano",
+            "body_md": "Conteudo aqui.",
+            "author_name": "Fabiano Cruz",
+        }
+        response = client.post("/api/admin/content", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["author_name"] == "Fabiano Cruz"
+
+    def test_create_without_author_name_returns_null(self, client):
+        """Creates content without author_name — field is null."""
+        payload = {
+            "title": "Artigo Anonimo",
+            "body_md": "Conteudo anonimo.",
+        }
+        response = client.post("/api/admin/content", json=payload)
+
+        assert response.status_code == 201
+        assert response.json()["author_name"] is None
+
     def test_slug_handles_accents(self, client):
         """Slugs handle Portuguese accented characters."""
         payload = {
@@ -417,6 +441,18 @@ class TestAdminUpdateContent:
         assert response.status_code == 200
         data = response.json()
         assert data["subtitle"] == "New subtitle"
+        assert data["title"] == "Article One"  # Unchanged
+
+    def test_update_author_name(self, client, sample_content):
+        """Updates author_name via PATCH."""
+        response = client.patch(
+            "/api/admin/content/article-one",
+            json={"author_name": "Fabiano Cruz"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["author_name"] == "Fabiano Cruz"
         assert data["title"] == "Article One"  # Unchanged
 
     def test_update_not_found(self, client):

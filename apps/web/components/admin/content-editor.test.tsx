@@ -546,6 +546,7 @@ describe("ContentEditor", () => {
         summary: "Resumo aqui",
         meta_description: "Meta desc",
         sources: ["https://fonte.com"],
+        author_name: "",
       });
     });
 

@@ -86,6 +86,7 @@ class ContentResponse(BaseModel):
     published_at: Optional[datetime] = None
     sources: Optional[list[str]] = None
     meta_description: Optional[str] = None
+    author_name: Optional[str] = None
 
     class Config:
         from_attributes = True

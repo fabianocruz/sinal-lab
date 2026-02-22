@@ -59,6 +59,23 @@ export default function ArticleContent({ item }: ArticleContentProps) {
         {item.subtitle && (
           <p className="mt-4 text-[16px] leading-relaxed text-silver">{item.subtitle}</p>
         )}
+
+        {/* Author info */}
+        <div className="mt-6 flex items-center gap-3">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-semibold"
+            style={{ backgroundColor: "rgba(232,255,89,0.15)", color: ACCENT_COLOR }}
+            aria-hidden="true"
+          >
+            {(item.author_name ?? "Sinal Editorial").charAt(0)}&middot;
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold text-bone">
+              {item.author_name ?? "Sinal Editorial"}
+            </p>
+            <p className="text-[12px] text-ash">{item.author_name ? "Autor" : "Redacao"}</p>
+          </div>
+        </div>
       </header>
 
       {/* Preview content — always visible */}
