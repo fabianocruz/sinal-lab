@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Parse CLI arguments and run the INDEX agent pipeline."""
     parser = argparse.ArgumentParser(
         description="INDEX agent — LATAM Startup Index seed pipeline",
     )
