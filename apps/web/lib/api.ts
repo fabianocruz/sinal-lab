@@ -117,6 +117,28 @@ export async function fetchNewsletters(params?: {
   }
 }
 
+export async function fetchArticles(params?: {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<ContentApiItem>> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.set("status", "published");
+    searchParams.set("content_type", "ARTICLE");
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+
+    const url = `${API_BASE}/api/content?${searchParams.toString()}`;
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
+    return response.json();
+  } catch {
+    return { items: [], total: 0, limit: 20, offset: 0 };
+  }
+}
+
 export async function fetchNewsletterBySlug(slug: string): Promise<ContentApiItem | null> {
   try {
     const response = await fetch(`${API_BASE}/api/content/${slug}`, {

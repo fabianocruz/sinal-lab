@@ -123,6 +123,12 @@ export default function Navbar() {
           >
             Arquivo
           </Link>
+          <Link
+            href="/artigos"
+            className="font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
+          >
+            Artigos
+          </Link>
         </div>
 
         {/* Desktop: auth state + CTA */}
@@ -161,6 +167,13 @@ export default function Navbar() {
               className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
             >
               Arquivo
+            </Link>
+            <Link
+              href="/artigos"
+              onClick={() => setMobileOpen(false)}
+              className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
+            >
+              Artigos
             </Link>
             <NavbarAuthState mobile />
             <NavbarCTA mobile onClick={() => setMobileOpen(false)} />
