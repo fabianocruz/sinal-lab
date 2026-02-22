@@ -7,6 +7,14 @@ Usage:
     python scripts/seed_content.py --force           # re-insert (delete existing by slug)
 
 Requires DATABASE_URL environment variable or .env file.
+
+Editorial territories covered (target weights):
+    T1 Fintech & Economia Digital (40%)
+    T2 AI Aplicada & Infraestrutura (20%)
+    T3 Cripto, Stablecoins & Ativos Digitais (10%)
+    T4 Engenharia, Arquitetura & Infraestrutura (20%)
+    T5 Venture Capital & Funding LATAM (15%)
+    T6 Green Tech, AgriTech & Impacto (5%)
 """
 
 import argparse
@@ -30,10 +38,11 @@ DATABASE_URL = os.getenv(
 )
 
 NEWSLETTERS = [
+    # === Edições 47-42: Jan-Fev 2026 ===
     {
         "slug": "briefing-47-paradoxo-modelo-gratuito",
         "title": "O paradoxo do modelo gratuito: quando abundância de IA vira commodity e escassez vira produto",
-        "subtitle": "TAMBÉM: 14 rodadas mapeadas · US$287M total · Rust ganha tração em fintechs BR",
+        "subtitle": "TAMBEM: 14 rodadas mapeadas · US$287M total · Rust ganha tração em fintechs BR",
         "agent_name": "sintese",
         "content_type": "DATA_REPORT",
         "confidence_dq": 5.0,
@@ -48,34 +57,34 @@ A avalanche de modelos open-source da última semana não é generosidade — é
 Os três launches mais relevantes da semana (DeepSeek R2, Qwen 3, Mistral Medium 2) compartilham um padrão: performance comparable ao estado da arte, custo marginal tendendo a zero, e diferenciação cada vez mais sutil. O verdadeiro moat agora é o fine-tuning com dados de domínio — exatamente onde startups LATAM têm vantagem geográfica natural.""",
     },
     {
-        "slug": "briefing-46-healthtech-latam",
-        "title": "Healthtech LATAM: a vertical silenciosa que cresceu 340%",
-        "subtitle": "TAMBÉM: US$1.2B em deals no Q4 · Mapa de talento técnico",
+        "slug": "briefing-46-drex-real-digital-pagamentos",
+        "title": "Drex: o real digital entra em fase 2 — o que muda para fintechs e bancos",
+        "subtitle": "TAMBEM: 16 instituições na fase piloto · Smart contracts em real · DvP tokenizado",
         "agent_name": "radar",
         "content_type": "ANALYSIS",
-        "confidence_dq": None,
+        "confidence_dq": 4.0,
         "published_at": "2026-02-03",
-        "meta_description": "Como a healthtech se tornou a vertical de maior crescimento na América Latina.",
-        "body_md": """Três padrões emergentes esta semana dominaram o fluxo de informação: a aceleração da healthtech no México e Colômbia, a consolidação de fintechs em fase de maturidade, e um sinal fraco mas consistente de migração de engenheiros sênior para startups de impacto.
+        "meta_description": "Análise da fase 2 do Drex e o impacto para fintechs, bancos e infraestrutura de pagamentos no Brasil.",
+        "body_md": """O Banco Central do Brasil iniciou a fase 2 do piloto do Drex com 16 instituições participantes — incluindo Nubank, Mercado Pago, BTG e Itaú. A diferença em relação à fase 1 é substancial: agora o foco é em casos de uso reais com smart contracts, não apenas em infraestrutura de liquidação.
 
-A healthtech LATAM foi por anos tratada como nicho. Em 2025, ela processou mais de 40 milhões de consultas digitais na região. Os dados desta semana indicam que o ciclo de crescimento não está desacelerando — está mudando de perfil, migrando de telemedicina básica para infraestrutura clínica complexa.
+Os três casos de uso prioritários confirmados: DvP (Delivery versus Payment) para títulos públicos tokenizados, crédito colateralizado por ativos digitais, e pagamentos programáveis entre instituições. O Banco Central estimou que só o DvP de títulos pode reduzir custos de liquidação em 60% — o que representa bilhões de reais por ano em eficiência operacional para o sistema financeiro.
 
-O que é mais relevante para quem está construindo: a adoção institucional. Hospitais públicos no Brasil e no México começaram a contratar startups de diagnóstico por IA como fornecedores primários, não pilotos. Isso muda completamente o perfil de receita dessas empresas.""",
+Para fintechs, o sinal mais relevante é a decisão do BC de usar uma camada de privacidade baseada em zero-knowledge proofs, permitindo que transações em Drex sejam auditáveis pelo regulador mas invisíveis entre participantes. Isso resolve o principal bloqueio que bancos tinham com blockchain pública — e abre espaço para que fintechs construam produtos de crédito e investimento sobre uma infraestrutura que antes era exclusiva de grandes instituições.""",
     },
     {
-        "slug": "briefing-45-mapa-calor-talento",
-        "title": "O mapa de calor do talento técnico na América Latina",
-        "subtitle": "TAMBÉM: CrewAI atinge 50k stars · Vagas Rust em fintechs",
+        "slug": "briefing-45-rust-fintechs-migracao-infraestrutura",
+        "title": "Por que fintechs LATAM estão migrando infraestrutura crítica para Rust",
+        "subtitle": "TAMBEM: 3 vagas Rust em fintechs BR · Benchmarks de latência · Nubank open-source",
         "agent_name": "codigo",
         "content_type": "ANALYSIS",
         "confidence_dq": None,
         "published_at": "2026-01-27",
-        "meta_description": "Mapeamento do talento técnico na América Latina e tendências de contratação.",
-        "body_md": """O repositório mais relevante da semana não saiu de uma big tech americana. Saiu de uma equipe de cinco pessoas em Buenos Aires. O framework de AI agents CrewAI atingiu 50 mil stars no GitHub, impulsionado por uma contribuição significativa de desenvolvedores brasileiros.
+        "meta_description": "Análise técnica da migração de serviços críticos para Rust em fintechs da América Latina.",
+        "body_md": """Uma tendência clara está surgindo entre as fintechs de grande escala na América Latina: a migração gradual de serviços críticos de Python e Go para Rust. O motivo não é performance pura, mas sim a combinação de segurança de memória, previsibilidade de latência e redução de custos de infraestrutura cloud que Rust proporciona em ambientes de alta throughput.
 
-O padrão de multi-agent orchestration está se consolidando como o paradigma dominante para aplicações enterprise — e a comunidade LATAM está na vanguarda da adoção. Isso não é coincidência: os problemas de negócios na região — compliance tributário, integração bancária fragmentada, atendimento em múltiplos idiomas — são exatamente os casos de uso onde agentes especializados têm vantagem.
+O caso mais documentado: uma fintech brasileira de pagamentos migrou seu serviço de autorização de transações Pix de Go para Rust e reportou redução de 73% no P99 de latência (de 45ms para 12ms) e 40% em custos de EC2. Em um sistema que processa 2 milhões de transações por dia, a economia de infra paga o investimento em reescrita em menos de 6 meses.
 
-O sinal mais fraco mas mais interessante da semana: três vagas abertas em fintechs brasileiras exigindo Rust. Há seis meses isso seria incomum. Agora sugere uma mudança estrutural na stack de infraestrutura de pagamentos.""",
+O sinal técnico mais interessante da semana: três vagas abertas em fintechs brasileiras exigindo Rust — duas para infraestrutura de pagamentos e uma para motor de regras de compliance. Há seis meses isso seria incomum. Agora sugere uma mudança estrutural na stack. Nubank contribuiu um crate open-source de serialização otimizada para mensagens do sistema financeiro brasileiro (SPB), sinalizando que a adoção é institucional, não experimental.""",
     },
     {
         "slug": "briefing-44-embedded-finance-b2b",
@@ -95,7 +104,7 @@ Mapeamos 47 empresas ativas no espaço, entrevistamos 12 fundadores e analisamos
     {
         "slug": "briefing-43-q4-2025-deals-latam",
         "title": "Q4 2025: US$1.2 bilhão em deals LATAM — quem captou, de quem, e por que",
-        "subtitle": "TAMBÉM: Fintech domina mas edtech recupera · Seed rounds +40%",
+        "subtitle": "TAMBEM: Fintech domina 41% do capital · Seed rounds +40% em número",
         "agent_name": "funding",
         "content_type": "DATA_REPORT",
         "confidence_dq": None,
@@ -110,7 +119,7 @@ O dado mais relevante: seed rounds cresceram 40% em número (não em valor). Mai
     {
         "slug": "briefing-42-novo-mapa-fintechs-latam",
         "title": "O novo mapa das fintechs LATAM: quem sobreviveu, quem pivotou, quem sumiu",
-        "subtitle": "TAMBÉM: 3 M&As silenciosos · Nova onda de BaaS no México",
+        "subtitle": "TAMBEM: 3 M&As silenciosos · Nova onda de BaaS no México",
         "agent_name": "mercado",
         "content_type": "ANALYSIS",
         "confidence_dq": None,
@@ -122,6 +131,7 @@ Das 340 fintechs que mapeamos em 2022, 187 ainda estão operacionais. Dessas, 43
 
 O padrão dos sobreviventes é consistente: focaram em um vertical estreito, priorizaram rentabilidade sobre crescimento entre 2023 e 2024, e construíram defensibilidade regulatória. A empresa que tentou ser banco, wallet, crédito e investimento ao mesmo tempo geralmente não está mais aqui.""",
     },
+    # === Edição Especial: Retrospectiva 2025 ===
     {
         "slug": "briefing-especial-retrospectiva-2025",
         "title": "Retrospectiva 2025: os 10 sinais que definiram o ano do ecossistema tech LATAM",
@@ -139,11 +149,11 @@ Sinal 2: A infraestrutura financeira aberta (Open Finance no Brasil, PLD-FT na C
 
 Sinal 3: A concentração de talento técnico sênior em três cidades (São Paulo, Cidade do México, Buenos Aires) começou a se dispersar. Medellín, Bogotá e Montevidéu absorveram engenheiros que antes não considerariam se mudar.""",
     },
-    # --- Edições 41-29: backlog de ~3 meses (dez/2025 → set/2025) ---
+    # === Edições 41-29: Dez/2025 → Set/2025 ===
     {
         "slug": "briefing-41-kubernetes-latam-infraestrutura",
         "title": "Kubernetes na LATAM: do hype à infraestrutura real",
-        "subtitle": "TAMBÉM: 3 clouds regionais ganham tração · GitOps em fintechs BR",
+        "subtitle": "TAMBEM: 3 clouds regionais ganham tração · GitOps em fintechs BR",
         "agent_name": "codigo",
         "content_type": "ANALYSIS",
         "confidence_dq": None,
@@ -158,7 +168,7 @@ O sinal técnico mais interessante: GitOps está se consolidando como o workflow
     {
         "slug": "briefing-40-mapa-ia-generativa-latam",
         "title": "O mapa de IA generativa aplicada na América Latina",
-        "subtitle": "TAMBÉM: 23 startups mapeadas · US$89M em rodadas de IA · LLMs em português",
+        "subtitle": "TAMBEM: 23 startups mapeadas · US$89M em rodadas de IA · LLMs em português",
         "agent_name": "sintese",
         "content_type": "DATA_REPORT",
         "confidence_dq": 4.0,
@@ -173,7 +183,7 @@ As rodadas confirmam a tese: US$89M foram investidos em startups de IA generativ
     {
         "slug": "briefing-39-climate-tech-capital-latam",
         "title": "Climate tech LATAM: o capital está chegando — mas para quem?",
-        "subtitle": "TAMBÉM: Créditos de carbono tokenizados · Energia solar descentralizada",
+        "subtitle": "TAMBEM: Créditos de carbono tokenizados · Energia solar descentralizada",
         "agent_name": "radar",
         "content_type": "ANALYSIS",
         "confidence_dq": None,
@@ -188,7 +198,7 @@ O dado mais interessante: o Brasil concentra 34% de todos os créditos de carbon
     {
         "slug": "briefing-38-novembro-rodadas-series-b",
         "title": "Novembro: 18 rodadas, US$342M e 3 Series B que ninguém esperava",
-        "subtitle": "TAMBÉM: Seed médio sobe para US$2.4M · YC aceita recorde de LATAM founders",
+        "subtitle": "TAMBEM: Seed médio sobe para US$2.4M · YC aceita recorde de LATAM founders",
         "agent_name": "funding",
         "content_type": "DATA_REPORT",
         "confidence_dq": 4.0,
@@ -196,14 +206,14 @@ O dado mais interessante: o Brasil concentra 34% de todos os créditos de carbon
         "meta_description": "Análise das 18 rodadas de novembro 2025: US$342M investidos em startups LATAM.",
         "body_md": """Novembro fechou com 18 rodadas mapeadas totalizando US$342M — o melhor mês desde março de 2022. Mas o número absoluto esconde o que realmente importa: a composição mudou radicalmente.
 
-Três Series B dominaram o mês: uma fintech de crédito para PMEs no México (US$85M), uma healthtech de diagnóstico por IA no Brasil (US$62M) e uma logtech colombiana (US$48M). As três compartilham um perfil: fundadas entre 2019 e 2020, sobreviveram ao inverno com unit economics positivos, e agora estão expandindo com disciplina. Nenhuma queimou capital para crescer — cresceram para merecer capital.
+Três Series B dominaram o mês: uma fintech de crédito para PMEs no México (US$85M), uma infraestrutura de pagamentos cross-border no Brasil (US$62M) e uma plataforma de BaaS colombiana (US$48M). As três compartilham um perfil: fundadas entre 2019 e 2020, sobreviveram ao inverno com unit economics positivos, e agora estão expandindo com disciplina. Nenhuma queimou capital para crescer — cresceram para merecer capital.
 
 O dado de seed é igualmente relevante: o ticket médio de seed rounds subiu de US$1.6M para US$2.4M. Mais capital por empresa, menos empresas financiadas. Os investidores estão concentrando apostas, não dispersando. YC aceitou 14 startups LATAM no batch de inverno — recorde absoluto.""",
     },
     {
         "slug": "briefing-37-super-apps-falharam-latam",
         "title": "Por que as super apps falharam na América Latina (e o que veio no lugar)",
-        "subtitle": "TAMBÉM: Rappi pivota para fintech · Mercado Pago vs Nubank",
+        "subtitle": "TAMBEM: Rappi pivota para fintech · Mercado Pago vs Nubank",
         "agent_name": "mercado",
         "content_type": "ANALYSIS",
         "confidence_dq": None,
@@ -233,24 +243,24 @@ Descoberta 2: o salário médio de data engineer sênior no Brasil (US$4.200/mê
 Descoberta 3: o gap mais crítico não é técnico, é de governança. Apenas 18% dos respondentes reportam ter um data catalog em produção. A maioria opera com "conhecimento tribal" — e isso se torna insustentável acima de 10 pessoas na equipe de dados.""",
     },
     {
-        "slug": "briefing-35-edtech-segunda-onda",
-        "title": "Edtech 2.0: a segunda onda de educação digital chega com IA e B2B",
-        "subtitle": "TAMBÉM: Platzi atinge 5M alunos · Descomplica pivota para enterprise",
+        "slug": "briefing-35-stablecoins-trilho-pagamento-latam",
+        "title": "Stablecoins como trilho de pagamento: a adoção silenciosa na América Latina",
+        "subtitle": "TAMBEM: USDT domina remessas · Circle abre operação em SP · Regulação MiCA effect",
         "agent_name": "radar",
         "content_type": "ANALYSIS",
-        "confidence_dq": None,
+        "confidence_dq": 4.0,
         "published_at": "2025-11-10",
-        "meta_description": "A segunda onda de edtech na América Latina: IA e modelos B2B.",
-        "body_md": """A edtech LATAM teve uma primeira onda turbulenta: crescimento explosivo durante a pandemia, seguido de retração brutal em 2022-2023. Metade das startups do setor fechou ou pivotou. Mas os dados das últimas semanas mostram algo inesperado — uma segunda onda está emergindo, com perfil completamente diferente.
+        "meta_description": "Como stablecoins estão se tornando infraestrutura de pagamento na América Latina.",
+        "body_md": """A narrativa dominante sobre cripto na América Latina ainda é especulação — mas os dados contam outra história. O uso de stablecoins como trilho de pagamento, não como investimento, cresceu 280% na região nos últimos 12 meses. USDT (Tether) processa mais volume em remessas Brasil-Venezuela e Argentina-Paraguai do que Western Union.
 
-A Edtech 2.0 tem três características que a distinguem da primeira: é B2B (vende para empresas, não para consumidores), é powered by IA (conteúdo adaptativo gerado por LLMs), e tem unit economics positivo desde o primeiro cliente. Exemplos: Platzi Enterprise cresceu 180% em receita corporativa, e a Descomplica pivotou silenciosamente de B2C para treinamento corporativo em fintechs.
+O dado mais revelador: 67% do volume de stablecoins na LATAM é USDT em redes de baixo custo (Tron, Polygon), não USDC em Ethereum. O perfil de uso é pragmático — trabalhadores enviando US$200-500 por transação para familiares, PMEs pagando fornecedores internacionais sem Swift, e freelancers recebendo em dólar digital. Nenhum desses use cases aparece em relatórios de exchanges tradicionais porque acontecem peer-to-peer.
 
-O sinal mais forte: três empresas de edtech B2B LATAM captaram rodadas seed acima de US$3M nas últimas 6 semanas. Todas atacam o mesmo problema — requalificação de força de trabalho para economia digital — com abordagens diferentes mas convergentes.""",
+Circle abriu escritório em São Paulo na última semana e anunciou integração direta com Pix para on/off-ramp de USDC. Para fintechs brasileiras, isso cria uma ponte entre o sistema financeiro regulado (Pix) e a economia de stablecoins — exatamente o tipo de infraestrutura que habilita novos produtos de pagamento cross-border sem depender de correspondentes bancários.""",
     },
     {
         "slug": "briefing-34-mexico-unicornios-mudanca",
         "title": "México supera Brasil em novos unicórnios pela primeira vez: o que mudou",
-        "subtitle": "TAMBÉM: Nearshoring tech acelera · Monterrey como hub de IA",
+        "subtitle": "TAMBEM: Nearshoring tech acelera · Monterrey como hub de IA",
         "agent_name": "mercado",
         "content_type": "DATA_REPORT",
         "confidence_dq": 4.0,
@@ -265,7 +275,7 @@ Monterrey emergiu como o hub de IA mais relevante da América Latina em 2025, co
     {
         "slug": "briefing-33-semana-redefiniu-vc-latam",
         "title": "A semana que redefiniu o venture capital na América Latina",
-        "subtitle": "TAMBÉM: SoftBank volta · Novo fundo de US$500M focado em LATAM",
+        "subtitle": "TAMBEM: SoftBank volta · Novo fundo de US$500M focado em LATAM",
         "agent_name": "sintese",
         "content_type": "ANALYSIS",
         "confidence_dq": 5.0,
@@ -280,7 +290,7 @@ Para fundadores, o sinal é ambíguo: há mais capital disponível, mas com mais
     {
         "slug": "briefing-32-mapa-capital-startups-latam",
         "title": "De onde vem o dinheiro: mapeando os 50 investidores mais ativos em LATAM",
-        "subtitle": "TAMBÉM: Corporate venture cresce 60% · Family offices entram no jogo",
+        "subtitle": "TAMBEM: Corporate venture cresce 60% · Family offices entram no jogo",
         "agent_name": "funding",
         "content_type": "DATA_REPORT",
         "confidence_dq": 4.0,
@@ -295,7 +305,7 @@ O dado mais interessante: family offices representam agora 15% dos cheques em se
     {
         "slug": "briefing-31-open-source-latam-contribuidores",
         "title": "Open source na LATAM: de consumidores a contribuidores",
-        "subtitle": "TAMBÉM: Elixir cresce em São Paulo · Terraform LATAM community",
+        "subtitle": "TAMBEM: Elixir cresce em São Paulo · Terraform LATAM community",
         "agent_name": "codigo",
         "content_type": "ANALYSIS",
         "confidence_dq": None,
@@ -308,19 +318,19 @@ O padrão de contribuição é revelador: desenvolvedores LATAM não estão cria
 Três comunidades se destacam: Elixir em São Paulo (impulsionada pela adoção massiva de Phoenix LiveView em fintechs), Terraform na Colômbia (driven by cloud migration em empresas tradicionais), e Rust em Buenos Aires (com foco em infraestrutura de pagamentos). O fio condutor é o mesmo: linguagens e ferramentas que resolvem problemas reais de infraestrutura na região.""",
     },
     {
-        "slug": "briefing-30-consolidacao-ecommerce-latam",
-        "title": "A consolidação silenciosa do e-commerce LATAM: quem está comprando quem",
-        "subtitle": "TAMBÉM: Mercado Libre adquire 2 fintechs · Shopify LATAM cresce 140%",
+        "slug": "briefing-30-open-finance-brasil-dashboard-adocao",
+        "title": "Open Finance Brasil: dashboard de adoção — APIs ativas, consentimentos e quem lidera",
+        "subtitle": "TAMBEM: 22M consentimentos ativos · Nubank lidera em dados · Recebiveis como colateral",
         "agent_name": "mercado",
-        "content_type": "ANALYSIS",
-        "confidence_dq": None,
+        "content_type": "DATA_REPORT",
+        "confidence_dq": 4.0,
         "published_at": "2025-10-06",
-        "meta_description": "Análise da onda de consolidação no e-commerce da América Latina.",
-        "body_md": """Uma onda de consolidação está varrendo o e-commerce latino-americano, mas acontecendo de forma tão silenciosa que a maioria dos observadores não percebeu. Nos últimos 90 dias, contamos 8 aquisições no setor — nenhuma com press release público. Descobrimos por movimentações no LinkedIn e registros corporativos.
+        "meta_description": "Dashboard de adoção do Open Finance Brasil: métricas de APIs, consentimentos e instituições líderes.",
+        "body_md": """O Open Finance Brasil atingiu 22 milhões de consentimentos ativos — mas o número mascara uma realidade mais interessante. A adoção está profundamente concentrada: cinco instituições respondem por 78% dos consentimentos de dados, e apenas três oferecem produtos reais baseados em dados compartilhados (portabilidade de crédito, agregação de contas, e score alternativo).
 
-O padrão é claro: empresas maiores estão comprando tecnologia, não mercado. Mercado Libre adquiriu duas fintechs pequenas com infraestrutura de crédito para sellers. VTEX comprou um starter kit de marketplace. Magazine Luiza absorveu uma logtech de last-mile. Nenhuma dessas aquisições foi sobre receita adicional — todas foram sobre capacidades técnicas que seria mais lento construir internamente.
+O dado mais relevante para quem está construindo: a API de recebíveis de cartão (fase 4) entrou em operação e já está sendo usada como colateral em operações de crédito para PMEs. Uma fintech brasileira reportou que consegue aprovar crédito para pequenos negócios em 4 horas usando dados de recebíveis via Open Finance — versus 15 dias via análise tradicional. A diferença de conversão é de 3x.
 
-Para startups de e-commerce infrastructure, o sinal é importante: o exit mais provável não é IPO, é aquisição por um incumbente que precisa da sua tecnologia. Isso muda como você deve construir — otimize para integração, não para independência.""",
+A oportunidade mais subestimada: a API de investimentos (fase 3b) permite que fintechs agreguem posições de fundos, ações e renda fixa de diferentes corretoras em uma única tela. Quem construir o "Mint brasileiro" sobre Open Finance vai capturar o segmento de alta renda que hoje está fragmentado entre 3-4 plataformas. Os dados mostram que 40% dos investidores PF no Brasil têm posições em mais de uma corretora.""",
     },
     {
         "slug": "briefing-29-regulacao-ia-cinco-paises",
@@ -337,156 +347,156 @@ Brasil lidera com o PL 2338/2023, a regulação mais detalhada e prescritiva da 
 
 Para quem está construindo: a fragmentação regulatória é um moat para startups que conseguem navegar múltiplas jurisdições. RegTech de IA — ferramentas que ajudam empresas a cumprir regulações de IA em diferentes países LATAM — é uma vertical que não existia há 12 meses e que agora tem pelo menos 4 startups financiadas.""",
     },
-    # --- Edições 28-19: backlog estendido (set/2025 → jul/2025) ---
+    # === Edições 28-19: Set/2025 → Jul/2025 ===
     {
         "slug": "briefing-28-infraestrutura-pagamentos-latam",
         "title": "A guerra invisível da infraestrutura de pagamentos na América Latina",
-        "subtitle": "TAMBÉM: Pix internacional · SPEI evolui · Transferencias 3.0 na Argentina",
+        "subtitle": "TAMBEM: Pix internacional · SPEI evolui · Transferencias 3.0 na Argentina",
         "agent_name": "sintese",
         "content_type": "DATA_REPORT",
         "confidence_dq": 5.0,
         "published_at": "2025-09-22",
-        "meta_description": "Análise da competição entre infraestruturas de pagamento na América Latina.",
-        "body_md": """A batalha mais consequente do ecossistema tech latino-americano não está acontecendo no nível de aplicação — está na camada de infraestrutura de pagamentos. Três sistemas nacionais estão evoluindo em paralelo: Pix no Brasil, SPEI/CoDi no México e Transferencias 3.0 na Argentina.
+        "meta_description": "Análise da competição entre infraestruturas de pagamento instantâneo na América Latina.",
+        "body_md": """A batalha mais consequente do ecossistema fintech latino-americano não está acontecendo no nível de aplicação — está na camada de infraestrutura de pagamentos. Três sistemas nacionais estão evoluindo em paralelo: Pix no Brasil (4 bilhões de transações/mês), SPEI/CoDi no México (780 milhões/mês), e Transferencias 3.0 na Argentina (120 milhões/mês).
 
-O Pix completou três anos processando mais de 4 bilhões de transações mensais. O dado mais relevante desta semana: o Banco Central anunciou que o Pix internacional entrará em operação no segundo trimestre de 2026, permitindo transferências instantâneas entre Brasil e países do Mercosul. Isso muda fundamentalmente o cenário para fintechs de remessas.
+O dado mais relevante desta semana: o Banco Central do Brasil anunciou que o Pix internacional entrará em operação no segundo trimestre de 2026, permitindo transferências instantâneas entre Brasil e países do Mercosul. Isso muda fundamentalmente o cenário para fintechs de remessas — o custo médio de enviar US$200 do Brasil para a Argentina deve cair de US$12 (Western Union) para menos de US$1 (Pix internacional).
 
-Para quem está construindo: a interoperabilidade entre sistemas de pagamento nacionais vai criar uma camada de infraestrutura que não existe hoje. Startups que consigam abstrair as diferenças entre Pix, SPEI e Transferencias 3.0 em uma API unificada estão posicionadas para capturar valor desproporcional.""",
+Para quem está construindo: a interoperabilidade entre sistemas de pagamento nacionais vai criar uma camada de infraestrutura que não existe hoje. Startups que consigam abstrair as diferenças entre Pix, SPEI e Transferencias 3.0 em uma API unificada estão posicionadas para capturar valor desproporcional. Três empresas já estão construindo isso — nenhuma anunciou publicamente.""",
     },
     {
-        "slug": "briefing-27-devtools-latam-emergem",
-        "title": "DevTools made in LATAM: 8 ferramentas que estão ganhando tração global",
-        "subtitle": "TAMBÉM: CLI tools em Rust · Observability para edge · DX como diferencial",
+        "slug": "briefing-27-custos-inferencia-llm-startups-latam",
+        "title": "O custo real de rodar LLMs em produção: benchmark para startups LATAM",
+        "subtitle": "TAMBEM: GPU cloud na região · Fine-tuning vs RAG · Otimização de prompts",
         "agent_name": "codigo",
         "content_type": "ANALYSIS",
-        "confidence_dq": None,
+        "confidence_dq": 4.0,
         "published_at": "2025-09-15",
-        "meta_description": "Mapeamento de developer tools criadas na América Latina com tração global.",
-        "body_md": """Historicamente, a América Latina consumiu ferramentas de desenvolvimento criadas em outros lugares. Em 2025, isso está mudando. Mapeamos 8 developer tools criadas por equipes LATAM que atingiram mais de 1.000 stars no GitHub ou mais de 500 usuários ativos.
+        "meta_description": "Benchmark de custos de inferência LLM para startups na América Latina.",
+        "body_md": """Coletamos dados de custos reais de 14 startups LATAM que operam LLMs em produção — não benchmarks teóricos, mas faturas mensais reais de cloud e API. O resultado desmistifica várias suposições sobre o custo de operar IA generativa na região.
 
-O padrão é consistente: nenhuma dessas ferramentas tenta reinventar categorias existentes. Todas resolvem problemas de nicho que os grandes players ignoram — debugging de webhooks em ambientes de pagamento fragmentados, testing de integrações bancárias em sandbox, observability otimizado para edge functions em regiões com alta latência.
+O dado mais surpreendente: startups que migraram de API pura (OpenAI/Anthropic) para modelos open-source hospedados (Llama 3, Mistral) em GPU cloud regional (AWS São Paulo, Oracle Mexico City) reduziram custos em 60-80%, mas aumentaram latência em 40%. Para aplicações real-time (chatbots, copilots), a API é mais barata quando o volume é abaixo de 500K tokens/dia. Acima disso, self-hosting compensa — mas exige um engenheiro de ML dedicado que custa US$5-8K/mês no Brasil.
 
-O sinal mais forte: duas dessas ferramentas foram aceitas no programa de open source do GitHub (GitHub Sponsors) e uma está no pipeline de aquisição de uma empresa de DevEx americana. Developer tools é uma vertical onde a proximidade com problemas reais de infraestrutura LATAM se torna vantagem competitiva global.""",
+A otimização mais impactante não é infra, é prompt engineering. Três das 14 startups reportaram redução de 50% em custos apenas com cache de embeddings e prompt compression — sem mudar modelo ou provedor. Para quem está construindo produtos de IA na LATAM, a recomendação é clara: otimize prompts antes de otimizar infraestrutura.""",
     },
     {
-        "slug": "briefing-26-venture-debt-latam",
-        "title": "Venture debt chega à América Latina: alternativa ou armadilha?",
-        "subtitle": "TAMBÉM: 5 deals mapeados · US$120M em dívida · Silicon Valley Bank effect",
+        "slug": "briefing-26-credito-sub-bancarizados-ai-scoring",
+        "title": "Scoring de crédito para sub-bancarizados: os modelos de AI que fintechs LATAM estão usando",
+        "subtitle": "TAMBEM: 40M sem score tradicional no BR · Dados alternativos · Default rates comparados",
         "agent_name": "funding",
-        "content_type": "ANALYSIS",
+        "content_type": "DATA_REPORT",
         "confidence_dq": 4.0,
         "published_at": "2025-09-08",
-        "meta_description": "Análise da chegada do venture debt como instrumento de financiamento na América Latina.",
-        "body_md": """Venture debt — dívida estruturada para startups que já captaram equity — está chegando à América Latina com dois anos de atraso em relação ao mercado americano. Nos últimos 90 dias, mapeamos 5 deals de venture debt na região totalizando US$120M. É o começo de um mercado que nos EUA movimenta US$30B por ano.
+        "meta_description": "Como fintechs LATAM usam AI e dados alternativos para scoring de crédito de sub-bancarizados.",
+        "body_md": """Quarenta milhões de brasileiros adultos não têm score de crédito no Serasa ou SPC — são invisíveis para o sistema financeiro tradicional. Na América Latina como um todo, o número é 200 milhões. Cinco fintechs na região captaram um total de US$180M nos últimos 18 meses para resolver exatamente esse problema, usando AI e dados alternativos.
 
-A chegada é impulsionada por dois fatores: o colapso do SVB abriu espaço para novos players, e o custo de equity na LATAM ficou tão alto que fundadores estão buscando alternativas não-dilutivas. TriplePoint, Hercules e um player local (ainda não anunciado) estão ativando operações na região.
+Os modelos convergem em três fontes de dados: comportamento de pagamento de utilities (luz, água, telefone), dados transacionais de Pix (com consentimento via Open Finance), e sinais digitais (regularidade de uso de smartphone, padrões de e-commerce). O melhor modelo público da região — de uma fintech colombiana — reporta uma taxa de default de 4.2% em empréstimos para clientes sem score tradicional, versus 3.8% do mercado tradicional com score. A diferença é marginal, mas o TAM é gigantesco.
 
-O risco é real: venture debt na LATAM opera em um ambiente onde recuperação de crédito é significativamente mais lenta e complexa que nos EUA. A empresa que usa dívida para estender runway sem resolver unit economics está apenas adiando o problema — com juros. Para as certas (receita recorrente, churn baixo, path to profitability claro), é uma ferramenta poderosa.""",
+O risco regulatório é real: a ANPD (autoridade de proteção de dados brasileira) está investigando dois modelos de scoring alternativo por possível discriminação algorítmica — modelos treinados em dados de localização e consumo podem reproduzir viés socioeconômico. Para quem está construindo: explicabilidade do modelo não é feature, é requisito de sobrevivência regulatória.""",
     },
     {
-        "slug": "briefing-25-agritech-latam-dados-satelite",
-        "title": "Agritech LATAM: dados de satélite e IA estão transformando o agro",
-        "subtitle": "TAMBÉM: 3 Series A no setor · US$67M investidos · Precision agriculture",
+        "slug": "briefing-25-tokenizacao-ativos-cvm-sandbox",
+        "title": "Tokenização de ativos no Brasil: os primeiros resultados do sandbox da CVM",
+        "subtitle": "TAMBEM: R$2.1B tokenizados · 8 plataformas operando · Recebíveis lideram",
         "agent_name": "radar",
         "content_type": "ANALYSIS",
-        "confidence_dq": None,
+        "confidence_dq": 4.0,
         "published_at": "2025-09-01",
-        "meta_description": "Como dados de satélite e IA estão revolucionando o agritech na América Latina.",
-        "body_md": """O agritech latino-americano está passando por uma transformação silenciosa impulsionada pela convergência de três tecnologias: imagens de satélite de alta resolução (agora acessíveis a US$0.50/hectare), modelos de IA treinados em dados agrícolas regionais, e IoT de baixo custo com conectividade via satélite (Starlink).
+        "meta_description": "Primeiros resultados do sandbox da CVM para tokenização de ativos no Brasil.",
+        "body_md": """O sandbox regulatório da CVM para tokenização de ativos completou 12 meses com 8 plataformas operando e R$2.1 bilhões em ativos tokenizados. O número impressiona, mas a composição revela onde está o valor real: 72% são recebíveis (duplicatas, precatórios, aluguéis), 18% são imóveis fracionados, e apenas 10% são tokens de equity ou dívida corporativa.
 
-Três startups de agritech LATAM fecharam Series A nas últimas 6 semanas — duas no Brasil e uma na Argentina — totalizando US$67M. Todas compartilham uma tese: o agro latino-americano opera com margem bruta alta mas eficiência operacional baixa. Cada 1% de melhoria em rendimento por hectare representa bilhões de dólares em valor capturado.
+A dominância de recebíveis não é acidente — é o caso de uso onde tokenização resolve uma dor real e mensurável. No mercado tradicional, antecipar recebíveis custa 2-4% ao mês para PMEs. Via tokenização com smart contracts, o custo cai para 1-1.5% porque a liquidação é automática e o risco de fraude documental é eliminado. Uma plataforma brasileira reporta que origina R$80M/mês em recebíveis tokenizados com inadimplência de 0.3%.
 
-O dado mais relevante: a adoção de precision agriculture por fazendas acima de 1.000 hectares no Brasil saltou de 12% para 34% entre 2023 e 2025. A barreira não é mais tecnológica — é de go-to-market. Startups que conseguem distribuir via cooperativas e revendas agrícolas estão crescendo 3x mais rápido que as que vendem direto.""",
+Para o ecossistema de cripto/ativos digitais na LATAM, o sinal é claro: o caso de uso que escala não é especulação nem DeFi puro, é a ponte entre ativos reais (real-world assets) e infraestrutura blockchain. A CVM sinalizou que vai transformar o sandbox em regulação permanente no Q1 2026, o que pode abrir o mercado para instituições que esperavam segurança jurídica antes de entrar.""",
     },
     {
-        "slug": "briefing-24-cybersecurity-latam-gap",
-        "title": "O gap de cybersecurity na LATAM: problema de US$8B que ninguém resolve",
-        "subtitle": "DEEP DIVE: Mapeamento com 15 fontes e 6 entrevistas",
+        "slug": "briefing-24-ai-fraude-pix-arquiteturas",
+        "title": "AI para detecção de fraude no Pix: arquiteturas, modelos e taxas de false positive",
+        "subtitle": "DEEP DIVE: Como 5 fintechs brasileiras estão combatendo fraude em tempo real",
         "agent_name": "sintese",
         "content_type": "DEEP_DIVE",
         "confidence_dq": 5.0,
         "published_at": "2025-08-25",
-        "meta_description": "Deep dive sobre o gap de cybersecurity na América Latina e oportunidades para startups.",
-        "body_md": """A América Latina tem o maior gap de cybersecurity per capita entre regiões emergentes — e esse gap está crescendo. Com a digitalização acelerada pós-pandemia, a superfície de ataque expandiu massivamente, mas o investimento em segurança não acompanhou. Estimamos o mercado endereçável em US$8B, com menos de 15% servido por soluções locais.
+        "meta_description": "Deep dive técnico sobre detecção de fraude no Pix com AI: arquiteturas e benchmarks de 5 fintechs.",
+        "body_md": """O Pix processa 4 bilhões de transações por mês — e fraudes cresceram 47% em 2025 segundo dados do Banco Central. As cinco maiores fintechs brasileiras investiram coletivamente R$400M em sistemas de detecção de fraude baseados em AI no último ano. Investigamos as arquiteturas por trás desses sistemas.
 
-Entrevistamos 6 CISOs de empresas brasileiras e mexicanas de grande porte. O consenso: soluções americanas e israelenses dominam o mercado enterprise, mas são caras demais para o mid-market e completamente inacessíveis para PMEs. O gap real não está no topo da pirâmide — está no meio e na base, onde 90% das empresas LATAM operam sem qualquer proteção além de antivírus básico.
+O padrão arquitetural dominante: pipeline de 3 estágios em tempo real. Estágio 1: regras determinísticas (blocklists, limites de valor, geofencing) — filtra 85% das transações em <5ms. Estágio 2: modelo de ML (gradient boosting ou neural network) analisa as 15% restantes em <50ms usando features como device fingerprint, grafo social de transações, e padrões temporais. Estágio 3: modelo de linguagem analisa o contexto semântico de transações suspeitas (mensagens em chaves Pix, padrões de engenharia social) — <200ms.
 
-Mapeamos 12 startups de cybersecurity na região. A maioria ataca o segmento enterprise, competindo com incumbentes globais. As duas com melhor traction atacam o mid-market com modelos self-service de preço acessível — exatamente onde o gap é maior. É a mesma lógica que funcionou para fintechs: democratizar acesso a serviços que antes eram exclusivos de grandes empresas.""",
+O trade-off mais crítico é false positive rate. Uma fintech reportou que reduzir fraude em 0.5% custou 2% em transações legítimas bloqueadas — cada transação bloqueada é um cliente irritado. O sweet spot que as 5 fintechs convergiram: taxa de detecção de 92-94% com false positive rate de 0.8-1.2%. Ir além de 94% de detecção dispara o false positive exponencialmente. Para quem está construindo: invista mais em explicabilidade da decisão para o cliente do que em accuracy marginal do modelo.""",
     },
     {
-        "slug": "briefing-23-legaltech-compliance-automatizado",
-        "title": "Legaltech LATAM: compliance automatizado é a killer app",
-        "subtitle": "TAMBÉM: 4 startups de RegTech · NLP jurídico em português · Automação fiscal",
+        "slug": "briefing-23-neobanks-unit-economics-latam",
+        "title": "Unit economics dos neobanks LATAM: Nubank, Ualá e Mercado Pago comparados",
+        "subtitle": "TAMBEM: CAC vs LTV por país · Revenue per user · Custo de servir vs receita",
         "agent_name": "mercado",
-        "content_type": "ANALYSIS",
-        "confidence_dq": None,
+        "content_type": "DATA_REPORT",
+        "confidence_dq": 4.0,
         "published_at": "2025-08-18",
-        "meta_description": "Como legaltech e compliance automatizado estão crescendo na América Latina.",
-        "body_md": """Se existe uma vertical onde a complexidade regulatória da América Latina se torna vantagem em vez de obstáculo, é legaltech. A região tem a legislação tributária mais complexa do mundo (o Brasil sozinho tem mais de 60 tributos diferentes), e cada mudança regulatória cria demanda por automação.
+        "meta_description": "Análise comparativa de unit economics dos neobanks na América Latina.",
+        "body_md": """Pela primeira vez, conseguimos comparar unit economics de três dos maiores neobanks da América Latina usando dados de seus relatórios trimestrais e estimativas de analistas. O resultado revela modelos de negócio mais diferentes do que os nomes similares sugerem.
 
-Quatro startups de RegTech LATAM captaram nos últimos 60 dias, todas na interseção de NLP + compliance. O caso de uso dominante: monitoramento automático de mudanças regulatórias com alertas contextualizados por setor e jurisdição. Parece simples, mas a execução exige modelos de linguagem treinados em jargão jurídico em português e espanhol — algo que modelos genéricos fazem mal.
+Nubank: 100M de clientes, ARPAC (receita média por cliente ativo) de US$11/mês, custo de servir US$0.80/mês. O moat é escala e cross-sell — 37% dos clientes usam 3+ produtos. O CAC caiu para US$5 via referral orgânico. Ualá (Argentina/México): 8M clientes, ARPAC de US$3.20/mês (muito menor por mix de renda e câmbio), mas custo de servir de US$0.40/mês. Modelo mais enxuto, focado em pagamentos e remessas. Mercado Pago: integrado ao marketplace, o CAC efetivo é zero (o cliente já está no ecossistema), mas ARPAC de US$6.50/mês porque a monetização é dominada por acquiring de sellers, não por produtos bancários.
 
-O sinal mais forte desta semana: uma das big four de auditoria está testando internamente uma solução de compliance automatizado desenvolvida por uma startup brasileira. Se o piloto escalar, é validação institucional que pode acelerar a adoção por todo o mercado enterprise. A legaltech LATAM está onde a fintech estava em 2017 — prestes a explodir.""",
+O dado mais relevante para fundadores de fintech: o custo de adquirir um cliente bancário no Brasil caiu de US$35 (2022) para US$5-12 (2025), principalmente por causa do Pix como canal de aquisição. Mas o custo de ativar esse cliente (fazê-lo usar 3+ produtos) continua em US$20-30. A guerra agora não é aquisição — é engagement.""",
     },
     {
-        "slug": "briefing-22-proptech-real-estate-digital",
-        "title": "PropTech LATAM: o real estate encontra a digitalização (finalmente)",
-        "subtitle": "TAMBÉM: Tokenização de imóveis · Marketplace B2B · Credit scoring imobiliário",
+        "slug": "briefing-22-baas-banking-as-a-service-latam",
+        "title": "Banking-as-a-Service LATAM: quem fornece a infraestrutura das fintechs",
+        "subtitle": "TAMBEM: 7 plataformas comparadas · Regulação BaaS no Brasil · Compliance como moat",
         "agent_name": "radar",
         "content_type": "DATA_REPORT",
         "confidence_dq": 4.0,
         "published_at": "2025-08-11",
-        "meta_description": "Análise da digitalização do mercado imobiliário na América Latina via proptech.",
-        "body_md": """O mercado imobiliário é a última grande vertical da economia latino-americana a ser digitalizada — e 2025 é o ano em que isso começou a mudar de verdade. Mapeamos 31 proptechs ativas na região, 14 delas fundadas nos últimos 18 meses. O capital acumulado no setor: US$280M.
+        "meta_description": "Mapeamento das plataformas de Banking-as-a-Service na América Latina.",
+        "body_md": """Para cada fintech visível ao consumidor, existe pelo menos uma empresa invisível fornecendo a infraestrutura por trás: licença bancária, ledger, compliance KYC/AML, e conexão com o sistema de pagamentos. Esse é o mercado de Banking-as-a-Service — e na América Latina, está passando por uma transformação.
 
-A tokenização de imóveis emergiu como o caso de uso mais promissor, especialmente no Brasil, onde a CVM (regulador de valores mobiliários) criou um sandbox regulatório específico para tokens imobiliários. Três plataformas já operam com licença experimental, e o volume transacionado triplicou no último trimestre.
+Mapeamos 7 plataformas de BaaS ativas na região: Swap (Brasil), Dock (Brasil/México), Pomelo (Argentina/Colômbia), Bankly (Brasil), QI Tech (Brasil), Zoop (Brasil) e Ualá BaaS (Argentina/México). A diferenciação principal não é tecnológica (todas oferecem APIs similares) — é regulatória. As plataformas que conseguem garantir compliance com Banco Central, CNBV (México) e Superfinanciera (Colômbia) simultaneamente estão capturando clientes que querem operar em múltiplos países sem montar equipes regulatórias locais.
 
-Mas o impacto maior pode vir de uma aplicação menos sexy: credit scoring imobiliário baseado em dados alternativos. Na LATAM, 60% dos compradores de primeiro imóvel não têm histórico de crédito tradicional suficiente. Startups que usam dados de aluguel, utilities e comportamento digital para gerar scores estão desbloqueando uma demanda reprimida gigantesca.""",
+O mercado de BaaS LATAM cresceu de US$400M em 2023 para US$1.1B em 2025. A projeção para 2027 é US$2.8B. O driver principal: empresas não-financeiras (varejo, telecom, logística) embarcando serviços financeiros nos seus apps. Para cada fintech-first que nasce, três empresas tradicionais estão adicionando fintech como feature — e todas precisam de BaaS para fazê-lo em compliance.""",
     },
     {
-        "slug": "briefing-21-cloud-soberania-latam",
-        "title": "Soberania digital: por que LATAM precisa de clouds regionais",
-        "subtitle": "TAMBÉM: LGPD enforcement cresce · Data residency no México · Edge computing",
+        "slug": "briefing-21-observability-pagamentos-stack-sre",
+        "title": "Observability em sistemas de pagamento: o stack real de SREs em fintechs brasileiras",
+        "subtitle": "DEEP DIVE: Datadog vs Grafana · Alerting em tempo real · SLOs de transações Pix",
         "agent_name": "codigo",
         "content_type": "DEEP_DIVE",
         "confidence_dq": 4.0,
         "published_at": "2025-08-04",
-        "meta_description": "Deep dive sobre soberania digital e a necessidade de infraestrutura cloud regional na América Latina.",
-        "body_md": """A discussão sobre soberania digital na América Latina saiu do campo acadêmico e entrou no operacional. Com a LGPD brasileira emitindo suas primeiras multas significativas e o México implementando requisitos de data residency para o setor financeiro, a pergunta "onde estão nossos dados?" deixou de ser teórica.
+        "meta_description": "Deep dive sobre observability e SRE em fintechs brasileiras que processam Pix.",
+        "body_md": """Quando uma transação Pix falha, o SLA do Banco Central exige resolução em 10 minutos. Para fintechs que processam milhões de transações por dia, isso significa que observability não é nice-to-have — é a diferença entre manter e perder a licença de participante do Pix. Investigamos o stack real de 6 fintechs brasileiras.
 
-Os três grandes hyperscalers (AWS, Azure, GCP) têm regiões na América Latina — Brasil e Chile para AWS, Brasil para Azure, Chile e Brasil para GCP. Mas para setores regulados (saúde, finanças, governo), regiões de hyperscalers nem sempre satisfazem os requisitos de soberania. Dados precisam estar em infraestrutura auditável por reguladores locais.
+O stack dominante: Grafana + Prometheus + Loki para métricas e logs (4 de 6 fintechs), com OpenTelemetry para tracing distribuído. Datadog aparece em 2 das 6 — as que processam mais volume e justificam o custo premium pelo APM mais maduro. O padrão mais interessante: todas as 6 usam synthetic monitoring customizado que simula transações Pix reais (end-to-end, incluindo SPB) a cada 30 segundos. Se o synthetic falha, o alerta dispara antes que qualquer cliente real seja afetado.
 
-Isso está criando espaço para clouds regionais especializadas. Magalu Cloud no Brasil, KIO Networks no México e Claro Cloud na Colômbia estão investindo pesado em certificações de segurança e compliance. O mercado de cloud soberana na LATAM vai de US$200M em 2024 para uma projeção de US$1.2B em 2027. Para startups de infraestrutura, a oportunidade está em ferramentas que facilitem workloads híbridos entre hyperscalers e clouds regionais.""",
+Os SLOs (Service Level Objectives) convergem: 99.95% de disponibilidade para o serviço de autorização Pix, P99 de latência abaixo de 100ms, e taxa de erro abaixo de 0.01%. O gap mais comum: 4 de 6 fintechs não têm SLOs formais para o fluxo de conciliação — que é onde a maioria dos problemas reais acontece (transação aparece como pendente por horas). A lição: monitore o caminho feliz e o caminho de exceção com a mesma seriedade.""",
     },
     {
-        "slug": "briefing-20-talent-war-engenheiros-senior",
-        "title": "A guerra silenciosa por engenheiros sênior na América Latina",
-        "subtitle": "TAMBÉM: Remote-first vs presencial · Salários em dólar · Brain drain reverso",
+        "slug": "briefing-20-mlops-startups-latam-stack-real",
+        "title": "MLOps em startups LATAM: o stack real de quem opera AI em produção",
+        "subtitle": "TAMBEM: Feature stores · Model monitoring · Custos de GPU vs API",
         "agent_name": "mercado",
         "content_type": "ANALYSIS",
         "confidence_dq": None,
         "published_at": "2025-07-28",
-        "meta_description": "Análise da competição por talento técnico sênior na América Latina.",
-        "body_md": """Existe uma guerra silenciosa acontecendo na América Latina por um recurso escasso: engenheiros de software com mais de 8 anos de experiência e fluência em inglês. Empresas americanas contratando remotamente, startups locais, big techs com escritórios na região e consultoras de nearshoring estão todas competindo pelo mesmo pool de ~50 mil profissionais.
+        "meta_description": "Stack real de MLOps em startups de AI na América Latina que operam modelos em produção.",
+        "body_md": """A distância entre "temos AI" e "operamos AI em produção" continua sendo o maior gap no ecossistema de startups LATAM. Entrevistamos 10 startups da região que operam modelos de ML em produção (não PoCs, não demos — modelos que processam dados reais e geram receita) para mapear o stack real de MLOps.
 
-O impacto é direto nos salários: um engenheiro sênior em São Paulo que ganhava R$25k/mês em 2022 agora recebe R$35-45k (ou US$6-8k se contratado por empresa americana). A escalada está forçando startups locais — que pagam em reais — a competir em cultura, equity e missão, porque não podem competir em cash.
+O padrão dominante surpreende pela simplicidade: 7 de 10 usam MLflow para experiment tracking + registro de modelos, deployam via container Docker simples (não Kubernetes), e monitoram drift com scripts custom em Python que rodam diariamente. Ferramentas enterprise de MLOps (Weights & Biases, Neptune, Seldon) aparecem em apenas 2 startups — as que captaram Series A e têm equipes de ML acima de 5 pessoas. Para startups em estágio seed, o custo de licenças de MLOps enterprise é proibitivo.
 
-O fenômeno mais interessante: um brain drain reverso está começando. Engenheiros sênior LATAM que trabalharam 3-5 anos em big techs americanas remotamente estão voltando para startups locais, aceitando salários menores em troca de equity significativo e impacto direto no produto. É o ciclo de maturidade do ecossistema se completando — experiência acumulada retornando como capital humano fundador.""",
+O problema mais citado (8 de 10): model monitoring em produção. Detectar que um modelo degradou antes que o impacto chegue ao cliente é difícil quando seus dados mudam rápido — que é exatamente o caso de modelos de fraude, crédito e pricing na LATAM, onde o contexto macroeconômico é volátil. A startup mais madura da amostra roda shadow models em paralelo e compara predictions — é caro computacionalmente, mas flagra degradação em horas, não semanas.""",
     },
     {
-        "slug": "briefing-19-marketplace-b2b-verticalizacao",
-        "title": "Marketplaces B2B verticais: a próxima fronteira do e-commerce LATAM",
-        "subtitle": "TAMBÉM: Supply chain digital · GPO models · Unit economics de B2B marketplaces",
+        "slug": "briefing-19-agritech-credito-rural-satelite",
+        "title": "AgriTech + Fintech: crédito rural via dados de satélite está desbloqueando o agro LATAM",
+        "subtitle": "TAMBEM: R$340B mercado crédito rural BR · Scoring por NDVI · 3 fintechs no setor",
         "agent_name": "funding",
         "content_type": "DATA_REPORT",
         "confidence_dq": 4.0,
         "published_at": "2025-07-21",
-        "meta_description": "Análise do crescimento de marketplaces B2B verticais na América Latina.",
-        "body_md": """Enquanto marketplaces B2C (Mercado Libre, Amazon, Rappi) dominam as manchetes, uma revolução silenciosa está acontecendo no B2B. Mapeamos 19 marketplaces B2B verticais na América Latina — plataformas que conectam compradores e fornecedores em setores específicos: insumos industriais, materiais de construção, insumos agrícolas, material hospitalar.
+        "meta_description": "Como fintechs estão usando dados de satélite para scoring de crédito rural na América Latina.",
+        "body_md": """O crédito rural no Brasil é um mercado de R$340 bilhões por ano — e 70% é intermediado por bancos públicos (Banco do Brasil, BNDES) usando processos que exigem visita presencial à propriedade. Três fintechs brasileiras estão atacando esse gap com uma abordagem que combina dados de satélite (NDVI, índice de vegetação), registros climáticos e histórico de produtividade para aprovar crédito remotamente em 48 horas.
 
-O investimento acumulado nesses 19 marketplaces: US$340M nos últimos 24 meses. O ticket médio de transação é 40x maior que em B2C, e o churn é significativamente menor — empresas que encontram um fornecedor confiável raramente trocam. Os unit economics são fundamentalmente diferentes e mais favoráveis.
+O modelo de scoring é elegante: imagens de satélite Sentinel-2 (gratuitas, resolução de 10m) alimentam um modelo de ML que estima produtividade por hectare com precisão de 85%. Combinado com dados de preço de commodities e histórico de chuva, o modelo gera um score de risco agrícola que substitui a vistoria presencial. Uma das fintechs reporta inadimplência de 2.1% — menor que a média do crédito rural tradicional (3.4%).
 
-O padrão de sucesso é claro: marketplaces B2B que vencem na LATAM não competem em preço (race to the bottom) mas em confiabilidade e crédito. Oferecer financing para o comprador e garantia de pagamento para o fornecedor é o que desbloqueia liquidez. É embedded finance aplicado a supply chain — e os dados mostram que startups com essa feature crescem 2.5x mais rápido que as sem.""",
+Para o ecossistema de venture: as três fintechs captaram um total de US$67M em 2025, e o investor mais ativo no setor é o IFC (braço de investimento do Banco Mundial), que vê AgriTech + Fintech como vetor de inclusão financeira para 5 milhões de pequenos produtores que não acessam crédito bancário. É a interseção de T1 (Fintech), T2 (AI), e T6 (AgriTech) — exatamente onde os territórios editoriais convergem.""",
     },
 ]
 

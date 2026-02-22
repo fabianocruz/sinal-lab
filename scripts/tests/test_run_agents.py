@@ -119,7 +119,7 @@ class TestAgentsDict:
     """Validate AGENTS dict has all required keys for orchestrate mode."""
 
     def test_all_agents_present(self):
-        expected = {"sintese", "radar", "codigo", "funding", "mercado"}
+        expected = {"sintese", "radar", "codigo", "funding", "mercado", "index"}
         assert set(AGENTS.keys()) == expected
 
     def test_all_agents_have_orchestrate_keys(self):

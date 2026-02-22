@@ -1,28 +1,37 @@
-"""Shared Crunchbase Basic API source for agent collectors.
+"""Shared Crunchbase source for agent collectors.
 
-Fetches funding rounds and company profiles via the Crunchbase Basic API.
-Requires a CRUNCHBASE_API_KEY environment variable (maps to the
-``X-cb-user-key`` header).
+Provides both Crunchbase Basic API access and Crunchbase Open Data CSV parsing.
 
-Falls back gracefully (returns []) when the key is missing, the API
-returns an error, or the response is malformed.
+API mode:
+    Fetches funding rounds and company profiles via the Crunchbase Basic API.
+    Requires a CRUNCHBASE_API_KEY environment variable.
+
+CSV mode:
+    Parses the Crunchbase Open Data CSV export (organizations.csv).
+    No API key required.
 
 Usage:
     from apps.agents.sources.crunchbase import (
         fetch_funding_rounds,
         fetch_companies,
+        fetch_crunchbase_open_data,
     )
 
     rounds = fetch_funding_rounds(source_config, client, limit=50)
     companies = fetch_companies(source_config, client, limit=30)
+    open_data = fetch_crunchbase_open_data("/path/to/organizations.csv")
 """
 
+from __future__ import annotations
+
+import csv
 import hashlib
 import logging
 import os
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 
@@ -342,4 +351,135 @@ def fetch_companies(
     logger.info(
         "Fetched %d companies from %s", len(companies), source.name
     )
+    return companies
+
+
+# ---------------------------------------------------------------------------
+# Crunchbase Open Data CSV parser
+# ---------------------------------------------------------------------------
+
+_CRUNCHBASE_LATAM_COUNTRIES = {
+    "Argentina",
+    "Bolivia",
+    "Brazil",
+    "Chile",
+    "Colombia",
+    "Costa Rica",
+    "Cuba",
+    "Dominican Republic",
+    "Ecuador",
+    "El Salvador",
+    "Guatemala",
+    "Haiti",
+    "Honduras",
+    "Mexico",
+    "Nicaragua",
+    "Panama",
+    "Paraguay",
+    "Peru",
+    "Puerto Rico",
+    "Uruguay",
+    "Venezuela",
+}
+
+
+@dataclass
+class CrunchbaseOpenCompany:
+    """A company parsed from the Crunchbase Open Data CSV export."""
+
+    name: str
+    permalink: str
+    domain: Optional[str] = None
+    homepage_url: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    short_description: Optional[str] = None
+    categories: list[str] = field(default_factory=list)
+    founded_on: Optional[date] = None
+    cb_url: Optional[str] = None
+    employee_count: Optional[str] = None
+    total_funding_usd: Optional[float] = None
+
+
+def fetch_crunchbase_open_data(
+    csv_path: Union[str, Path],
+    filter_latam: bool = True,
+    max_rows: Optional[int] = None,
+) -> list[CrunchbaseOpenCompany]:
+    """Parse the Crunchbase Open Data organizations CSV.
+
+    Args:
+        csv_path: Path to the organizations.csv file.
+        filter_latam: If True, only return LATAM companies.
+        max_rows: Maximum number of rows to return (None = no limit).
+
+    Returns:
+        List of CrunchbaseOpenCompany. Empty list if file not found.
+    """
+    path = Path(csv_path)
+    if not path.exists():
+        logger.warning("Crunchbase CSV not found: %s", csv_path)
+        return []
+
+    companies: list[CrunchbaseOpenCompany] = []
+
+    try:
+        with open(path, encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Only include companies (not investors, schools, etc.)
+                roles = row.get("roles", "")
+                if "company" not in roles.lower():
+                    continue
+
+                country = row.get("country_code", "").strip()
+
+                if filter_latam and country not in _CRUNCHBASE_LATAM_COUNTRIES:
+                    continue
+
+                # Parse categories
+                category_str = row.get("category_list", "")
+                categories_list = [
+                    c.strip() for c in category_str.split(",") if c.strip()
+                ]
+
+                # Parse founded date
+                founded_on = _parse_date(row.get("founded_on"))
+
+                # Parse total funding
+                total_funding: Optional[float] = None
+                raw_funding = row.get("total_funding_usd", "").strip()
+                if raw_funding:
+                    try:
+                        total_funding = float(raw_funding)
+                    except ValueError:
+                        total_funding = None
+
+                companies.append(
+                    CrunchbaseOpenCompany(
+                        name=row.get("name", "").strip(),
+                        permalink=row.get("permalink", "").strip(),
+                        domain=row.get("domain", "").strip() or None,
+                        homepage_url=row.get("homepage_url", "").strip() or None,
+                        country=country or None,
+                        city=row.get("city", "").strip() or None,
+                        region=row.get("region", "").strip() or None,
+                        short_description=row.get("short_description", "").strip() or None,
+                        categories=categories_list,
+                        founded_on=founded_on,
+                        cb_url=row.get("cb_url", "").strip() or None,
+                        employee_count=row.get("employee_count", "").strip() or None,
+                        total_funding_usd=total_funding,
+                    )
+                )
+
+                if max_rows and len(companies) >= max_rows:
+                    break
+
+    except Exception as exc:
+        logger.error("Error parsing Crunchbase CSV %s: %s", csv_path, exc)
+        return []
+
+    logger.info("Parsed %d companies from Crunchbase CSV", len(companies))
     return companies

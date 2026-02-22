@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, Index, JSON, String, Text
+from sqlalchemy import Date, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.database.models.base import Base, TimestampMixin, UUIDMixin
@@ -45,6 +45,10 @@ class Company(UUIDMixin, TimestampMixin, Base):
     github_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     twitter_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Cross-source dedup
+    cnpj: Mapped[Optional[str]] = mapped_column(String(14), unique=True, nullable=True, index=True)
+    source_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Status
     status: Mapped[str] = mapped_column(
