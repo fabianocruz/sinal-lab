@@ -379,13 +379,14 @@ describe("fetchNewsletters", () => {
     expect(url).toContain("/api/content");
   });
 
-  it("includes status=published to show only published content", async () => {
+  it("includes status=published and excludes ARTICLE content type", async () => {
     vi.mocked(fetch).mockResolvedValue(mockResponse(mockPaginated));
 
     await fetchNewsletters();
 
     const url = vi.mocked(fetch).mock.calls[0][0] as string;
     expect(url).toContain("status=published");
+    expect(url).toContain("content_type_exclude=ARTICLE");
   });
 
   it("omits optional params that are not provided (no spurious query string)", async () => {
