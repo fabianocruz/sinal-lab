@@ -162,6 +162,33 @@ class TestContentPiece:
         assert piece.confidence_ac == 3.5
         assert piece.agent_name == "radar"
 
+    def test_create_content_with_author_name(self, session: Session):
+        piece = ContentPiece(
+            id=uuid.uuid4(),
+            title="Artigo com Autor",
+            slug="artigo-com-autor",
+            body_md="# Conteudo",
+            content_type="ARTICLE",
+            author_name="Fabiano Cruz",
+        )
+        session.add(piece)
+        session.flush()
+
+        assert piece.author_name == "Fabiano Cruz"
+
+    def test_create_content_author_name_defaults_to_none(self, session: Session):
+        piece = ContentPiece(
+            id=uuid.uuid4(),
+            title="Artigo Sem Autor",
+            slug="artigo-sem-autor",
+            body_md="# Conteudo",
+            content_type="ARTICLE",
+        )
+        session.add(piece)
+        session.flush()
+
+        assert piece.author_name is None
+
     def test_content_slug_unique(self, session: Session):
         c1 = ContentPiece(
             id=uuid.uuid4(),

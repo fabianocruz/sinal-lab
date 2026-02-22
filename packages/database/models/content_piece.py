@@ -36,6 +36,7 @@ class ContentPiece(UUIDMixin, TimestampMixin, Base):
     # Provenance
     agent_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     agent_run_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    author_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sources: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
 
     # Confidence scoring (editorial governance)

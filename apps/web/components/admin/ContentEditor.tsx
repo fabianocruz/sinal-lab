@@ -13,6 +13,7 @@ export interface ContentEditorData {
   summary: string;
   meta_description: string;
   sources: string[];
+  author_name: string;
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -56,6 +57,7 @@ export default function ContentEditor({
 }: ContentEditorProps) {
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [subtitle, setSubtitle] = useState(initialData?.subtitle ?? "");
+  const [authorName, setAuthorName] = useState(initialData?.author_name ?? "");
   const [bodyMd, setBodyMd] = useState(initialData?.body_md ?? "");
   const [contentType, setContentType] = useState(initialData?.content_type ?? "ARTICLE");
   const [summary, setSummary] = useState(initialData?.summary ?? "");
@@ -74,8 +76,9 @@ export default function ContentEditor({
       summary,
       meta_description: metaDescription,
       sources,
+      author_name: authorName,
     }),
-    [title, subtitle, bodyMd, contentType, summary, metaDescription, sources],
+    [title, subtitle, bodyMd, contentType, summary, metaDescription, sources, authorName],
   );
 
   function addSource() {
@@ -124,6 +127,21 @@ export default function ContentEditor({
           value={subtitle}
           onChange={(e) => setSubtitle(e.target.value)}
           placeholder="Subtitulo (opcional)"
+          className={inputClass}
+        />
+      </div>
+
+      {/* Author Name */}
+      <div>
+        <label className="mb-1 block font-mono text-[11px] uppercase tracking-[1px] text-ash">
+          Autor
+        </label>
+        <input
+          type="text"
+          value={authorName}
+          onChange={(e) => setAuthorName(e.target.value)}
+          placeholder="Nome do autor (opcional)"
+          maxLength={255}
           className={inputClass}
         />
       </div>

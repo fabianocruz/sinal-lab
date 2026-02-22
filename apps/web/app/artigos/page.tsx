@@ -122,11 +122,15 @@ export default async function ArtigosPage({ searchParams }: { searchParams: { pa
                           }}
                           aria-hidden="true"
                         >
-                          S&middot;
+                          {(item.author_name ?? "Sinal Editorial").charAt(0)}&middot;
                         </div>
                         <div className="text-[13px]">
-                          <strong className="block text-bone">Sinal Editorial</strong>
-                          <span className="text-[12px] text-ash">Redacao</span>
+                          <strong className="block text-bone">
+                            {item.author_name ?? "Sinal Editorial"}
+                          </strong>
+                          <span className="text-[12px] text-ash">
+                            {item.author_name ? "Autor" : "Redacao"}
+                          </span>
                         </div>
                       </div>
                     </div>

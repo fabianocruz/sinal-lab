@@ -20,6 +20,7 @@ export interface AdminContent {
   sources: string[] | null;
   confidence_dq: number | null;
   meta_description: string | null;
+  author_name: string | null;
 }
 
 export interface AdminContentList {
@@ -37,6 +38,7 @@ export interface ContentCreateData {
   summary?: string;
   meta_description?: string;
   sources?: string[];
+  author_name?: string;
 }
 
 export interface ContentUpdateData {
@@ -47,6 +49,7 @@ export interface ContentUpdateData {
   summary?: string;
   meta_description?: string;
   sources?: string[];
+  author_name?: string;
 }
 
 async function adminFetch<T>(path: string, options: globalThis.RequestInit = {}): Promise<T> {
