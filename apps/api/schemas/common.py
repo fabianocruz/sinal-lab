@@ -110,6 +110,7 @@ class ContentResponse(BaseModel):
     sources: Optional[list[str]] = None
     meta_description: Optional[str] = None
     author_name: Optional[str] = None
+    metadata_: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -121,7 +122,6 @@ class ContentDetailResponse(ContentResponse):
     body_md: str = ""
     body_html: Optional[str] = None
     canonical_url: Optional[str] = None
-    metadata_: Optional[dict] = None
 
     class Config:
         from_attributes = True
