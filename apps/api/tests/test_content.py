@@ -134,6 +134,16 @@ def test_list_content_filter_by_type(client, sample_content):
     assert data["items"][0]["slug"] == "newsletter-edition-1"
 
 
+def test_list_content_exclude_by_type(client, sample_content):
+    """Test excluding content by type (content_type_exclude)."""
+    response = client.get("/api/content?content_type_exclude=ARTICLE")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert all(c["content_type"] != "ARTICLE" for c in data["items"])
+
+
 def test_list_content_filter_by_agent(client, sample_content):
     """Test filtering content by agent."""
     response = client.get("/api/content?agent_name=radar")

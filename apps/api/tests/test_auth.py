@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from passlib.hash import bcrypt
+from apps.api.routers.auth import hash_password, verify_password
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -59,7 +59,7 @@ def registered_user(db_session):
         id=uuid.uuid4(),
         email="existing@example.com",
         name="Existing User",
-        password_hash=bcrypt.hash("correct-password"),
+        password_hash=hash_password("correct-password"),
         auth_provider="email",
         status="active",
     )
@@ -206,7 +206,7 @@ class TestRegister:
         )
         assert user is not None
         assert user.password_hash != "my-secret-password"
-        assert bcrypt.verify("my-secret-password", user.password_hash)
+        assert verify_password("my-secret-password", user.password_hash)
 
     def test_register_triggers_welcome_email(self, client, monkeypatch):
         """Registration queues a welcome email via BackgroundTasks.
@@ -618,7 +618,7 @@ class TestSyncOAuth:
             id=uuid.uuid4(),
             email="google-user@gmail.com",
             name="Email User",
-            password_hash=bcrypt.hash("some-password"),
+            password_hash=hash_password("some-password"),
             auth_provider="email",
             status="active",
         )

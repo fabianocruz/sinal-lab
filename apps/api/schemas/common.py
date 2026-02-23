@@ -77,6 +77,7 @@ class ContentResponse(BaseModel):
     id: UUID
     title: str
     slug: str
+    subtitle: Optional[str] = None
     content_type: str
     summary: Optional[str] = None
     agent_name: Optional[str] = None
@@ -97,7 +98,6 @@ class ContentDetailResponse(ContentResponse):
 
     body_md: str = ""
     body_html: Optional[str] = None
-    subtitle: Optional[str] = None
     canonical_url: Optional[str] = None
 
     class Config:

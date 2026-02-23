@@ -4,8 +4,8 @@ import re
 import uuid
 from datetime import datetime, timezone
 
+import bcrypt as _bcrypt
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header
-from passlib.hash import bcrypt
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
@@ -23,6 +23,16 @@ from packages.database.models.user import User
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+def hash_password(password: str) -> str:
+    """Hash a plaintext password with bcrypt."""
+    return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Verify a plaintext password against a bcrypt hash."""
+    return _bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
@@ -45,7 +55,7 @@ def register(
     if existing:
         # Upgrade waitlist-only users (no password) to active members
         if existing.status == "waitlist" and not existing.password_hash:
-            existing.password_hash = bcrypt.hash(body.password)
+            existing.password_hash = hash_password(body.password)
             existing.name = body.name or existing.name
             existing.status = "active"
             existing.auth_provider = "email"
@@ -60,7 +70,7 @@ def register(
         id=uuid.uuid4(),
         email=email,
         name=body.name,
-        password_hash=bcrypt.hash(body.password),
+        password_hash=hash_password(body.password),
         auth_provider="email",
         status="active",
     )
@@ -164,7 +174,7 @@ def verify_credentials(body: VerifyRequest, db: Session = Depends(get_db)):
     if not user.password_hash:
         raise HTTPException(status_code=401, detail="Credenciais inválidas.")
 
-    if not bcrypt.verify(body.password, user.password_hash):
+    if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas.")
 
     # Update last login timestamp

@@ -6,4 +6,4 @@ python-dotenv
 httpx
 sqlalchemy
 psycopg2-binary
-passlib[bcrypt]
+bcrypt

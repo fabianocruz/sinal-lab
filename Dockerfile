@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir \
     python-dotenv \
     feedparser \
     httpx \
-    passlib[bcrypt]
+    bcrypt
 
 # Application code
 COPY packages/ /app/packages/
