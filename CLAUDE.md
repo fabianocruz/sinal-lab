@@ -250,6 +250,27 @@ python scripts/run_agents.py sintese --persist
 python scripts/run_agents.py all --persist
 ```
 
+### Seeding & Enriching Companies
+```bash
+# 1. Seed 20 curated LATAM startups (CSV → DB)
+python scripts/seed_companies.py              # skip existing slugs
+python scripts/seed_companies.py --force      # overwrite existing
+python scripts/seed_companies.py --dry-run    # preview only
+
+# 2. Run INDEX agent for broader discovery (API sources)
+python scripts/seed_index.py --api-only --dry-run    # preview
+python scripts/seed_index.py --api-only --persist     # persist to DB
+
+# 3. Enrich companies with sector, tags, and startup classification
+python scripts/enrich_companies.py --dry-run          # preview classifications
+python scripts/enrich_companies.py                    # apply enrichment
+python scripts/enrich_companies.py --deactivate       # also deactivate non-startups
+
+# Typical local setup flow: seed → index → enrich
+python scripts/seed_companies.py --force && \
+python scripts/enrich_companies.py --deactivate
+```
+
 ### Database Migrations
 ```bash
 # Run migrations

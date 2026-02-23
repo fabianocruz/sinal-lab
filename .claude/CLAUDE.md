@@ -58,6 +58,9 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - `pytest packages/ apps/agents/ scripts/tests/ -v` — Roda todos os testes Python (1370+)
 - `pytest apps/agents/base/tests/ -v` — Testes do framework base + orchestrator
 - `pytest apps/agents/sources/tests/ -v` — Testes da source layer compartilhada
+- `python scripts/seed_companies.py --force` — Seed 20 startups curadas (CSV → DB, overwrite)
+- `python scripts/enrich_companies.py --dry-run` — Preview classificacao startup/non-startup + setor
+- `python scripts/enrich_companies.py --deactivate` — Enriquecer + desativar non-startups
 - `pnpm build` — Build de producao
 - `docker compose up -d` — Sobe PostgreSQL + Redis
 - `python scripts/seed_content.py --dry-run` — Preview seed das newsletters
