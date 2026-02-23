@@ -29,13 +29,20 @@ export interface NewsletterMetadata {
   companies_mentioned?: string[];
   topics?: string[];
   items?: Array<{
-    title: string;
-    url: string;
-    source_name: string;
-    summary: string;
-    composite_score: number;
+    title?: string;
+    url?: string;
+    source_name?: string;
+    summary?: string;
+    composite_score?: number;
     image_url?: string;
     video_url?: string;
+    // MERCADO-specific fields
+    company_name?: string;
+    sector?: string;
+    city?: string;
+    // FUNDING-specific fields
+    round_type?: string;
+    amount_usd?: number;
   }>;
   item_count?: number;
   total_sources?: number;
@@ -81,6 +88,56 @@ export interface ContentApiItem {
 
 const VALID_AGENTS = new Set(Object.keys(AGENT_PERSONAS));
 
+/** Build a richer subtitle from metadata when available. */
+function buildSubtitle(item: ContentApiItem): string {
+  // Explicit subtitle always wins
+  if (item.subtitle) return item.subtitle;
+
+  const meta = item.metadata_;
+  if (!meta) return item.summary ?? "";
+
+  const parts: string[] = [];
+
+  switch (item.agent_name) {
+    case "mercado": {
+      if (meta.item_count) parts.push(`${meta.item_count} startups mapeadas`);
+      const items = meta.items ?? [];
+      const sectors = [...new Set(items.map((i) => i.sector).filter(Boolean))];
+      if (sectors.length > 0) parts.push(sectors.slice(0, 2).join(", "));
+      break;
+    }
+    case "radar": {
+      if (meta.item_count) parts.push(`${meta.item_count} sinais analisados`);
+      if (meta.total_sources) parts.push(`${meta.total_sources} fontes`);
+      break;
+    }
+    case "codigo": {
+      if (meta.item_count) parts.push(`${meta.item_count} sinais dev analisados`);
+      const codeItems = meta.items ?? [];
+      const titles = codeItems
+        .slice(0, 2)
+        .map((i) => i.title?.split("/").pop() ?? i.title)
+        .filter(Boolean);
+      if (titles.length) parts.push(titles.join(", "));
+      break;
+    }
+    case "funding": {
+      if (meta.item_count) parts.push(`${meta.item_count} rodadas`);
+      const fundingItems = meta.items ?? [];
+      const companies = fundingItems.map((i) => i.company_name).filter(Boolean);
+      if (companies.length) parts.push(companies.slice(0, 2).join(", "));
+      break;
+    }
+    case "sintese": {
+      if (meta.item_count) parts.push(`${meta.item_count} itens analisados`);
+      if (meta.total_sources) parts.push(`${meta.total_sources} fontes`);
+      break;
+    }
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : (item.summary ?? "");
+}
+
 /** Convert an API content item to the Newsletter type used by components. */
 export function mapApiToNewsletter(item: ContentApiItem, index: number = 0): Newsletter {
   const agentRaw = item.agent_name ?? "sintese";
@@ -108,7 +165,7 @@ export function mapApiToNewsletter(item: ContentApiItem, index: number = 0): New
     date,
     dateISO,
     title: item.title,
-    subtitle: item.subtitle ?? item.summary ?? "",
+    subtitle: buildSubtitle(item),
     agent,
     agentLabel,
     dqScore,
