@@ -128,7 +128,7 @@ class IndexAgent(BaseAgent):
         github_sources = [s for s in self.config.data_sources if "github" in s.name and s.enabled]
         if github_sources:
             try:
-                from apps.agents.mercado.collector import collect_from_github
+                from apps.agents.sources.github_orgs import collect_from_github
                 all_github_profiles = []
                 for source in github_sources:
                     profiles = collect_from_github(source, self.provenance)

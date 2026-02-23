@@ -1,13 +1,15 @@
 """Converters from source-specific dataclasses to CandidateCompany.
 
 Each converter normalizes source data into the shared CandidateCompany
-format used by the entity matcher and pipeline.
+format used by the entity matcher and pipeline.  Sector fields are
+normalized to canonical SECTOR_OPTIONS via ``normalize_sector()``.
 """
 
 import logging
 from typing import Optional
 
 from apps.agents.sources.entity_matcher import CandidateCompany, normalize_cnpj, normalize_domain
+from apps.agents.sources.sector_normalizer import normalize_sector
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ def from_abstartups(
         slug=company.slug,
         website=company.website,
         description=company.description,
-        sector=company.sector,
+        sector=normalize_sector(company.sector) or company.sector,
         city=company.city,
         state=company.state,
         country="Brasil",
@@ -93,7 +95,7 @@ def from_yc(
         slug=company.slug,
         website=company.website,
         description=company.description,
-        sector=company.vertical,
+        sector=normalize_sector(company.vertical) or company.vertical,
         city=company.city,
         country=company.country or "Brasil",
         domain=domain,
@@ -124,7 +126,7 @@ def from_github(
         slug=profile.slug,
         website=profile.website,
         description=profile.description,
-        sector=profile.sector,
+        sector=normalize_sector(profile.sector) or profile.sector,
         city=profile.city,
         country=profile.country,
         domain=domain,
@@ -158,11 +160,19 @@ def from_crunchbase(
     categories = getattr(company, "categories", [])
     founded_on = getattr(company, "founded_on", None)
 
+    # Derive sector from Crunchbase categories
+    sector = None
+    for cat in categories:
+        sector = normalize_sector(cat)
+        if sector:
+            break
+
     return CandidateCompany(
         name=company.name,
         slug=company.permalink,
         website=getattr(company, "website_url", None) or getattr(company, "domain", None),
         description=getattr(company, "short_description", ""),
+        sector=sector,
         city=city,
         country=country or "Brasil",
         domain=domain,
