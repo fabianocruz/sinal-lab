@@ -1435,7 +1435,7 @@ def _briefing_section_funding(data: BriefingData) -> str:
 <tr>
 <td style="padding: 0 40px 16px;" class="mp">
   <p style="font-family: {_FONT_SERIF}; font-size: 19px; color: {_COLOR_HEADING}; line-height: 1.4; margin: 0 0 16px 0;">
-    {data["funding_count"]} rodadas mapeadas \u00b7 US${data["funding_total"]} total
+    {data["funding_count"]} rodadas mapeadas \u00b7 US{data["funding_total"]} total
   </p>
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:rgba(255,138,89,0.04); border-left:2px solid {_COLOR_FUNDING}; border-radius:0 8px 8px 0;">
   <tr>

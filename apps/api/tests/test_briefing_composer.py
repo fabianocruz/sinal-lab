@@ -112,13 +112,14 @@ RADAR_METADATA = {
     "total_sources": 8,
 }
 
+# NOTE: The funding agent stores amount_usd in millions (50.0 = $50M).
 FUNDING_METADATA = {
     "items": [
         {
             "company_name": "Clip",
             "company_slug": "clip",
             "round_type": "series_b",
-            "amount_usd": 50000000.0,
+            "amount_usd": 50.0,
             "currency": "USD",
             "source_url": "https://techcrunch.com/clip-series-b",
             "source_name": "TechCrunch",
@@ -129,7 +130,7 @@ FUNDING_METADATA = {
             "company_name": "Pomelo",
             "company_slug": "pomelo",
             "round_type": "series_a",
-            "amount_usd": 18000000.0,
+            "amount_usd": 18.0,
             "currency": "USD",
             "source_url": "https://lavca.org/pomelo",
             "source_name": "LAVCA",
@@ -138,7 +139,7 @@ FUNDING_METADATA = {
         },
     ],
     "item_count": 8,
-    "funding_total_usd": 130000000.0,
+    "funding_total_usd": 130.0,
 }
 
 MERCADO_METADATA = {
@@ -410,6 +411,54 @@ class TestExtractFundingDeals:
 
         assert result == []
 
+    def test_amount_in_millions_formats_correctly(self):
+        """Funding agent stores amount_usd in millions; composer must convert."""
+        metadata = {
+            "items": [
+                {
+                    "company_name": "TestCo",
+                    "round_type": "seed",
+                    "amount_usd": 8.0,  # 8.0 = $8M
+                    "lead_investors": [],
+                },
+            ],
+        }
+        result = _extract_funding_deals(metadata)
+
+        assert "$8M" in result[0]["description"]
+
+    def test_fractional_million_amount_shows_decimal(self):
+        """5.8 million should render as '$5.8M'."""
+        metadata = {
+            "items": [
+                {
+                    "company_name": "FracCo",
+                    "round_type": "series_a",
+                    "amount_usd": 5.8,  # 5.8 = $5.8M
+                    "lead_investors": ["Kaszek"],
+                },
+            ],
+        }
+        result = _extract_funding_deals(metadata)
+
+        assert "$5.8M" in result[0]["description"]
+
+    def test_none_amount_shows_na(self):
+        """None amount_usd should render as 'N/A' in description."""
+        metadata = {
+            "items": [
+                {
+                    "company_name": "NoCash",
+                    "round_type": "undisclosed",
+                    "amount_usd": None,
+                    "lead_investors": [],
+                },
+            ],
+        }
+        result = _extract_funding_deals(metadata)
+
+        assert "N/A" in result[0]["description"]
+
 
 # ---------------------------------------------------------------------------
 # TestExtractMercadoMovements
@@ -514,6 +563,64 @@ class TestExtractSinteseParagraphs:
 
         assert "First good paragraph." in result
         assert "Second good paragraph." in result
+
+    def test_horizontal_rules_are_filtered_out(self):
+        """'---' horizontal rules should not appear as paragraphs."""
+        body = "---\n\nReal paragraph here.\n\n---\n\nAnother real one."
+        result = _extract_sintese_paragraphs(body)
+
+        assert "---" not in result
+        assert "Real paragraph here." in result
+        assert "Another real one." in result
+
+    def test_blockquotes_are_filtered_out(self):
+        """Lines starting with '>' (blockquotes) should be excluded."""
+        body = "Lead paragraph.\n\n> This is a quote.\n\nFollow-up paragraph."
+        result = _extract_sintese_paragraphs(body)
+
+        for para in result:
+            assert not para.startswith(">")
+        assert "Lead paragraph." in result
+
+    def test_images_are_filtered_out(self):
+        """Markdown images '![alt](url)' should be excluded."""
+        body = "Paragraph one.\n\n![image](https://img.png)\n\nParagraph two."
+        result = _extract_sintese_paragraphs(body)
+
+        for para in result:
+            assert not para.startswith("![")
+        assert "Paragraph one." in result
+
+    def test_numbered_bold_items_are_filtered_out(self):
+        """Bold-prefixed numbered items like '**1. Title' should be excluded."""
+        body = "Lead paragraph.\n\n**1. [Some Article](url)**\n\nSecond paragraph."
+        result = _extract_sintese_paragraphs(body)
+
+        for para in result:
+            assert not (para.startswith("**") and len(para) > 3 and para[2].isdigit())
+        assert "Lead paragraph." in result
+
+    def test_real_sintese_structure_extracts_prose_paragraphs(self):
+        """A realistic SINTESE body with mixed elements extracts only prose."""
+        body = (
+            "# Sinal Semanal #48\n\n"
+            "*Edicao de 23/02/2026 — Curado por Clara Medeiros*\n\n"
+            "---\n\n"
+            "Venture capital está reescrevendo suas regras.\n\n"
+            "---\n\n"
+            "## Venture Capital & Ecossistema\n\n"
+            "O mercado de VC opera sob duas forças opostas.\n\n"
+            "**1. [Artigo sobre alfa](https://example.com)**\n\n"
+            "> Blockquote de análise aqui.\n\n"
+            "![Image](https://img.png)\n\n"
+            "A infraestrutura de AI está em plena reconfiguração."
+        )
+        result = _extract_sintese_paragraphs(body)
+
+        assert len(result) == 3
+        assert result[0] == "Venture capital está reescrevendo suas regras."
+        assert result[1] == "O mercado de VC opera sob duas forças opostas."
+        assert result[2] == "A infraestrutura de AI está em plena reconfiguração."
 
 
 # ---------------------------------------------------------------------------
@@ -676,6 +783,23 @@ class TestComposeBriefingData:
         assert result["radar_trends"] == []
         assert result["funding_deals"] == []
         assert result["mercado_movements"] == []
+
+    def test_sintese_cta_url_points_to_newsletter_page(self, session: Session):
+        """SINTESE CTA should link to /newsletter/{slug} on the site."""
+        session.add(
+            _make_content_piece(
+                "sintese",
+                slug="sinal-semanal-47",
+                metadata_=SINTESE_METADATA,
+            )
+        )
+        session.commit()
+
+        result = compose_briefing_data(session, edition=47, week=6)
+
+        assert result is not None
+        assert result["sintese_cta_url"] == "https://sinal.tech/newsletter/sinal-semanal-47"
+        assert result["sintese_cta_label"] == "Ler edicao completa"
 
     def test_no_sintese_returns_none(self, session: Session):
         """Without a published SINTESE piece, compose_briefing_data returns None."""

@@ -356,13 +356,33 @@ para edi\u00e7\u00e3o {edition} / semana {week}.
     return wrap_in_email_template(html_body, subject)
 
 
-def preview_briefing(rich: bool = True) -> str:
+def preview_briefing(rich: bool = True, from_db: bool = False,
+                     edition: int = 48, week: int = 9) -> str:
     """Generate briefing email HTML for preview.
 
     Args:
         rich: If True, use sample data with images and links.
               If False, use minimal data for backward compat testing.
+        from_db: If True, compose from actual published content in the DB.
+        edition: Edition number (used when from_db=True).
+        week: ISO week number (used when from_db=True).
     """
+    if from_db:
+        from packages.database.config import SessionLocal
+        from apps.api.services.briefing_composer import compose_briefing_data
+
+        session = SessionLocal()
+        try:
+            data = compose_briefing_data(session, edition=edition, week=week)
+        finally:
+            session.close()
+
+        if not data:
+            raise RuntimeError(
+                f"No published SINTESE piece found for edition {edition}."
+            )
+        return _build_briefing_html(data)
+
     data = _SAMPLE_BRIEFING_DATA if rich else _SAMPLE_MINIMAL_BRIEFING_DATA
     return _build_briefing_html(data)
 
@@ -436,6 +456,18 @@ def main() -> None:
         "--minimal", action="store_true",
         help="Use minimal sample data (no rich fields) for backward compat testing",
     )
+    briefing_parser.add_argument(
+        "--from-db", action="store_true",
+        help="Compose briefing from actual published content in the database",
+    )
+    briefing_parser.add_argument(
+        "--edition", type=int, default=48,
+        help="Edition number (used with --from-db, default: 48)",
+    )
+    briefing_parser.add_argument(
+        "--week", type=int, default=9,
+        help="ISO week number (used with --from-db, default: 9)",
+    )
 
     args = parser.parse_args()
 
@@ -453,7 +485,12 @@ def main() -> None:
         html = preview_newsletter(args.edition, args.week)
         label = f"newsletter-{args.edition}"
     elif args.command == "briefing":
-        html = preview_briefing(rich=not args.minimal)
+        html = preview_briefing(
+            rich=not args.minimal,
+            from_db=args.from_db,
+            edition=args.edition,
+            week=args.week,
+        )
         label = "briefing"
     else:
         parser.error(f"Unknown command: {args.command}")
