@@ -17,6 +17,7 @@ from packages.database.models.base import Base
 from packages.database.models.evidence_item import EvidenceItemDB
 
 from apps.agents.base.evidence_writer import (
+    _truncate_fields,
     persist_evidence_item,
     persist_evidence_batch,
     persist_raw_items,
@@ -368,3 +369,49 @@ class TestPersistRawItems:
         stats = persist_raw_items(session, [], agent_name="test")
 
         assert stats == {"inserted": 0, "updated": 0, "skipped": 0}
+
+
+# ---------------------------------------------------------------------------
+# TestTruncateFields
+# ---------------------------------------------------------------------------
+
+
+class TestTruncateFields:
+    """Tests for _truncate_fields() defensive truncation."""
+
+    def test_short_values_unchanged(self):
+        """Values within limits are not modified."""
+        item = _make_evidence(title="Short title")
+        _truncate_fields(item)
+        assert item.title == "Short title"
+
+    def test_truncates_long_title(self):
+        """Title exceeding 500 chars is truncated."""
+        long_title = "A" * 600
+        item = _make_evidence(title=long_title)
+        _truncate_fields(item)
+        assert len(item.title) == 500
+
+    def test_truncates_long_source_name(self):
+        """source_name exceeding 255 chars is truncated."""
+        long_name = "x" * 300
+        item = _make_evidence(source_name=long_name)
+        _truncate_fields(item)
+        assert len(item.source_name) == 255
+
+    def test_none_fields_ignored(self):
+        """None values are not truncated or modified."""
+        item = _make_evidence()
+        item.territory = None
+        _truncate_fields(item)
+        assert item.territory is None
+
+    def test_persists_item_with_long_title(self, session: Session):
+        """An item with a title exceeding DB limit is truncated and persisted."""
+        item = _make_evidence(title="T" * 600)
+
+        persist_evidence_item(session, item)
+        session.commit()
+
+        db_item = session.query(EvidenceItemDB).first()
+        assert len(db_item.title) == 500

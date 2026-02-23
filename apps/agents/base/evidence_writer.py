@@ -22,6 +22,38 @@ from packages.database.models.evidence_item import EvidenceItemDB
 
 logger = logging.getLogger(__name__)
 
+# Column size limits from EvidenceItemDB model.
+# Used for defensive truncation to prevent DB errors.
+_FIELD_LIMITS = {
+    "title": 500,
+    "source_name": 255,
+    "evidence_type": 50,
+    "agent_name": 100,
+    "territory": 100,
+    "collector_run_id": 100,
+    # url, author, summary are Text (no limit) — not included here.
+}
+
+
+def _truncate_fields(item: EvidenceItem) -> EvidenceItem:
+    """Truncate string fields to column limits, logging warnings.
+
+    Modifies the item in place and returns it for chaining.
+    """
+    for field, limit in _FIELD_LIMITS.items():
+        value = getattr(item, field, None)
+        if value is not None and isinstance(value, str) and len(value) > limit:
+            logger.warning(
+                "Truncating evidence %s.%s from %d to %d chars (hash=%s)",
+                type(item).__name__,
+                field,
+                len(value),
+                limit,
+                getattr(item, "content_hash", "?"),
+            )
+            setattr(item, field, value[:limit])
+    return item
+
 
 def persist_evidence_item(
     session: Session,
@@ -44,6 +76,8 @@ def persist_evidence_item(
     Returns:
         Action taken: "inserted", "updated", or "skipped".
     """
+    _truncate_fields(item)
+
     existing = (
         session.query(EvidenceItemDB)
         .filter_by(content_hash=item.content_hash)
