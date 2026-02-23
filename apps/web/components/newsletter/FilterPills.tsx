@@ -1,66 +1,24 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import GenericFilterPills from "@/components/ui/FilterPills";
 import { AGENT_HEX } from "@/lib/newsletter";
 
-interface FilterOption {
-  key: string;
-  label: string;
-  color?: string;
-}
-
-const FILTER_OPTIONS: FilterOption[] = [
-  { key: "todos", label: "Todos" },
-  { key: "sintese", label: "Síntese", color: AGENT_HEX.sintese },
-  { key: "radar", label: "Radar", color: AGENT_HEX.radar },
-  { key: "codigo", label: "Código", color: AGENT_HEX.codigo },
-  { key: "funding", label: "Funding", color: AGENT_HEX.funding },
-  { key: "mercado", label: "Mercado", color: AGENT_HEX.mercado },
+const AGENT_OPTIONS = [
+  { value: "sintese", label: "Síntese", color: AGENT_HEX.sintese },
+  { value: "radar", label: "Radar", color: AGENT_HEX.radar },
+  { value: "codigo", label: "Código", color: AGENT_HEX.codigo },
+  { value: "funding", label: "Funding", color: AGENT_HEX.funding },
+  { value: "mercado", label: "Mercado", color: AGENT_HEX.mercado },
 ];
 
 export default function FilterPills() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const active = searchParams.get("agent") ?? "todos";
-
-  function handleSelect(key: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (key === "todos") {
-      params.delete("agent");
-    } else {
-      params.set("agent", key);
-    }
-    // Reset to page 1 whenever the filter changes.
-    params.delete("page");
-    router.push(`/newsletter?${params.toString()}`);
-  }
-
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por agente">
-      {FILTER_OPTIONS.map((option) => {
-        const isActive = active === option.key;
-        return (
-          <button
-            key={option.key}
-            onClick={() => handleSelect(option.key)}
-            aria-pressed={isActive}
-            className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 font-mono text-[11px] uppercase tracking-[1px] transition-all duration-200 ${
-              isActive
-                ? "border-signal bg-[rgba(232,255,89,0.06)] text-signal"
-                : "border-[rgba(255,255,255,0.06)] text-ash hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
-            }`}
-          >
-            {option.color && (
-              <span
-                className="inline-block h-[5px] w-[5px] rounded-full"
-                style={{ backgroundColor: option.color }}
-                aria-hidden="true"
-              />
-            )}
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
+    <GenericFilterPills
+      paramKey="agent"
+      options={AGENT_OPTIONS}
+      allLabel="Todos"
+      basePath="/newsletter"
+      aria-label="Filtrar por agente"
+    />
   );
 }

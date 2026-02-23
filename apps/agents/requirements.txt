@@ -1,9 +1,13 @@
-# Core agent dependencies
-httpx
-feedparser
-pydantic
-pytrends
-python-dotenv>=1.0,<2.0
+# Agent runtime dependencies
+# Pinned to exact versions for reproducible builds (2026-02-23)
+# Python 3.12
 
-# LLM integration (optional — agents degrade gracefully without it)
-anthropic>=0.40.0
+# Core agent dependencies
+httpx==0.28.1
+feedparser==6.0.11
+pydantic==2.10.6
+pytrends==4.9.2
+python-dotenv==1.0.1
+
+# LLM integration (optional -- agents degrade gracefully without it)
+anthropic==0.49.0

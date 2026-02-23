@@ -1,9 +1,25 @@
-fastapi
-uvicorn[standard]
-pydantic
-pydantic-settings
-python-dotenv
-httpx
-sqlalchemy
-psycopg2-binary
-bcrypt
+# API server runtime dependencies
+# Pinned to exact versions for reproducible builds (2026-02-23)
+# Python 3.12 (see Dockerfile)
+
+# Web framework
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
+
+# Validation & settings
+pydantic==2.10.6
+pydantic-settings==2.7.1
+
+# Environment
+python-dotenv==1.0.1
+
+# HTTP client (email service, external APIs)
+httpx==0.28.1
+
+# Database
+sqlalchemy==2.0.37
+psycopg2-binary==2.9.10
+alembic==1.14.1
+
+# Authentication
+bcrypt==4.2.1

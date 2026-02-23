@@ -1,3 +1,20 @@
+/** Sector options for the filter component. */
+export const SECTOR_OPTIONS = [
+  "Fintech",
+  "E-commerce",
+  "SaaS",
+  "Healthtech",
+  "Edtech",
+  "Logistics",
+  "Agritech",
+  "AI/ML",
+  "Proptech",
+  "HR Tech",
+] as const;
+
+/** Type derived from SECTOR_OPTIONS for type-safe sector field. */
+export type Sector = (typeof SECTOR_OPTIONS)[number];
+
 /** Company types matching the expanded CompanyResponse from the API. */
 
 export interface Company {
@@ -6,7 +23,7 @@ export interface Company {
   slug: string;
   description: string | null;
   short_description: string | null;
-  sector: string | null;
+  sector: Sector | string | null;
   sub_sector: string | null;
   city: string | null;
   state: string | null;
@@ -24,17 +41,3 @@ export interface Company {
   status: string;
   created_at: string;
 }
-
-/** Sector options for the filter component. */
-export const SECTOR_OPTIONS = [
-  "Fintech",
-  "E-commerce",
-  "SaaS",
-  "Healthtech",
-  "Edtech",
-  "Logistics",
-  "Agritech",
-  "AI/ML",
-  "Proptech",
-  "HR Tech",
-] as const;
