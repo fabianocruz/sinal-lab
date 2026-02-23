@@ -4,7 +4,11 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import NewsletterContent from "@/components/newsletter/NewsletterContent";
 import { fetchNewsletterBySlug } from "@/lib/api";
-import { mapApiToNewsletter, FALLBACK_NEWSLETTERS } from "@/lib/newsletter";
+import {
+  mapApiToNewsletter,
+  FALLBACK_NEWSLETTERS,
+  type NewsletterMetadata,
+} from "@/lib/newsletter";
 
 interface PageProps {
   params: { slug: string };
@@ -14,6 +18,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const apiItem = await fetchNewsletterBySlug(params.slug);
 
   if (apiItem) {
+    const meta = apiItem.metadata_ as NewsletterMetadata | undefined;
+    const ogImage = meta?.hero_image?.url;
+
     return {
       title: apiItem.title,
       description: apiItem.subtitle ?? apiItem.summary ?? apiItem.meta_description,
@@ -22,6 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         description: apiItem.subtitle ?? apiItem.summary ?? "",
         type: "article",
         publishedTime: apiItem.published_at ?? undefined,
+        ...(ogImage && { images: [{ url: ogImage, alt: meta?.hero_image?.alt }] }),
       },
     };
   }

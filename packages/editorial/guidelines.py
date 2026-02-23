@@ -1,28 +1,26 @@
 """Editorial guidelines and territories definition.
 
 This module defines the editorial framework for Sinal.ai's AI-generated content,
-implementing the guidelines from docs/EDITORIAL.md - Linha Editorial Definitiva.
+implementing the guidelines from docs/EDITORIAL.md - Linha Editorial v2.
 
 Key Components:
-    - EDITORIAL_TERRITORIES: 6 content territories with weights, keywords, and agents
+    - EDITORIAL_TERRITORIES: 4 content territories with weights, keywords, and agents
     - FILTER_CRITERIA: 5 quality criteria for content validation
     - FILTER_QUESTION: The ultimate quality test for publication decisions
     - EDITORIAL_RED_FLAGS: Patterns that disqualify content from publication
     - REGULATORY_KEYWORDS: Cross-cutting regulatory content markers
 
 Editorial Territories (with weights):
-    1. Fintech & Economia Digital LATAM (40%) - Pix, Open Finance, neobanks
-    2. AI Aplicada & Infraestrutura (20%) - ML in production, governance, agents
-    3. Cripto, Stablecoins & Ativos Digitais (10%) - Drex, tokenization, DeFi
-    4. Engenharia, Arquitetura & Infraestrutura (20%) - Cloud, DevOps, security
-    5. Venture Capital & Funding LATAM (15%) - Funding rounds, exits, ecosystem
-    6. Green Tech, AgriTech & Impacto (5%) - AgTech, climate tech, ESG
+    1. AI & Infraestrutura Inteligente (35%) - Pilar zero: agentic AI, LLMs, AI aplicada, infra, governance
+    2. Fintech & Infraestrutura Financeira LATAM (30%) - Open Finance, Pix, stablecoins, embedded finance
+    3. Engenharia & Plataforma (20%) - Arquitetura, cloud, DevOps, seguranca
+    4. Venture Capital & Ecossistema (15%) - Deal flow, investor intelligence, M&A, ecosystem
 
 The 5 Filter Criteria (content must pass 3/5):
     1. Tem dados verificáveis - Numbers, sources, methodology
     2. É útil para decisões - Actionable information for CTOs/founders
     3. Não existe em português com essa profundidade - Unique, original analysis
-    4. Se alinha com um dos 6 territórios - Within editorial scope
+    4. Se alinha com um dos 4 territórios - Within editorial scope
     5. Tem ângulo LATAM específico - Not a US content translation
 
 Usage:
@@ -44,102 +42,104 @@ See Also:
 from typing import Dict, List, Any
 
 
-# 6 Territórios Editoriais + 1 Meta-Território
+# 4 Territórios Editoriais + 1 Meta-Território (Regulação)
 EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
+    "ai": {
+        "name": "AI & Infraestrutura Inteligente",
+        "weight": 0.35,
+        "data_source_agents": ["RADAR", "CÓDIGO"],
+        "keywords": [
+            # Agentic AI & Autonomous Systems (1A)
+            "agentic ai", "ai agents", "autonomous systems",
+            "agentic commerce", "agentic payments", "agent-to-agent",
+            # LLMs, Foundation Models & Open Source (1B)
+            "artificial intelligence", "machine learning", "ai", "ml",
+            "llm", "gpt", "claude", "deep learning",
+            "foundation model", "fine-tuning", "rag", "open source ai",
+            "llama", "mistral", "deepseek",
+            # AI Aplicada a Verticais LATAM (1C)
+            "fraud detection", "credit scoring", "underwriting",
+            "aml", "kyc", "ai fintech", "ai healthtech", "ai agritech",
+            "ai legaltech", "ai climate",
+            # Generative AI para Produtos & Serviços (1D)
+            "generative ai", "gen ai", "chatbot", "co-pilot",
+            "ai assistant", "document generation",
+            # Infraestrutura de AI (1E)
+            "mlops", "inference", "model deployment",
+            "ai infrastructure", "gpu", "vector database",
+            # AI Governance & Regulação LATAM (1F)
+            "ai governance", "ai ethics", "bias", "ai regulation",
+        ],
+        "filter_questions": [
+            "Mostra AI em produção, não apenas conceito?",
+            "Tem dados de impacto (custo, performance, ROI)?",
+            "É aplicado a problema real LATAM ou tem lente LATAM (custo, latência, português)?",
+        ],
+        "sub_territories": [
+            "agentic_ai",
+            "llms_foundation_models",
+            "ai_verticais_latam",
+            "gen_ai_produtos",
+            "infra_ai",
+            "ai_governance",
+        ],
+    },
     "fintech": {
-        "name": "Fintech & Economia Digital LATAM",
-        "weight": 0.40,
+        "name": "Fintech & Infraestrutura Financeira LATAM",
+        "weight": 0.30,
         "data_source_agents": ["MERCADO", "FUNDING"],
         "keywords": [
-            # Open Finance
+            # Open Finance & Portabilidade (2A)
             "open finance", "open banking", "portabilidade", "apis bancárias",
-            # Pagamentos
+            # Pagamentos Instantâneos & Real-Time Rails (2B)
             "pix", "pagamento instantâneo", "codi", "spei", "drex",
-            # Neobanks
-            "nubank", "neobank", "banco digital", "mercado pago", "c6", "inter",
-            # Embedded Finance
+            "cbdc", "moeda digital",
+            # Embedded Finance & Novos Rails (2C — absorbs cripto)
             "embedded finance", "banking as a service", "baas", "dock", "zoop",
-            # Remessas
-            "remessas", "cross-border", "stablecoin", "remittance",
-            # Inclusão
+            "stablecoin", "usdc", "usdt", "dai",
+            "tokenização", "rwa", "real world assets",
+            "blockchain", "ethereum", "solana",
+            "defi", "decentralized finance",
+            # Neobanks & Digital Banks
+            "nubank", "neobank", "banco digital", "mercado pago", "c6", "inter",
+            # Remessas & Cross-Border (2D)
+            "remessas", "cross-border", "remittance",
+            # Convergência Competitiva (2E)
             "inclusão financeira", "sub-bancarizado", "scoring alternativo",
+            "super app", "fintech",
         ],
         "filter_questions": [
             "Tem dados de volume, adoção ou custos?",
             "É específico para LATAM (não tradução de conteúdo US)?",
-            "Tem ângulo técnico ou de dados, não apenas produto announcement?",
+            "Vai além de press release (análise + dados reais)?",
         ],
         "sub_territories": [
             "open_finance",
             "pagamentos_instantaneos",
-            "inclusao_financeira",
             "embedded_finance",
-            "remessas",
-            "convergencia_fintech_bancos",
-        ],
-    },
-    "ai": {
-        "name": "AI Aplicada & Infraestrutura",
-        "weight": 0.20,
-        "data_source_agents": ["RADAR", "CÓDIGO"],
-        "keywords": [
-            "artificial intelligence", "machine learning", "ai", "ml",
-            "fraud detection", "credit scoring", "llm", "gpt", "claude",
-            "agentic ai", "ai agents", "autonomous systems",
-            "ai governance", "lgpd", "bias", "ethics",
-            "generative ai", "gen ai", "chatbot",
-            "mlops", "inference", "model deployment",
-        ],
-        "filter_questions": [
-            "Mostra AI em produção, não apenas conceito?",
-            "Tem dados de impacto em métricas de negócio?",
-            "É aplicado a problema real LATAM?",
-        ],
-        "sub_territories": [
-            "ai_fintech",
-            "agentic_ai",
-            "ai_governance",
-            "gen_ai_servicos",
-            "infra_ai",
-        ],
-    },
-    "cripto": {
-        "name": "Cripto, Stablecoins & Ativos Digitais",
-        "weight": 0.10,
-        "data_source_agents": ["MERCADO", "FUNDING"],
-        "keywords": [
-            "stablecoin", "usdc", "usdt", "dai",
-            "drex", "cbdc", "moeda digital",
-            "tokenização", "rwa", "real world assets",
-            "defi", "decentralized finance",
-            "blockchain", "ethereum", "solana",
-        ],
-        "filter_questions": [
-            "Tem dados de volume ou comparativo com rails tradicionais?",
-            "Inclui contexto regulatório LATAM?",
-            "É sobre infraestrutura, não especulação de preço?",
-        ],
-        "sub_territories": [
-            "stablecoins_infra",
-            "cbdc_drex",
-            "tokenizacao",
-            "defi_tradfi",
+            "remessas_crossborder",
+            "convergencia_competitiva",
         ],
     },
     "engenharia": {
-        "name": "Engenharia, Arquitetura & Infraestrutura",
+        "name": "Engenharia & Plataforma",
         "weight": 0.20,
         "data_source_agents": ["CÓDIGO"],
         "keywords": [
+            # Arquitetura de Startups LATAM (3A)
             "arquitetura", "microservices", "monolith", "stack",
+            # Cloud & Infra no Brasil/LATAM (3B)
             "aws", "gcp", "azure", "cloud", "kubernetes", "docker",
+            "latência",
+            # DevOps, SRE & Observabilidade (3C)
             "devops", "sre", "observability", "monitoring",
+            "deployment", "incident response",
+            # Segurança, LGPD & Compliance Técnico (3D)
             "lgpd", "security", "compliance", "mtls",
-            "5g", "edge computing", "latência",
         ],
         "filter_questions": [
             "É técnico + prático (não apenas conceitual)?",
-            "Tem dados ou benchmarks concretos?",
+            "Tem dados, benchmarks ou código concreto?",
             "É útil para CTOs/senior engineers tomarem decisões?",
         ],
         "sub_territories": [
@@ -147,19 +147,27 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
             "cloud_infra",
             "devops_sre",
             "seguranca_lgpd",
-            "conectividade",
         ],
     },
     "venture": {
-        "name": "Venture Capital & Funding LATAM",
+        "name": "Venture Capital & Ecossistema",
         "weight": 0.15,
         "data_source_agents": ["FUNDING", "INDEX"],
         "keywords": [
+            # Deal Flow & Funding Tracker (4A)
             "funding", "investment", "venture capital", "vc",
             "seed", "series a", "series b", "round",
             "investor", "fundo", "capital",
-            "m&a", "acquisition", "exit", "ipo",
+            # Investor Intelligence (4B)
+            "co-investor", "follow-on", "portfolio",
+            # Ecosystem Mapping (4C — absorbs green_agritech)
             "ecosystem", "startup", "unicórnio",
+            "agritech", "agro", "agricultura", "foodtech",
+            "climate tech", "esg", "sustentabilidade",
+            "crédito de carbono", "carbon credit",
+            "edtech", "healthtech", "proptech",
+            # M&A, IPOs & Exits (4D)
+            "m&a", "acquisition", "exit", "ipo",
         ],
         "filter_questions": [
             "Tem dados verificáveis (valor, investidores, data)?",
@@ -173,31 +181,9 @@ EDITORIAL_TERRITORIES: Dict[str, Dict[str, Any]] = {
             "ma_exits",
         ],
     },
-    "green_agritech": {
-        "name": "Green Tech, AgriTech & Impacto",
-        "weight": 0.05,
-        "data_source_agents": ["MERCADO", "RADAR"],
-        "keywords": [
-            "agritech", "agro", "agricultura", "foodtech",
-            "climate tech", "esg", "sustentabilidade",
-            "crédito de carbono", "carbon credit",
-            "inclusão social", "impacto social",
-            "edtech", "requalificação",
-        ],
-        "filter_questions": [
-            "Tem ângulo de vantagem comparativa LATAM?",
-            "Mostra dados de impacto ou adoção?",
-            "Vai além de social-impact storytelling?",
-        ],
-        "sub_territories": [
-            "agritech_foodtech",
-            "climate_esg",
-            "tech_inclusao",
-        ],
-    },
 }
 
-# Meta-território: Regulação (transversal)
+# Meta-território: Regulação (transversal — sempre como contexto, nunca isolado)
 REGULATORY_KEYWORDS = [
     "regulação", "regulamento", "lei", "marco legal",
     "bacen", "banco central", "cvm", "anpd",
@@ -223,7 +209,7 @@ FILTER_CRITERIA = {
         "weight": 1.0,
     },
     "aligns_territory": {
-        "name": "Se alinha com um dos 6 territórios",
+        "name": "Se alinha com um dos 4 territórios",
         "description": "Dentro do escopo editorial",
         "weight": 0.8,
     },
@@ -242,13 +228,13 @@ FILTER_QUESTION = (
 
 # Red flags - o que NÃO entra
 EDITORIAL_RED_FLAGS = [
-    "press release sem análise",
-    "opinião sem dados",
+    "reescrita de press release sem análise",
+    "opinião sem dados de suporte",
     "motivational content",
-    "evento como jornalismo social",
+    "cobertura de eventos como jornalismo social",
     "hype sem substância",
-    "tutorial básico",
-    "futuro sem presente",
+    "tutorial básico que existe em qualquer lugar",
+    "'O futuro do X' sem dados sobre o presente do X",
 ]
 
 

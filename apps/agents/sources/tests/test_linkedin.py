@@ -164,7 +164,22 @@ class TestLinkedInPost:
         assert post.comment_count == 0
         assert post.published_at is None
         assert post.external_url is None
+        assert post.image_url is None
+        assert post.video_url is None
         assert post.content_hash != ""  # Should be auto-generated
+
+    def test_image_url_and_video_url_stored(self) -> None:
+        """image_url and video_url stored correctly."""
+        post = LinkedInPost(
+            title="Media post",
+            text="Post with media",
+            url="https://www.linkedin.com/feed/update/urn:li:activity:123",
+            source_name="linkedin_test",
+            image_url="https://media.licdn.com/thumb.jpg",
+            video_url="https://media.licdn.com/video.mp4",
+        )
+        assert post.image_url == "https://media.licdn.com/thumb.jpg"
+        assert post.video_url == "https://media.licdn.com/video.mp4"
 
     def test_custom_content_hash_not_overwritten(self) -> None:
         """If content_hash is provided, it's not overwritten."""
@@ -493,6 +508,109 @@ class TestFetchLinkedInPosts:
         call_args = client.get.call_args
         params = call_args[1]["params"]
         assert params["limit"] == 5
+
+    @patch("apps.agents.sources.linkedin.os.getenv")
+    def test_extracts_article_thumbnail_as_image(
+        self, mock_getenv: MagicMock
+    ) -> None:
+        """Extracts image_url from article.thumbnail."""
+        mock_getenv.return_value = "test_api_key"
+        source = self._make_source()
+        client = MagicMock(spec=httpx.Client)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "text": "Check out our launch!",
+                    "url": "https://www.linkedin.com/feed/update/urn:li:activity:1",
+                    "author": {"firstName": "Test", "lastName": "User"},
+                    "article": {
+                        "url": "https://example.com/launch",
+                        "thumbnail": "https://media.licdn.com/article-thumb.jpg",
+                    },
+                }
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+        client.get.return_value = mock_response
+
+        result = fetch_linkedin_posts(source, client, "test")
+        assert len(result) == 1
+        assert result[0].image_url == "https://media.licdn.com/article-thumb.jpg"
+        assert result[0].video_url is None
+
+    @patch("apps.agents.sources.linkedin.os.getenv")
+    def test_extracts_video_url(self, mock_getenv: MagicMock) -> None:
+        """Extracts video_url from item.video.url."""
+        mock_getenv.return_value = "test_api_key"
+        source = self._make_source()
+        client = MagicMock(spec=httpx.Client)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "text": "Watch our demo!",
+                    "url": "https://www.linkedin.com/feed/update/urn:li:activity:2",
+                    "author": {"firstName": "Test", "lastName": "User"},
+                    "video": {"url": "https://media.licdn.com/demo.mp4"},
+                }
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+        client.get.return_value = mock_response
+
+        result = fetch_linkedin_posts(source, client, "test")
+        assert len(result) == 1
+        assert result[0].video_url == "https://media.licdn.com/demo.mp4"
+
+    @patch("apps.agents.sources.linkedin.os.getenv")
+    def test_no_media_results_in_none(self, mock_getenv: MagicMock) -> None:
+        """Posts without media data have None image_url and video_url."""
+        mock_getenv.return_value = "test_api_key"
+        source = self._make_source()
+        client = MagicMock(spec=httpx.Client)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = SAMPLE_POST_RESPONSE
+        mock_response.raise_for_status = MagicMock()
+        client.get.return_value = mock_response
+
+        result = fetch_linkedin_posts(source, client, "test")
+        # SAMPLE_POST_RESPONSE posts don't have image/video keys
+        assert result[0].image_url is None
+        assert result[0].video_url is None
+
+    @patch("apps.agents.sources.linkedin.os.getenv")
+    def test_extracts_image_from_images_list(
+        self, mock_getenv: MagicMock
+    ) -> None:
+        """Extracts image from item.images list fallback."""
+        mock_getenv.return_value = "test_api_key"
+        source = self._make_source()
+        client = MagicMock(spec=httpx.Client)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "text": "Post with images list",
+                    "url": "https://www.linkedin.com/feed/update/urn:li:activity:3",
+                    "author": {"firstName": "Test", "lastName": "User"},
+                    "images": [
+                        {"url": "https://media.licdn.com/image1.jpg"},
+                        {"url": "https://media.licdn.com/image2.jpg"},
+                    ],
+                }
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+        client.get.return_value = mock_response
+
+        result = fetch_linkedin_posts(source, client, "test")
+        assert len(result) == 1
+        assert result[0].image_url == "https://media.licdn.com/image1.jpg"
 
     @patch("apps.agents.sources.linkedin.os.getenv")
     def test_correct_headers_sent(self, mock_getenv: MagicMock) -> None:

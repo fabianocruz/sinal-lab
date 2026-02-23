@@ -506,7 +506,7 @@ a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !im
     <tr>
     <td style="height:160px; text-align:center; vertical-align:middle; padding:20px;">
       <p style="font-family:'Courier New',monospace; font-size:28px; color:rgba(232,255,89,0.15); margin:0 0 8px 0; letter-spacing:4px;">S\u00b7</p>
-      <p style="font-family:'Courier New',monospace; font-size:10px; color:#8A8A96; margin:0; letter-spacing:1px;">BRIEFING SINAL \u00b7 EDI\u00c7\u00c3O #47</p>
+      <p style="font-family:'Courier New',monospace; font-size:10px; color:#8A8A96; margin:0; letter-spacing:1px;">BRIEFING SINAL \u00b7 EDI\u00c7\u00c3O #48</p>
     </td>
     </tr>
     </table>
@@ -522,23 +522,23 @@ a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !im
           <span style="font-family:'Courier New',monospace; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#E8FF59; vertical-align:middle;">S\u00cdNTESE</span>
         </td>
         <td align="right" style="font-family:'Courier New',monospace; font-size:11px; color:#8A8A96;">
-          Ed. #47 \u00b7 10 Fev 2026
+          Ed. #48 \u00b7 23 Fev 2026
         </td>
       </tr>
       </table>
 
       <p style="font-family: Georgia, 'Times New Roman', serif; font-size: 19px; color: #FAFAF8; line-height: 1.35; margin: 14px 0 10px 0;">
-        O paradoxo do modelo gratuito: quando abund\u00e2ncia de IA vira commodity
+        438 sinais analisados \u00b7 AI infrastructure, Venture Capital LATAM e LLM inference
       </p>
 
       <p style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; color: #8A8A96; line-height: 1.5; margin: 0 0 16px 0;">
-        <strong style="color:#C4C4CC;">TAMB\u00c9M:</strong> 14 rodadas mapeadas \u00b7 US$287M total \u00b7 Rust ganha tra\u00e7\u00e3o em fintechs BR
+        <strong style="color:#C4C4CC;">DESTAQUES:</strong> Kavak $300M a16z \u00b7 EFEX $8M seed \u00b7 Google VP alerta startups de AI
       </p>
 
       <table role="presentation" cellpadding="0" cellspacing="0">
       <tr>
         <td style="border-radius: 6px; border: 1px solid #2A2A32;">
-          <a href="https://sinal.tech/briefing/47" style="display: inline-block; padding: 10px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 600; color: #FAFAF8; text-decoration: none;">
+          <a href="https://sinal.tech/newsletter/sinal-semanal-48" style="display: inline-block; padding: 10px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 600; color: #FAFAF8; text-decoration: none;">
             Ler edi\u00e7\u00e3o completa \u2192
           </a>
         </td>
@@ -929,7 +929,7 @@ def _briefing_opening(headline: str, body: str) -> str:
   <p style="font-family: {_FONT_SERIF}; font-size: 22px; color: {_COLOR_HEADING}; line-height: 1.4; margin: 0 0 20px 0;">
     {headline}
   </p>
-  <p style="font-family: {_FONT_SANS}; font-size: 15px; color: {_COLOR_MUTED}; line-height: 1.7; margin: 0;">
+  <p style="font-family: {_FONT_SANS}; font-size: 15px; color: {_COLOR_BODY}; line-height: 1.7; margin: 0;">
     {body}
   </p>
 </td>
@@ -1264,7 +1264,7 @@ def _briefing_section_radar(data: BriefingData) -> str:
           <p style="font-family:{_FONT_SANS}; font-size:14px; font-weight:600; color:{_COLOR_HEADING}; margin:0 0 2px 0;">
             {title_html}
           </p>
-          <p style="font-family:{_FONT_SANS}; font-size:13px; color:{_COLOR_MUTED}; margin:0; line-height:1.5;">
+          <p style="font-family:{_FONT_SANS}; font-size:13px; color:{_COLOR_BODY}; margin:0; line-height:1.5;">
             {trend["context"]}
           </p>{extras_block}
         </td>

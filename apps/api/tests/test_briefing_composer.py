@@ -28,6 +28,7 @@ from apps.api.services.briefing_composer import (
     _extract_mercado_movements,
     _extract_sintese_paragraphs,
     _extract_sintese_sources,
+    _strip_html,
 )
 
 
@@ -201,6 +202,51 @@ SINTESE_METADATA = {
 
 
 # ---------------------------------------------------------------------------
+# TestStripHtml
+# ---------------------------------------------------------------------------
+
+
+class TestStripHtml:
+    """Tests for _strip_html() — sanitizes RSS HTML from metadata summaries."""
+
+    def test_removes_p_tags(self):
+        assert _strip_html("<p>Hello world</p>") == "Hello world"
+
+    def test_removes_nested_tags(self):
+        result = _strip_html('<p>Text <a href="url">link</a> more</p>')
+        assert result == "Text link more"
+
+    def test_collapses_whitespace(self):
+        assert _strip_html("<p>A</p>\n\n<p>B</p>") == "A B"
+
+    def test_truncates_long_text(self):
+        long_text = "word " * 100
+        result = _strip_html(long_text, max_length=50)
+        assert len(result) <= 53  # 50 + "..."
+        assert result.endswith("...")
+
+    def test_truncates_at_word_boundary(self):
+        result = _strip_html("one two three four five six", max_length=15)
+        assert result == "one two three..."
+
+    def test_empty_string(self):
+        assert _strip_html("") == ""
+
+    def test_plain_text_unchanged(self):
+        assert _strip_html("No HTML here") == "No HTML here"
+
+    def test_real_rss_summary(self):
+        rss = (
+            "<p>As AI agents become autonomous, they need secure, "
+            "programmatic authentication.</p>\n<p>The Problem</p>"
+        )
+        result = _strip_html(rss)
+        assert "<" not in result
+        assert ">" not in result
+        assert "As AI agents" in result
+
+
+# ---------------------------------------------------------------------------
 # TestComputeDateRange
 # ---------------------------------------------------------------------------
 
@@ -354,6 +400,21 @@ class TestExtractRadarTrends:
         result = _extract_radar_trends({"item_count": 5})
 
         assert result == []
+
+    def test_html_in_summary_is_stripped(self):
+        """RSS summaries with HTML tags should be sanitized in context."""
+        metadata = {
+            "items": [
+                {
+                    "title": "Test",
+                    "summary": "<p>Hello</p>\n<p>World</p>",
+                    "momentum_score": 0.5,
+                }
+            ]
+        }
+        result = _extract_radar_trends(metadata)
+        assert "<" not in result[0]["context"]
+        assert result[0]["context"] == "Hello World"
 
 
 # ---------------------------------------------------------------------------

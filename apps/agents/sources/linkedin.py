@@ -48,6 +48,8 @@ class LinkedInPost:
     comment_count: int = 0
     published_at: Optional[datetime] = None
     external_url: Optional[str] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
     content_hash: str = ""
 
     def __post_init__(self) -> None:
@@ -168,6 +170,26 @@ def fetch_linkedin_posts(
         article = item.get("article") or {}
         external_url = article.get("url") or None
 
+        # Media extraction: article thumbnail, item images, video
+        li_image = (
+            article.get("thumbnail")
+            or article.get("image")
+        )
+        if not li_image:
+            images_list = item.get("images") or item.get("image") or []
+            if isinstance(images_list, list) and images_list:
+                first_img = images_list[0]
+                li_image = first_img.get("url") if isinstance(first_img, dict) else first_img
+            elif isinstance(images_list, str) and images_list:
+                li_image = images_list
+
+        li_video = None
+        video_data = item.get("video")
+        if isinstance(video_data, dict):
+            li_video = video_data.get("url")
+        elif isinstance(video_data, str) and video_data:
+            li_video = video_data
+
         published_at = _parse_datetime(item.get("postedAt"))
 
         posts.append(
@@ -182,6 +204,8 @@ def fetch_linkedin_posts(
                 comment_count=item.get("commentsCount", 0),
                 published_at=published_at,
                 external_url=external_url,
+                image_url=li_image or None,
+                video_url=li_video or None,
             )
         )
 

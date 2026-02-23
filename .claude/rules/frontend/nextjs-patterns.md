@@ -14,14 +14,21 @@ apps/web/
 │   ├── globals.css          # Tailwind + global styles
 │   ├── (marketing)/         # Marketing pages group
 │   ├── (dashboard)/         # Dashboard pages group (future)
-│   ├── newsletter/[slug]/   # Newsletter archive
+│   ├── newsletter/[slug]/   # Newsletter detail page
+│   ├── startups/            # Startup listing page (SSR + ISR)
+│   ├── startup/[slug]/      # Startup detail + JSON-LD (SSR + ISR)
 │   ├── agentes/[name]/      # Agent dashboards
-│   ├── startup/[slug]/      # Programmatic SEO (future)
 │   └── api/                 # API routes (email capture, etc.)
 ├── components/
 │   ├── ui/                  # shadcn/ui components
+│   ├── newsletter/          # Newsletter components (ArchiveCard, Pagination, SearchBar, etc.)
+│   ├── startup/             # Startup components (CompanyCard, CompanyDetail, SectorFilter)
 │   └── ...                  # Feature components
-├── lib/                     # Utilities, API client, constants
+├── lib/                     # Utilities, API client, types, constants
+│   ├── api.ts               # API client (fetchNewsletters, fetchCompanies, etc.)
+│   ├── company.ts           # Company type + SECTOR_OPTIONS
+│   ├── newsletter.ts        # Newsletter types + FALLBACK_NEWSLETTERS
+│   └── jsonld.ts            # JSON-LD helpers (companyJsonLd)
 └── public/                  # Static assets
 ```
 
@@ -35,9 +42,17 @@ apps/web/
 - Links: use `next/link` for all internal navigation
 - JSON-LD structured data on every public page
 
+## Reusable Components
+- `Pagination` and `SearchBar` accept `basePath` prop (defaults to `/newsletter`)
+- When adding new listing pages, pass `basePath="/your-path"` to reuse these components
+- `SectorFilter` is a Client Component using `useSearchParams`/`useRouter` for URL-based filtering
+- New listing pages should follow `/startups` pattern: SSR Server Component, `searchParams`, filter + grid + pagination
+
 ## SEO
 - Every page needs: title, meta description, canonical URL, OG image
 - Programmatic pages: min 300 unique words, JSON-LD, internal links
+- JSON-LD helpers live in `lib/jsonld.ts` — use `companyJsonLd()` as reference for new entity types
+- Sitemap (`app/sitemap.ts`) is async — fetches dynamic slugs from API with try/catch fallback
 - Sitemaps: segmented by content type
 - hreflang: pt-BR (future: es)
 

@@ -12,6 +12,7 @@ from apps.agents.sintese.synthesizer import (
     select_top_items,
     group_by_category,
     synthesize_newsletter,
+    format_item_markdown,
 )
 from apps.agents.sintese.writer import SinteseWriter, SectionContent
 
@@ -47,19 +48,19 @@ class TestCategorizeItem:
 
     def test_ai_category(self):
         item = make_scored_item(title="New machine learning model released")
-        assert categorize_item(item) == "IA & Machine Learning"
+        assert categorize_item(item) == "AI & Infraestrutura Inteligente"
 
-    def test_startup_category(self):
+    def test_venture_category(self):
         item = make_scored_item(title="Startup raises venture capital funding")
-        assert categorize_item(item) == "Startups & Investimento"
+        assert categorize_item(item) == "Venture Capital & Ecossistema"
 
     def test_fintech_category(self):
         item = make_scored_item(title="New fintech pagamento solution launches")
-        assert categorize_item(item) == "Fintech & Pagamentos"
+        assert categorize_item(item) == "Fintech & Infraestrutura Financeira"
 
-    def test_infra_category(self):
+    def test_engenharia_category(self):
         item = make_scored_item(title="Kubernetes deployment best practices for devops")
-        assert categorize_item(item) == "Infraestrutura & Dev Tools"
+        assert categorize_item(item) == "Engenharia & Plataforma"
 
     def test_uncategorized_goes_to_destaque(self):
         item = make_scored_item(title="Completely random unrelated topic xyz")
@@ -164,7 +165,7 @@ class TestSynthesizeNewsletter:
             )
             for i in range(25)
         ]
-        newsletter = synthesize_newsletter(items, edition_number=42)
+        newsletter, sections = synthesize_newsletter(items, edition_number=42)
 
         assert "# Sinal Semanal #42" in newsletter
         assert "SINTESE" in newsletter
@@ -179,25 +180,25 @@ class TestSynthesizeNewsletter:
                 composite=0.9,
             ),
         ]
-        newsletter = synthesize_newsletter(items)
+        newsletter, sections = synthesize_newsletter(items)
         assert "Important AI Breakthrough" in newsletter
         assert "https://example.com/ai" in newsletter
 
     def test_includes_footer(self):
         items = [make_scored_item(composite=0.8)]
-        newsletter = synthesize_newsletter(items)
+        newsletter, sections = synthesize_newsletter(items)
         assert "Sinal.lab" in newsletter
         assert "Inteligencia aberta" in newsletter
 
     def test_empty_items(self):
-        newsletter = synthesize_newsletter([])
+        newsletter, sections = synthesize_newsletter([])
         assert "# Sinal Semanal" in newsletter
         assert "0 destaques" in newsletter
 
     def test_edition_date_formatting(self):
         items = [make_scored_item(composite=0.8)]
         date = datetime(2026, 2, 16, tzinfo=timezone.utc)
-        newsletter = synthesize_newsletter(items, edition_date=date)
+        newsletter, sections = synthesize_newsletter(items, edition_date=date)
         assert "16/02/2026" in newsletter
 
 
@@ -248,7 +249,7 @@ class TestSynthesizeNewsletterWithLLM:
         # Section content returns None to keep sections template-based
         writer.write_section_content.return_value = None
 
-        newsletter = synthesize_newsletter(items, edition_number=42, writer=writer)
+        newsletter, sections = synthesize_newsletter(items, edition_number=42, writer=writer)
 
         assert "A semana foi dominada por avancos em inteligencia artificial." in newsletter
         # Template intro should NOT be present
@@ -267,7 +268,7 @@ class TestSynthesizeNewsletterWithLLM:
             )
         writer.write_section_content.side_effect = section_side_effect
 
-        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         assert "LLM editorial commentary for section." in newsletter
         assert "Rewritten summary for AI Article 0." in newsletter
@@ -276,7 +277,7 @@ class TestSynthesizeNewsletterWithLLM:
         items = self._make_items()
         writer = self._make_writer(available=False)
 
-        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Should use template intro
         assert "Esta semana reunimos" in newsletter
@@ -286,7 +287,7 @@ class TestSynthesizeNewsletterWithLLM:
     def test_falls_back_to_template_when_writer_is_none(self):
         items = self._make_items()
 
-        newsletter = synthesize_newsletter(items, edition_number=1, writer=None)
+        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=None)
 
         # Should use template intro (default behavior)
         assert "Esta semana reunimos" in newsletter
@@ -296,7 +297,7 @@ class TestSynthesizeNewsletterWithLLM:
         writer = self._make_writer(available=True, intro_return=None)
         writer.write_section_content.return_value = None
 
-        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Template intro should be used as fallback
         assert "Esta semana reunimos" in newsletter
@@ -306,7 +307,7 @@ class TestSynthesizeNewsletterWithLLM:
         writer = self._make_writer(available=True, intro_return=None)
         writer.write_section_content.return_value = None  # Simulates LLM failure
 
-        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Template section format: blockquote summaries from RSS
         assert "Summary about AI topic" in newsletter
@@ -320,7 +321,7 @@ class TestSynthesizeNewsletterWithLLM:
         )
         writer.write_section_content.return_value = None  # All sections fail
 
-        newsletter = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # LLM intro present
         assert "LLM intro succeeded." in newsletter
@@ -331,10 +332,156 @@ class TestSynthesizeNewsletterWithLLM:
         """select_top_items and group_by_category work the same with/without writer."""
         items = self._make_items(count=20)
 
-        newsletter_without = synthesize_newsletter(items, edition_number=1, writer=None)
+        newsletter_without, _ = synthesize_newsletter(items, edition_number=1, writer=None)
         writer = self._make_writer(available=False)
-        newsletter_with = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter_with, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Same structure: same title, same section count
         assert "# Sinal Semanal #1" in newsletter_without
         assert "# Sinal Semanal #1" in newsletter_with
+
+
+class TestFormatItemMarkdown:
+    """Test format_item_markdown inline image rendering."""
+
+    def test_format_item_markdown_includes_image_when_present(self):
+        """Item with image_url should produce a Markdown image tag in output."""
+        item = make_scored_item(
+            title="Article with Image",
+            url="https://example.com/article",
+            image_url="https://cdn.example.com/image.jpg",
+        )
+        result = format_item_markdown(item, index=1)
+
+        assert "![Article with Image](https://cdn.example.com/image.jpg)" in result
+
+    def test_format_item_markdown_omits_image_when_none(self):
+        """Item without image_url should produce no Markdown image tag."""
+        item = make_scored_item(
+            title="Article without Image",
+            url="https://example.com/article",
+        )
+        result = format_item_markdown(item, index=1)
+
+        assert "![" not in result
+
+    def test_format_item_markdown_image_appears_after_summary(self):
+        """Image block should come after the summary blockquote."""
+        item = make_scored_item(
+            title="Titled Article",
+            url="https://example.com/article",
+            summary="Short summary text.",
+            image_url="https://cdn.example.com/photo.png",
+        )
+        result = format_item_markdown(item, index=1)
+
+        summary_pos = result.index("> Short summary text.")
+        image_pos = result.index("![Titled Article]")
+        assert image_pos > summary_pos
+
+    def test_format_item_markdown_summary_override_used_with_image(self):
+        """When summary_override is given, the override is rendered and image still appears."""
+        item = make_scored_item(
+            title="Article",
+            url="https://example.com/article",
+            summary="Original RSS summary.",
+            image_url="https://cdn.example.com/img.jpg",
+        )
+        result = format_item_markdown(item, index=1, summary_override="LLM rewritten summary.")
+
+        assert "Original RSS summary." not in result
+        assert "LLM rewritten summary." in result
+        assert "![Article](https://cdn.example.com/img.jpg)" in result
+
+    def test_format_item_markdown_includes_video_link_when_present(self):
+        """Item with video_url produces a video link in output."""
+        item = make_scored_item(
+            title="Video Article",
+            url="https://example.com/article",
+            video_url="https://youtube.com/watch?v=abc123",
+        )
+        result = format_item_markdown(item, index=1)
+
+        assert "[▶ Assistir video](https://youtube.com/watch?v=abc123)" in result
+
+    def test_format_item_markdown_omits_video_link_when_none(self):
+        """Item without video_url produces no video link."""
+        item = make_scored_item(
+            title="Text Article",
+            url="https://example.com/article",
+        )
+        result = format_item_markdown(item, index=1)
+
+        assert "Assistir video" not in result
+
+    def test_format_item_markdown_video_after_image(self):
+        """Video link appears after image when both are present."""
+        item = make_scored_item(
+            title="Full Media",
+            url="https://example.com/article",
+            image_url="https://cdn.example.com/thumb.jpg",
+            video_url="https://youtube.com/watch?v=xyz",
+        )
+        result = format_item_markdown(item, index=1)
+
+        image_pos = result.index("![Full Media]")
+        video_pos = result.index("[▶ Assistir video]")
+        assert video_pos > image_pos
+
+
+class TestSynthesizeNewsletterReturnType:
+    """Verify synthesize_newsletter returns (str, list[NewsletterSection]) tuple."""
+
+    def test_synthesize_newsletter_returns_tuple(self):
+        """Return value must be a 2-tuple of (str, list)."""
+        items = [make_scored_item(composite=0.8)]
+        result = synthesize_newsletter(items, edition_number=1)
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_synthesize_newsletter_first_element_is_string(self):
+        """First element of the tuple is the newsletter Markdown string."""
+        items = [make_scored_item(composite=0.8)]
+        markdown, sections = synthesize_newsletter(items, edition_number=1)
+
+        assert isinstance(markdown, str)
+        assert len(markdown) > 0
+
+    def test_synthesize_newsletter_second_element_is_list(self):
+        """Second element is a list of NewsletterSection objects."""
+        items = [
+            make_scored_item(
+                title="AI startup investment round",
+                url=f"https://example.com/{i}",
+                source_name=f"source_{i}",
+                composite=0.8,
+            )
+            for i in range(3)
+        ]
+        markdown, sections = synthesize_newsletter(items, edition_number=1)
+
+        assert isinstance(sections, list)
+
+    def test_synthesize_newsletter_sections_are_newsletter_section_instances(self):
+        """Each element in the sections list is a NewsletterSection."""
+        from apps.agents.sintese.synthesizer import NewsletterSection
+
+        items = [
+            make_scored_item(
+                title="AI machine learning article",
+                url="https://example.com/ai",
+                composite=0.9,
+            )
+        ]
+        markdown, sections = synthesize_newsletter(items, edition_number=1)
+
+        for section in sections:
+            assert isinstance(section, NewsletterSection)
+
+    def test_synthesize_newsletter_empty_returns_empty_sections(self):
+        """With no items, sections list should be empty."""
+        markdown, sections = synthesize_newsletter([], edition_number=1)
+
+        assert isinstance(sections, list)
+        assert sections == []

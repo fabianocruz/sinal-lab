@@ -1,6 +1,6 @@
 """Common Pydantic schemas shared across routers."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
@@ -55,17 +55,39 @@ class WaitlistCountResponse(BaseModel):
 
 
 class CompanyResponse(BaseModel):
-    """Company response schema."""
+    """Company response schema (list view)."""
 
     id: UUID
     name: str
     slug: str
     description: Optional[str] = None
+    short_description: Optional[str] = None
     sector: Optional[str] = None
+    sub_sector: Optional[str] = None
     city: Optional[str] = None
+    state: Optional[str] = None
     country: str = "Brazil"
-    status: str = "active"
+    tags: Optional[list[str]] = None
+    tech_stack: Optional[list[str]] = None
+    founded_date: Optional[date] = None
+    team_size: Optional[int] = None
+    business_model: Optional[str] = None
     website: Optional[str] = None
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    twitter_url: Optional[str] = None
+    source_count: int = 1
+    status: str = "active"
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CompanyDetailResponse(CompanyResponse):
+    """Company detail response (includes metadata)."""
+
+    metadata_: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -94,11 +116,12 @@ class ContentResponse(BaseModel):
 
 
 class ContentDetailResponse(ContentResponse):
-    """Content piece detail response (includes body)."""
+    """Content piece detail response (includes body and metadata)."""
 
     body_md: str = ""
     body_html: Optional[str] = None
     canonical_url: Optional[str] = None
+    metadata_: Optional[dict] = None
 
     class Config:
         from_attributes = True

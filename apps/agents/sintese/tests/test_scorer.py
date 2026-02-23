@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 from apps.agents.sintese.collector import FeedItem
 from apps.agents.sintese.scorer import (
     MIN_TOPIC_SCORE,
+    NEGATIVE_KEYWORDS,
     ScoredItem,
     score_topic_relevance,
     score_recency,
@@ -195,7 +196,8 @@ class TestLatamRelevance:
             title="Empresa de tecnologia lanca nova plataforma para startups no Brasil"
         )
         score = score_latam_relevance(item)
-        assert score >= 0.3
+        # PT signal reduced from 0.4 to 0.25, plus location/company bonuses
+        assert score >= 0.2
 
     def test_latam_location(self):
         item = make_item(title="São Paulo startup ecosystem grows 30% in 2026")
@@ -313,6 +315,68 @@ class TestScoreItems:
             assert s.topic_score >= MIN_TOPIC_SCORE
 
 
+class TestNegativeKeywords:
+    """Test negative keyword filtering (sports, entertainment, lifestyle)."""
+
+    def test_olympic_athlete_blocked(self):
+        """'medalhista olimpico' sports article should score 0.0."""
+        item = make_item(
+            title="Lucas Pinheiro, um medalhista olimpico com valor de mercado de R$ 1 bilhão",
+            source_name="neofeed",
+        )
+        assert score_topic_relevance(item) == 0.0
+
+    def test_football_blocked(self):
+        """Football articles should score 0.0."""
+        item = make_item(title="Campeonato brasileiro futebol 2026 tabela")
+        assert score_topic_relevance(item) == 0.0
+
+    def test_novela_blocked(self):
+        """Entertainment content should score 0.0."""
+        item = make_item(title="Nova novela da Globo estreia nesta semana")
+        assert score_topic_relevance(item) == 0.0
+
+    def test_negative_keyword_does_not_block_very_strong_topic(self):
+        """If topic score >= 0.9 (very strong signal), negative keywords don't apply."""
+        # "startup" (0.9) + "machine learning" (0.9) → max_score=0.9, bypasses gate
+        item = make_item(
+            title="Startup de machine learning ganha medalhista como advisor",
+        )
+        score = score_topic_relevance(item)
+        assert score >= 0.5
+
+    def test_negative_keyword_blocks_medium_topic(self):
+        """Negative keywords block even with medium topic score (< 0.9).
+
+        neofeed sports article with 'investimento' (0.8) in summary should
+        still be blocked by 'medalhista' negative keyword.
+        """
+        item = make_item(
+            title="Medalhista olimpico recebe investimento de R$ 1 bilhao",
+            source_name="neofeed",
+        )
+        assert score_topic_relevance(item) == 0.0
+
+    def test_min_topic_score_is_030(self):
+        """MIN_TOPIC_SCORE should be 0.30 to require meaningful keyword matches."""
+        assert MIN_TOPIC_SCORE == 0.30
+
+    def test_single_editorial_keyword_scores_035(self):
+        """A single editorial keyword match (not in TOPIC_KEYWORDS) gives 0.35."""
+        # "portabilidade" is in editorial fintech territory but NOT in TOPIC_KEYWORDS
+        item = make_item(title="Novidades sobre portabilidade bancaria")
+        score = score_topic_relevance(item)
+        # Should be around 0.35 + small multi-match bonus, not 0.5+
+        assert 0.30 <= score <= 0.45
+
+    def test_two_editorial_keywords_score_050(self):
+        """Two+ editorial keyword matches (not in TOPIC_KEYWORDS) give 0.5."""
+        # Both "portabilidade" and "dock" are editorial-only keywords
+        item = make_item(title="Portabilidade bancaria via dock plataforma")
+        score = score_topic_relevance(item)
+        assert score >= 0.5
+
+
 class TestSourceCalibration:
     """Test source authority calibration and config alignment."""
 
@@ -381,8 +445,8 @@ class TestSourceCalibration:
             assert score >= 0.7, f"{source} authority too low: {score}"
 
     TWITTER_SOURCES = {
-        "twitter_fintech", "twitter_ai", "twitter_cripto",
-        "twitter_engenharia", "twitter_venture", "twitter_green_agritech",
+        "twitter_fintech", "twitter_ai",
+        "twitter_engenharia", "twitter_venture",
     }
 
     def test_twitter_sources_in_config(self):

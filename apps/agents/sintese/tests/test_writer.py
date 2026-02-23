@@ -11,7 +11,7 @@ from apps.agents.sintese.collector import FeedItem
 from apps.agents.sintese.scorer import ScoredItem
 from apps.agents.sintese.synthesizer import NewsletterSection
 from apps.agents.base.llm import strip_code_fences
-from apps.agents.sintese.writer import SinteseWriter, SectionContent
+from apps.agents.sintese.writer import SinteseWriter, SectionContent, EditorialMetadata
 
 
 def make_scored_item(
@@ -382,3 +382,210 @@ class TestStripCodeFences:
         data = json.loads(result)
         assert data["intro"] == "text"
         assert len(data["summaries"]) == 2
+
+
+class TestWriteEditorialMetadata:
+    """Test write_editorial_metadata() on SinteseWriter."""
+
+    def _make_writer_with_response(self, response: str) -> SinteseWriter:
+        """Create a SinteseWriter whose LLM client returns a fixed response."""
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = response
+        return SinteseWriter(client=mock_client)
+
+    def test_write_editorial_metadata_returns_metadata_on_valid_json(self):
+        """Valid JSON response returns an EditorialMetadata instance."""
+        payload = json.dumps({
+            "callouts": [
+                {"type": "highlight", "content": "Nubank atingiu 100M de clientes.", "position": "after_intro"},
+            ],
+            "companies_mentioned": ["Nubank", "Rappi", "Totvs"],
+            "topics": ["fintech", "AI", "open finance"],
+            "featured_video_url": None,
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("Fintech & Pagamentos", item_count=2)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=5)
+
+        assert result is not None
+        assert isinstance(result, EditorialMetadata)
+        assert len(result.callouts) == 1
+        assert result.callouts[0]["content"] == "Nubank atingiu 100M de clientes."
+        assert "Nubank" in result.companies_mentioned
+        assert "fintech" in result.topics
+
+    def test_write_editorial_metadata_returns_none_when_client_unavailable(self):
+        """Returns None when the LLM client is not available."""
+        mock_client = MagicMock()
+        mock_client.is_available = False
+        writer = SinteseWriter(client=mock_client)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_write_editorial_metadata_returns_none_on_invalid_json(self):
+        """Garbage response that is not valid JSON returns None."""
+        writer = self._make_writer_with_response("This is definitely not JSON!")
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is None
+
+    def test_write_editorial_metadata_handles_code_fences(self):
+        """JSON wrapped in ```json...``` fences is parsed correctly."""
+        payload = (
+            "```json\n"
+            + json.dumps({
+                "callouts": [{"type": "highlight", "content": "Insight importante.", "position": "after_intro"}],
+                "companies_mentioned": ["Startup X"],
+                "topics": ["AI", "cloud"],
+                "featured_video_url": None,
+            })
+            + "\n```"
+        )
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is not None
+        assert isinstance(result, EditorialMetadata)
+        assert result.callouts[0]["content"] == "Insight importante."
+
+    def test_write_editorial_metadata_validates_callout_structure(self):
+        """Callouts missing the 'content' key are filtered out."""
+        payload = json.dumps({
+            "callouts": [
+                {"type": "highlight", "content": "Valid callout.", "position": "after_intro"},
+                {"type": "highlight"},  # No 'content' key — invalid
+                {"type": "highlight", "content": "Another valid callout."},
+            ],
+            "companies_mentioned": [],
+            "topics": [],
+            "featured_video_url": None,
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is not None
+        # The callout without 'content' was filtered out
+        assert len(result.callouts) == 2
+        contents = [c["content"] for c in result.callouts]
+        assert "Valid callout." in contents
+        assert "Another valid callout." in contents
+
+    def test_write_editorial_metadata_limits_companies_to_20(self):
+        """companies_mentioned list is capped at 20 entries."""
+        payload = json.dumps({
+            "callouts": [],
+            "companies_mentioned": [f"Company {i}" for i in range(30)],
+            "topics": ["AI"],
+            "featured_video_url": None,
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is not None
+        assert len(result.companies_mentioned) == 20
+
+    def test_write_editorial_metadata_limits_topics_to_10(self):
+        """topics list is capped at 10 entries."""
+        payload = json.dumps({
+            "callouts": [],
+            "companies_mentioned": [],
+            "topics": [f"topic_{i}" for i in range(15)],
+            "featured_video_url": None,
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is not None
+        assert len(result.topics) == 10
+
+    def test_write_editorial_metadata_returns_none_on_empty_sections(self):
+        """Empty sections list returns None without calling LLM."""
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        writer = SinteseWriter(client=mock_client)
+
+        result = writer.write_editorial_metadata([], edition_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_write_editorial_metadata_featured_video_url_set_from_item(self):
+        """featured_video_url is returned when LLM includes it."""
+        payload = json.dumps({
+            "callouts": [],
+            "companies_mentioned": [],
+            "topics": ["AI"],
+            "featured_video_url": "https://youtube.com/watch?v=abc123",
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is not None
+        assert result.featured_video_url == "https://youtube.com/watch?v=abc123"
+
+    def test_write_editorial_metadata_featured_video_url_none_when_not_string(self):
+        """featured_video_url is None when LLM returns a non-string value."""
+        payload = json.dumps({
+            "callouts": [],
+            "companies_mentioned": [],
+            "topics": ["AI"],
+            "featured_video_url": 42,  # Not a string
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is not None
+        assert result.featured_video_url is None
+
+    def test_write_editorial_metadata_returns_none_on_invalid_structure(self):
+        """JSON where callouts/companies/topics are not lists returns None."""
+        payload = json.dumps({
+            "callouts": "not a list",
+            "companies_mentioned": ["ok"],
+            "topics": ["ok"],
+            "featured_video_url": None,
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("AI", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is None
+
+    def test_write_editorial_metadata_empty_callouts_are_valid(self):
+        """JSON with empty callouts list is still valid."""
+        payload = json.dumps({
+            "callouts": [],
+            "companies_mentioned": ["Nubank"],
+            "topics": ["fintech"],
+            "featured_video_url": None,
+        })
+        writer = self._make_writer_with_response(payload)
+        sections = [make_section("Fintech", item_count=1)]
+
+        result = writer.write_editorial_metadata(sections, edition_number=1)
+
+        assert result is not None
+        assert isinstance(result, EditorialMetadata)
+        assert result.callouts == []
+        assert result.companies_mentioned == ["Nubank"]

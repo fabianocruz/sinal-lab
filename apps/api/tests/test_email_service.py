@@ -503,9 +503,9 @@ class TestWelcomeEmailContent:
         """Email includes a preview card for the latest edition."""
         html = _build_welcome_html()
 
-        assert "EDI\u00c7\u00c3O #47" in html
-        assert "paradoxo" in html
-        assert "sinal.tech/briefing/47" in html
+        assert "EDI\u00c7\u00c3O #48" in html
+        assert "438 sinais" in html
+        assert "sinal.tech/newsletter/sinal-semanal-48" in html
 
     def test_welcome_email_contains_free_section(self):
         """Email has the 'isso e gratis' transparency section."""

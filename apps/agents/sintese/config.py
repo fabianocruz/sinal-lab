@@ -97,12 +97,6 @@ TWITTER_SOURCES: list[DataSourceConfig] = [
         params={"territory": "ai"},
     ),
     DataSourceConfig(
-        name="twitter_cripto", source_type="api",
-        url="https://api.twitter.com/2/tweets/search/recent",
-        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
-        params={"territory": "cripto"},
-    ),
-    DataSourceConfig(
         name="twitter_engenharia", source_type="api",
         url="https://api.twitter.com/2/tweets/search/recent",
         api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
@@ -113,12 +107,6 @@ TWITTER_SOURCES: list[DataSourceConfig] = [
         url="https://api.twitter.com/2/tweets/search/recent",
         api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
         params={"territory": "venture"},
-    ),
-    DataSourceConfig(
-        name="twitter_green_agritech", source_type="api",
-        url="https://api.twitter.com/2/tweets/search/recent",
-        api_key_env="X_BEARER_TOKEN", rate_limit_per_minute=10,
-        params={"territory": "green_agritech"},
     ),
 ]
 

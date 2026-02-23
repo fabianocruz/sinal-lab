@@ -191,7 +191,7 @@ def seed(session: Any, pieces: List[Dict[str, Any]], *, force: bool = False) -> 
                     :content_type, :agent_name, :agent_run_id,
                     :confidence_dq, :confidence_ac,
                     :review_status, :published_at, :meta_description,
-                    :author_name, :sources::jsonb, :metadata::jsonb
+                    :author_name, CAST(:sources AS jsonb), CAST(:metadata AS jsonb)
                 )
             """),
             params,

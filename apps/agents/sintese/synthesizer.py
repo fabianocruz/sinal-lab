@@ -22,29 +22,30 @@ logger = logging.getLogger(__name__)
 TOP_ITEMS_COUNT = 18
 MIN_SCORE_THRESHOLD = 0.35
 
-# Category definitions for grouping newsletter items
+# Category definitions for grouping newsletter items (aligned with Editorial v2)
 CATEGORIES: dict[str, list[str]] = {
-    "IA & Machine Learning": [
+    "AI & Infraestrutura Inteligente": [
         "inteligencia artificial", "machine learning", "llm", "gpt", "claude",
         "deep learning", "ai agent", "generative ai", "ia generativa", "nlp",
+        "agentic ai", "foundation model", "fine-tuning", "rag", "mlops",
+        "inference", "ai governance",
     ],
-    "Startups & Investimento": [
-        "startup", "venture capital", "investimento", "rodada", "funding",
-        "serie a", "serie b", "seed", "unicornio", "ipo", "aquisicao",
-        "fundraising", "acquisition",
-    ],
-    "Fintech & Pagamentos": [
+    "Fintech & Infraestrutura Financeira": [
         "fintech", "pagamento", "credito", "banco digital", "pix",
-        "open finance", "drex", "blockchain", "crypto",
+        "open finance", "drex", "blockchain", "crypto", "stablecoin",
+        "tokenização", "embedded finance", "neobank", "remessa",
+        "cross-border", "defi",
     ],
-    "Infraestrutura & Dev Tools": [
+    "Engenharia & Plataforma": [
         "kubernetes", "docker", "aws", "cloud", "microservices", "devops",
         "open source", "api", "database", "python", "typescript", "rust",
-        "react", "next.js", "fastapi",
+        "react", "next.js", "fastapi", "observability", "sre",
     ],
-    "Ecossistema LATAM": [
-        "brasil", "brazil", "latam", "america latina", "sao paulo",
-        "florianopolis", "agritech", "agtech", "climate tech",
+    "Venture Capital & Ecossistema": [
+        "startup", "venture capital", "investimento", "rodada", "funding",
+        "serie a", "serie b", "seed", "unicornio", "ipo", "aquisicao",
+        "fundraising", "acquisition", "agritech", "agtech", "climate tech",
+        "ecosystem", "latam", "america latina",
     ],
 }
 
@@ -168,6 +169,14 @@ def format_item_markdown(
     if summary:
         lines.append(f"> {summary}")
 
+    if item.item.image_url:
+        lines.append("")
+        lines.append(f"![{item.item.title}]({item.item.image_url})")
+
+    if item.item.video_url:
+        lines.append("")
+        lines.append(f"[▶ Assistir video]({item.item.video_url})")
+
     lines.append("")
     return "\n".join(lines)
 
@@ -177,7 +186,7 @@ def synthesize_newsletter(
     edition_number: int = 1,
     edition_date: Optional[datetime] = None,
     writer: Optional["SinteseWriter"] = None,
-) -> str:
+) -> tuple[str, list[NewsletterSection]]:
     """Produce the full newsletter draft in Markdown.
 
     When a writer is provided and available, generates LLM-powered editorial
@@ -192,7 +201,7 @@ def synthesize_newsletter(
         writer: Optional LLM editorial writer for enhanced content.
 
     Returns:
-        Complete newsletter Markdown ready for review and publication.
+        Tuple of (newsletter Markdown, list of sections used).
     """
     if not edition_date:
         edition_date = datetime.now(timezone.utc)
@@ -263,11 +272,12 @@ def synthesize_newsletter(
         lines.append("")
 
     # Footer
+    persona_footer = get_display_name("sintese")
     lines.append("## Sobre esta edicao")
     lines.append("")
     lines.append(
-        "Esta newsletter foi curada pelo **agente SINTESE** da plataforma "
-        "[Sinal.lab](https://sinal.ai). O agente analisa mais de 100 fontes "
+        f"Esta newsletter foi curada por **{persona_footer}** na plataforma "
+        "[Sinal.lab](https://sinal.ai). O pipeline analisa mais de 100 fontes "
         "de noticias tech, pontua cada item por relevancia topica, recencia, "
         "autoridade da fonte e relevancia para a America Latina, e seleciona "
         "os destaques da semana."
@@ -277,4 +287,4 @@ def synthesize_newsletter(
         "*Inteligencia aberta para quem constroi.*"
     )
 
-    return "\n".join(lines)
+    return "\n".join(lines), sections

@@ -31,14 +31,14 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 │       ├── # --- Agents de Dados (escopo: todo ecossistema LATAM) ---
 │       ├── funding/         # Capital Flow Tracker — todas as rodadas LATAM
 │       ├── mercado/         # Market Intelligence — ecossistema completo
-│       ├── index/           # Startup Ranking — todas as startups LATAM (planned)
+│       ├── index/           # LATAM Startup Index — collectors, pipeline, scorer, persistence
 │       ├── # --- Agents de Conteudo (escopo: linha editorial) ---
 │       ├── sintese/         # Newsletter Synthesizer — audiencia tecnica
 │       ├── radar/           # Trend Intelligence — tendencias para publico tecnico
 │       ├── codigo/          # Code & Infra Research — tecnologia e infraestrutura
 │       ├── # --- Pipeline de Qualidade ---
 │       ├── editorial/       # Editorial pipeline — filtra dados para publicacao
-│       └── seo_engine/      # SEO Optimization — paginas programaticas (planned)
+│       └── seo_engine/      # SEO Optimization — paginas programaticas (future)
 ├── packages/
 │   ├── shared/              # Tipos compartilhados, utils
 │   ├── database/            # Schema, migrations, seeds
@@ -54,6 +54,7 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - `pnpm test` — Roda testes frontend
 - `pytest apps/api/tests/` — Roda testes backend
 - `pytest apps/api/tests/test_content.py -v` — Testes do content router (13 testes)
+- `pytest apps/api/tests/test_companies.py -v` — Testes do companies router (20 testes)
 - `pytest packages/ apps/agents/ scripts/tests/ -v` — Roda todos os testes Python (1370+)
 - `pytest apps/agents/base/tests/ -v` — Testes do framework base + orchestrator
 - `pytest apps/agents/sources/tests/ -v` — Testes da source layer compartilhada
@@ -80,14 +81,21 @@ Codename: Sinal.lab. Tagline: "Inteligencia aberta para quem constroi."
 - Agents de dados (Funding, Mercado, Index) cobrem todo o ecossistema LATAM — sem filtro editorial
 - Todo output destinado a publicacao passa pelo editorial pipeline (filtro editorial + quality check)
 - Newsletter pages (/newsletter, /newsletter/[slug]) sao SSR com ISR (revalidate: 60s lista, 300s detalhe)
+- Startup pages (/startups, /startup/[slug]) sao SSR com ISR — mesma pattern das newsletters
+- Startup detail pages incluem JSON-LD Organization (schema.org) para SEO
+- Componentes Pagination e SearchBar sao generalizados com prop `basePath` (reutilizados em /newsletter e /startups)
 - Frontend faz fallback para FALLBACK_NEWSLETTERS quando API esta offline
 
 ### API — Contratos de Resposta
 - `GET /api/content` retorna envelope paginado: `{ items: [...], total, limit, offset }`
 - `GET /api/content/{slug}` retorna ContentDetailResponse (objeto unico)
 - `GET /api/content/newsletter/latest` retorna ContentResponse (objeto unico)
-- Frontend usa `?status=published` por padrao nas chamadas de listagem
-- Filtros disponiveis: `content_type`, `agent_name`, `status`, `search` (ilike no titulo)
+- `GET /api/companies` retorna envelope paginado: `{ items: [...], total, limit, offset }`
+- `GET /api/companies/{slug}` retorna CompanyDetailResponse (objeto unico, 22 campos)
+- Frontend usa `?status=published` por padrao nas chamadas de listagem de content
+- Companies usa `?status=active` por padrao (omitir status retorna apenas active)
+- Filtros content: `content_type`, `agent_name`, `status`, `search` (ilike no titulo)
+- Filtros companies: `sector`, `city`, `country`, `tags`, `search` (ilike no nome), `status`
 
 ### Testes — SQLite com StaticPool
 - Todos os testes de API usam SQLite in-memory com `poolclass=StaticPool`

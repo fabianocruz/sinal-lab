@@ -28,9 +28,15 @@ export default function MarkdownRenderer({
     h4: ({ children }) => (
       <h4 className="mt-6 mb-2 font-display text-[16px] leading-[1.4] text-bone">{children}</h4>
     ),
-    p: ({ children }) => (
-      <p className="mb-6 text-[16px] leading-[1.8] text-silver last:mb-0">{children}</p>
-    ),
+    p: ({ node, children }) => {
+      // Standalone images are wrapped in <p> by react-markdown — unwrap to avoid
+      // invalid DOM nesting (<figure> inside <p>).
+      const hasImage = node?.children?.some(
+        (child) => "tagName" in child && child.tagName === "img",
+      );
+      if (hasImage) return <>{children}</>;
+      return <p className="mb-6 text-[16px] leading-[1.8] text-silver last:mb-0">{children}</p>;
+    },
     a: ({ href, children }) => (
       <a
         href={href}
@@ -87,6 +93,14 @@ export default function MarkdownRenderer({
       <td className="border-b border-[rgba(255,255,255,0.06)] px-3 py-2">{children}</td>
     ),
     hr: () => <hr className="my-8 border-[rgba(255,255,255,0.06)]" />,
+    img: ({ src, alt }) => (
+      <figure className="my-8">
+        <img src={src} alt={alt || ""} className="w-full rounded-lg" loading="lazy" />
+        {alt && (
+          <figcaption className="mt-2 text-center font-mono text-[12px] text-ash">{alt}</figcaption>
+        )}
+      </figure>
+    ),
   };
 
   return (

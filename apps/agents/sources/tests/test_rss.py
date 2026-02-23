@@ -400,3 +400,235 @@ class TestRSSItem:
         item1 = RSSItem(title="A", url="https://example.com/1", source_name="S")
         item2 = RSSItem(title="A", url="https://example.com/2", source_name="S")
         assert item1.content_hash != item2.content_hash
+
+    def test_rssitem_image_url_defaults_to_none(self) -> None:
+        """RSSItem.image_url is None when not explicitly set."""
+        item = RSSItem(
+            title="No Image Article",
+            url="https://example.com/no-image",
+            source_name="Test",
+        )
+        assert item.image_url is None
+
+
+class TestExtractImageUrl:
+    """Test extract_image_url extraction from feedparser entries."""
+
+    def test_extract_image_url_from_media_content(self) -> None:
+        """media_content list with medium=image returns first matching URL."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_content=[
+                {"url": "https://cdn.example.com/image.jpg", "medium": "image"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/image.jpg"
+
+    def test_extract_image_url_from_media_content_type(self) -> None:
+        """media_content with image/* MIME type also works."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_content=[
+                {"url": "https://cdn.example.com/photo.png", "type": "image/png"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/photo.png"
+
+    def test_extract_image_url_from_media_thumbnail(self) -> None:
+        """media_thumbnail list returns first URL when media_content absent."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_thumbnail=[
+                {"url": "https://cdn.example.com/thumb.jpg"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/thumb.jpg"
+
+    def test_extract_image_url_from_enclosure(self) -> None:
+        """Enclosure with image/* MIME type returns its URL."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            enclosures=[
+                {"href": "https://cdn.example.com/enclosure.jpg", "type": "image/jpeg"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/enclosure.jpg"
+
+    def test_extract_image_url_from_enclosure_url_key(self) -> None:
+        """Enclosure using 'url' key (not 'href') is also handled."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            enclosures=[
+                {"url": "https://cdn.example.com/via-url.jpg", "type": "image/jpeg"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/via-url.jpg"
+
+    def test_extract_image_url_skips_audio_enclosure(self) -> None:
+        """Enclosure with audio/* MIME type is skipped."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            enclosures=[
+                {"href": "https://example.com/podcast.mp3", "type": "audio/mpeg"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result is None
+
+    def test_extract_image_url_from_html_img_in_summary_detail(self) -> None:
+        """Falls back to first <img> tag in summary_detail HTML."""
+        from apps.agents.sources.rss import extract_image_url
+
+        html = '<p>Article text.</p><img src="https://cdn.example.com/inline.jpg" alt="photo">'
+        entry = _make_entry(
+            summary_detail={"type": "text/html", "value": html}
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/inline.jpg"
+
+    def test_extract_image_url_skips_non_html_summary_detail(self) -> None:
+        """summary_detail with text/plain type does not trigger img parse."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            summary_detail={"type": "text/plain", "value": "No HTML here."}
+        )
+        result = extract_image_url(entry)
+        assert result is None
+
+    def test_extract_image_url_returns_none_when_no_media(self) -> None:
+        """Entry with no media attributes returns None."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            title="Plain article",
+            link="https://example.com/plain",
+            summary="Just text, no image.",
+        )
+        result = extract_image_url(entry)
+        assert result is None
+
+    def test_extract_image_url_priority_media_content_over_enclosure(self) -> None:
+        """media_content takes priority over enclosures when both are present."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_content=[
+                {"url": "https://cdn.example.com/media-content.jpg", "medium": "image"},
+            ],
+            enclosures=[
+                {"href": "https://cdn.example.com/enclosure.jpg", "type": "image/jpeg"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/media-content.jpg"
+
+    def test_extract_image_url_priority_media_content_over_thumbnail(self) -> None:
+        """media_content takes priority over media_thumbnail."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_content=[
+                {"url": "https://cdn.example.com/content.jpg", "medium": "image"},
+            ],
+            media_thumbnail=[
+                {"url": "https://cdn.example.com/thumbnail.jpg"},
+            ],
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/content.jpg"
+
+    def test_extract_image_url_priority_thumbnail_over_enclosure(self) -> None:
+        """media_thumbnail takes priority over enclosures (but loses to media_content)."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_thumbnail=[
+                {"url": "https://cdn.example.com/thumb.jpg"},
+            ],
+            enclosures=[
+                {"href": "https://cdn.example.com/enclosure.jpg", "type": "image/jpeg"},
+            ]
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/thumb.jpg"
+
+    def test_extract_image_url_empty_media_content_list(self) -> None:
+        """Empty media_content list falls through to next source."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_content=[],
+            media_thumbnail=[{"url": "https://cdn.example.com/fallback-thumb.jpg"}],
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/fallback-thumb.jpg"
+
+    def test_extract_image_url_media_content_without_image_medium(self) -> None:
+        """media_content entries without 'medium=image' and no image MIME are skipped."""
+        from apps.agents.sources.rss import extract_image_url
+
+        entry = _make_entry(
+            media_content=[
+                {"url": "https://cdn.example.com/video.mp4", "medium": "video"},
+            ],
+            media_thumbnail=[{"url": "https://cdn.example.com/poster.jpg"}],
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/poster.jpg"
+
+    def test_extract_image_url_img_with_single_quotes(self) -> None:
+        """HTML img tag using single-quoted src is also matched."""
+        from apps.agents.sources.rss import extract_image_url
+
+        html = "<img src='https://cdn.example.com/single-quote.jpg'>"
+        entry = _make_entry(
+            summary_detail={"type": "text/html", "value": html}
+        )
+        result = extract_image_url(entry)
+        assert result == "https://cdn.example.com/single-quote.jpg"
+
+
+class TestParseRSSEntryImageUrl:
+    """Test that parse_rss_entry correctly populates image_url on RSSItem."""
+
+    def test_parse_rss_entry_includes_image_url_from_media_content(self) -> None:
+        """Full entry with media_content produces RSSItem with image_url set."""
+        ts = _make_time_struct(2026, 2, 10)
+        entry = _make_entry(
+            title="Article with Media",
+            link="https://example.com/article",
+            summary="Summary text.",
+            published_parsed=ts,
+            tags=[],
+            media_content=[
+                {"url": "https://cdn.example.com/article-image.jpg", "medium": "image"},
+            ],
+        )
+        item = parse_rss_entry(entry, "Media Source")
+
+        assert item is not None
+        assert item.image_url == "https://cdn.example.com/article-image.jpg"
+
+    def test_parse_rss_entry_image_url_is_none_when_no_media(self) -> None:
+        """Entry with no media produces RSSItem.image_url = None."""
+        entry = _make_entry(
+            title="Plain Article",
+            link="https://example.com/plain",
+            summary="No images here.",
+        )
+        item = parse_rss_entry(entry, "Plain Source")
+
+        assert item is not None
+        assert item.image_url is None

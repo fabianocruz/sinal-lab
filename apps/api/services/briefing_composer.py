@@ -5,6 +5,7 @@ metadata, and builds the BriefingData dict expected by send_newsletter_email().
 """
 
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -14,6 +15,18 @@ from sqlalchemy.orm import Session
 from packages.database.models.content_piece import ContentPiece
 
 logger = logging.getLogger(__name__)
+
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_html(text: str, max_length: int = 200) -> str:
+    """Remove HTML tags from text and truncate to max_length."""
+    clean = _HTML_TAG_RE.sub("", text).strip()
+    clean = re.sub(r"\s+", " ", clean)
+    if len(clean) > max_length:
+        clean = clean[:max_length].rsplit(" ", 1)[0] + "..."
+    return clean
+
 
 # Base URL for building canonical links.
 _BASE_URL = "https://sinal.tech"
@@ -172,7 +185,7 @@ def _extract_radar_trends(metadata: dict) -> List[dict]:
             "arrow": arrow,
             "arrow_color": arrow_color,
             "title": item.get("title", ""),
-            "context": item.get("summary", ""),
+            "context": _strip_html(item.get("summary", "")),
         }  # type: Dict[str, object]
 
         url = item.get("url")

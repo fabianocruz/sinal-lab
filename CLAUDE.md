@@ -5,11 +5,11 @@
 
 ---
 
-## Project Status (Updated: 2026-02-21)
+## Project Status (Updated: 2026-02-22)
 
 **Repository:** https://github.com/fabianocruz/sinal-lab
-**Branch:** main (PR #14 merged)
-**Test Coverage:** 88 Python tests + 63 frontend tests (Vitest)
+**Branch:** feature/startup-map (in progress)
+**Test Coverage:** 1970 Python tests + 998 frontend tests (Vitest)
 
 ### Completed:
 - ✅ Initial project structure + GitHub repo
@@ -20,7 +20,11 @@
 - ✅ Seed expandido (20 newsletters, 5 agents, 5 meses)
 - ✅ Logout + área do usuário (UserMenu dropdown + /conta)
 - ✅ Waitlist-auth unificado (form auth-aware + upgrade waitlist→active)
-- ✅ 63 testes frontend (UserMenu, AccountDetails, Navbar auth, WaitlistForm auth, ContaPage)
+- ✅ INDEX agent — LATAM startup data pipeline (collectors, pipeline, scorer, persistence)
+- ✅ Startup Map — /startups listing + /startup/[slug] detail pages
+- ✅ Companies API — paginated envelope, search, tags filters, expanded schema (22 fields)
+- ✅ SEO — JSON-LD Organization, async sitemap with company pages
+- ✅ Generalized Pagination + SearchBar with `basePath` prop
 
 ### Next Steps:
 - Run tests before every commit: `pytest apps/ packages/ -v && pnpm test`
@@ -300,11 +304,11 @@ cd apps/web && pnpm dev
 - Editorial pipeline: 100% (all layers tested)
 
 **Current Status:**
-- ✅ API routers: 7/7 = 100% (includes auth + waitlist)
+- ✅ API routers: 356 tests (includes auth, waitlist, companies, content, agents)
 - ✅ Editorial package: 3/3 = 100%
 - ✅ Agent base framework: 100%
-- ✅ Frontend components: 63 tests (Vitest + Testing Library)
-- ✅ Overall: 88 Python + 63 frontend tests
+- ✅ Frontend components: 967 passing / 998 total (Vitest + Testing Library)
+- ✅ Overall: 1970 Python + 998 frontend tests
 
 **Before Committing:**
 1. Run full test suite: `pytest apps/ packages/ -v`
