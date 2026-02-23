@@ -6,7 +6,7 @@ import ArchiveCard from "@/components/newsletter/ArchiveCard";
 import FilterPills from "@/components/newsletter/FilterPills";
 import SearchBar from "@/components/newsletter/SearchBar";
 import Pagination from "@/components/newsletter/Pagination";
-import { fetchNewsletters, fetchFeaturedContent } from "@/lib/api";
+import { fetchNewsletters } from "@/lib/api";
 import { mapApiToNewsletter, FALLBACK_NEWSLETTERS } from "@/lib/newsletter";
 
 export const metadata: Metadata = {
@@ -31,18 +31,12 @@ export default async function NewsletterArchivePage({
   const page = parseInt(searchParams.page ?? "1", 10);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const noAgentFilter = !searchParams.agent && !searchParams.q;
-
-  // Always fetch latest RADAR for the hero card (richest content)
-  const [data, featuredContent] = await Promise.all([
-    fetchNewsletters({
-      agent_name: searchParams.agent,
-      search: searchParams.q,
-      limit: PAGE_SIZE,
-      offset,
-    }),
-    noAgentFilter ? fetchFeaturedContent() : Promise.resolve(null),
-  ]);
+  const data = await fetchNewsletters({
+    agent_name: searchParams.agent,
+    search: searchParams.q,
+    limit: PAGE_SIZE,
+    offset,
+  });
 
   const newsletters =
     data.items.length > 0
@@ -51,16 +45,12 @@ export default async function NewsletterArchivePage({
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
-  let featured: ReturnType<typeof mapApiToNewsletter>;
-  let rest: typeof newsletters;
-
-  if (noAgentFilter && featuredContent) {
-    featured = mapApiToNewsletter(featuredContent, 0);
-    // Remove featured from grid to avoid duplicate, keep PAGE_SIZE - 1 items
-    rest = newsletters.filter((n) => n.slug !== featured.slug).slice(0, PAGE_SIZE - 1);
-  } else {
-    [featured, ...rest] = newsletters;
-  }
+  // Promote the first RADAR in this page as hero (richest content).
+  // If no RADAR exists in the current page, fall back to the first item.
+  const radarIdx = newsletters.findIndex((n) => n.agent === "radar");
+  const featuredIdx = radarIdx >= 0 ? radarIdx : 0;
+  const featured = newsletters[featuredIdx];
+  const rest = newsletters.filter((_, i) => i !== featuredIdx);
 
   return (
     <>
