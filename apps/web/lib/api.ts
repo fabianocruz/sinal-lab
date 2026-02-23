@@ -95,6 +95,18 @@ export async function fetchLatestNewsletter(): Promise<ContentApiItem | null> {
   }
 }
 
+export async function fetchFeaturedContent(): Promise<ContentApiItem | null> {
+  try {
+    const url = `${API_BASE}/api/content?status=published&agent_name=radar&limit=1`;
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (!response.ok) return null;
+    const data: PaginatedResponse<ContentApiItem> = await response.json();
+    return data.items?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchNewsletters(params?: {
   agent_name?: string;
   search?: string;
