@@ -31,9 +31,9 @@ export default async function NewsletterArchivePage({
   const page = parseInt(searchParams.page ?? "1", 10);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const isDefaultView = page === 1 && !searchParams.agent && !searchParams.q;
+  const noAgentFilter = !searchParams.agent && !searchParams.q;
 
-  // On page 1 with no filters, fetch latest SINTESE for the hero card
+  // Always fetch latest SINTESE for the hero card (unless filtering by agent/search)
   const [data, latestSintese] = await Promise.all([
     fetchNewsletters({
       agent_name: searchParams.agent,
@@ -41,7 +41,7 @@ export default async function NewsletterArchivePage({
       limit: PAGE_SIZE,
       offset,
     }),
-    isDefaultView ? fetchLatestNewsletter() : Promise.resolve(null),
+    noAgentFilter ? fetchLatestNewsletter() : Promise.resolve(null),
   ]);
 
   const newsletters =
@@ -54,7 +54,7 @@ export default async function NewsletterArchivePage({
   let featured: ReturnType<typeof mapApiToNewsletter>;
   let rest: typeof newsletters;
 
-  if (isDefaultView && latestSintese) {
+  if (noAgentFilter && latestSintese) {
     featured = mapApiToNewsletter(latestSintese, 0);
     // Remove SINTESE from grid to avoid duplicate, keep PAGE_SIZE - 1 items
     rest = newsletters.filter((n) => n.slug !== featured.slug).slice(0, PAGE_SIZE - 1);
