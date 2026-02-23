@@ -6,7 +6,7 @@ import ArchiveCard from "@/components/newsletter/ArchiveCard";
 import FilterPills from "@/components/newsletter/FilterPills";
 import SearchBar from "@/components/newsletter/SearchBar";
 import Pagination from "@/components/newsletter/Pagination";
-import { fetchNewsletters } from "@/lib/api";
+import { fetchNewsletters, fetchLatestNewsletter } from "@/lib/api";
 import { mapApiToNewsletter, FALLBACK_NEWSLETTERS } from "@/lib/newsletter";
 
 export const metadata: Metadata = {
@@ -31,12 +31,18 @@ export default async function NewsletterArchivePage({
   const page = parseInt(searchParams.page ?? "1", 10);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const data = await fetchNewsletters({
-    agent_name: searchParams.agent,
-    search: searchParams.q,
-    limit: PAGE_SIZE,
-    offset,
-  });
+  const isDefaultView = page === 1 && !searchParams.agent && !searchParams.q;
+
+  // On page 1 with no filters, fetch latest SINTESE for the hero card
+  const [data, latestSintese] = await Promise.all([
+    fetchNewsletters({
+      agent_name: searchParams.agent,
+      search: searchParams.q,
+      limit: PAGE_SIZE,
+      offset,
+    }),
+    isDefaultView ? fetchLatestNewsletter() : Promise.resolve(null),
+  ]);
 
   const newsletters =
     data.items.length > 0
@@ -44,7 +50,17 @@ export default async function NewsletterArchivePage({
       : FALLBACK_NEWSLETTERS;
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
-  const [featured, ...rest] = newsletters;
+
+  let featured: ReturnType<typeof mapApiToNewsletter>;
+  let rest: typeof newsletters;
+
+  if (isDefaultView && latestSintese) {
+    featured = mapApiToNewsletter(latestSintese, 0);
+    // Remove SINTESE from grid to avoid duplicate, keep PAGE_SIZE - 1 items
+    rest = newsletters.filter((n) => n.slug !== featured.slug).slice(0, PAGE_SIZE - 1);
+  } else {
+    [featured, ...rest] = newsletters;
+  }
 
   return (
     <>
