@@ -1,7 +1,8 @@
 """Tests for scripts/batch_generate.py — batch content generation.
 
 Validates pure helper functions (_compute_week, _compute_published_at),
-slug existence check, publish promotion logic, and the BATCH_AGENTS constant.
+slug existence check, publish promotion logic, run_batch orchestration,
+and the BATCH_AGENTS constant.
 
 Uses SQLite in-memory with StaticPool (same pattern as API tests).
 
@@ -10,6 +11,7 @@ Run: pytest scripts/tests/test_batch_generate.py -v
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -26,6 +28,7 @@ from scripts.batch_generate import (
     _compute_week,
     _publish_approved_pieces,
     _slug_exists,
+    run_batch,
 )
 from scripts.run_agents import AGENTS
 
@@ -274,3 +277,172 @@ def test_publish_approved_empty_db(session):
         session, start_edition=19, start_week=1, editions=5, dry_run=False,
     )
     assert promoted == 0
+
+
+# ---------------------------------------------------------------------------
+# run_batch() — with mocked orchestrator
+# ---------------------------------------------------------------------------
+
+
+@patch("packages.database.session.get_session")
+@patch("scripts.batch_generate.orchestrate_single_agent")
+def test_run_batch_calls_all_agents_per_edition(mock_orchestrate, mock_get_session, session):
+    """run_batch calls orchestrate_single_agent for every agent in every edition."""
+    mock_get_session.return_value = session
+    mock_orchestrate.return_value = 0  # success
+
+    successes, failures = run_batch(
+        editions=2,
+        start_edition=19,
+        start_week=1,
+        enable_editorial=True,
+        enable_evidence=True,
+        dry_run=False,
+        verbose=False,
+    )
+
+    # 2 editions × 5 agents = 10 calls
+    assert mock_orchestrate.call_count == 10
+    assert successes == 10
+    assert failures == 0
+
+
+@patch("packages.database.session.get_session")
+@patch("scripts.batch_generate.orchestrate_single_agent")
+def test_run_batch_counts_failures(mock_orchestrate, mock_get_session, session):
+    """Orchestrator failures increment the failure counter."""
+    mock_get_session.return_value = session
+    mock_orchestrate.return_value = 1  # failure
+
+    successes, failures = run_batch(
+        editions=1,
+        start_edition=19,
+        start_week=1,
+        enable_editorial=True,
+        enable_evidence=True,
+        dry_run=False,
+        verbose=False,
+    )
+
+    assert successes == 0
+    assert failures == 5  # all 5 agents failed
+
+
+@patch("packages.database.session.get_session")
+@patch("scripts.batch_generate.orchestrate_single_agent")
+def test_run_batch_skips_existing_slugs(mock_orchestrate, mock_get_session, session):
+    """Existing slugs are skipped (idempotency)."""
+    mock_get_session.return_value = session
+    mock_orchestrate.return_value = 0
+
+    # Pre-insert the sintese slug for edition 19
+    _insert_piece(session, "sinal-semanal-19", agent_name="sintese", review_status="published")
+
+    successes, failures = run_batch(
+        editions=1,
+        start_edition=19,
+        start_week=1,
+        enable_editorial=True,
+        enable_evidence=True,
+        dry_run=False,
+        verbose=False,
+    )
+
+    # sintese skipped, 4 other agents called
+    assert mock_orchestrate.call_count == 4
+    assert successes == 5  # 1 skip + 4 ok
+    assert failures == 0
+
+
+@patch("packages.database.session.get_session")
+@patch("scripts.batch_generate.orchestrate_single_agent")
+def test_run_batch_dry_run_skips_orchestrator(mock_orchestrate, mock_get_session, session):
+    """Dry run does not call the orchestrator at all."""
+    mock_get_session.return_value = session
+
+    successes, failures = run_batch(
+        editions=2,
+        start_edition=19,
+        start_week=1,
+        enable_editorial=True,
+        enable_evidence=True,
+        dry_run=True,
+        verbose=False,
+    )
+
+    mock_orchestrate.assert_not_called()
+    assert successes == 10  # 2 × 5 = 10 dry-run successes
+    assert failures == 0
+
+
+@patch("packages.database.session.get_session")
+@patch("scripts.batch_generate.orchestrate_single_agent")
+def test_run_batch_passes_correct_period_values(mock_orchestrate, mock_get_session, session):
+    """Sintese gets edition number; other agents get week number."""
+    mock_get_session.return_value = session
+    mock_orchestrate.return_value = 0
+
+    run_batch(
+        editions=1,
+        start_edition=19,
+        start_week=5,
+        enable_editorial=True,
+        enable_evidence=True,
+        dry_run=False,
+        verbose=False,
+    )
+
+    calls = mock_orchestrate.call_args_list
+    # First call is sintese with period_value=edition_number=19
+    assert calls[0][1]["period_value"] == 19
+    assert calls[0][0][0] == "sintese"
+    # Second call is radar with period_value=week_number=5
+    assert calls[1][1]["period_value"] == 5
+    assert calls[1][0][0] == "radar"
+
+
+@patch("packages.database.session.get_session")
+@patch("scripts.batch_generate.orchestrate_single_agent")
+def test_run_batch_promotes_approved_after_all_editions(mock_orchestrate, mock_get_session, session):
+    """After running all editions, approved pieces are promoted to published."""
+    mock_get_session.return_value = session
+    mock_orchestrate.return_value = 0
+
+    # Pre-insert an approved piece that matches expected slug
+    _insert_piece(session, "sinal-semanal-19", agent_name="sintese", review_status="approved")
+
+    run_batch(
+        editions=1,
+        start_edition=19,
+        start_week=1,
+        enable_editorial=True,
+        enable_evidence=True,
+        dry_run=False,
+        verbose=False,
+    )
+
+    # The approved piece should now be published
+    piece = session.query(ContentPiece).filter(ContentPiece.slug == "sinal-semanal-19").first()
+    assert piece.review_status == "published"
+
+
+@patch("packages.database.session.get_session")
+@patch("scripts.batch_generate.orchestrate_single_agent")
+def test_run_batch_passes_editorial_and_evidence_flags(mock_orchestrate, mock_get_session, session):
+    """Editorial and evidence flags are forwarded to the orchestrator."""
+    mock_get_session.return_value = session
+    mock_orchestrate.return_value = 0
+
+    run_batch(
+        editions=1,
+        start_edition=19,
+        start_week=1,
+        enable_editorial=False,
+        enable_evidence=False,
+        dry_run=False,
+        verbose=False,
+    )
+
+    for call in mock_orchestrate.call_args_list:
+        assert call[1]["enable_editorial"] is False
+        assert call[1]["enable_evidence"] is False

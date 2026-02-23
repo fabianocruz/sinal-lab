@@ -305,9 +305,9 @@ def test_export_writes_valid_json(session, monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "SessionLocal", lambda: session)
 
     output_path = tmp_path / "seed.json"
-    count = mod.export(str(output_path), agent_only=False)
+    pieces = mod.export(str(output_path), agent_only=False)
 
-    assert count == 1
+    assert len(pieces) == 1
     assert output_path.exists()
 
     data = json.loads(output_path.read_text())
@@ -326,9 +326,9 @@ def test_export_creates_parent_directories(session, monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "SessionLocal", lambda: session)
 
     output_path = tmp_path / "nested" / "deep" / "seed.json"
-    count = mod.export(str(output_path))
+    pieces = mod.export(str(output_path))
 
-    assert count == 1
+    assert len(pieces) == 1
     assert output_path.exists()
 
 
@@ -339,8 +339,109 @@ def test_export_empty_db_writes_empty_array(session, monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "SessionLocal", lambda: session)
 
     output_path = tmp_path / "empty.json"
-    count = mod.export(str(output_path))
+    pieces = mod.export(str(output_path))
 
-    assert count == 0
+    assert len(pieces) == 0
     data = json.loads(output_path.read_text())
     assert data == []
+
+
+def test_export_agent_only_filters(session, monkeypatch, tmp_path):
+    """export() with agent_only=True excludes admin content."""
+    import scripts.export_seed as mod
+
+    session.add(_make_piece(slug="agent-piece", agent_name="sintese", review_status="published"))
+    session.add(_make_piece(slug="admin-piece", agent_name=None, review_status="published"))
+    session.commit()
+
+    monkeypatch.setattr(mod, "SessionLocal", lambda: session)
+
+    output_path = tmp_path / "filtered.json"
+    pieces = mod.export(str(output_path), agent_only=True)
+
+    assert len(pieces) == 1
+    data = json.loads(output_path.read_text())
+    assert data[0]["slug"] == "agent-piece"
+
+
+def test_export_returns_content_piece_objects(session, monkeypatch, tmp_path):
+    """export() returns a list of ContentPiece ORM instances."""
+    import scripts.export_seed as mod
+
+    session.add(_make_piece(slug="orm-test", review_status="published"))
+    session.commit()
+
+    monkeypatch.setattr(mod, "SessionLocal", lambda: session)
+
+    output_path = tmp_path / "orm.json"
+    pieces = mod.export(str(output_path))
+
+    assert isinstance(pieces[0], ContentPiece)
+    assert pieces[0].slug == "orm-test"
+
+
+def test_export_roundtrip_preserves_data(session, monkeypatch, tmp_path):
+    """Data exported to JSON can be loaded back with correct values."""
+    import scripts.export_seed as mod
+
+    piece = _make_piece(
+        slug="roundtrip-test",
+        title="Roundtrip Title",
+        summary="Roundtrip summary",
+        sources=[{"url": "https://example.com", "title": "Source"}],
+        metadata_={"edition": 42},
+        review_status="published",
+    )
+    session.add(piece)
+    session.commit()
+
+    monkeypatch.setattr(mod, "SessionLocal", lambda: session)
+
+    output_path = tmp_path / "roundtrip.json"
+    mod.export(str(output_path))
+
+    data = json.loads(output_path.read_text())
+    item = data[0]
+    assert item["slug"] == "roundtrip-test"
+    assert item["title"] == "Roundtrip Title"
+    assert item["sources"] == [{"url": "https://example.com", "title": "Source"}]
+    assert item["metadata_"] == {"edition": 42}
+
+
+# ---------------------------------------------------------------------------
+# main() — CLI smoke tests
+# ---------------------------------------------------------------------------
+
+
+def test_main_prints_summary(session, monkeypatch, tmp_path, capsys):
+    """main() prints an export summary to stdout."""
+    import scripts.export_seed as mod
+
+    session.add(_make_piece(slug="main-test", agent_name="sintese", review_status="published"))
+    session.commit()
+
+    monkeypatch.setattr(mod, "SessionLocal", lambda: session)
+
+    output_path = str(tmp_path / "main.json")
+    monkeypatch.setattr("sys.argv", ["export_seed.py", "--output", output_path])
+
+    mod.main()
+
+    captured = capsys.readouterr()
+    assert "1 pieces" in captured.out
+    assert "1 sintese" in captured.out
+
+
+def test_main_no_pieces_prints_nothing_to_export(session, monkeypatch, tmp_path, capsys):
+    """main() prints a clear message when no pieces are found."""
+    import scripts.export_seed as mod
+
+    monkeypatch.setattr(mod, "SessionLocal", lambda: session)
+
+    output_path = str(tmp_path / "empty.json")
+    monkeypatch.setattr("sys.argv", ["export_seed.py", "--output", output_path])
+
+    mod.main()
+
+    captured = capsys.readouterr()
+    assert "No published pieces found" in captured.out

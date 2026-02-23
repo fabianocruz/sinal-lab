@@ -135,14 +135,33 @@ def build_summary(pieces: List[ContentPiece], output_path: str) -> str:
 def export(
     output_path: str,
     agent_only: bool = False,
-) -> int:
+    verbose: bool = False,
+) -> List[ContentPiece]:
     """Fetch published pieces, serialize, and write to JSON file.
 
-    Returns the number of pieces exported.
+    Args:
+        output_path: File path for the JSON output.
+        agent_only: If True, exclude pieces with no agent_name.
+        verbose: If True, log each piece being exported.
+
+    Returns:
+        The list of exported ContentPiece objects.
+
+    Raises:
+        OSError: If the output file cannot be written.
     """
     pieces = query_pieces(agent_only=agent_only)
 
     serialized = [serialize_piece(p) for p in pieces]
+
+    if verbose:
+        for item in serialized:
+            logger.debug(
+                "  %s  %s  %s",
+                (item["agent_name"] or "\u2014").ljust(10),
+                item["content_type"].ljust(12),
+                item["slug"],
+            )
 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -151,11 +170,11 @@ def export(
         json.dump(serialized, fh, ensure_ascii=False, indent=2)
         fh.write("\n")  # trailing newline for POSIX compliance
 
-    return len(pieces)
+    return pieces
 
 
 def main() -> None:
-    """Entry point: connect to DB, export, and print summary."""
+    """Entry point: parse CLI args, export, and print summary."""
     args = parse_args()
 
     logging.basicConfig(
@@ -167,37 +186,15 @@ def main() -> None:
     logger.debug("Agent-only filter: %s", args.agent_only)
 
     try:
-        pieces = query_pieces(agent_only=args.agent_only)
+        pieces = export(args.output, agent_only=args.agent_only, verbose=args.verbose)
     except Exception as exc:
-        print(f"ERROR: could not query database — {exc}", file=sys.stderr)
+        print(f"ERROR: could not export \u2014 {exc}", file=sys.stderr)
         sys.exit(1)
 
     if not pieces:
         filter_note = " (agent-only)" if args.agent_only else ""
         print(f"No published pieces found{filter_note}. Nothing to export.")
         return
-
-    serialized = [serialize_piece(p) for p in pieces]
-
-    if args.verbose:
-        for item in serialized:
-            logger.debug(
-                "  %s  %s  %s",
-                (item["agent_name"] or "—").ljust(10),
-                item["content_type"].ljust(12),
-                item["slug"],
-            )
-
-    out = Path(args.output)
-    out.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with out.open("w", encoding="utf-8") as fh:
-            json.dump(serialized, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
-    except OSError as exc:
-        print(f"ERROR: could not write to {args.output} — {exc}", file=sys.stderr)
-        sys.exit(1)
 
     print(build_summary(pieces, args.output))
 

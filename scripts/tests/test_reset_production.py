@@ -330,3 +330,108 @@ def test_dry_run_report_no_preserved(session, capsys):
 
     captured = capsys.readouterr()
     assert "no admin articles to preserve" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# parse_args()
+# ---------------------------------------------------------------------------
+
+
+def test_parse_args_dry_run(monkeypatch):
+    """--dry-run flag is parsed correctly."""
+    from scripts.reset_production import parse_args
+
+    monkeypatch.setattr("sys.argv", ["reset_production.py", "--dry-run"])
+    args = parse_args()
+    assert args.dry_run is True
+    assert args.confirm is False
+
+
+def test_parse_args_confirm(monkeypatch):
+    """--confirm flag is parsed correctly."""
+    from scripts.reset_production import parse_args
+
+    monkeypatch.setattr("sys.argv", ["reset_production.py", "--confirm"])
+    args = parse_args()
+    assert args.confirm is True
+    assert args.dry_run is False
+
+
+def test_parse_args_verbose(monkeypatch):
+    """--verbose flag is parsed correctly."""
+    from scripts.reset_production import parse_args
+
+    monkeypatch.setattr("sys.argv", ["reset_production.py", "--dry-run", "--verbose"])
+    args = parse_args()
+    assert args.verbose is True
+
+
+# ---------------------------------------------------------------------------
+# main() — CLI smoke tests
+# ---------------------------------------------------------------------------
+
+
+def test_main_requires_flag(monkeypatch):
+    """main() exits with code 2 when neither --dry-run nor --confirm is passed."""
+    from scripts.reset_production import main
+
+    monkeypatch.setattr("sys.argv", ["reset_production.py"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+
+
+def test_main_dry_run_calls_report(monkeypatch):
+    """main() with --dry-run calls print_dry_run_report (not execute_reset)."""
+    import scripts.reset_production as mod
+    from unittest.mock import MagicMock, patch
+
+    monkeypatch.setattr("sys.argv", ["reset_production.py", "--dry-run"])
+    monkeypatch.setattr(mod, "DATABASE_URL", "sqlite:///:memory:")
+
+    mock_report = MagicMock()
+    mock_execute = MagicMock()
+    mock_table_exists = MagicMock(return_value=False)
+
+    with patch.object(mod, "print_dry_run_report", mock_report), \
+         patch.object(mod, "execute_reset", mock_execute), \
+         patch.object(mod, "table_exists", mock_table_exists), \
+         patch.object(mod, "create_engine") as mock_engine:
+        mock_session = MagicMock()
+        mock_engine.return_value = MagicMock()
+        monkeypatch.setattr(mod, "sessionmaker", lambda **kw: lambda: mock_session)
+
+        mod.main()
+
+    mock_report.assert_called_once()
+    mock_execute.assert_not_called()
+
+
+def test_main_confirm_calls_execute(monkeypatch):
+    """main() with --confirm calls execute_reset (not print_dry_run_report)."""
+    import scripts.reset_production as mod
+    from unittest.mock import MagicMock, patch
+
+    monkeypatch.setattr("sys.argv", ["reset_production.py", "--confirm"])
+    monkeypatch.setattr(mod, "DATABASE_URL", "sqlite:///:memory:")
+
+    mock_report = MagicMock()
+    mock_execute = MagicMock()
+    mock_table_exists = MagicMock(return_value=False)
+    mock_fetch = MagicMock(return_value=[])
+
+    with patch.object(mod, "print_dry_run_report", mock_report), \
+         patch.object(mod, "execute_reset", mock_execute), \
+         patch.object(mod, "table_exists", mock_table_exists), \
+         patch.object(mod, "fetch_preserved_content", mock_fetch), \
+         patch.object(mod, "create_engine") as mock_engine:
+        mock_session = MagicMock()
+        mock_engine.return_value = MagicMock()
+        monkeypatch.setattr(mod, "sessionmaker", lambda **kw: lambda: mock_session)
+
+        mod.main()
+
+    mock_execute.assert_called_once()
+    mock_report.assert_not_called()
