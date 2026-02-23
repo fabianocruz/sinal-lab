@@ -1,4 +1,8 @@
-sqlalchemy>=2.0,<3.0
-alembic>=1.13,<2.0
-psycopg2-binary>=2.9,<3.0
-python-dotenv>=1.0,<2.0
+# Database package dependencies
+# Pinned to exact versions for reproducible builds (2026-02-23)
+# Python 3.12
+
+sqlalchemy==2.0.37
+alembic==1.14.1
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1

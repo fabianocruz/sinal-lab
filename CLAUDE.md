@@ -5,15 +5,15 @@
 
 ---
 
-## Project Status (Updated: 2026-02-22)
+## Project Status (Updated: 2026-02-23)
 
 **Repository:** https://github.com/fabianocruz/sinal-lab
 **Branch:** feature/startup-map (in progress)
-**Test Coverage:** 1970 Python tests + 998 frontend tests (Vitest)
+**Test Coverage:** 2169 Python tests + 1053 frontend tests (Vitest)
 
 ### Completed:
 - ✅ Initial project structure + GitHub repo
-- ✅ API routers tested (7/7 = 100%, includes auth + waitlist)
+- ✅ API routers tested (8/8 = 100%, includes auth + waitlist)
 - ✅ Editorial package tested (3/3 = 100%)
 - ✅ Agent system documented and tested
 - ✅ Newsletter SSR dinâmica (API → frontend com paginação)
@@ -25,6 +25,8 @@
 - ✅ Companies API — paginated envelope, search, tags filters, expanded schema (22 fields)
 - ✅ SEO — JSON-LD Organization, async sitemap with company pages
 - ✅ Generalized Pagination + SearchBar with `basePath` prop
+- ✅ DRY refactors — shared ErrorPage, generic FilterPills components
+- ✅ SEO tests — jsonld.ts and company.ts fully tested
 
 ### Next Steps:
 - Run tests before every commit: `pytest apps/ packages/ -v && pnpm test`
@@ -248,6 +250,27 @@ python scripts/run_agents.py sintese --persist
 python scripts/run_agents.py all --persist
 ```
 
+### Seeding & Enriching Companies
+```bash
+# 1. Seed 20 curated LATAM startups (CSV → DB)
+python scripts/seed_companies.py              # skip existing slugs
+python scripts/seed_companies.py --force      # overwrite existing
+python scripts/seed_companies.py --dry-run    # preview only
+
+# 2. Run INDEX agent for broader discovery (API sources)
+python scripts/seed_index.py --api-only --dry-run    # preview
+python scripts/seed_index.py --api-only --persist     # persist to DB
+
+# 3. Enrich companies with sector, tags, and startup classification
+python scripts/enrich_companies.py --dry-run          # preview classifications
+python scripts/enrich_companies.py                    # apply enrichment
+python scripts/enrich_companies.py --deactivate       # also deactivate non-startups
+
+# Typical local setup flow: seed → index → enrich
+python scripts/seed_companies.py --force && \
+python scripts/enrich_companies.py --deactivate
+```
+
 ### Database Migrations
 ```bash
 # Run migrations
@@ -304,11 +327,11 @@ cd apps/web && pnpm dev
 - Editorial pipeline: 100% (all layers tested)
 
 **Current Status:**
-- ✅ API routers: 356 tests (includes auth, waitlist, companies, content, agents)
+- ✅ API routers: 375 tests (includes auth, waitlist, companies, content, agents)
 - ✅ Editorial package: 3/3 = 100%
 - ✅ Agent base framework: 100%
-- ✅ Frontend components: 967 passing / 998 total (Vitest + Testing Library)
-- ✅ Overall: 1970 Python + 998 frontend tests
+- ✅ Frontend components: 1053 passing (Vitest + Testing Library)
+- ✅ Overall: 2169 Python + 1053 frontend tests
 
 **Before Committing:**
 1. Run full test suite: `pytest apps/ packages/ -v`

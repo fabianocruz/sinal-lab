@@ -7,19 +7,13 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Python dependencies
+# Python dependencies — all versions pinned in requirements files
 COPY packages/database/requirements.txt /app/requirements-db.txt
 RUN pip install --no-cache-dir -r /app/requirements-db.txt
 COPY apps/agents/requirements.txt /app/requirements-agents.txt
 RUN pip install --no-cache-dir -r /app/requirements-agents.txt
-RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn[standard] \
-    pydantic-settings \
-    python-dotenv \
-    feedparser \
-    httpx \
-    bcrypt
+COPY apps/api/requirements.txt /app/requirements-api.txt
+RUN pip install --no-cache-dir -r /app/requirements-api.txt
 
 # Application code
 COPY packages/ /app/packages/

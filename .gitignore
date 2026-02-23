@@ -76,3 +76,12 @@ SCRATCHPAD.md
 
 # Branding exports (design tool output, not source code)
 branding/
+
+# Generated artifacts
+email_preview.html
+
+# Personal notes
+notes/
+
+# Legacy Vite scaffold (archived)
+apps/web/_archive_vite/
