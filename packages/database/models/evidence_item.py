@@ -25,7 +25,7 @@ class EvidenceItemDB(UUIDMixin, TimestampMixin, Base):
 
     # Core fields
     title: Mapped[str] = mapped_column(String(500), nullable=False)
-    url: Mapped[str] = mapped_column(String(2000), nullable=False)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
     source_name: Mapped[str] = mapped_column(String(255), nullable=False)
     evidence_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     agent_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
@@ -36,7 +36,7 @@ class EvidenceItemDB(UUIDMixin, TimestampMixin, Base):
         DateTime(timezone=True), nullable=True, index=True
     )
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    author: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tags: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
 
     # Confidence and classification

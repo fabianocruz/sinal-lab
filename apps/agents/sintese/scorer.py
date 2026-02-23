@@ -88,10 +88,9 @@ SOURCE_AUTHORITY: dict[str, float] = {
     # Google News RSS (aggregator — moderate authority, multi-source but unverified)
     "gnews_fintech_br": 0.55, "gnews_ai_latam": 0.55,
     "gnews_venture_br": 0.55,
-    # Twitter/X API (signals, lower authority than editorial sources)
-    "twitter_fintech": 0.40, "twitter_ai": 0.40,
-    "twitter_cripto": 0.40, "twitter_engenharia": 0.40,
-    "twitter_venture": 0.40, "twitter_green_agritech": 0.40,
+    # Twitter/X API (low authority — casual content, memes, personal tweets)
+    "twitter_fintech": 0.30, "twitter_ai": 0.30,
+    "twitter_engenharia": 0.30, "twitter_venture": 0.30,
     # LinkedIn RapidAPI (experimental, unverified scraper)
     "linkedin_fintech_posts": 0.35, "linkedin_ai_posts": 0.35,
     # Reddit (community signals, variable quality)
@@ -106,7 +105,22 @@ DEFAULT_SOURCE_AUTHORITY = 0.5
 # Items below this threshold are filtered out regardless of recency,
 # authority, or LATAM score. Prevents non-editorial content (cars,
 # consumer gadgets, sports, lifestyle) from appearing.
-MIN_TOPIC_SCORE = 0.10
+MIN_TOPIC_SCORE = 0.30
+
+# Negative keywords — if matched, topic score is forced to 0.0.
+# Catches off-topic content that slips through keyword matching
+# (e.g., "valor de mercado" in a sports article matching "mercado").
+NEGATIVE_KEYWORDS: list[str] = [
+    # Sports
+    "olimpico", "olimpíada", "medalhista", "copa do mundo", "futebol",
+    "campeonato", "selecao", "seleção", "jogador", "gol", "esporte",
+    "atletismo", "natação", "surfe", "maratona",
+    # Entertainment / Lifestyle
+    "novela", "big brother", "reality show", "celebridade",
+    "horoscopo", "horóscopo", "receita culinaria",
+    # Celebrity / Gossip
+    "influenciador", "famoso", "fofoca",
+]
 
 # Cache for compiled regex patterns used by _keyword_in_text
 _KEYWORD_RE_CACHE: dict[str, re.Pattern] = {}
@@ -172,14 +186,24 @@ def score_topic_relevance(item: FeedItem) -> float:
             max_score = max(max_score, weight)
             match_count += 1
 
-    # Check editorial territory keywords (flat weight 0.5 for matches
-    # not already covered by TOPIC_KEYWORDS)
+    # Check editorial territory keywords. Single match gets a lower
+    # baseline (0.35) — requires 2+ matches for full 0.5 score.
+    # This prevents casual mentions of common words ("pix", "capital")
+    # from inflating the score of off-topic content.
     editorial_matches = sum(1 for kw in EDITORIAL_KEYWORD_SET if _keyword_in_text(kw, text))
     if editorial_matches > 0 and max_score == 0.0:
-        # Item matches editorial guidelines but not scorer keywords —
-        # give it a baseline score so it's not filtered out
-        max_score = 0.5
+        max_score = 0.35 if editorial_matches == 1 else 0.5
     match_count += editorial_matches
+
+    # Negative keyword check — hard block for off-topic content.
+    # Only bypassed when topic score >= 0.9 (very strong positive signal,
+    # e.g., "machine learning" + "startup" both matched). A single keyword
+    # like "investimento" (0.8) is NOT enough to override — financial
+    # language appears in sports/lifestyle articles from sources like neofeed.
+    neg_matches = sum(1 for kw in NEGATIVE_KEYWORDS if _keyword_in_text(kw, text))
+    if neg_matches > 0 and max_score < 0.9:
+        logger.debug("Negative keyword hit (%d matches), zeroing topic score", neg_matches)
+        return 0.0
 
     # Bonus for multiple keyword matches (capped)
     multi_match_bonus = min(match_count * 0.02, 0.1)
@@ -239,7 +263,7 @@ def score_latam_relevance(item: FeedItem) -> float:
     ]
     pt_matches = sum(1 for word in pt_signals if f" {word} " in f" {text} ")
     if pt_matches >= 3:
-        score += 0.4  # Likely Portuguese content
+        score += 0.25  # Likely Portuguese content (moderate boost)
 
     # LATAM location mentions
     latam_locations = [

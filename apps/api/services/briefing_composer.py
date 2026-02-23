@@ -5,6 +5,7 @@ metadata, and builds the BriefingData dict expected by send_newsletter_email().
 """
 
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -14,6 +15,18 @@ from sqlalchemy.orm import Session
 from packages.database.models.content_piece import ContentPiece
 
 logger = logging.getLogger(__name__)
+
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_html(text: str, max_length: int = 200) -> str:
+    """Remove HTML tags from text and truncate to max_length."""
+    clean = _HTML_TAG_RE.sub("", text).strip()
+    clean = re.sub(r"\s+", " ", clean)
+    if len(clean) > max_length:
+        clean = clean[:max_length].rsplit(" ", 1)[0] + "..."
+    return clean
+
 
 # Base URL for building canonical links.
 _BASE_URL = "https://sinal.tech"
@@ -172,7 +185,7 @@ def _extract_radar_trends(metadata: dict) -> List[dict]:
             "arrow": arrow,
             "arrow_color": arrow_color,
             "title": item.get("title", ""),
-            "context": item.get("summary", ""),
+            "context": _strip_html(item.get("summary", "")),
         }  # type: Dict[str, object]
 
         url = item.get("url")
@@ -213,7 +226,10 @@ def _extract_funding_deals(metadata: dict) -> List[dict]:
         stage = _ROUND_TYPE_LABELS.get(raw_round, raw_round.replace("_", " ").title())
 
         company_name = item.get("company_name", "N/A")
-        amount_str = _format_amount(item.get("amount_usd"))
+        # Funding agent stores amounts in millions (8.0 = $8M).
+        raw_amount = item.get("amount_usd")
+        abs_amount = raw_amount * 1_000_000 if raw_amount else None
+        amount_str = _format_amount(abs_amount)
         investors = item.get("lead_investors", []) or []
         investors_str = " + ".join(investors) if investors else "N/D"
 
@@ -304,7 +320,9 @@ def _extract_sintese_paragraphs(body_md: str) -> List[str]:
     """Extract the first 3 content paragraphs from a Markdown body.
 
     Splits on double newlines and filters out headings (lines starting with
-    '#') and emphasis-only lines (lines starting with '*').
+    '#'), emphasis-only lines (lines starting with '*'), horizontal rules
+    ('---'), blockquotes ('>'), images ('!['), and bold-prefixed numbered
+    items ('**1.').
 
     Args:
         body_md: Markdown content body.
@@ -322,7 +340,18 @@ def _extract_sintese_paragraphs(body_md: str) -> List[str]:
         stripped = block.strip()
         if not stripped:
             continue
-        if stripped.startswith("#") or stripped.startswith("*"):
+        # Skip markdown structural elements and non-prose blocks.
+        if stripped.startswith("#"):
+            continue
+        if stripped.startswith("*") and not stripped.startswith("* "):
+            continue
+        if stripped == "---" or stripped == "***" or stripped == "___":
+            continue
+        if stripped.startswith(">"):
+            continue
+        if stripped.startswith("!["):
+            continue
+        if stripped.startswith("**") and len(stripped) > 3 and stripped[2].isdigit():
             continue
         paragraphs.append(stripped)
         if len(paragraphs) >= 3:
@@ -415,6 +444,12 @@ def compose_briefing_data(
         "sintese_sources": len(sintese.sources or []),
     }  # type: Dict[str, object]
 
+    # CTA link to the full article on the site.
+    data["sintese_cta_url"] = "{0}/newsletter/{1}".format(
+        _BASE_URL, sintese.slug
+    )
+    data["sintese_cta_label"] = "Ler edicao completa"
+
     # Sintese rich fields from metadata.
     if sintese.metadata_:
         source_urls = _extract_sintese_sources(sintese.metadata_)
@@ -472,7 +507,10 @@ def compose_briefing_data(
         f_meta = funding.metadata_ or {}
         deals = _extract_funding_deals(f_meta) if f_meta else []
         item_count = f_meta.get("item_count", len(deals))
-        total_usd = f_meta.get("funding_total_usd", 0)
+        # Funding agent stores amounts in millions (8.0 = $8M).
+        # Convert to absolute USD so _format_amount displays correctly.
+        total_millions = f_meta.get("funding_total_usd", 0) or 0
+        total_usd = total_millions * 1_000_000
         data["funding_count"] = item_count
         data["funding_total"] = _format_amount(total_usd)
         data["funding_score"] = "{0:.1f}/5".format(

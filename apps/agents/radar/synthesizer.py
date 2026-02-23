@@ -287,10 +287,11 @@ def synthesize_trend_report(
         lines.append("")
 
     # Footer
+    persona_footer = get_display_name("radar")
     lines.append("## Metodologia")
     lines.append("")
     lines.append(
-        "O agente **RADAR** monitora Hacker News, GitHub trending, arXiv, "
+        f"**{persona_footer}** monitora Hacker News, GitHub trending, arXiv, "
         "Google Trends e comunidades tech para identificar sinais emergentes. "
         "Cada sinal e classificado por topico, pontuado por momentum "
         "(recencia + engajamento) e relevancia para a America Latina."

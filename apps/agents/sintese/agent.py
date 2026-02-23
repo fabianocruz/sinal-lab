@@ -81,14 +81,14 @@ class SinteseAgent(BaseAgent):
         return [confidence]
 
     def output(self, processed_data: list[Any], scores: list[ConfidenceScore]) -> AgentOutput:
-        """Generate the newsletter Markdown with frontmatter."""
+        """Generate the newsletter Markdown with frontmatter and rich metadata."""
         scored_items: list[ScoredItem] = processed_data
         confidence = scores[0] if scores else ConfidenceScore(
             data_quality=0.3, analysis_confidence=0.3
         )
 
         writer = SinteseWriter()
-        newsletter_md = synthesize_newsletter(
+        newsletter_md, sections = synthesize_newsletter(
             scored_items=scored_items,
             edition_number=self.edition_number,
             writer=writer,
@@ -96,8 +96,42 @@ class SinteseAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Select hero image from highest-scored item that has an image
+        hero_image = None
+        for s in scored_items[:15]:
+            if getattr(s.item, "image_url", None):
+                hero_image = {
+                    "url": s.item.image_url,
+                    "alt": s.item.title,
+                    "caption": f"Fonte: {s.item.source_name}",
+                }
+                break
+
+        # Build section labels from synthesizer categories
+        section_labels = {
+            f"section_{i + 1}": section.heading
+            for i, section in enumerate(sections)
+        }
+
+        # LLM-generated editorial metadata (Phase 3)
+        editorial_meta = None
+        if writer.is_available:
+            editorial_meta = writer.write_editorial_metadata(sections, self.edition_number)
+
         # Extract structured per-item data for email rendering and API
         metadata = {
+            "hero_image": hero_image,
+            "featured_video": (
+                {"url": editorial_meta.featured_video_url, "title": None, "caption": None}
+                if editorial_meta and editorial_meta.featured_video_url
+                else None
+            ),
+            "callouts": editorial_meta.callouts if editorial_meta else [],
+            "section_labels": section_labels,
+            "reading_time_minutes": max(1, len(newsletter_md.split()) // 200),
+            "edition_number": self.edition_number,
+            "companies_mentioned": editorial_meta.companies_mentioned if editorial_meta else [],
+            "topics": editorial_meta.topics if editorial_meta else [],
             "items": [
                 {
                     "title": s.item.title,
@@ -105,6 +139,8 @@ class SinteseAgent(BaseAgent):
                     "source_name": s.item.source_name,
                     "summary": (s.item.summary or "")[:200],
                     "composite_score": round(s.composite_score, 3),
+                    "image_url": getattr(s.item, "image_url", None),
+                    "video_url": getattr(s.item, "video_url", None),
                 }
                 for s in scored_items[:15]
             ],

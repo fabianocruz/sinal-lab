@@ -7,6 +7,10 @@ import { AGENT_PERSONAS } from "@/lib/constants";
 import GatedOverlay from "@/components/newsletter/GatedOverlay";
 import MarkdownRenderer from "@/components/newsletter/MarkdownRenderer";
 import SourcesList from "@/components/newsletter/SourcesList";
+import HeroImage from "@/components/newsletter/HeroImage";
+import VideoEmbed from "@/components/newsletter/VideoEmbed";
+import CalloutBox from "@/components/newsletter/CalloutBox";
+import ReadingTime from "@/components/newsletter/ReadingTime";
 
 interface NewsletterContentProps {
   newsletter: Newsletter;
@@ -27,11 +31,16 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
   const agentColor = AGENT_HEX[newsletter.agent];
   const persona = AGENT_PERSONAS[newsletter.agent];
   const agentBgAlpha = AGENT_BG_ALPHA[newsletter.agent] ?? "rgba(255,255,255,0.1)";
+  const metadata = newsletter.metadata;
 
   const blocks = newsletter.body.split("\n\n").filter((p) => p.trim().length > 0);
   const previewCount = Math.ceil(blocks.length * 0.3);
   const previewMd = blocks.slice(0, previewCount).join("\n\n");
   const gatedMd = blocks.slice(previewCount).join("\n\n");
+
+  const afterIntroCallouts = metadata?.callouts?.filter((c) => c.position === "after_intro") ?? [];
+  const beforeSourcesCallouts =
+    metadata?.callouts?.filter((c) => c.position === "before_sources") ?? [];
 
   return (
     <article className="mx-auto max-w-[720px] px-6 py-12 md:px-10">
@@ -64,7 +73,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
 
           {/* Edition + date */}
           <span className="font-mono text-[11px] tracking-[0.5px] text-ash">
-            Edição #{newsletter.edition} &middot; {newsletter.date}
+            Edi&ccedil;&atilde;o #{newsletter.edition} &middot; {newsletter.date}
           </span>
 
           {/* DQ badge */}
@@ -73,6 +82,9 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
               DQ: {newsletter.dqScore}
             </span>
           )}
+
+          {/* Reading time */}
+          <ReadingTime minutes={metadata?.reading_time_minutes} />
         </div>
 
         {/* Title */}
@@ -99,10 +111,21 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
         </div>
       </header>
 
+      {/* Hero image */}
+      <HeroImage hero_image={metadata?.hero_image} agentColor={agentColor} />
+
+      {/* Featured video */}
+      <VideoEmbed video={metadata?.featured_video} />
+
       {/* Article body — always-visible preview */}
       <div className="prose-sinal">
         <MarkdownRenderer content={previewMd} agentColor={agentColor} />
       </div>
+
+      {/* Callouts positioned after intro */}
+      {afterIntroCallouts.map((callout, i) => (
+        <CalloutBox key={`after-intro-${i}`} callout={callout} agentColor={agentColor} />
+      ))}
 
       {/* Gated content or remaining body */}
       {gatedMd && (
@@ -116,6 +139,12 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
           )}
         </>
       )}
+
+      {/* Callouts positioned before sources */}
+      {(isAuthenticated || !gatedMd) &&
+        beforeSourcesCallouts.map((callout, i) => (
+          <CalloutBox key={`before-sources-${i}`} callout={callout} agentColor={agentColor} />
+        ))}
 
       {/* Sources section — visible when full content is accessible */}
       {(isAuthenticated || !gatedMd) && newsletter.sources && newsletter.sources.length > 0 && (

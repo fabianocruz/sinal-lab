@@ -39,6 +39,30 @@ class TestFeedItem:
         assert item.summary is None
         assert item.author is None
         assert item.tags == []
+        assert item.image_url is None
+        assert item.video_url is None
+
+    def test_video_url_stored_correctly(self):
+        """video_url field is stored and accessible."""
+        item = FeedItem(
+            title="Video Article",
+            url="https://example.com/article",
+            source_name="test",
+            video_url="https://youtube.com/watch?v=abc",
+        )
+        assert item.video_url == "https://youtube.com/watch?v=abc"
+
+    def test_image_and_video_url_together(self):
+        """Both image_url and video_url can be set simultaneously."""
+        item = FeedItem(
+            title="Rich Article",
+            url="https://example.com/article",
+            source_name="test",
+            image_url="https://cdn.example.com/thumb.jpg",
+            video_url="https://vimeo.com/123456",
+        )
+        assert item.image_url == "https://cdn.example.com/thumb.jpg"
+        assert item.video_url == "https://vimeo.com/123456"
 
     def test_full_item(self):
         now = datetime.now(timezone.utc)
@@ -241,3 +265,93 @@ class TestMultiSourceRouting:
 
         # Same URL → only 1 item after dedup
         assert len(items) == 1
+
+
+class TestFeedItemImageUrl:
+    """Test image_url field on FeedItem dataclass."""
+
+    def test_feeditem_has_image_url_when_provided(self):
+        """FeedItem accepts and stores image_url."""
+        item = FeedItem(
+            title="Article with cover image",
+            url="https://example.com/article",
+            source_name="test_source",
+            image_url="https://cdn.example.com/cover.jpg",
+        )
+        assert item.image_url == "https://cdn.example.com/cover.jpg"
+
+    def test_feeditem_image_url_defaults_to_none(self):
+        """image_url defaults to None when not provided."""
+        item = FeedItem(
+            title="Article without image",
+            url="https://example.com/article",
+            source_name="test_source",
+        )
+        assert item.image_url is None
+
+    def test_feeditem_image_url_explicit_none(self):
+        """image_url can be set explicitly to None."""
+        item = FeedItem(
+            title="Article",
+            url="https://example.com/article",
+            source_name="test_source",
+            image_url=None,
+        )
+        assert item.image_url is None
+
+    def test_rss_to_feed_passes_image_url(self):
+        """_rss_to_feed maps image_url from RSSItem to FeedItem."""
+        from apps.agents.sintese.collector import _rss_to_feed
+        from apps.agents.sources.rss import RSSItem
+
+        rss_item = RSSItem(
+            title="RSS Article",
+            url="https://example.com/rss-article",
+            source_name="rss_source",
+            image_url="https://cdn.example.com/thumbnail.png",
+        )
+        feed_item = _rss_to_feed(rss_item)
+
+        assert feed_item.image_url == "https://cdn.example.com/thumbnail.png"
+
+    def test_rss_to_feed_passes_none_image_url(self):
+        """_rss_to_feed maps None image_url when RSSItem has no image."""
+        from apps.agents.sintese.collector import _rss_to_feed
+        from apps.agents.sources.rss import RSSItem
+
+        rss_item = RSSItem(
+            title="RSS Article No Image",
+            url="https://example.com/no-image",
+            source_name="rss_source",
+        )
+        feed_item = _rss_to_feed(rss_item)
+
+        assert feed_item.image_url is None
+
+    def test_rss_to_feed_preserves_all_fields_including_image(self):
+        """_rss_to_feed faithfully copies all RSSItem fields including image_url."""
+        from datetime import datetime, timezone
+        from apps.agents.sintese.collector import _rss_to_feed
+        from apps.agents.sources.rss import RSSItem
+
+        published = datetime(2026, 2, 15, tzinfo=timezone.utc)
+        rss_item = RSSItem(
+            title="Full RSS Article",
+            url="https://example.com/full",
+            source_name="full_source",
+            published_at=published,
+            summary="Original summary text.",
+            author="Jane Smith",
+            tags=["fintech", "latam"],
+            image_url="https://cdn.example.com/full-image.jpg",
+        )
+        feed_item = _rss_to_feed(rss_item)
+
+        assert feed_item.title == rss_item.title
+        assert feed_item.url == rss_item.url
+        assert feed_item.source_name == rss_item.source_name
+        assert feed_item.published_at == rss_item.published_at
+        assert feed_item.summary == rss_item.summary
+        assert feed_item.author == rss_item.author
+        assert feed_item.tags == rss_item.tags
+        assert feed_item.image_url == rss_item.image_url

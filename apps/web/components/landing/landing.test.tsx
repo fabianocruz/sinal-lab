@@ -15,6 +15,8 @@ import WaitlistForm from './WaitlistForm';
 
 vi.mock('@/lib/api', () => ({
   submitWaitlist: vi.fn().mockResolvedValue({ message: 'ok', email: 'test@test.com' }),
+  fetchNewsletters: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
+  fetchWaitlistCount: vi.fn().mockResolvedValue(247),
 }));
 
 // ---------------------------------------------------------------------------
@@ -309,38 +311,44 @@ describe('CTASection', () => {
 // ---------------------------------------------------------------------------
 
 describe('EditionsPreviews', () => {
-  it('renders without crashing', () => {
-    const { container } = render(<EditionsPreviews />);
+  it('renders without crashing', async () => {
+    const jsx = await EditionsPreviews();
+    const { container } = render(jsx);
     expect(container.firstChild).toBeTruthy();
   });
 
-  it('renders the section heading', () => {
-    render(<EditionsPreviews />);
+  it('renders the section heading', async () => {
+    const jsx = await EditionsPreviews();
+    render(jsx);
     expect(screen.getByText(/Veja o Briefing com/i)).toBeInTheDocument();
   });
 
-  it('renders all three edition numbers', () => {
-    render(<EditionsPreviews />);
+  it('renders all three edition numbers', async () => {
+    const jsx = await EditionsPreviews();
+    render(jsx);
     expect(screen.getByText(/Edição #47/i)).toBeInTheDocument();
     expect(screen.getByText(/Edição #46/i)).toBeInTheDocument();
     expect(screen.getByText(/Edição #45/i)).toBeInTheDocument();
   });
 
-  it('renders all three edition titles', () => {
-    render(<EditionsPreviews />);
+  it('renders all three edition titles', async () => {
+    const jsx = await EditionsPreviews();
+    render(jsx);
     expect(screen.getByText(/Healthtech LATAM/i)).toBeInTheDocument();
     expect(screen.getByText(/US\$1\.2B em deals/i)).toBeInTheDocument();
     expect(screen.getByText(/mapa de calor do talento técnico/i)).toBeInTheDocument();
   });
 
-  it('renders "Ler edição →" links for each edition', () => {
-    render(<EditionsPreviews />);
+  it('renders "Ler edição →" links for each edition', async () => {
+    const jsx = await EditionsPreviews();
+    render(jsx);
     const readLinks = screen.getAllByText('Ler edição →');
     expect(readLinks).toHaveLength(3);
   });
 
-  it('renders the "Arquivo" section label', () => {
-    render(<EditionsPreviews />);
+  it('renders the "Arquivo" section label', async () => {
+    const jsx = await EditionsPreviews();
+    render(jsx);
     expect(screen.getByText('Arquivo')).toBeInTheDocument();
   });
 });

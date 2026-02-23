@@ -4,6 +4,47 @@ import pytest
 from packages.editorial.classifier import classify_territory, TerritoryClassification
 
 
+class TestClassifyTerritoryAI:
+    """Test suite for AI territory classification (pilar zero)."""
+
+    def test_clear_ai_content_with_llm(self):
+        """Test classification of AI content mentioning LLMs."""
+        title = "Como usar GPT-4 para detecção de fraude"
+        content = """
+        Large Language Models como GPT-4 e Claude estão sendo usados
+        para fraud detection em fintechs, com machine learning aplicado
+        a credit scoring e agentic AI em atendimento.
+        """
+        result = classify_territory(content, title)
+
+        assert result.primary_territory == "ai"
+        assert result.confidence > 0.3
+
+    def test_mlops_content_classified_as_ai(self):
+        """Test that MLOps content is classified as AI."""
+        content = "MLOps: infraestrutura para deployment de modelos de ML em produção com inference otimizada"
+        result = classify_territory(content)
+
+        assert result.primary_territory == "ai"
+
+    def test_ai_governance_content(self):
+        """Test that AI governance content is classified as AI."""
+        content = "AI governance e ai ethics: mitigando bias em modelos de machine learning"
+        result = classify_territory(content)
+
+        assert result.primary_territory == "ai"
+
+    def test_agentic_ai_content(self):
+        """Test that agentic AI content is classified as AI."""
+        content = """
+        Agentic AI e autonomous systems estão transformando operações.
+        AI agents autônomos para customer service e análise de risco.
+        """
+        result = classify_territory(content)
+
+        assert result.primary_territory == "ai"
+
+
 class TestClassifyTerritoryFintech:
     """Test suite for fintech territory classification."""
 
@@ -38,65 +79,23 @@ class TestClassifyTerritoryFintech:
         assert result.primary_territory == "fintech"
         assert result.keyword_matches.get("fintech", 0) > 0
 
-
-class TestClassifyTerritoryAI:
-    """Test suite for AI territory classification."""
-
-    def test_clear_ai_content_with_llm(self):
-        """Test classification of AI content mentioning LLMs."""
-        title = "Como usar GPT-4 para detecção de fraude"
-        content = """
-        Large Language Models como GPT-4 e Claude estão sendo usados
-        para fraud detection em fintechs, com machine learning aplicado
-        a credit scoring e agentic AI em atendimento.
-        """
-        result = classify_territory(content, title)
-
-        assert result.primary_territory == "ai"
-        assert result.confidence > 0.3
-
-    def test_mlops_content_classified_as_ai(self):
-        """Test that MLOps content is classified as AI."""
-        content = "MLOps: infraestrutura para deployment de modelos de ML em produção"
-        result = classify_territory(content)
-
-        assert result.primary_territory == "ai"
-
-    def test_ai_governance_content(self):
-        """Test that AI governance content is classified as AI."""
-        content = "LGPD e AI governance: mitigando bias em modelos de machine learning"
-        result = classify_territory(content)
-
-        assert result.primary_territory == "ai"
-
-
-class TestClassifyTerritoryCripto:
-    """Test suite for cripto territory classification."""
-
-    def test_stablecoin_content(self):
-        """Test that stablecoin content is classified as cripto."""
+    def test_stablecoin_content_classified_as_fintech(self):
+        """Test that stablecoin content (absorbed from cripto) is classified as fintech."""
         title = "USDC e stablecoins ganham tração na LATAM"
         content = """
         Stablecoins como USDC e USDT estão sendo adotadas para remessas,
-        enquanto o Drex (CBDC brasileiro) entra em fase piloto de tokenização.
+        enquanto o Drex (CBDC brasileiro) entra em nova fase de tokenização.
         """
         result = classify_territory(content, title)
 
-        assert result.primary_territory == "cripto"
+        assert result.primary_territory == "fintech"
 
-    def test_drex_cbdc_content(self):
-        """Test that Drex/CBDC content is classified as cripto."""
-        content = "Drex: Banco Central testa moeda digital com tokenização de RWA"
+    def test_defi_blockchain_classified_as_fintech(self):
+        """Test that DeFi/blockchain content is classified as fintech (not standalone cripto)."""
+        content = "DeFi protocols e blockchain estão sendo integrados em embedded finance com stablecoin rails"
         result = classify_territory(content)
 
-        assert result.primary_territory == "cripto"
-
-    def test_defi_content(self):
-        """Test that DeFi content is classified as cripto."""
-        content = "DeFi protocols on Ethereum and Solana enable decentralized finance"
-        result = classify_territory(content)
-
-        assert result.primary_territory == "cripto"
+        assert result.primary_territory == "fintech"
 
 
 class TestClassifyTerritoryEngenharia:
@@ -159,27 +158,17 @@ class TestClassifyTerritoryVenture:
 
         assert result.primary_territory == "venture"
 
-
-class TestClassifyTerritoryGreenAgritech:
-    """Test suite for green_agritech territory classification."""
-
-    def test_agritech_content(self):
-        """Test that agritech content is classified as green_agritech."""
+    def test_agritech_climate_classified_as_venture(self):
+        """Test that agritech/climate content (absorbed from green_agritech) is classified as venture."""
         title = "AgTech usa IA para prever safra de soja"
         content = """
-        Startups de AgriTech aplicam machine learning para agricultura,
+        Startups de AgriTech aplicam tecnologia para agricultura,
         com foco em foodtech e sustentabilidade no agro brasileiro.
+        Climate tech e créditos de carbono completam o ecossistema ESG.
         """
         result = classify_territory(content, title)
 
-        assert result.primary_territory == "green_agritech"
-
-    def test_climate_tech_content(self):
-        """Test that climate tech content is classified as green_agritech."""
-        content = "Climate tech e créditos de carbono: oportunidades para ESG"
-        result = classify_territory(content)
-
-        assert result.primary_territory == "green_agritech"
+        assert result.primary_territory == "venture"
 
 
 class TestClassifyTerritoryEdgeCases:
@@ -199,24 +188,20 @@ class TestClassifyTerritoryEdgeCases:
 
     def test_title_weighted_more_than_content(self):
         """Test that title gets 2x weight in classification."""
-        # Title has fintech keyword, content is generic
         title = "Pix revoluciona pagamentos"
         content = "Esta é uma análise interessante sobre o mercado."
         result = classify_territory(content, title)
 
-        # Should lean towards fintech due to title weight
         assert "fintech" in result.keyword_matches or result.primary_territory == "fintech"
 
     def test_multiple_territories_shows_secondary(self):
         """Test that content matching multiple territories shows secondary."""
-        # Content that could be both fintech and AI
         content = """
         Nubank usa machine learning e GPT-4 para fraud detection,
         aplicando AI em credit scoring no banco digital.
         """
         result = classify_territory(content)
 
-        # Should have both fintech and AI in matches
         assert len(result.keyword_matches) >= 2
         assert len(result.secondary_territories) > 0
 
@@ -236,7 +221,6 @@ class TestClassifyTerritoryEdgeCases:
 
     def test_confidence_capped_at_one(self):
         """Test that confidence score never exceeds 1.0."""
-        # Create content with many repeated keywords
         content = " ".join(["pix"] * 200)
         result = classify_territory(content)
 
@@ -247,10 +231,8 @@ class TestClassifyTerritoryEdgeCases:
         content = "Análise de tendências tecnológicas"
         metadata = {"agent": "FUNDING"}
 
-        # FUNDING agent is associated with fintech and venture territories
         result = classify_territory(content, metadata=metadata)
 
-        # Result should be influenced, but not guaranteed (depends on keywords)
         assert result.primary_territory in ["fintech", "venture", "unknown"]
 
 
@@ -280,7 +262,6 @@ class TestTerritoryClassificationDataclass:
         result = classify_territory(content)
         result_dict = result.to_dict()
 
-        # Should not raise exception
         json_string = json.dumps(result_dict)
         assert isinstance(json_string, str)
 

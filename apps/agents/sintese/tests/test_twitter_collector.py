@@ -182,6 +182,103 @@ class TestParseTweet:
         assert item is not None
         assert item.author is None or item.author == ""
 
+    def test_parse_tweet_with_photo_media(self):
+        """Tweet with photo attachment sets image_url."""
+        from apps.agents.sintese.twitter_collector import parse_tweet
+
+        tweet = {
+            "id": "1892345678901234600",
+            "text": "Check out this photo https://t.co/xyz",
+            "created_at": "2026-02-17T10:30:00.000Z",
+            "author_id": "111222333",
+            "attachments": {"media_keys": ["media_1"]},
+            "entities": {
+                "urls": [
+                    {"url": "https://t.co/xyz", "expanded_url": "https://example.com/article"}
+                ]
+            },
+        }
+        media_map = {
+            "media_1": {
+                "media_key": "media_1",
+                "type": "photo",
+                "url": "https://pbs.twimg.com/media/photo.jpg",
+            }
+        }
+
+        item = parse_tweet(tweet, "twitter_test", SAMPLE_USERS, media_map)
+        assert item is not None
+        assert item.image_url == "https://pbs.twimg.com/media/photo.jpg"
+        assert item.video_url is None
+
+    def test_parse_tweet_with_video_media(self):
+        """Tweet with video attachment sets video_url and uses thumbnail as image."""
+        from apps.agents.sintese.twitter_collector import parse_tweet
+
+        tweet = {
+            "id": "1892345678901234601",
+            "text": "Watch this video https://t.co/abc",
+            "created_at": "2026-02-17T10:30:00.000Z",
+            "author_id": "111222333",
+            "attachments": {"media_keys": ["media_2"]},
+            "entities": {
+                "urls": [
+                    {"url": "https://t.co/abc", "expanded_url": "https://example.com/video"}
+                ]
+            },
+        }
+        media_map = {
+            "media_2": {
+                "media_key": "media_2",
+                "type": "video",
+                "preview_image_url": "https://pbs.twimg.com/ext_tw_video_thumb/vid_thumb.jpg",
+            }
+        }
+
+        item = parse_tweet(tweet, "twitter_test", SAMPLE_USERS, media_map)
+        assert item is not None
+        assert item.video_url == "https://x.com/i/status/1892345678901234601"
+        # Video thumbnail used as image when no photo
+        assert item.image_url == "https://pbs.twimg.com/ext_tw_video_thumb/vid_thumb.jpg"
+
+    def test_parse_tweet_no_media_map_has_none_urls(self):
+        """Tweet without media_map has None image_url and video_url."""
+        from apps.agents.sintese.twitter_collector import parse_tweet
+
+        item = parse_tweet(SAMPLE_TWEET_WITH_LINK, "twitter_test", SAMPLE_USERS)
+        assert item is not None
+        assert item.image_url is None
+        assert item.video_url is None
+
+    def test_parse_tweet_photo_and_video(self):
+        """Tweet with both photo and video — photo gets image_url, video gets video_url."""
+        from apps.agents.sintese.twitter_collector import parse_tweet
+
+        tweet = {
+            "id": "1892345678901234602",
+            "text": "Mixed media tweet",
+            "created_at": "2026-02-17T10:30:00.000Z",
+            "author_id": "111222333",
+            "attachments": {"media_keys": ["m_photo", "m_video"]},
+        }
+        media_map = {
+            "m_photo": {
+                "media_key": "m_photo",
+                "type": "photo",
+                "url": "https://pbs.twimg.com/media/photo.jpg",
+            },
+            "m_video": {
+                "media_key": "m_video",
+                "type": "video",
+                "preview_image_url": "https://pbs.twimg.com/ext_tw_video_thumb/thumb.jpg",
+            },
+        }
+
+        item = parse_tweet(tweet, "twitter_test", SAMPLE_USERS, media_map)
+        assert item is not None
+        assert item.image_url == "https://pbs.twimg.com/media/photo.jpg"
+        assert item.video_url == "https://x.com/i/status/1892345678901234602"
+
 
 # ---------------------------------------------------------------------------
 # Sample X API v2 full response for fetch/orchestrator tests

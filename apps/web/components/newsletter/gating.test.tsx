@@ -53,6 +53,7 @@ const mockNewsletter: Newsletter = {
     "https://techcrunch.com/2026/02/08/ai-commoditization-latam",
     "https://www.bloomberg.com/news/articles/2026-02-07/ai-startups-vertical",
   ],
+  metadata: null,
 };
 
 /**

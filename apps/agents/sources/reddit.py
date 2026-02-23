@@ -11,11 +11,12 @@ Usage:
 """
 
 import hashlib
+import html
 import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -48,6 +49,8 @@ class RedditPost:
     selftext: Optional[str] = None
     author: Optional[str] = None
     permalink: str = ""
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
     content_hash: str = ""
 
     def __post_init__(self) -> None:
@@ -57,6 +60,71 @@ class RedditPost:
             else:
                 hash_input = self.url
             self.content_hash = hashlib.md5(hash_input.encode()).hexdigest()
+
+
+# Thumbnail sentinel values that Reddit uses for non-image placeholders
+_THUMBNAIL_SENTINELS = {"self", "default", "nsfw", "spoiler", "image", ""}
+
+
+def extract_reddit_media(
+    post_data: Dict[str, Any],
+) -> Tuple[Optional[str], Optional[str]]:
+    """Extract image and video URLs from a Reddit post's JSON data.
+
+    Image priority:
+    1. ``preview.images[0].source.url`` (highest quality, needs html.unescape)
+    2. ``thumbnail`` (lower quality, filter sentinel values)
+    3. ``url`` if it points to i.redd.it or i.imgur.com
+
+    Video priority:
+    1. ``media.reddit_video.fallback_url`` (Reddit-hosted video)
+    2. ``url`` if it points to v.redd.it, youtube.com, youtu.be, or vimeo.com
+
+    Args:
+        post_data: The ``data`` dict from a Reddit API listing child.
+
+    Returns:
+        (image_url, video_url) tuple. Either or both may be None.
+    """
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    post_url = post_data.get("url", "")
+
+    # --- Image extraction ---
+    preview = post_data.get("preview")
+    if preview:
+        images = preview.get("images", [])
+        if images:
+            source = images[0].get("source", {})
+            raw_url = source.get("url", "")
+            if raw_url:
+                # Reddit HTML-encodes preview URLs (e.g. &amp; → &)
+                image_url = html.unescape(raw_url)
+
+    if not image_url:
+        thumbnail = post_data.get("thumbnail", "")
+        if thumbnail and thumbnail not in _THUMBNAIL_SENTINELS and thumbnail.startswith("http"):
+            image_url = thumbnail
+
+    if not image_url:
+        if any(host in post_url for host in ("i.redd.it", "i.imgur.com")):
+            image_url = post_url
+
+    # --- Video extraction ---
+    media = post_data.get("media")
+    if media:
+        reddit_video = media.get("reddit_video", {})
+        fallback = reddit_video.get("fallback_url")
+        if fallback:
+            video_url = fallback
+
+    if not video_url:
+        if "v.redd.it" in post_url:
+            video_url = post_url
+        elif any(host in post_url for host in ("youtube.com", "youtu.be", "vimeo.com")):
+            video_url = post_url
+
+    return image_url, video_url
 
 
 def authenticate_reddit(client: httpx.Client) -> Optional[str]:
@@ -176,6 +244,8 @@ def fetch_subreddit_posts(
             except (ValueError, TypeError, OSError):
                 pass
 
+        img, vid = extract_reddit_media(post_data)
+
         posts.append(RedditPost(
             title=post_data.get("title", ""),
             url=post_data.get("url", ""),
@@ -187,6 +257,8 @@ def fetch_subreddit_posts(
             selftext=post_data.get("selftext") or None,
             author=post_data.get("author"),
             permalink=post_data.get("permalink", ""),
+            image_url=img,
+            video_url=vid,
         ))
 
     logger.info(

@@ -268,3 +268,75 @@ def test_content_response_schema(client, sample_content):
         "confidence_dq", "confidence_ac", "review_status"
     }
     assert required_fields.issubset(set(item.keys()))
+
+
+# --- Rich newsletter metadata_ tests ---
+
+
+def test_get_content_by_slug_includes_metadata(client, db_session):
+    """Test that detail endpoint includes metadata_ when populated."""
+    piece = ContentPiece(
+        slug="rich-newsletter-1",
+        title="Rich Newsletter #1",
+        content_type="DATA_REPORT",
+        agent_name="sintese",
+        body_md="# Rich content",
+        review_status="published",
+        published_at=datetime(2026, 2, 20, 10, 0, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 2, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 2, 20, 10, 0, 0, tzinfo=timezone.utc),
+        metadata_={
+            "hero_image": {"url": "https://img.example.com/hero.jpg", "alt": "Hero"},
+            "reading_time_minutes": 4,
+            "callouts": [{"type": "highlight", "content": "Key insight", "position": "after_intro"}],
+            "companies_mentioned": ["Nubank", "Rappi"],
+        },
+    )
+    db_session.add(piece)
+    db_session.commit()
+
+    response = client.get("/api/content/rich-newsletter-1")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "metadata_" in data
+    assert data["metadata_"] is not None
+    assert data["metadata_"]["hero_image"]["url"] == "https://img.example.com/hero.jpg"
+    assert data["metadata_"]["reading_time_minutes"] == 4
+    assert len(data["metadata_"]["callouts"]) == 1
+    assert data["metadata_"]["companies_mentioned"] == ["Nubank", "Rappi"]
+
+
+def test_get_content_by_slug_metadata_null_when_not_set(client, sample_content):
+    """Test that detail endpoint returns metadata_=null when not populated."""
+    response = client.get("/api/content/newsletter-edition-1")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "metadata_" in data
+    assert data["metadata_"] is None
+
+
+def test_list_content_omits_metadata(client, db_session):
+    """Test that list endpoint does NOT include metadata_ (keeps response lean)."""
+    piece = ContentPiece(
+        slug="list-metadata-test",
+        title="List Metadata Test",
+        content_type="DATA_REPORT",
+        agent_name="sintese",
+        body_md="# Body",
+        review_status="published",
+        published_at=datetime(2026, 2, 20, 10, 0, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 2, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 2, 20, 10, 0, 0, tzinfo=timezone.utc),
+        metadata_={"hero_image": {"url": "https://img.example.com/hero.jpg", "alt": "Hero"}},
+    )
+    db_session.add(piece)
+    db_session.commit()
+
+    response = client.get("/api/content")
+    assert response.status_code == 200
+    data = response.json()
+
+    for item in data["items"]:
+        assert "metadata_" not in item

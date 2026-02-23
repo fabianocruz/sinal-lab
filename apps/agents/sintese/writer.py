@@ -5,13 +5,15 @@ Sinal Semanal newsletter:
   - Newsletter intro paragraph (week's narrative arc)
   - Section intros (editorial commentary per category)
   - Rewritten item summaries (contextualized for LATAM audience)
+  - Editorial metadata (callouts, companies, topics, featured video)
 
 Architecture:
     synthesizer.py (orchestrator)
     ├── writer.py           <- LLM editorial content (this module)
-    │   ├── write_newsletter_intro()   -> 1 API call
-    │   └── write_section_content()    -> 1 API call per section
-    └── format_item_markdown()         <- template formatting (existing)
+    │   ├── write_newsletter_intro()      -> 1 API call
+    │   ├── write_section_content()       -> 1 API call per section
+    │   └── write_editorial_metadata()    -> 1 API call
+    └── format_item_markdown()            <- template formatting (existing)
 
 Gracefully falls back (returns None) when the LLM client is unavailable
 or API calls fail, allowing the synthesizer to use template-based output.
@@ -19,8 +21,8 @@ or API calls fail, allowing the synthesizer to use template-based output.
 
 import json
 import logging
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.sintese.synthesizer import NewsletterSection
@@ -31,34 +33,38 @@ logger = logging.getLogger(__name__)
 # Editorial voice shared across all LLM calls
 SYSTEM_PROMPT = (
     "Voce e o editor-chefe da newsletter Sinal Semanal, publicada pela plataforma Sinal.lab.\n\n"
-    "Posicionamento: Inteligencia de mercado, analise tecnica e dados proprietarios sobre "
-    "o ecossistema tech e fintech da America Latina — para fundadores tecnicos, CTOs e "
-    "engenheiros seniores que tomam decisoes com dados, nao com hype.\n\n"
+    "Posicionamento: Inteligencia de mercado sobre AI, fintech e infraestrutura digital "
+    "na America Latina — para fundadores tecnicos, CTOs e engenheiros seniores que tomam "
+    "decisoes com dados, nao com hype.\n\n"
     "Territorios editoriais (por peso):\n"
-    "1. Fintech & Economia Digital LATAM (40%) — Open Finance, Pix, neobanks, embedded finance\n"
-    "2. AI Aplicada & Infraestrutura (20%) — ML em producao, AI agents, governance\n"
-    "3. Cripto, Stablecoins & Ativos Digitais (10%) — Drex, tokenizacao, stablecoins como infra\n"
-    "4. Engenharia & Infraestrutura (20%) — Arquitetura, cloud, DevOps, seguranca\n"
-    "5. Venture Capital & Funding (15%) — Deal flow, investor intelligence, M&A\n"
-    "6. Green Tech, AgriTech & Impacto (5%) — Agritech, climate tech, ESG\n\n"
-    "Estilo editorial:\n"
-    "- Tom analitico e direto, sem hype ou marketing\n"
-    "- Foque em dados, tendencias e implicacoes praticas\n"
-    "- Contextualize para o ecossistema tech LATAM (Brasil, Mexico, Colombia, Chile, Argentina)\n"
-    "- Use linguagem tecnica quando apropriado, mas seja acessivel\n"
-    "- Nunca use frases motivacionais ou cliches de startup\n"
-    "- Prefira verbos ativos e frases curtas\n"
-    "- Escreva SEMPRE em portugues brasileiro (PT-BR)\n"
-    "- Evite frases tipicas de IA: 'vale ressaltar', 'neste contexto', "
-    "'e importante destacar', 'no cenario atual'\n"
-    "- Seja especifico: numeros e exemplos concretos > afirmacoes vagas\n\n"
+    "1. AI & Infraestrutura Inteligente (35%) — Pilar zero. Agentic AI, LLMs, AI aplicada, "
+    "infra de AI, governance. AI nao e 'mais um tema' — e a mudanca de plataforma.\n"
+    "2. Fintech & Infraestrutura Financeira LATAM (30%) — Open Finance, Pix, neobanks, "
+    "stablecoins, tokenizacao, embedded finance, remessas\n"
+    "3. Engenharia & Plataforma (20%) — Arquitetura, cloud, DevOps, seguranca, LGPD\n"
+    "4. Venture Capital & Ecossistema (15%) — Deal flow, investor intelligence, M&A, "
+    "ecosystem mapping (inclui agritech, climate tech)\n\n"
+    "Voz editorial (5 atributos inegociaveis):\n"
+    "- PRECISA: Toda afirmacao tem dado ou fonte. Sem 'muitos acreditam' ou 'e amplamente reconhecido'.\n"
+    "- DENSA: Cada paragrafo carrega informacao nova. Zero filler.\n"
+    "- OPINATIVA: Temos ponto de vista editorial. Conectamos fatos a consequencias.\n"
+    "- DIRETA: Frases curtas. Voz ativa. Sem jargao corporativo.\n"
+    "- CONSTRUIDA: Falamos como builders para builders. Tom peer-to-peer.\n\n"
+    "Escreva SEMPRE em portugues brasileiro (PT-BR).\n\n"
+    "Anti-patterns (nunca usar):\n"
+    "- 'Neste artigo, vamos explorar...' (meta-linguagem)\n"
+    "- 'E importante ressaltar que...' / 'Vale destacar que...' (filler)\n"
+    "- 'O futuro e promissor...' (vazio)\n"
+    "- 'Cada vez mais empresas estao...' (sem dado)\n"
+    "- 'Segundo especialistas...' (quais?)\n"
+    "- Adjetivos sem dado: 'impressionante', 'revolucionario', 'disruptivo'\n\n"
     "Regua editorial — O que NAO entra:\n"
     "- Reescrita de press release (analisamos, nao reproduzimos)\n"
     "- Opiniao sem dados de suporte\n"
-    "- Hype sem substancia ('revolucionario', 'disruptivo', 'game-changer')\n"
+    "- Hype sem substancia\n"
     "- Conteudo motivacional/inspiracional\n"
     "- Tutoriais basicos que existem em qualquer lugar\n"
-    "- Conteudo sobre 'o futuro do X' sem dados sobre o presente do X\n\n"
+    "- 'O futuro do X' sem dados sobre o presente do X\n\n"
     "Pergunta-filtro: 'Um CTO de fintech em Sao Paulo com 10 anos de experiencia "
     "pararia de trabalhar para ler isto?' Se nao, reformule."
 )
@@ -70,6 +76,16 @@ class SectionContent:
 
     intro: str  # 2-3 sentence editorial intro for the section
     summaries: list[str]  # One rewritten summary per item (same order as input)
+
+
+@dataclass
+class EditorialMetadata:
+    """LLM-generated editorial metadata for newsletter enrichment."""
+
+    callouts: List[dict] = field(default_factory=list)
+    companies_mentioned: List[str] = field(default_factory=list)
+    topics: List[str] = field(default_factory=list)
+    featured_video_url: Optional[str] = None
 
 
 class SinteseWriter:
@@ -252,3 +268,112 @@ class SinteseWriter:
             return None
 
         return SectionContent(intro=intro, summaries=summaries)
+
+    def write_editorial_metadata(
+        self,
+        sections: list[NewsletterSection],
+        edition_number: int,
+    ) -> Optional[EditorialMetadata]:
+        """Generate editorial metadata (callouts, companies, topics) in a single LLM call.
+
+        Produces structured metadata that enriches the newsletter display without
+        affecting the body markdown.
+
+        Args:
+            sections: Grouped newsletter sections with items.
+            edition_number: Edition number for context.
+
+        Returns:
+            EditorialMetadata or None if generation fails.
+        """
+        if not self.is_available or not sections:
+            return None
+
+        sections_summary = self._build_sections_summary(sections)
+
+        # Scan items for YouTube/Vimeo URLs
+        video_candidates: list[str] = []
+        for section in sections:
+            for scored_item in section.items:
+                url = scored_item.item.url
+                if any(v in url for v in ["youtube.com", "youtu.be", "vimeo.com"]):
+                    video_candidates.append(url)
+
+        user_prompt = (
+            f"Analise o conteudo da edicao #{edition_number} do Sinal Semanal "
+            f"e gere metadados editoriais estruturados.\n\n"
+            f"Conteudo:\n{sections_summary}\n\n"
+            f"URLs de video encontradas: {video_candidates if video_candidates else 'Nenhuma'}\n\n"
+            f"Retorne um JSON valido:\n"
+            f'{{\n'
+            f'  "callouts": [\n'
+            f'    {{\n'
+            f'      "type": "highlight",\n'
+            f'      "content": "Frase de destaque editorial (1-2 frases, dado ou insight marcante).",\n'
+            f'      "position": "after_intro"\n'
+            f'    }}\n'
+            f'  ],\n'
+            f'  "companies_mentioned": ["Nubank", "Rappi"],\n'
+            f'  "topics": ["AI", "fintech"],\n'
+            f'  "featured_video_url": null\n'
+            f'}}\n\n'
+            f"Regras:\n"
+            f"- callouts: gere 1-3 callouts (tipo highlight). Cada um deve ser um insight acionavel "
+            f"ou dado marcante da semana.\n"
+            f"- companies_mentioned: liste todas as empresas mencionadas nos titulos e resumos.\n"
+            f"- topics: liste os 3-5 temas principais desta edicao.\n"
+            f"- featured_video_url: se houver URL de video relevante, inclua-a. Senao, null.\n"
+            f"- Retorne APENAS o JSON, sem texto antes ou depois."
+        )
+
+        raw = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=1024,
+        )
+
+        if not raw:
+            logger.warning("LLM returned empty editorial metadata for edition #%d", edition_number)
+            return None
+
+        return self._parse_editorial_metadata_json(raw)
+
+    def _parse_editorial_metadata_json(self, raw: str) -> Optional[EditorialMetadata]:
+        """Parse and validate the editorial metadata JSON response.
+
+        Strips code fences, validates structure (callouts, companies, topics must
+        be lists), filters invalid callouts (must have 'content' key), and enforces
+        limits (max 20 companies, 10 topics). Returns None on any parse/validation failure.
+        """
+        cleaned = strip_code_fences(raw)
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError:
+            logger.warning("Failed to parse editorial metadata JSON: %.100s", raw)
+            return None
+
+        callouts = data.get("callouts", [])
+        companies = data.get("companies_mentioned", [])
+        topics = data.get("topics", [])
+        video_url = data.get("featured_video_url")
+
+        if not isinstance(callouts, list) or not isinstance(companies, list) or not isinstance(topics, list):
+            logger.warning("Invalid editorial metadata structure")
+            return None
+
+        # Validate callout structure
+        valid_callouts: list[dict] = []
+        for c in callouts:
+            if isinstance(c, dict) and "content" in c:
+                valid_callouts.append({
+                    "type": c.get("type", "highlight"),
+                    "content": c["content"],
+                    "position": c.get("position", "after_intro"),
+                })
+
+        return EditorialMetadata(
+            callouts=valid_callouts,
+            companies_mentioned=[str(c) for c in companies[:20]],
+            topics=[str(t) for t in topics[:10]],
+            featured_video_url=video_url if isinstance(video_url, str) else None,
+        )

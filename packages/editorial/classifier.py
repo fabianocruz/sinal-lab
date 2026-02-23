@@ -1,7 +1,7 @@
 """Territory classification for AI-generated content.
 
 This module implements keyword-based classification to assign content to one of
-6 editorial territories defined in guidelines.py. It's used by AI agents to
+4 editorial territories defined in guidelines.py. It's used by AI agents to
 automatically categorize their outputs before editorial review.
 
 Classification Algorithm:

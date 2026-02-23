@@ -7,9 +7,14 @@ import { cn } from "@/lib/utils";
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
+  basePath?: string;
 }
 
-export default function Pagination({ currentPage, totalPages }: PaginationProps) {
+export default function Pagination({
+  currentPage,
+  totalPages,
+  basePath = "/newsletter",
+}: PaginationProps) {
   const searchParams = useSearchParams();
   const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
 
@@ -21,7 +26,7 @@ export default function Pagination({ currentPage, totalPages }: PaginationProps)
       params.set("page", String(page));
     }
     const qs = params.toString();
-    return `/newsletter${qs ? `?${qs}` : ""}`;
+    return `${basePath}${qs ? `?${qs}` : ""}`;
   }
 
   return (

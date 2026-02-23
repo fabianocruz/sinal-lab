@@ -13,7 +13,7 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -46,6 +46,8 @@ class BlueskyPost:
     reply_count: int = 0
     repost_count: int = 0
     created_at: Optional[datetime] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
     content_hash: str = ""
 
     def __post_init__(self) -> None:
@@ -86,6 +88,53 @@ def _parse_timestamp(timestamp_str: str) -> Optional[datetime]:
         )
     except (ValueError, AttributeError):
         return None
+
+
+def _extract_media_urls(
+    raw_post: Dict[str, Any],
+) -> Tuple[Optional[str], Optional[str]]:
+    """Extract image and video URLs from a Bluesky post's embed view.
+
+    Uses the *view* embed (``raw_post["embed"]``), not the record embed,
+    because the view object contains resolved CDN URLs ready for display.
+
+    Supported embed types:
+    - ``app.bsky.embed.images#view`` — first image thumbnail
+    - ``app.bsky.embed.external#view`` — external link thumbnail
+    - ``app.bsky.embed.video#view`` — video thumbnail + HLS playlist
+    - ``app.bsky.embed.recordWithMedia#view`` — unwraps inner media embed
+
+    Returns:
+        (image_url, video_url) tuple. Either or both may be None.
+    """
+    embed = raw_post.get("embed")
+    if not embed:
+        return None, None
+
+    embed_type = embed.get("$type", "")
+
+    # recordWithMedia wraps another media embed — unwrap it
+    if embed_type == "app.bsky.embed.recordWithMedia#view":
+        embed = embed.get("media", {})
+        embed_type = embed.get("$type", "")
+
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+
+    if embed_type == "app.bsky.embed.images#view":
+        images = embed.get("images", [])
+        if images:
+            image_url = images[0].get("thumb") or images[0].get("fullsize")
+
+    elif embed_type == "app.bsky.embed.external#view":
+        external = embed.get("external", {})
+        image_url = external.get("thumb")
+
+    elif embed_type == "app.bsky.embed.video#view":
+        image_url = embed.get("thumbnail")
+        video_url = embed.get("playlist")
+
+    return image_url, video_url
 
 
 def _extract_external_url(record: Dict[str, Any]) -> Optional[str]:
@@ -143,6 +192,7 @@ def parse_bluesky_post(
 
     created_at = _parse_timestamp(record.get("createdAt", ""))
     external_url = _extract_external_url(record)
+    image_url, video_url = _extract_media_urls(raw_post)
 
     return BlueskyPost(
         text=text,
@@ -155,6 +205,8 @@ def parse_bluesky_post(
         reply_count=raw_post.get("replyCount", 0),
         repost_count=raw_post.get("repostCount", 0),
         created_at=created_at,
+        image_url=image_url,
+        video_url=video_url,
     )
 
 

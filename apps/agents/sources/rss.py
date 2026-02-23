@@ -41,6 +41,7 @@ class RSSItem:
     author: Optional[str] = None
     tags: List[str] = field(default_factory=list)
     content_hash: str = ""
+    image_url: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.content_hash:
@@ -85,6 +86,81 @@ def extract_tags(entry: Any, max_tags: int = 10) -> List[str]:
     return tags[:max_tags]
 
 
+def extract_image_url(entry: Any) -> Optional[str]:
+    """Extract the best image URL from a feedparser entry.
+
+    Checks (in priority order):
+    1. media_content (media:content RSS tag)
+    2. media_thumbnail (media:thumbnail RSS tag)
+    3. enclosures with image/* MIME type
+    4. First <img> tag in content/summary HTML (fallback)
+
+    Returns None if no image is found.
+    """
+    import re as _re
+
+    # 1. media:content
+    media_content = getattr(entry, "media_content", None)
+    if media_content and isinstance(media_content, list):
+        for mc in media_content:
+            url = mc.get("url", "") if isinstance(mc, dict) else ""
+            medium = mc.get("medium", "") if isinstance(mc, dict) else ""
+            mime_type = mc.get("type", "") if isinstance(mc, dict) else ""
+            if url and (medium == "image" or mime_type.startswith("image/")):
+                return url
+
+    # 2. media:thumbnail
+    media_thumbnail = getattr(entry, "media_thumbnail", None)
+    if media_thumbnail and isinstance(media_thumbnail, list):
+        for mt in media_thumbnail:
+            url = mt.get("url", "") if isinstance(mt, dict) else ""
+            if url:
+                return url
+
+    # 3. enclosures
+    enclosures = getattr(entry, "enclosures", [])
+    if isinstance(enclosures, list):
+        for enc in enclosures:
+            if isinstance(enc, dict):
+                mime_type = enc.get("type", "")
+                url = enc.get("href", "") or enc.get("url", "")
+            else:
+                mime_type = getattr(enc, "type", "")
+                url = getattr(enc, "href", "") or getattr(enc, "url", "")
+            if url and isinstance(mime_type, str) and mime_type.startswith("image/"):
+                return url
+
+    # 4. Fallback: parse <img> from summary/content HTML
+    html = ""
+    summary_detail = getattr(entry, "summary_detail", None)
+    if summary_detail:
+        sd_type = (
+            summary_detail.get("type", "")
+            if isinstance(summary_detail, dict)
+            else getattr(summary_detail, "type", "")
+        )
+        sd_value = (
+            summary_detail.get("value", "")
+            if isinstance(summary_detail, dict)
+            else getattr(summary_detail, "value", "")
+        )
+        if sd_type == "text/html" and sd_value:
+            html = sd_value
+
+    if not html:
+        content = getattr(entry, "content", None)
+        if content and isinstance(content, list) and content:
+            first = content[0]
+            html = first.get("value", "") if isinstance(first, dict) else ""
+
+    if html:
+        img_match = _re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html)
+        if img_match:
+            return img_match.group(1)
+
+    return None
+
+
 def parse_rss_entry(entry: Any, source_name: str) -> Optional[RSSItem]:
     """Parse a single feedparser entry into an RSSItem.
 
@@ -110,6 +186,7 @@ def parse_rss_entry(entry: Any, source_name: str) -> Optional[RSSItem]:
         summary=summary,
         author=author,
         tags=extract_tags(entry),
+        image_url=extract_image_url(entry),
     )
 
 

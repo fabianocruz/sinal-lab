@@ -201,3 +201,41 @@ describe("MarkdownRenderer — defaults", () => {
     expect(h2).toHaveStyle({ borderColor: "#E8FF59" });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Images
+// ---------------------------------------------------------------------------
+
+describe("MarkdownRenderer — images", () => {
+  it("renders img tag from markdown with figure wrapper", () => {
+    const { container } = render(
+      <MarkdownRenderer content="![Alt text](https://example.com/photo.jpg)" />,
+    );
+
+    const figure = container.querySelector("figure");
+    expect(figure).toBeInTheDocument();
+
+    const img = container.querySelector("img");
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("src", "https://example.com/photo.jpg");
+    expect(img).toHaveAttribute("alt", "Alt text");
+    expect(img).toHaveAttribute("loading", "lazy");
+  });
+
+  it("uses alt text as figcaption", () => {
+    const { container } = render(
+      <MarkdownRenderer content="![Caption text](https://example.com/photo.jpg)" />,
+    );
+
+    const caption = container.querySelector("figcaption");
+    expect(caption).toBeInTheDocument();
+    expect(caption).toHaveTextContent("Caption text");
+  });
+
+  it("omits figcaption when alt is empty", () => {
+    const { container } = render(<MarkdownRenderer content="![](https://example.com/photo.jpg)" />);
+
+    const caption = container.querySelector("figcaption");
+    expect(caption).not.toBeInTheDocument();
+  });
+});

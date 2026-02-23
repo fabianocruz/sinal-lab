@@ -19,6 +19,7 @@ from apps.agents.sources.reddit import (
     REDDIT_USER_AGENT,
     RedditPost,
     authenticate_reddit,
+    extract_reddit_media,
     fetch_subreddit_posts,
 )
 
@@ -193,6 +194,30 @@ class TestRedditPost:
         ).hexdigest()
         assert post.content_hash == expected_hash
 
+    def test_image_url_and_video_url_default_to_none(self) -> None:
+        """image_url and video_url default to None."""
+        post = RedditPost(
+            title="Minimal Post",
+            url="https://example.com",
+            source_name="reddit_test",
+            subreddit="test",
+        )
+        assert post.image_url is None
+        assert post.video_url is None
+
+    def test_image_url_and_video_url_stored_correctly(self) -> None:
+        """image_url and video_url are stored when provided."""
+        post = RedditPost(
+            title="Media Post",
+            url="https://example.com/post",
+            source_name="reddit_test",
+            subreddit="test",
+            image_url="https://i.redd.it/abc.jpg",
+            video_url="https://v.redd.it/xyz/DASH_720.mp4",
+        )
+        assert post.image_url == "https://i.redd.it/abc.jpg"
+        assert post.video_url == "https://v.redd.it/xyz/DASH_720.mp4"
+
     def test_selftext_field_handles_long_content(self) -> None:
         """Selftext can contain long markdown content."""
         long_text = "Lorem ipsum " * 500  # Very long text
@@ -207,6 +232,138 @@ class TestRedditPost:
 
         assert post.selftext == long_text
         assert len(post.selftext) > 1000
+
+
+class TestExtractRedditMedia:
+    """Test extract_reddit_media for image and video extraction."""
+
+    def test_extracts_preview_image(self) -> None:
+        """Extracts image from preview.images[0].source.url."""
+        post_data = {
+            "url": "https://example.com/article",
+            "preview": {
+                "images": [
+                    {"source": {"url": "https://preview.redd.it/img.jpg?width=1024&amp;s=abc"}}
+                ]
+            },
+        }
+        img, vid = extract_reddit_media(post_data)
+        # Should unescape HTML entities
+        assert img == "https://preview.redd.it/img.jpg?width=1024&s=abc"
+        assert vid is None
+
+    def test_extracts_thumbnail_when_no_preview(self) -> None:
+        """Falls back to thumbnail when preview is absent."""
+        post_data = {
+            "url": "https://example.com/article",
+            "thumbnail": "https://b.thumbs.redditmedia.com/thumb.jpg",
+        }
+        img, vid = extract_reddit_media(post_data)
+        assert img == "https://b.thumbs.redditmedia.com/thumb.jpg"
+        assert vid is None
+
+    def test_filters_sentinel_thumbnails(self) -> None:
+        """Sentinel thumbnail values like 'self', 'default' are ignored."""
+        for sentinel in ("self", "default", "nsfw", "spoiler", "image", ""):
+            post_data = {
+                "url": "https://example.com/article",
+                "thumbnail": sentinel,
+            }
+            img, vid = extract_reddit_media(post_data)
+            assert img is None, f"Should filter sentinel '{sentinel}'"
+
+    def test_extracts_i_redd_it_url_as_image(self) -> None:
+        """Direct i.redd.it URL used as image."""
+        post_data = {"url": "https://i.redd.it/photo123.jpg"}
+        img, vid = extract_reddit_media(post_data)
+        assert img == "https://i.redd.it/photo123.jpg"
+        assert vid is None
+
+    def test_extracts_i_imgur_url_as_image(self) -> None:
+        """Direct i.imgur.com URL used as image."""
+        post_data = {"url": "https://i.imgur.com/abc123.png"}
+        img, vid = extract_reddit_media(post_data)
+        assert img == "https://i.imgur.com/abc123.png"
+        assert vid is None
+
+    def test_extracts_reddit_video(self) -> None:
+        """Extracts video from media.reddit_video.fallback_url."""
+        post_data = {
+            "url": "https://v.redd.it/xyz",
+            "media": {
+                "reddit_video": {
+                    "fallback_url": "https://v.redd.it/xyz/DASH_720.mp4",
+                    "duration": 30,
+                }
+            },
+        }
+        img, vid = extract_reddit_media(post_data)
+        assert vid == "https://v.redd.it/xyz/DASH_720.mp4"
+
+    def test_extracts_youtube_url_as_video(self) -> None:
+        """YouTube link URL detected as video."""
+        post_data = {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}
+        img, vid = extract_reddit_media(post_data)
+        assert vid == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        assert img is None
+
+    def test_extracts_youtu_be_url_as_video(self) -> None:
+        """Short youtu.be URL detected as video."""
+        post_data = {"url": "https://youtu.be/dQw4w9WgXcQ"}
+        img, vid = extract_reddit_media(post_data)
+        assert vid == "https://youtu.be/dQw4w9WgXcQ"
+
+    def test_extracts_vimeo_url_as_video(self) -> None:
+        """Vimeo URL detected as video."""
+        post_data = {"url": "https://vimeo.com/123456789"}
+        img, vid = extract_reddit_media(post_data)
+        assert vid == "https://vimeo.com/123456789"
+
+    def test_extracts_v_redd_it_url_as_video(self) -> None:
+        """v.redd.it URL without media dict is still detected as video."""
+        post_data = {"url": "https://v.redd.it/abc123"}
+        img, vid = extract_reddit_media(post_data)
+        assert vid == "https://v.redd.it/abc123"
+
+    def test_no_media_returns_none_tuple(self) -> None:
+        """Post with no media data returns (None, None)."""
+        post_data = {"url": "https://example.com/text-article"}
+        img, vid = extract_reddit_media(post_data)
+        assert img is None
+        assert vid is None
+
+    def test_preview_image_priority_over_thumbnail(self) -> None:
+        """Preview image takes priority over thumbnail."""
+        post_data = {
+            "url": "https://example.com/article",
+            "preview": {
+                "images": [
+                    {"source": {"url": "https://preview.redd.it/high-res.jpg"}}
+                ]
+            },
+            "thumbnail": "https://b.thumbs.redditmedia.com/low-res.jpg",
+        }
+        img, vid = extract_reddit_media(post_data)
+        assert img == "https://preview.redd.it/high-res.jpg"
+
+    def test_both_image_and_video(self) -> None:
+        """Post with both image preview and video returns both."""
+        post_data = {
+            "url": "https://v.redd.it/xyz",
+            "preview": {
+                "images": [
+                    {"source": {"url": "https://preview.redd.it/thumb.jpg"}}
+                ]
+            },
+            "media": {
+                "reddit_video": {
+                    "fallback_url": "https://v.redd.it/xyz/DASH_720.mp4"
+                }
+            },
+        }
+        img, vid = extract_reddit_media(post_data)
+        assert img == "https://preview.redd.it/thumb.jpg"
+        assert vid == "https://v.redd.it/xyz/DASH_720.mp4"
 
 
 class TestAuthenticateReddit:

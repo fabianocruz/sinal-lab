@@ -60,6 +60,8 @@ class FeedItem:
     author: Optional[str] = None
     tags: List[str] = field(default_factory=list)
     content_hash: str = ""
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.content_hash:
@@ -77,6 +79,7 @@ def _rss_to_feed(rss_item: RSSItem) -> FeedItem:
         author=rss_item.author,
         tags=rss_item.tags,
         content_hash=rss_item.content_hash,
+        image_url=rss_item.image_url,
     )
 
 
@@ -214,6 +217,8 @@ def collect_all_sources(
                         summary=p.text[:1000] if p.text else None,
                         author=p.author_name,
                         content_hash=p.content_hash,
+                        image_url=p.image_url,
+                        video_url=p.video_url,
                     )
                     for p in posts
                 ]
@@ -240,6 +245,8 @@ def collect_all_sources(
                         summary=p.selftext[:1000] if p.selftext else None,
                         author=p.author,
                         content_hash=p.content_hash,
+                        image_url=p.image_url,
+                        video_url=p.video_url,
                     )
                     for p in posts
                 ]
@@ -263,6 +270,8 @@ def collect_all_sources(
                         summary=p.text[:1000] if p.text else None,
                         author=f"@{p.author_handle}" if p.author_handle else None,
                         content_hash=p.content_hash,
+                        image_url=p.image_url,
+                        video_url=p.video_url,
                     )
                     for p in posts
                 ]

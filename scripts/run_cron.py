@@ -33,6 +33,7 @@ logger = logging.getLogger("run_cron")
 SCHEDULE: dict[int, list[str]] = {
     1: ["codigo", "radar", "sintese", "funding"],  # Monday
     3: ["mercado"],                                  # Wednesday
+    6: ["index"],                                    # Saturday
 }
 
 

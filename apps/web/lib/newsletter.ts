@@ -1,5 +1,46 @@
 import { AgentKey, AGENT_PERSONAS } from "@/lib/constants";
 
+export interface HeroImage {
+  url: string;
+  alt: string;
+  caption?: string;
+  credit?: string;
+}
+
+export interface FeaturedVideo {
+  url: string;
+  title?: string;
+  caption?: string;
+}
+
+export interface Callout {
+  type: "highlight" | "note" | "warning";
+  content: string;
+  position: string;
+}
+
+export interface NewsletterMetadata {
+  hero_image?: HeroImage | null;
+  featured_video?: FeaturedVideo | null;
+  callouts?: Callout[];
+  section_labels?: Record<string, string>;
+  reading_time_minutes?: number;
+  edition_number?: number;
+  companies_mentioned?: string[];
+  topics?: string[];
+  items?: Array<{
+    title: string;
+    url: string;
+    source_name: string;
+    summary: string;
+    composite_score: number;
+    image_url?: string;
+    video_url?: string;
+  }>;
+  item_count?: number;
+  total_sources?: number;
+}
+
 export interface Newsletter {
   slug: string;
   edition: number;
@@ -14,6 +55,7 @@ export interface Newsletter {
   gradientIndex: 1 | 2 | 3 | 4 | 5 | 6;
   body: string;
   sources: string[];
+  metadata: NewsletterMetadata | null;
 }
 
 /** Shape returned by the content API (list and detail views). */
@@ -34,6 +76,7 @@ export interface ContentApiItem {
   subtitle?: string | null;
   body_md?: string;
   body_html?: string | null;
+  metadata_?: NewsletterMetadata | null;
 }
 
 const VALID_AGENTS = new Set(Object.keys(AGENT_PERSONAS));
@@ -73,6 +116,7 @@ export function mapApiToNewsletter(item: ContentApiItem, index: number = 0): New
     gradientIndex,
     body: item.body_md ?? "",
     sources: item.sources ?? [],
+    metadata: item.metadata_ ?? null,
   };
 }
 
@@ -116,6 +160,7 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
       "https://www.bloomberg.com/news/articles/2026-02-07/ai-startups-vertical",
       "https://restofworld.org/2026/latam-ai-landscape",
     ],
+    metadata: null,
   },
   {
     slug: "briefing-46-healthtech-latam",
@@ -131,6 +176,7 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 2,
     body: "Healthtech emergiu como a vertical de maior crescimento na America Latina nos ultimos 12 meses, com um salto de 340% em volume de investimento. A convergencia de regulamentacao digital de saude em Brasil, Mexico e Colombia abriu portas para startups que antes enfrentavam barreiras regulatorias intransponiveis. O ecossistema esta maduro para consolidacao.",
     sources: [],
+    metadata: null,
   },
   {
     slug: "briefing-45-mapa-calor-talento",
@@ -146,6 +192,7 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 3,
     body: "A distribuicao de talento tecnico na America Latina esta mudando rapidamente. Sao Paulo continua liderando em volume absoluto, mas cidades como Medellin, Guadalajara e Florianopolis estao crescendo a taxas superiores. O mapa de calor revela corredores de especializacao: fintech em SP, gamedev em Buenos Aires, e infraestrutura cloud em Santiago.",
     sources: [],
+    metadata: null,
   },
   {
     slug: "briefing-44-serie-a-latam",
@@ -161,6 +208,7 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 4,
     body: "O mercado de Series A na America Latina encontrou um novo equilibrio. Apos a correcao de 2023-2024, as rodadas estao se estabilizando na faixa de US$5-15M, com valuations mais racionais e investidores exigindo metricas reais de traction. Softbank voltou ao mercado brasileiro com uma tese focada em AI-native companies, sinalizando confianca renovada no ecossistema.",
     sources: [],
+    metadata: null,
   },
   {
     slug: "briefing-43-ecossistema-colombia",
@@ -176,6 +224,7 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 5,
     body: "Colombia esta emergindo silenciosamente como um dos ecossistemas de tecnologia mais promissores da America Latina. Com uma combinacao unica de talento tecnico acessivel, fuso horario alinhado com os EUA, e politicas publicas favoraveis a inovacao, Bogota e Medellin estao atraindo fundos internacionais que antes focavam exclusivamente em Brasil e Mexico.",
     sources: [],
+    metadata: null,
   },
   {
     slug: "briefing-42-rust-fintechs",
@@ -191,6 +240,7 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 6,
     body: "Uma tendencia clara esta surgindo entre as fintechs de grande escala na America Latina: a migracao gradual de servicos criticos de Python e Go para Rust. O motivo nao e performance pura, mas sim a combinacao de seguranca de memoria, previsibilidade de latencia e reducao de custos de infraestrutura cloud que Rust proporciona em ambientes de alta throughput.",
     sources: [],
+    metadata: null,
   },
   {
     slug: "briefing-41-ai-agents-producao",
@@ -206,6 +256,7 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 1,
     body: "As primeiras empresas latino-americanas a colocar AI agents em producao estao compartilhando licoes valiosas. O consenso emergente e claro: agents sao muito mais dificeis de operar do que chatbots simples. A complexidade de orquestracao, monitoramento de alucinacoes e gestao de custos de inferencia exige uma maturidade operacional que poucos times possuem hoje.",
     sources: [],
+    metadata: null,
   },
 ];
 
@@ -226,6 +277,7 @@ export const FALLBACK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 1,
     body: "",
     sources: [],
+    metadata: null,
   },
   {
     slug: "briefing-46-healthtech-latam",
@@ -241,6 +293,7 @@ export const FALLBACK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 2,
     body: "",
     sources: [],
+    metadata: null,
   },
   {
     slug: "briefing-45-mapa-calor-talento",
@@ -256,5 +309,6 @@ export const FALLBACK_NEWSLETTERS: Newsletter[] = [
     gradientIndex: 3,
     body: "",
     sources: [],
+    metadata: null,
   },
 ];

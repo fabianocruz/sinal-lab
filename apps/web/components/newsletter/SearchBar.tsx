@@ -6,9 +6,13 @@ import { Search } from "lucide-react";
 
 interface SearchBarProps {
   placeholder?: string;
+  basePath?: string;
 }
 
-export default function SearchBar({ placeholder = "Buscar edições..." }: SearchBarProps) {
+export default function SearchBar({
+  placeholder = "Buscar edições...",
+  basePath = "/newsletter",
+}: SearchBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -29,7 +33,7 @@ export default function SearchBar({ placeholder = "Buscar edições..." }: Searc
       }
       // Reset to page 1 whenever the search query changes.
       params.delete("page");
-      router.push(`/newsletter?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`);
     }, 300);
   }
 

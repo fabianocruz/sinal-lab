@@ -27,7 +27,7 @@ import hashlib
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Dict, Optional
 
 import httpx
 
@@ -105,6 +105,7 @@ def parse_tweet(
     tweet: dict,
     source_name: str,
     users: dict[str, dict],
+    media_map: Optional[Dict[str, dict]] = None,
 ) -> Optional[FeedItem]:
     """Parse an X API v2 tweet JSON object into a FeedItem.
 
@@ -117,6 +118,8 @@ def parse_tweet(
         tweet: Raw tweet dict from X API v2 response data[].
         source_name: Source name for this item (e.g. "twitter_fintech").
         users: Dict mapping author_id to user dict (from includes.users).
+        media_map: Optional dict mapping media_key to media dict (from
+            includes.media). Used to extract image_url and video_url.
 
     Returns:
         FeedItem or None if tweet lacks required fields.
@@ -169,6 +172,25 @@ def parse_tweet(
     if len(text) > 100:
         title += "..."
 
+    # Extract media (photo / video) from attachments expansion
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    if media_map:
+        attachments = tweet.get("attachments", {})
+        media_keys = attachments.get("media_keys", [])
+        for mk in media_keys:
+            media = media_map.get(mk)
+            if not media:
+                continue
+            media_type = media.get("type", "")
+            if media_type == "photo" and not image_url:
+                image_url = media.get("url")
+            elif media_type == "video" and not video_url:
+                video_url = f"https://x.com/i/status/{tweet_id}"
+                # Use video thumbnail as image if no photo was found
+                if not image_url:
+                    image_url = media.get("preview_image_url")
+
     return FeedItem(
         title=title,
         url=expanded_url,
@@ -178,6 +200,8 @@ def parse_tweet(
         author=author,
         tags=[],
         content_hash=hashlib.md5(expanded_url.encode()).hexdigest(),
+        image_url=image_url,
+        video_url=video_url,
     )
 
 
@@ -206,9 +230,10 @@ def fetch_twitter_results(
     params = {
         "query": query,
         "max_results": max_results,
-        "tweet.fields": "created_at,author_id,entities",
-        "expansions": "author_id",
+        "tweet.fields": "created_at,author_id,entities,attachments",
+        "expansions": "author_id,attachments.media_keys",
         "user.fields": "username",
+        "media.fields": "url,preview_image_url,type",
     }
     headers = {
         "Authorization": f"Bearer {bearer_token}",
@@ -237,9 +262,16 @@ def fetch_twitter_results(
     for user in includes.get("users", []):
         users[user.get("id", "")] = user
 
+    # Build media lookup from includes
+    media_map: dict[str, dict] = {}
+    for media in includes.get("media", []):
+        media_key = media.get("media_key", "")
+        if media_key:
+            media_map[media_key] = media
+
     items: list[FeedItem] = []
     for tweet in tweets:
-        item = parse_tweet(tweet, source_name, users)
+        item = parse_tweet(tweet, source_name, users, media_map)
         if item:
             items.append(item)
 

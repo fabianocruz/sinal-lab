@@ -14,6 +14,7 @@ from apps.agents.base.config import DataSourceConfig
 from apps.agents.sources.bluesky import (
     BLUESKY_SEARCH_ENDPOINT,
     BlueskyPost,
+    _extract_media_urls,
     build_post_url,
     fetch_bluesky_search,
     parse_bluesky_post,
@@ -98,6 +99,20 @@ class TestBlueskyPost:
         assert post.reply_count == 0
         assert post.repost_count == 0
         assert post.created_at is None
+        assert post.image_url is None
+        assert post.video_url is None
+
+    def test_image_url_and_video_url_stored(self) -> None:
+        """image_url and video_url stored when provided."""
+        post = BlueskyPost(
+            text="Post with media",
+            url="https://bsky.app/profile/test.bsky.social/post/123",
+            source_name="test",
+            image_url="https://cdn.bsky.app/img/thumb.jpg",
+            video_url="https://video.bsky.app/watch/playlist.m3u8",
+        )
+        assert post.image_url == "https://cdn.bsky.app/img/thumb.jpg"
+        assert post.video_url == "https://video.bsky.app/watch/playlist.m3u8"
 
     def test_custom_content_hash_not_overwritten(self) -> None:
         """Custom content_hash is preserved."""
@@ -148,6 +163,123 @@ class TestBlueskyPost:
             source_name="test",
         )
         assert post.text == ""
+
+
+class TestExtractMediaUrls:
+    """Test _extract_media_urls for Bluesky embed types."""
+
+    def test_images_view_extracts_first_thumb(self) -> None:
+        """app.bsky.embed.images#view → first image thumb."""
+        raw_post = {
+            "embed": {
+                "$type": "app.bsky.embed.images#view",
+                "images": [
+                    {"thumb": "https://cdn.bsky.app/img/thumb1.jpg", "fullsize": "https://cdn.bsky.app/img/full1.jpg"},
+                    {"thumb": "https://cdn.bsky.app/img/thumb2.jpg"},
+                ],
+            }
+        }
+        img, vid = _extract_media_urls(raw_post)
+        assert img == "https://cdn.bsky.app/img/thumb1.jpg"
+        assert vid is None
+
+    def test_images_view_falls_back_to_fullsize(self) -> None:
+        """Falls back to fullsize when thumb is missing."""
+        raw_post = {
+            "embed": {
+                "$type": "app.bsky.embed.images#view",
+                "images": [
+                    {"fullsize": "https://cdn.bsky.app/img/full.jpg"},
+                ],
+            }
+        }
+        img, vid = _extract_media_urls(raw_post)
+        assert img == "https://cdn.bsky.app/img/full.jpg"
+
+    def test_external_view_extracts_thumb(self) -> None:
+        """app.bsky.embed.external#view → external thumb."""
+        raw_post = {
+            "embed": {
+                "$type": "app.bsky.embed.external#view",
+                "external": {
+                    "uri": "https://example.com/article",
+                    "title": "Article",
+                    "thumb": "https://cdn.bsky.app/img/external-thumb.jpg",
+                },
+            }
+        }
+        img, vid = _extract_media_urls(raw_post)
+        assert img == "https://cdn.bsky.app/img/external-thumb.jpg"
+        assert vid is None
+
+    def test_video_view_extracts_thumbnail_and_playlist(self) -> None:
+        """app.bsky.embed.video#view → thumbnail + playlist."""
+        raw_post = {
+            "embed": {
+                "$type": "app.bsky.embed.video#view",
+                "thumbnail": "https://video.bsky.app/thumb.jpg",
+                "playlist": "https://video.bsky.app/watch/abc/playlist.m3u8",
+            }
+        }
+        img, vid = _extract_media_urls(raw_post)
+        assert img == "https://video.bsky.app/thumb.jpg"
+        assert vid == "https://video.bsky.app/watch/abc/playlist.m3u8"
+
+    def test_record_with_media_unwraps_inner_embed(self) -> None:
+        """app.bsky.embed.recordWithMedia#view → unwraps inner media."""
+        raw_post = {
+            "embed": {
+                "$type": "app.bsky.embed.recordWithMedia#view",
+                "media": {
+                    "$type": "app.bsky.embed.images#view",
+                    "images": [
+                        {"thumb": "https://cdn.bsky.app/img/quoted.jpg"},
+                    ],
+                },
+                "record": {"$type": "app.bsky.embed.record#view"},
+            }
+        }
+        img, vid = _extract_media_urls(raw_post)
+        assert img == "https://cdn.bsky.app/img/quoted.jpg"
+        assert vid is None
+
+    def test_no_embed_returns_none_tuple(self) -> None:
+        """Post with no embed returns (None, None)."""
+        raw_post = {}
+        img, vid = _extract_media_urls(raw_post)
+        assert img is None
+        assert vid is None
+
+    def test_empty_embed_returns_none_tuple(self) -> None:
+        """Post with empty embed dict returns (None, None)."""
+        raw_post = {"embed": {}}
+        img, vid = _extract_media_urls(raw_post)
+        assert img is None
+        assert vid is None
+
+    def test_unknown_embed_type_returns_none_tuple(self) -> None:
+        """Unknown embed type returns (None, None)."""
+        raw_post = {
+            "embed": {
+                "$type": "app.bsky.embed.unknown#view",
+                "data": "something",
+            }
+        }
+        img, vid = _extract_media_urls(raw_post)
+        assert img is None
+        assert vid is None
+
+    def test_empty_images_list(self) -> None:
+        """images#view with empty images list returns (None, None)."""
+        raw_post = {
+            "embed": {
+                "$type": "app.bsky.embed.images#view",
+                "images": [],
+            }
+        }
+        img, vid = _extract_media_urls(raw_post)
+        assert img is None
+        assert vid is None
 
 
 class TestBuildPostUrl:
@@ -380,6 +512,62 @@ class TestParseBlueskyPost:
 
         assert post is not None
         assert post.url == "https://bsky.app/profile/custom.domain.com/post/3xyz789"
+
+    def test_extracts_image_from_images_embed(self) -> None:
+        """parse_bluesky_post passes image_url from images embed."""
+        raw_post = {
+            "uri": "at://did:plc:abc123/app.bsky.feed.post/3abc123",
+            "author": {"handle": "test.bsky.social"},
+            "record": {
+                "text": "Post with image",
+                "createdAt": "2026-02-15T10:00:00.000Z",
+            },
+            "embed": {
+                "$type": "app.bsky.embed.images#view",
+                "images": [
+                    {"thumb": "https://cdn.bsky.app/img/photo.jpg"},
+                ],
+            },
+        }
+        post = parse_bluesky_post(raw_post, "test")
+        assert post is not None
+        assert post.image_url == "https://cdn.bsky.app/img/photo.jpg"
+        assert post.video_url is None
+
+    def test_extracts_video_from_video_embed(self) -> None:
+        """parse_bluesky_post passes video_url from video embed."""
+        raw_post = {
+            "uri": "at://did:plc:abc123/app.bsky.feed.post/3abc123",
+            "author": {"handle": "test.bsky.social"},
+            "record": {
+                "text": "Post with video",
+                "createdAt": "2026-02-15T10:00:00.000Z",
+            },
+            "embed": {
+                "$type": "app.bsky.embed.video#view",
+                "thumbnail": "https://video.bsky.app/thumb.jpg",
+                "playlist": "https://video.bsky.app/watch/playlist.m3u8",
+            },
+        }
+        post = parse_bluesky_post(raw_post, "test")
+        assert post is not None
+        assert post.image_url == "https://video.bsky.app/thumb.jpg"
+        assert post.video_url == "https://video.bsky.app/watch/playlist.m3u8"
+
+    def test_no_embed_produces_none_media(self) -> None:
+        """Post with no embed has None image_url and video_url."""
+        raw_post = {
+            "uri": "at://did:plc:abc123/app.bsky.feed.post/3abc123",
+            "author": {"handle": "test.bsky.social"},
+            "record": {
+                "text": "Text-only post",
+                "createdAt": "2026-02-15T10:00:00.000Z",
+            },
+        }
+        post = parse_bluesky_post(raw_post, "test")
+        assert post is not None
+        assert post.image_url is None
+        assert post.video_url is None
 
 
 class TestFetchBlueskySearch:

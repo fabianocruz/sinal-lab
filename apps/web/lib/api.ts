@@ -4,6 +4,7 @@
  * Ported from Vite SPA. Uses NEXT_PUBLIC_API_URL instead of VITE_API_BASE_URL.
  */
 
+import type { Company } from "@/lib/company";
 import type { ContentApiItem } from "@/lib/newsletter";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -151,6 +152,54 @@ export async function fetchNewsletterBySlug(slug: string): Promise<ContentApiIte
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Companies
+// ---------------------------------------------------------------------------
+
+export async function fetchCompanies(params?: {
+  sector?: string;
+  city?: string;
+  country?: string;
+  tags?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<Company>> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.sector) searchParams.set("sector", params.sector);
+    if (params?.city) searchParams.set("city", params.city);
+    if (params?.country) searchParams.set("country", params.country);
+    if (params?.tags) searchParams.set("tags", params.tags);
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+
+    const url = `${API_BASE}/api/companies?${searchParams.toString()}`;
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
+    return response.json();
+  } catch {
+    return { items: [], total: 0, limit: 20, offset: 0 };
+  }
+}
+
+export async function fetchCompanyBySlug(slug: string): Promise<Company | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/companies/${slug}`, {
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
 
 export async function healthCheck(): Promise<boolean> {
   try {

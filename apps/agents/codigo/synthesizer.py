@@ -253,10 +253,11 @@ def synthesize_dev_report(
         lines.append("")
 
     # Footer
+    persona_footer = get_display_name("codigo")
     lines.append("## Metodologia")
     lines.append("")
     lines.append(
-        "O agente **CODIGO** monitora GitHub trending (daily/weekly), registro npm, "
+        f"**{persona_footer}** monitora GitHub trending (daily/weekly), registro npm, "
         "PyPI, Stack Overflow, e comunidades dev para identificar frameworks, "
         "bibliotecas e ferramentas em ascensao. Cada sinal e analisado por "
         "momentum, atividade da comunidade e relevancia da linguagem."

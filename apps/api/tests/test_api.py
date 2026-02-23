@@ -254,7 +254,9 @@ class TestCompaniesRouter:
     def test_list_companies_empty(self, client: TestClient):
         response = client.get("/api/companies")
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
 
     def test_list_companies_with_data(self, client: TestClient, db_session: Session):
         company = Company(
@@ -267,8 +269,8 @@ class TestCompaniesRouter:
         response = client.get("/api/companies")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["name"] == "Nubank"
+        assert len(data["items"]) == 1
+        assert data["items"][0]["name"] == "Nubank"
 
     def test_get_company_by_slug(self, client: TestClient, db_session: Session):
         company = Company(
@@ -295,7 +297,7 @@ class TestCompaniesRouter:
 
         response = client.get("/api/companies?sector=fintech")
         assert response.status_code == 200
-        assert len(response.json()) == 2
+        assert len(response.json()["items"]) == 2
 
     def test_filter_by_city(self, client: TestClient, db_session: Session):
         db_session.add(Company(
@@ -310,7 +312,7 @@ class TestCompaniesRouter:
 
         response = client.get("/api/companies?city=Florianopolis")
         assert response.status_code == 200
-        assert len(response.json()) == 1
+        assert len(response.json()["items"]) == 1
 
 
 # ===== Waitlist Router =====
