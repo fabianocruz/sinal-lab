@@ -317,8 +317,8 @@ def test_get_content_by_slug_metadata_null_when_not_set(client, sample_content):
     assert data["metadata_"] is None
 
 
-def test_list_content_omits_metadata(client, db_session):
-    """Test that list endpoint does NOT include metadata_ (keeps response lean)."""
+def test_list_content_includes_metadata(client, db_session):
+    """Test that list endpoint includes metadata_ for rich card subtitles."""
     piece = ContentPiece(
         slug="list-metadata-test",
         title="List Metadata Test",
@@ -339,4 +339,5 @@ def test_list_content_omits_metadata(client, db_session):
     data = response.json()
 
     for item in data["items"]:
-        assert "metadata_" not in item
+        assert "metadata_" in item
+    assert data["items"][0]["metadata_"]["hero_image"]["url"] == "https://img.example.com/hero.jpg"
