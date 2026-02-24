@@ -184,12 +184,44 @@ def from_crunchbase(
     )
 
 
+def from_startups_latam(
+    company,  # StartupsLatamCompany
+    confidence: float = 0.7,
+) -> CandidateCompany:
+    """Convert a StartupsLatam record to CandidateCompany.
+
+    Args:
+        company: StartupsLatamCompany dataclass.
+        confidence: Source confidence (default 0.7 for curated directory).
+
+    Returns:
+        CandidateCompany with slug and name as dedup keys.
+    """
+    from apps.agents.sources.startups_latam import INDUSTRY_ALIASES
+
+    # Map StartupsLatam industry → sector normalizer input
+    raw_sector = INDUSTRY_ALIASES.get(company.industry, company.industry)
+    sector = normalize_sector(raw_sector)
+
+    return CandidateCompany(
+        name=company.name,
+        slug=company.slug,
+        description=company.description,
+        sector=sector,
+        country=company.country,
+        source_name="startups_latam",
+        confidence=confidence,
+        tags=[company.industry.lower()] if company.industry else [],
+    )
+
+
 def convert_all(
     receita_companies: list = None,
     abstartups_companies: list = None,
     yc_companies: list = None,
     github_profiles: list = None,
     crunchbase_companies: list = None,
+    startups_latam_companies: list = None,
 ) -> list[CandidateCompany]:
     """Convert all source records to CandidateCompany format.
 
@@ -229,6 +261,11 @@ def convert_all(
         for c in crunchbase_companies:
             candidates.append(from_crunchbase(c))
         logger.info("Converted %d Crunchbase records", len(crunchbase_companies))
+
+    if startups_latam_companies:
+        for c in startups_latam_companies:
+            candidates.append(from_startups_latam(c))
+        logger.info("Converted %d StartupsLatam records", len(startups_latam_companies))
 
     logger.info("Total candidates converted: %d", len(candidates))
     return candidates

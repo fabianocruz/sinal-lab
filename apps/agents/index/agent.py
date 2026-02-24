@@ -124,6 +124,26 @@ class IndexAgent(BaseAgent):
             except Exception as e:
                 logger.warning("YC Portfolio collection failed: %s", e)
 
+        # StartupsLatam
+        sl_source = self.config.get_source_by_name("startups_latam")
+        if sl_source and sl_source.enabled:
+            try:
+                import httpx
+                from apps.agents.sources.startups_latam import fetch_startups_latam
+                with httpx.Client(timeout=15.0) as client:
+                    sl_companies = fetch_startups_latam(sl_source, client)
+                if sl_companies:
+                    collected["startups_latam"] = sl_companies
+                    self._sources_used.append("startups_latam")
+                    self.provenance.track(
+                        source_url="https://startupslatam.com/startups/",
+                        source_name="startups_latam",
+                        extraction_method="api",
+                    )
+                    logger.info("StartupsLatam: %d startups", len(sl_companies))
+            except Exception as e:
+                logger.warning("StartupsLatam collection failed: %s", e)
+
         # GitHub org search
         github_sources = [s for s in self.config.data_sources if "github" in s.name and s.enabled]
         if github_sources:
@@ -167,6 +187,7 @@ class IndexAgent(BaseAgent):
             yc_companies=collected.get("yc_portfolio"),
             github_profiles=collected.get("github"),
             crunchbase_companies=collected.get("crunchbase"),
+            startups_latam_companies=collected.get("startups_latam"),
         )
 
         # Run pipeline with empty indices (no DB in process phase)

@@ -75,6 +75,14 @@ INDEX_SOURCES: list[DataSourceConfig] = [
         params={"q": 'location:"Lima" type:org repos:>3', "sort": "repositories", "per_page": 30},
     ),
 
+    # StartupsLatam — WordPress REST API directory (510+ startups)
+    DataSourceConfig(
+        name="startups_latam",
+        source_type="api",
+        url="https://startupslatam.com/wp-json/wp/v2/startup",
+        params={"confidence": 0.7},
+    ),
+
     # Crunchbase Open Data CSV (optional, bulk file)
     DataSourceConfig(
         name="crunchbase_open",
