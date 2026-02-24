@@ -20,7 +20,6 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "24 de fevereiro de 2026";
 const COMPANY = "Sinal Tecnologia Ltda.";
 const CNPJ = "59.864.556/0001-79";
-const EMAIL = "contato@sinal.tech";
 
 const TOC = [
   "Definições",

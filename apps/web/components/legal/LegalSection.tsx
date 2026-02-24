@@ -1,3 +1,5 @@
+import React from "react";
+
 interface LegalSectionProps {
   id: string;
   num: string;
