@@ -16,7 +16,7 @@ Coletam, normalizam e indexam dados sobre **todas** as startups e empresas de te
 |-------|--------|--------|
 | **FUNDING** | Capital Flow Tracker | Todas as rodadas de investimento LATAM |
 | **MERCADO** | Market Intelligence | Inteligência de mercado do ecossistema completo |
-| **INDEX** *(planned)* | Startup Ranking | Ranking abrangente de startups LATAM |
+| **INDEX** | LATAM Startup Index | Registro abrangente de startups LATAM (collectors, pipeline, scorer, persistence) |
 
 ### Agents de Conteúdo (filtrados pela linha editorial)
 
@@ -628,6 +628,71 @@ Key functions:
 
 **Cross-source dedup:** `CrunchbaseFundingRound.content_hash` uses `company_name-round_type` (compatible with FUNDING agent's `FundingEvent` dedup).
 
+#### YC Portfolio — Algolia Search API (`yc_portfolio.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `POST https://45BWZJ1SGC-dsn.algolia.net/1/indexes/YCCompany_production/query` |
+| **Auth** | None (public Algolia search-only key embedded) |
+| **Rate Limits** | No practical limit for search-only queries |
+| **Agents** | INDEX (`yc_portfolio`) |
+| **Dataclass** | `YCCompany` (name, slug, batch, vertical, city, country, region, website, description, status, team_size) |
+| **Tests** | 43 tests in `test_yc_portfolio.py` |
+
+Key functions:
+- `fetch_yc_companies(source, client)` — fetches via Algolia, falls back to legacy HTML endpoint on failure
+- `_fetch_via_algolia(client, hits_per_page, latam_only)` — paginates through Algolia index with `facetFilters: [["regions:Latin America", "regions:South America"]]`
+- `_fetch_via_legacy(source, client)` — fallback that requests JSON from `ycombinator.com/companies`
+- `filter_latam(companies)` — client-side filter using country, region, and city fields
+- `_is_latam_location(country, city, region)` — checks against `LATAM_COUNTRIES` (20+ countries) and `LATAM_CITIES` (19 cities)
+
+**Algolia rewrite:** The original collector scraped HTML; this version uses the Algolia Search API backend that powers `ycombinator.com/companies`. Server-side `facetFilters` request only LATAM-region companies, returning ~217 results with structured fields (name, slug, batch, industry, website, one_liner, team_size, regions). This avoids the 1000-hit search cap and eliminates HTML parsing.
+
+**Fallback:** If Algolia fails (timeout, 403, etc.), the collector tries the legacy HTML/JSON endpoint before returning empty.
+
+#### StartupsLatam.com — WordPress REST API (`startups_latam.py`)
+
+| | |
+|---|---|
+| **Endpoint** | `GET https://startupslatam.com/wp-json/wp/v2/startup?per_page=100&page=N` |
+| **Auth** | None (public WordPress REST API) |
+| **Rate Limits** | No official limit (standard WP rate limiting) |
+| **Agents** | INDEX (`startups_latam`) |
+| **Dataclass** | `StartupsLatamCompany` (name, slug, description, industry, country, website, source_url, wp_id, industry_ids) |
+| **Tests** | 43 tests in `test_startups_latam.py` |
+
+Key functions:
+- `fetch_startups_latam(source, client)` — paginates through all startup pages, resolving industry taxonomy
+- `fetch_industries(client)` — fetches `GET /wp-json/wp/v2/industry` taxonomy mapping (id to name)
+- `_parse_startup(item, industry_map)` — parses WP JSON item, strips HTML, resolves industries, detects country
+- `_detect_country(text)` — detects country from Spanish-language content via nationality adjective regex patterns (e.g., `chilena` -> Chile, `mexicana` -> Mexico)
+
+**Industry mapping:** 26 industry categories from StartupsLatam's custom WP taxonomy are mapped to English equivalents via `INDUSTRY_ALIASES` dict for compatibility with the platform's `SECTOR_OPTIONS` normalizer.
+
+**Country detection:** Since StartupsLatam does not store country as a structured field, `_detect_country()` scans the first 500 characters of content text for nationality adjectives (`brasileira`, `chilena`, `colombiana`, etc.) and direct country mentions (`Chile`, `Brasil`, `México`, etc.) using regex patterns for 12 LATAM countries.
+
+**Volume:** 510+ LATAM startups across 6+ paginated pages (100 per page).
+
+#### CoreSignal — B2B Company Data API (`coresignal.py`)
+
+| | |
+|---|---|
+| **Search** | `POST https://api.coresignal.com/cdapi/v2/company_base/search/filter` |
+| **Collect** | `GET https://api.coresignal.com/cdapi/v2/company_base/collect/{id}` |
+| **Auth** | `CORESIGNAL_API_KEY` env var (`apikey` header) |
+| **Rate Limits** | Varies by plan |
+| **Agents** | INDEX (`coresignal_latam` — disabled by default) |
+| **Dataclass** | `CoreSignalCompany` (name, website, industry, employees_count, founded, hq_location, linkedin_url, funding_rounds) |
+| **Tests** | Pending (module planned) |
+
+Key functions:
+- `search_companies(source, client, filters)` — search by location/industry filters
+- `collect_company(source, client, company_id)` — fetch full company profile by ID
+
+**Data richness:** CoreSignal provides LinkedIn-sourced company data including employee counts, founding date, HQ location, LinkedIn URL, and funding round history. This complements other sources (YC, StartupsLatam, Crunchbase) with employment and social data not available elsewhere.
+
+**Classification: PLANNED.** Source is `enabled=False` by default. Requires `CORESIGNAL_API_KEY` to activate.
+
 #### Environment Variables Summary
 
 | Variable | Source | Required |
@@ -639,10 +704,13 @@ Key functions:
 | — | Bluesky (AT Protocol) | No credentials needed |
 | `PRODUCTHUNT_TOKEN` | ProductHunt GraphQL | Optional |
 | `CRUNCHBASE_API_KEY` | Crunchbase Basic API | Optional |
+| — | YC Portfolio (Algolia) | No credentials needed |
+| — | StartupsLatam.com (WordPress API) | No credentials needed |
+| `CORESIGNAL_API_KEY` | CoreSignal B2B Company Data | Optional (source disabled by default) |
 
 All agents produce valid output without any API keys. Sources degrade independently — a missing key skips only that source.
 
-#### Test Coverage (188 tests across 7 modules)
+#### Test Coverage (274 tests across 9 modules)
 
 ```
 apps/agents/sources/tests/
@@ -652,7 +720,9 @@ apps/agents/sources/tests/
 ├── test_reddit.py           # 25 tests
 ├── test_bluesky.py          # 29 tests
 ├── test_producthunt.py      # 23 tests
-└── test_crunchbase.py       # 31 tests
+├── test_crunchbase.py       # 31 tests
+├── test_yc_portfolio.py     # 43 tests
+└── test_startups_latam.py   # 43 tests
 ```
 
 Run all source tests: `pytest apps/agents/sources/tests/ -v`
@@ -1053,6 +1123,7 @@ CRUNCHBASE_API_KEY=        # Crunchbase Basic API key
 RAPIDAPI_KEY=              # LinkedIn RapidAPI key (experimental)
 GITHUB_TOKEN=              # GitHub Personal Access Token (optional, higher rate limits)
 DEALROOM_API_KEY=          # Dealroom API key (disabled source)
+CORESIGNAL_API_KEY=        # CoreSignal B2B company data API key (disabled source)
 
 # LLM (optional — agents fall back to template output)
 ANTHROPIC_API_KEY=
@@ -1106,6 +1177,8 @@ All RSS/Atom and API data sources should be periodically validated. Common failu
 
 **MERCADO** (6+ total, 5+ enabled): GitHub API sources switched from `/search/repositories` to `/search/users`. Dealroom API remains disabled. Added: Google Trends (latam_tech), LinkedIn companies (disabled), Crunchbase API (companies LATAM).
 
+**INDEX** (13 total, 10+ enabled): Bulk LATAM startup registry combining multiple source types. YC Portfolio rewritten to use Algolia Search API (217 LATAM companies, falls back to legacy HTML). StartupsLatam.com added via WordPress REST API (510+ startups, 26 industry categories). GitHub org search reused from MERCADO (7 cities). Crunchbase API reused for company search. CoreSignal planned but disabled (awaiting API key). Receita Federal and Crunchbase Open Data are file-based sources, disabled by default (enabled at runtime with `--rf-file`). ABStartups via StartupBase API.
+
 ### `max_items` Field
 
 `DataSourceConfig.max_items` caps the number of entries parsed from a feed. Useful for feeds that return their full archive (e.g., Vercel Atom returns 1300+ entries). Set to `None` (default) for no limit.
@@ -1156,5 +1229,8 @@ Antes de considerar um agente "completo":
 - [bluesky](../apps/agents/sources/bluesky.py) — Bluesky AT Protocol
 - [producthunt](../apps/agents/sources/producthunt.py) — ProductHunt GraphQL API
 - [crunchbase](../apps/agents/sources/crunchbase.py) — Crunchbase Basic API
+- [yc_portfolio](../apps/agents/sources/yc_portfolio.py) — YC Portfolio (Algolia Search API)
+- [startups_latam](../apps/agents/sources/startups_latam.py) — StartupsLatam.com (WordPress REST API)
+- [coresignal](../apps/agents/sources/coresignal.py) — CoreSignal B2B Company Data (planned)
 
 **Exemplo de referência**: [apps/agents/sintese](../apps/agents/sintese/) — Agente SINTESE completo

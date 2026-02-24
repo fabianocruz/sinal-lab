@@ -114,6 +114,50 @@ RADAR_SOURCES: list[DataSourceConfig] = [
         params={"subreddit": "MachineLearning", "sort": "hot", "limit": 25},
     ),
 
+    # --- Fintech / DeFi / Crypto (RSS feeds) ---
+    DataSourceConfig(
+        name="coindesk",
+        source_type="rss",
+        url="https://www.coindesk.com/arc/outboundfeeds/rss/",
+    ),
+    DataSourceConfig(
+        name="cointelegraph_defi",
+        source_type="rss",
+        url="https://cointelegraph.com/rss/tag/defi",
+    ),
+    DataSourceConfig(
+        name="decrypt",
+        source_type="rss",
+        url="https://decrypt.co/feed",
+    ),
+    DataSourceConfig(
+        name="theblock",
+        source_type="rss",
+        url="https://www.theblock.co/rss.xml",
+    ),
+    DataSourceConfig(
+        name="fintechnews_latam",
+        source_type="rss",
+        url="https://fintechnews.am/feed/",
+    ),
+
+    # --- Reddit (fintech/crypto communities) ---
+    DataSourceConfig(
+        name="reddit_defi", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "defi", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_cryptocurrency", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "CryptoCurrency", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_ethfinance", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "ethfinance", "sort": "hot", "limit": 25},
+    ),
+
     # --- Bluesky (AT Protocol, no auth) ---
     DataSourceConfig(
         name="bluesky_tech_trends", source_type="api",

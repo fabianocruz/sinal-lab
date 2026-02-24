@@ -50,6 +50,10 @@ class TestCategorizeSignal:
         signal = make_signal(title="Vector database with postgres and redis support")
         assert categorize_signal(signal) == "databases"
 
+    def test_fintech_infra(self):
+        signal = make_signal(title="Blockchain smart contract defi stablecoin wallet")
+        assert categorize_signal(signal) == "fintech_infra"
+
     def test_general_fallback(self):
         signal = make_signal(title="Random project xyz")
         assert categorize_signal(signal) == "general"
@@ -77,6 +81,10 @@ class TestComputeLanguageWeight:
     def test_no_language_uses_tags(self):
         signal = make_signal(language=None, tags=["python", "ai"])
         assert compute_language_weight(signal) == 0.9
+
+    def test_solidity_weight(self):
+        signal = make_signal(language="Solidity")
+        assert compute_language_weight(signal) == 0.7
 
     def test_no_language_no_tags(self):
         signal = make_signal(language=None, tags=[])
