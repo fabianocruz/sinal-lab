@@ -11,13 +11,68 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from apps.agents.index.pipeline import MergedCompany
+from apps.agents.index.pipeline import FUNDING_STAGE_PRIORITY, MergedCompany
 from apps.agents.sources.entity_matcher import normalize_cnpj, normalize_domain
 from packages.database.models.company import Company
 from packages.database.models.company_external_id import CompanyExternalId
 from packages.database.models.ecosystem import Ecosystem
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Quality gate — filter out non-startup entities before persistence
+# ---------------------------------------------------------------------------
+
+# Aligned with INDEX_CONFIG.min_confidence_to_publish (0.3).
+# Data agents should store all LATAM companies — the editorial pipeline
+# applies stricter quality filters before publication.
+MIN_INDEX_SCORE = 0.30
+
+_NON_STARTUP_NAME_PATTERNS = (
+    # Universities / education
+    "universid", "universidad", "university", "faculdade", "faculty",
+    "maestría", "mestrado", "doutorado", "licenciatura",
+    "escola", "school", "college", "politécnic",
+    "programa de", "curso de", "disciplina",
+    # Specific institutions
+    "utn ", "ufrj", "usp ", "unicamp", "unam",
+    # Government / non-profit
+    "instituto", "institute",
+    "prefeitura", "gobierno", "government", "ministério", "ministry",
+    "fundação", "fundacion", "foundation",
+    # Churches / religious orgs
+    "igreja", "paróquia", "diocese",
+)
+
+
+def _is_non_startup(name: str) -> bool:
+    """Return True if the name matches a known non-startup pattern."""
+    lower = name.lower()
+    return any(pat in lower for pat in _NON_STARTUP_NAME_PATTERNS)
+
+
+def cleanup_non_startups(session: Session) -> int:
+    """Mark existing non-startup entries as inactive.
+
+    Scans all active companies and deactivates those matching
+    non-startup name patterns. Intended for one-time cleanup runs.
+
+    Args:
+        session: SQLAlchemy session (caller must commit).
+
+    Returns:
+        Number of companies deactivated.
+    """
+    companies = session.query(Company).filter(Company.status == "active").all()
+    deactivated = 0
+    for c in companies:
+        if _is_non_startup(c.name):
+            c.status = "inactive"
+            deactivated += 1
+            logger.info("Deactivated non-startup: %s (slug=%s)", c.name, c.slug)
+    session.flush()
+    logger.info("Cleanup complete: %d non-startup entries deactivated", deactivated)
+    return deactivated
 
 
 def _register_external_ids(
@@ -133,6 +188,18 @@ def upsert_company_from_index(
             existing.twitter_url = merged.twitter_url or existing.twitter_url
             existing.business_model = merged.business_model or existing.business_model
 
+            # Funding: total_funding_usd — take MAX
+            if merged.total_funding_usd is not None:
+                if existing.total_funding_usd is None or merged.total_funding_usd > existing.total_funding_usd:
+                    existing.total_funding_usd = merged.total_funding_usd
+
+            # Funding: funding_stage — take highest priority
+            if merged.funding_stage:
+                cur = FUNDING_STAGE_PRIORITY.get(existing.funding_stage or "", -1)
+                new = FUNDING_STAGE_PRIORITY.get(merged.funding_stage, -1)
+                if new > cur:
+                    existing.funding_stage = merged.funding_stage
+
             # Set CNPJ if available
             if merged.cnpj and not getattr(existing, "cnpj", None):
                 existing.cnpj = merged.cnpj
@@ -183,6 +250,8 @@ def upsert_company_from_index(
         linkedin_url=merged.linkedin_url,
         twitter_url=merged.twitter_url,
         business_model=merged.business_model,
+        funding_stage=merged.funding_stage,
+        total_funding_usd=merged.total_funding_usd,
         tech_stack=merged.tech_stack or None,
         tags=merged.tags or None,
         status="active",
@@ -214,26 +283,42 @@ def persist_index_results(
 ) -> dict[str, int]:
     """Persist all INDEX pipeline results to database.
 
+    Applies quality gate: skips entries below MIN_INDEX_SCORE or
+    matching non-startup name patterns (universities, government, etc.).
+
     Args:
         session: SQLAlchemy session.
         scored_companies: List of (MergedCompany, score) tuples.
 
     Returns:
-        Stats dict: {"inserted": N, "updated": N, "skipped": N, "ext_ids": N}
+        Stats dict: {"inserted": N, "updated": N, "skipped": N, "filtered": N}
     """
-    stats = {"inserted": 0, "updated": 0, "skipped": 0}
+    stats = {"inserted": 0, "updated": 0, "skipped": 0, "filtered": 0}
 
     for merged, score in scored_companies:
+        # Quality gate: minimum score threshold
+        if score < MIN_INDEX_SCORE:
+            logger.debug("Filtered %s (score %.3f < %.3f)", merged.name, score, MIN_INDEX_SCORE)
+            stats["filtered"] += 1
+            continue
+
+        # Quality gate: non-startup name patterns
+        if _is_non_startup(merged.name):
+            logger.debug("Filtered non-startup: %s", merged.name)
+            stats["filtered"] += 1
+            continue
+
         result = upsert_company_from_index(session, merged, score)
         stats[result] = stats.get(result, 0) + 1
 
     session.flush()
 
     logger.info(
-        "INDEX persistence complete: %d inserted, %d updated, %d skipped",
+        "INDEX persistence complete: %d inserted, %d updated, %d skipped, %d filtered",
         stats["inserted"],
         stats["updated"],
         stats["skipped"],
+        stats["filtered"],
     )
 
     return stats

@@ -1,161 +1,327 @@
 import Link from "next/link";
 import type { Company } from "@/lib/company";
+import { getAccentColor, getCountryFlag, formatFunding } from "@/lib/company";
 
 interface CompanyDetailProps {
   company: Company;
 }
 
-export default function CompanyDetail({ company }: CompanyDetailProps) {
+function SideBlock({
+  title,
+  agentColor,
+  children,
+}: {
+  title: string;
+  agentColor?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <article className="mx-auto max-w-[720px] px-6 py-12 md:px-10">
-      {/* Back link */}
-      <Link
-        href="/startups"
-        className="mb-8 inline-flex items-center gap-2 font-mono text-[12px] text-ash transition-colors hover:text-sinal-white"
-      >
-        &larr; Voltar ao Mapa
-      </Link>
-
-      {/* Hero */}
-      <header className="mb-10 border-b border-[rgba(255,255,255,0.06)] pb-10">
-        {/* Sector + source count */}
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          {company.sector && (
-            <span className="rounded-[5px] bg-[rgba(232,255,89,0.06)] px-2 py-1 font-mono text-[11px] uppercase tracking-[1.5px] text-signal">
-              {company.sector}
-            </span>
-          )}
-          {company.sub_sector && (
-            <span className="font-mono text-[11px] tracking-[0.5px] text-ash">
-              {company.sub_sector}
-            </span>
-          )}
-          {company.source_count > 1 && (
-            <span className="rounded-[5px] bg-[rgba(255,255,255,0.04)] px-2 py-1 font-mono text-[10px] text-ash">
-              {company.source_count} fontes
-            </span>
-          )}
-        </div>
-
-        {/* Name */}
-        <h1 className="font-display text-[clamp(24px,4vw,36px)] leading-[1.2] text-sinal-white">
-          {company.name}
-        </h1>
-
-        {/* Location */}
-        {(company.city || company.country) && (
-          <p className="mt-2 font-mono text-[13px] text-ash">
-            {[company.city, company.state, company.country].filter(Boolean).join(", ")}
-          </p>
+    <div className="overflow-hidden rounded-xl border border-sinal-slate bg-sinal-graphite">
+      <div className="flex items-center justify-between border-b border-sinal-slate px-[18px] py-3.5">
+        <span className="font-mono text-[9px] uppercase tracking-[1.5px] text-[#4A4A56]">
+          {title}
+        </span>
+        {agentColor && (
+          <span className="h-[5px] w-[5px] rounded-full" style={{ background: agentColor }} />
         )}
-
-        {/* Description */}
-        {company.description && (
-          <p className="mt-4 text-[16px] leading-relaxed text-silver">{company.description}</p>
-        )}
-      </header>
-
-      {/* Details grid */}
-      <section className="mb-10">
-        <h2 className="mb-4 font-mono text-[12px] uppercase tracking-[1.5px] text-ash">Detalhes</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          {company.founded_date && <DetailItem label="Fundada" value={company.founded_date} />}
-          {company.team_size && <DetailItem label="Equipe" value={`~${company.team_size}`} />}
-          {company.business_model && <DetailItem label="Modelo" value={company.business_model} />}
-        </div>
-      </section>
-
-      {/* Tech stack */}
-      {company.tech_stack && company.tech_stack.length > 0 && (
-        <section className="mb-10">
-          <h2 className="mb-4 font-mono text-[12px] uppercase tracking-[1.5px] text-ash">
-            Tech Stack
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {company.tech_stack.map((tech) => (
-              <span
-                key={tech}
-                className="rounded-lg border border-[rgba(89,180,255,0.2)] bg-[rgba(89,180,255,0.06)] px-3 py-1.5 font-mono text-[11px] text-[#59B4FF]"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Tags */}
-      {company.tags && company.tags.length > 0 && (
-        <section className="mb-10">
-          <h2 className="mb-4 font-mono text-[12px] uppercase tracking-[1.5px] text-ash">Tags</h2>
-          <div className="flex flex-wrap gap-2">
-            {company.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-md border border-[rgba(255,255,255,0.06)] px-3 py-1 font-mono text-[11px] text-ash"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* External links */}
-      {(company.website || company.github_url || company.linkedin_url || company.twitter_url) && (
-        <section className="mb-10">
-          <h2 className="mb-4 font-mono text-[12px] uppercase tracking-[1.5px] text-ash">Links</h2>
-          <div className="flex flex-wrap gap-3">
-            {company.website && <ExternalLink href={company.website} label="Website" />}
-            {company.github_url && <ExternalLink href={company.github_url} label="GitHub" />}
-            {company.linkedin_url && <ExternalLink href={company.linkedin_url} label="LinkedIn" />}
-            {company.twitter_url && <ExternalLink href={company.twitter_url} label="Twitter" />}
-          </div>
-        </section>
-      )}
-
-      {/* Footer */}
-      <div className="mt-12 rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-6">
-        <p className="font-mono text-[12px] text-ash">
-          <strong className="text-bone">Sinal</strong> rastreia startups LATAM via agentes de IA com
-          verificacao multi-fonte.{" "}
-          <Link href="/#metodologia" className="text-signal underline underline-offset-2">
-            Metodologia
-          </Link>
-        </p>
       </div>
-
-      <div className="mt-8">
-        <Link
-          href="/startups"
-          className="inline-flex items-center gap-2 font-mono text-[12px] text-ash transition-colors hover:text-sinal-white"
-        >
-          &larr; Ver todas as startups
-        </Link>
-      </div>
-    </article>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-4">
-      <dt className="mb-1 font-mono text-[10px] uppercase tracking-[1px] text-ash">{label}</dt>
-      <dd className="font-body text-[14px] text-sinal-white">{value}</dd>
+      <div className="px-[18px] py-4">{children}</div>
     </div>
   );
 }
 
-function ExternalLink({ href, label }: { href: string; label: string }) {
+function getFoundedYear(foundedDate: string | null): string | null {
+  if (!foundedDate) return null;
+  return foundedDate.slice(0, 4);
+}
+
+export default function CompanyDetail({ company }: CompanyDetailProps) {
+  const accentColor = getAccentColor(company.funding_stage, company.sector);
+  const flag = getCountryFlag(company.country);
+  const funding = formatFunding(company.total_funding_usd);
+  const foundedYear = getFoundedYear(company.founded_date);
+
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2 rounded-lg border border-[rgba(255,255,255,0.06)] bg-sinal-graphite px-4 py-2.5 font-mono text-[12px] text-ash transition-all duration-200 hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
-    >
-      {label}
-      <span aria-hidden="true">&nearr;</span>
-    </a>
+    <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pb-20 pt-8">
+      {/* Breadcrumb */}
+      <nav className="mb-8 flex items-center gap-2 font-mono text-[11px] text-[#4A4A56]">
+        <Link href="/startups" className="text-ash transition-colors hover:text-sinal-white">
+          Mapa de Startups
+        </Link>
+        <span>/</span>
+        {company.sector && (
+          <>
+            <Link
+              href={`/startups?sector=${encodeURIComponent(company.sector)}`}
+              className="text-ash transition-colors hover:text-sinal-white"
+            >
+              {company.sector}
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        <span className="text-silver">{company.name}</span>
+      </nav>
+
+      {/* Hero card */}
+      <div className="mb-8 overflow-hidden rounded-2xl border border-sinal-slate bg-sinal-graphite">
+        {/* Stage accent bar */}
+        <div
+          className="h-[3px]"
+          style={{
+            background: `linear-gradient(90deg, ${accentColor}, transparent 70%)`,
+          }}
+        />
+
+        <div className="px-9 py-8">
+          {/* Top row: Logo + Name + Links */}
+          <div className="mb-6 flex flex-wrap items-start gap-5">
+            {/* Logo */}
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl font-display text-[28px]"
+              style={{
+                background: `linear-gradient(135deg, ${accentColor}18, ${accentColor}08)`,
+                border: `1px solid ${accentColor}25`,
+                color: accentColor,
+              }}
+            >
+              {company.name.charAt(0)}
+            </div>
+
+            <div className="min-w-[200px] flex-1">
+              <div className="mb-1.5 flex flex-wrap items-center gap-3">
+                <h1 className="font-display text-[32px] leading-[1.1] text-sinal-white">
+                  {company.name}
+                </h1>
+                {company.funding_stage && (
+                  <span
+                    className="rounded-md px-2.5 py-1 font-mono text-[11px] font-semibold"
+                    style={{
+                      background: `${accentColor}15`,
+                      border: `1px solid ${accentColor}30`,
+                      color: accentColor,
+                    }}
+                  >
+                    {company.funding_stage}
+                  </span>
+                )}
+              </div>
+
+              {/* Tagline */}
+              {company.short_description && (
+                <p className="mb-3 max-w-[600px] text-[15px] leading-[1.5] text-silver">
+                  {company.short_description}
+                </p>
+              )}
+
+              {/* Meta row */}
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="flex items-center gap-1 font-mono text-[12px] text-ash">
+                  {flag} {[company.city, company.country].filter(Boolean).join(", ")}
+                </span>
+                {foundedYear && (
+                  <>
+                    <span className="text-[#4A4A56]">&middot;</span>
+                    <span className="font-mono text-[12px] text-ash">Fundada em {foundedYear}</span>
+                  </>
+                )}
+                {company.sector && (
+                  <>
+                    <span className="text-[#4A4A56]">&middot;</span>
+                    <span className="rounded bg-[rgba(255,255,255,0.06)] px-2 py-[3px] font-mono text-[10px] text-ash">
+                      {company.sector}
+                    </span>
+                  </>
+                )}
+                {company.sub_sector && (
+                  <span className="rounded bg-[rgba(255,255,255,0.06)] px-2 py-[3px] font-mono text-[10px] text-ash">
+                    {company.sub_sector}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* External links */}
+            <div className="flex shrink-0 gap-2">
+              {company.website && (
+                <a
+                  href={
+                    company.website.startsWith("http")
+                      ? company.website
+                      : `https://${company.website}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg border border-sinal-slate px-3.5 py-2 font-mono text-[11px] text-silver transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
+                >
+                  &nearr; {company.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                </a>
+              )}
+              {company.linkedin_url && (
+                <a
+                  href={
+                    company.linkedin_url.startsWith("http")
+                      ? company.linkedin_url
+                      : `https://${company.linkedin_url}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-sinal-slate px-3.5 py-2 font-mono text-[11px] text-silver transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
+                >
+                  in
+                </a>
+              )}
+              {company.github_url && (
+                <a
+                  href={company.github_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-sinal-slate px-3.5 py-2 font-mono text-[11px] text-silver transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
+                >
+                  gh
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Key stats row */}
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[10px] bg-sinal-slate sm:grid-cols-4">
+            <StatBox label="Funding Total" value={funding ?? "\u2014"} color="text-sinal-white" />
+            <StatBox
+              label="Equipe"
+              value={company.team_size ? `~${company.team_size}` : "\u2014"}
+              color="text-sinal-white"
+            />
+            <StatBox label="Fontes" value={String(company.source_count)} color="text-sinal-white" />
+            <StatBox
+              label="Modelo"
+              value={company.business_model ?? "\u2014"}
+              color="text-signal"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Two column layout */}
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
+        {/* Left column */}
+        <div className="flex flex-col gap-6">
+          {/* About */}
+          {company.description && (
+            <SideBlock title="Sobre">
+              <p className="text-[14px] leading-[1.7] text-silver">{company.description}</p>
+            </SideBlock>
+          )}
+
+          {/* Tags */}
+          {company.tags && company.tags.length > 0 && (
+            <SideBlock title="Tags">
+              <div className="flex flex-wrap gap-1.5">
+                {company.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md border border-[rgba(255,255,255,0.06)] px-3 py-1 font-mono text-[11px] text-ash"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </SideBlock>
+          )}
+
+          {/* Minimal data placeholder */}
+          {!company.description && (!company.tags || company.tags.length === 0) && (
+            <div className="rounded-xl border border-dashed border-sinal-slate px-6 py-8 text-center">
+              <p className="mb-1.5 text-[14px] text-silver">Perfil em constru&ccedil;&atilde;o</p>
+              <p className="mx-auto max-w-[360px] text-[12px] leading-[1.6] text-[#4A4A56]">
+                Nossos agentes est&atilde;o coletando mais dados sobre esta empresa.
+                Informa&ccedil;&otilde;es ser&atilde;o adicionadas automaticamente.
+              </p>
+              {company.github_url && (
+                <a
+                  href={company.github_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-sinal-slate px-4 py-2 font-mono text-[11px] text-silver transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
+                >
+                  Ver no GitHub &nearr;
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right column (sidebar) */}
+        <div className="flex flex-col gap-4">
+          {/* Tech stack */}
+          {company.tech_stack && company.tech_stack.length > 0 && (
+            <SideBlock title="Stack Tecnol&oacute;gico" agentColor="#59B4FF">
+              <div className="flex flex-wrap gap-1.5">
+                {company.tech_stack.map((tech) => (
+                  <span
+                    key={tech}
+                    className="rounded-md border border-[rgba(89,180,255,0.13)] bg-[rgba(89,180,255,0.06)] px-2.5 py-[5px] font-mono text-[11px] text-silver"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            </SideBlock>
+          )}
+
+          {/* Data provenance */}
+          <div className="rounded-xl border border-sinal-slate bg-sinal-graphite px-[18px] py-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-agent-radar" />
+                <span className="font-mono text-[9px] uppercase tracking-[1.5px] text-[#4A4A56]">
+                  Proven&iacute;ncia
+                </span>
+              </div>
+              {/* Confidence dots */}
+              <div className="flex gap-[3px]">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      i <= Math.min(company.source_count, 5) ? "bg-signal" : "bg-sinal-slate"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between">
+                <span className="font-mono text-[10px] text-[#4A4A56]">Agente</span>
+                <span className="font-mono text-[10px] text-agent-mercado">MERCADO</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-mono text-[10px] text-[#4A4A56]">Fontes</span>
+                <span className="font-mono text-[10px] text-ash">{company.source_count}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Back link */}
+          <Link
+            href="/startups"
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-sinal-slate py-2.5 font-mono text-[11px] text-[#4A4A56] transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-ash"
+          >
+            &larr; Voltar ao Mapa
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatBox({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="bg-sinal-black px-5 py-4 text-center">
+      <div className={`font-display text-[22px] leading-none ${color}`}>{value}</div>
+      <div className="mt-1 font-mono text-[9px] uppercase tracking-[1px] text-[#4A4A56]">
+        {label}
+      </div>
+    </div>
   );
 }

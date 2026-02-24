@@ -2,9 +2,11 @@
 
 Tests the end-to-end flow: source data -> converter -> pipeline -> merged company,
 verifying sector normalization, entity matching, and multi-source dedup.
+Also verifies agent-level collection for Crunchbase (enabled/skipped).
 """
 
 import pytest
+from unittest.mock import MagicMock, patch
 
 from apps.agents.sources.entity_matcher import CandidateCompany, DedupIndices
 from apps.agents.index.converters import (
@@ -226,6 +228,53 @@ class TestCrunchbaseIntegration:
         candidate = from_crunchbase(FakeCB())
         assert candidate.sector is None
 
+    def test_funding_fields_flow_through_pipeline(self):
+        """total_funding_usd and funding_stage from Crunchbase reach MergedCompany."""
+        from apps.agents.sources.crunchbase import CrunchbaseCompany
+
+        cb = CrunchbaseCompany(
+            name="Nubank",
+            permalink="nubank",
+            source_url="https://crunchbase.com/organization/nubank",
+            source_name="crunchbase",
+            total_funding_usd=700_000_000.0,
+            last_equity_funding_type="series_g",
+        )
+        candidates = convert_all(crunchbase_companies=[cb])
+        merged = run_pipeline(candidates, DedupIndices())
+
+        assert len(merged) == 1
+        assert merged[0].total_funding_usd == 700_000_000.0
+        assert merged[0].funding_stage == "growth"  # series_g maps to growth
+
+    def test_from_crunchbase_passes_total_funding_usd(self):
+        """from_crunchbase() forwards total_funding_usd to CandidateCompany."""
+        from apps.agents.sources.crunchbase import CrunchbaseCompany
+
+        cb = CrunchbaseCompany(
+            name="Nubank",
+            permalink="nubank",
+            source_url="https://crunchbase.com/organization/nubank",
+            source_name="crunchbase",
+            total_funding_usd=700_000_000.0,
+        )
+        candidate = from_crunchbase(cb)
+        assert candidate.total_funding_usd == 700_000_000.0
+
+    def test_from_crunchbase_passes_funding_stage(self):
+        """from_crunchbase() maps last_equity_funding_type to canonical funding_stage."""
+        from apps.agents.sources.crunchbase import CrunchbaseCompany
+
+        cb = CrunchbaseCompany(
+            name="SomeCo",
+            permalink="someco",
+            source_url="https://crunchbase.com/organization/someco",
+            source_name="crunchbase",
+            last_equity_funding_type="series_b",
+        )
+        candidate = from_crunchbase(cb)
+        assert candidate.funding_stage == "series_b"
+
 
 # --- Multi-source dedup ---
 
@@ -327,3 +376,57 @@ class TestMultiSourceDedup:
         merged = run_pipeline(candidates, DedupIndices())
 
         assert len(merged) == 2
+
+
+# --- Agent-level Crunchbase collection ---
+
+
+class TestAgentCrunchbaseCollection:
+    """Test the IndexAgent.collect() Crunchbase block."""
+
+    def _make_agent(self):
+        """Create an IndexAgent with only Crunchbase enabled."""
+        from apps.agents.index.agent import IndexAgent
+
+        agent = IndexAgent(api_only=True)
+        # Disable all sources except Crunchbase API
+        for src in agent.config.data_sources:
+            src.enabled = src.name == "crunchbase_companies_latam"
+        return agent
+
+    @patch.dict("os.environ", {"CRUNCHBASE_API_KEY": "test-key"})
+    @patch("apps.agents.sources.crunchbase.fetch_companies")
+    def test_crunchbase_collected_when_api_key_set(self, mock_fetch):
+        from apps.agents.sources.crunchbase import CrunchbaseCompany
+
+        mock_fetch.return_value = [
+            CrunchbaseCompany(
+                name="TestCo", permalink="testco",
+                source_url="https://crunchbase.com/organization/testco",
+                source_name="crunchbase",
+                total_funding_usd=1_000_000.0,
+                last_equity_funding_type="seed",
+            ),
+        ]
+
+        agent = self._make_agent()
+        result = agent.collect()
+
+        assert len(result) == 1
+        collected = result[0]
+        assert "crunchbase" in collected
+        assert len(collected["crunchbase"]) == 1
+        assert "crunchbase" in agent._sources_used
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_crunchbase_skipped_without_api_key(self):
+        import os
+        # Ensure key is definitely absent
+        os.environ.pop("CRUNCHBASE_API_KEY", None)
+
+        agent = self._make_agent()
+        result = agent.collect()
+
+        collected = result[0]
+        assert "crunchbase" not in collected
+        assert "crunchbase" not in agent._sources_used

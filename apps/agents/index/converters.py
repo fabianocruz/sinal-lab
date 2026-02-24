@@ -5,13 +5,65 @@ format used by the entity matcher and pipeline.  Sector fields are
 normalized to canonical SECTOR_OPTIONS via ``normalize_sector()``.
 """
 
+from __future__ import annotations
+
 import logging
+import re
+import unicodedata
 from typing import Optional
 
-from apps.agents.sources.entity_matcher import CandidateCompany, normalize_cnpj, normalize_domain
+from apps.agents.sources.entity_matcher import CandidateCompany, normalize_cnpj, normalize_country, normalize_domain
 from apps.agents.sources.sector_normalizer import normalize_sector
 
 logger = logging.getLogger(__name__)
+
+# Canonical funding stage values mapped from Crunchbase round types.
+_FUNDING_STAGE_MAP = {
+    "pre_seed": "pre_seed",
+    "seed": "seed",
+    "angel": "seed",
+    "series_a": "series_a",
+    "series_b": "series_b",
+    "series_c": "series_c",
+    "series_d": "series_d",
+    "series_e": "growth",
+    "series_f": "growth",
+    "series_g": "growth",
+    "series_h": "growth",
+    "growth": "growth",
+    "private_equity": "growth",
+    "ipo": "ipo",
+    "post_ipo_equity": "ipo",
+    "post_ipo_debt": "ipo",
+}
+
+
+def _normalize_funding_stage(raw: str | None) -> str | None:
+    """Map a raw funding type string to a canonical funding_stage value."""
+    if not raw:
+        return None
+    return _FUNDING_STAGE_MAP.get(raw.lower().strip())
+
+
+def sanitize_slug(raw: str | None) -> str | None:
+    """Normalize a slug to URL-safe ASCII: lowercase, hyphens, no accents.
+
+    Examples:
+        >>> sanitize_slug("São Paulo Tech")
+        'sao-paulo-tech'
+        >>> sanitize_slug("UTN FRBA / Diseño")
+        'utn-frba-diseno'
+    """
+    if not raw:
+        return None
+    # Strip accents
+    nfkd = unicodedata.normalize("NFKD", raw)
+    ascii_str = nfkd.encode("ascii", "ignore").decode("ascii")
+    # Lowercase, replace non-alphanum with hyphens
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_str.lower())
+    # Strip leading/trailing hyphens and collapse consecutive hyphens
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug[:200] if slug else None
 
 
 def from_receita_federal(
@@ -29,7 +81,7 @@ def from_receita_federal(
     """
     cnpj = normalize_cnpj(company.cnpj)
     name = company.nome_fantasia or company.razao_social
-    slug = name.lower().replace(" ", "-").replace(".", "").replace("/", "")[:100] if name else None
+    slug = sanitize_slug(name)
 
     return CandidateCompany(
         name=name,
@@ -61,7 +113,7 @@ def from_abstartups(
 
     return CandidateCompany(
         name=company.name,
-        slug=company.slug,
+        slug=sanitize_slug(company.slug) or sanitize_slug(company.name),
         website=company.website,
         description=company.description,
         sector=normalize_sector(company.sector) or company.sector,
@@ -92,12 +144,12 @@ def from_yc(
 
     return CandidateCompany(
         name=company.name,
-        slug=company.slug,
+        slug=sanitize_slug(company.slug) or sanitize_slug(company.name),
         website=company.website,
         description=company.description,
         sector=normalize_sector(company.vertical) or company.vertical,
         city=company.city,
-        country=company.country or "Brasil",
+        country=normalize_country(company.country),
         domain=domain,
         source_name="yc_portfolio",
         confidence=confidence,
@@ -123,14 +175,14 @@ def from_github(
 
     return CandidateCompany(
         name=profile.name,
-        slug=profile.slug,
+        slug=sanitize_slug(profile.slug) or sanitize_slug(profile.name),
         website=profile.website,
         description=profile.description,
         sector=normalize_sector(profile.sector) or profile.sector,
         city=profile.city,
-        country=profile.country,
+        country=normalize_country(profile.country),
         domain=domain,
-        github_login=profile.slug,  # GitHub login is the slug
+        github_login=profile.slug,  # GitHub login (original, not sanitized)
         github_url=profile.github_url,
         source_name=profile.source_name or "github",
         confidence=confidence,
@@ -169,18 +221,22 @@ def from_crunchbase(
 
     return CandidateCompany(
         name=company.name,
-        slug=company.permalink,
+        slug=sanitize_slug(company.permalink) or sanitize_slug(company.name),
         website=getattr(company, "website_url", None) or getattr(company, "domain", None),
         description=getattr(company, "short_description", ""),
         sector=sector,
         city=city,
-        country=country or "Brasil",
+        country=normalize_country(country),
         domain=domain,
         crunchbase_permalink=company.permalink,
         source_name="crunchbase",
         confidence=confidence,
         founded_date=str(founded_on) if founded_on else None,
         tags=[c.lower() for c in categories[:5]] if categories else [],
+        total_funding_usd=getattr(company, "total_funding_usd", None),
+        funding_stage=_normalize_funding_stage(
+            getattr(company, "last_equity_funding_type", None)
+        ),
     )
 
 
@@ -205,10 +261,10 @@ def from_startups_latam(
 
     return CandidateCompany(
         name=company.name,
-        slug=company.slug,
+        slug=sanitize_slug(company.slug) or sanitize_slug(company.name),
         description=company.description,
         sector=sector,
-        country=company.country,
+        country=normalize_country(company.country),
         source_name="startups_latam",
         confidence=confidence,
         tags=[company.industry.lower()] if company.industry else [],
@@ -233,12 +289,12 @@ def from_coresignal(
 
     return CandidateCompany(
         name=company.name,
-        slug=company.slug,
+        slug=sanitize_slug(company.slug) or sanitize_slug(company.name),
         website=company.website,
         description=company.description,
         sector=sector,
         city=company.city,
-        country=company.country or "Brasil",
+        country=normalize_country(company.country),
         domain=domain,
         linkedin_url=company.linkedin_url,
         source_name="coresignal",

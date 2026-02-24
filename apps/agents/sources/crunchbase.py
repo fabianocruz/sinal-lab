@@ -88,6 +88,7 @@ class CrunchbaseCompany:
     categories: List[str] = field(default_factory=list)
     total_funding_usd: Optional[float] = None
     website_url: Optional[str] = None
+    last_equity_funding_type: Optional[str] = None  # Raw Crunchbase value (e.g. "series_b")
     content_hash: str = ""
 
     def __post_init__(self) -> None:
@@ -327,6 +328,8 @@ def fetch_companies(
 
             website_url = props.get("website_url") or None
 
+            last_equity_funding_type = props.get("last_equity_funding_type") or None
+
             companies.append(
                 CrunchbaseCompany(
                     name=name,
@@ -340,6 +343,7 @@ def fetch_companies(
                     categories=categories_list,
                     total_funding_usd=total_funding_usd,
                     website_url=website_url,
+                    last_equity_funding_type=last_equity_funding_type,
                 )
             )
         except Exception as exc:

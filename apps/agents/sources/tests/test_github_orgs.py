@@ -8,6 +8,7 @@ from apps.agents.base.provenance import ProvenanceTracker
 from apps.agents.sources.github_orgs import (
     CompanyProfile,
     POSITIVE_SIGNALS,
+    _LOCATION_MAP,
     collect_from_github,
     enrich_from_github_org,
     enrich_github_profiles,
@@ -163,6 +164,36 @@ class TestResolveLocation:
         assert city == "Lima"
         assert country == "Peru"
 
+    def test_new_cities_in_location_map(self):
+        """All expanded LATAM cities are in _LOCATION_MAP and resolve correctly."""
+        expected = [
+            ("Belo Horizonte", "Brasil"),
+            ("Curitiba", "Brasil"),
+            ("Porto Alegre", "Brasil"),
+            ("Florianópolis", "Brasil"),
+            ("Campinas", "Brasil"),
+            ("Recife", "Brasil"),
+            ("Guadalajara", "Mexico"),
+            ("Monterrey", "Mexico"),
+            ("Córdoba", "Argentina"),
+            ("Medellín", "Colombia"),
+            ("Cali", "Colombia"),
+            ("Montevideo", "Uruguay"),
+            ("Quito", "Ecuador"),
+            ("San José", "Costa Rica"),
+            ("Panama City", "Panama"),
+            ("Santo Domingo", "Dominican Republic"),
+            ("Asunción", "Paraguay"),
+            ("La Paz", "Bolivia"),
+            ("San Juan", "Puerto Rico"),
+        ]
+        for city, country in expected:
+            assert city in _LOCATION_MAP, f"{city} not in _LOCATION_MAP"
+            assert _LOCATION_MAP[city] == (city, country)
+
+    def test_location_map_has_at_least_30_cities(self):
+        assert len(_LOCATION_MAP) >= 30
+
     def test_unknown_location_defaults(self):
         city, country = _resolve_location('location:"Unknown" type:org')
         assert city is None
@@ -279,6 +310,85 @@ class TestCollectFromGithub:
         profiles = collect_from_github(source, provenance)
         assert profiles[0].city == "Santiago"
         assert profiles[0].country == "Chile"
+
+    @patch("apps.agents.sources.github_orgs.httpx.get")
+    def test_pagination_fetches_multiple_pages(self, mock_get, provenance):
+        """collect_from_github fetches subsequent pages when page is full."""
+        page1 = {"total_count": 150, "items": [
+            {"login": f"co-{i}", "html_url": f"https://github.com/co-{i}", "description": "fintech"}
+            for i in range(100)
+        ]}
+        page2 = {"total_count": 150, "items": [
+            {"login": f"co-{i}", "html_url": f"https://github.com/co-{i}", "description": "saas"}
+            for i in range(100, 150)
+        ]}
+        mock_r1 = Mock(); mock_r1.json.return_value = page1; mock_r1.raise_for_status = Mock()
+        mock_r2 = Mock(); mock_r2.json.return_value = page2; mock_r2.raise_for_status = Mock()
+        mock_get.side_effect = [mock_r1, mock_r2]
+
+        source = DataSourceConfig(
+            name="github_sao_paulo", source_type="api",
+            url="https://api.github.com/search/users",
+            params={"q": 'location:"São Paulo" type:org', "per_page": 100},
+        )
+        profiles = collect_from_github(source, provenance)
+        assert mock_get.call_count == 2
+        assert len(profiles) == 150
+
+    @patch("apps.agents.sources.github_orgs.httpx.get")
+    def test_pagination_stops_on_partial_page(self, mock_get, provenance):
+        """collect_from_github stops when a page returns fewer items than per_page."""
+        full = {"total_count": 120, "items": [
+            {"login": f"co-{i}", "html_url": "", "description": ""}
+            for i in range(100)
+        ]}
+        partial = {"total_count": 120, "items": [
+            {"login": f"co-{i}", "html_url": "", "description": ""}
+            for i in range(100, 120)
+        ]}
+        mock_r1 = Mock(); mock_r1.json.return_value = full; mock_r1.raise_for_status = Mock()
+        mock_r2 = Mock(); mock_r2.json.return_value = partial; mock_r2.raise_for_status = Mock()
+        mock_get.side_effect = [mock_r1, mock_r2]
+
+        source = DataSourceConfig(
+            name="github_test", source_type="api",
+            url="https://api.github.com/search/users",
+            params={"q": 'location:"São Paulo" type:org', "per_page": 100},
+        )
+        profiles = collect_from_github(source, provenance)
+        assert mock_get.call_count == 2
+
+    @patch("apps.agents.sources.github_orgs.httpx.get")
+    def test_pagination_stops_at_github_1000_limit(self, mock_get, provenance):
+        """collect_from_github stops at 1000 results (GitHub hard limit)."""
+        full_page = {"total_count": 5000, "items": [
+            {"login": f"co-{i}", "html_url": "", "description": ""}
+            for i in range(100)
+        ]}
+        mock_resp = Mock(); mock_resp.json.return_value = full_page; mock_resp.raise_for_status = Mock()
+        mock_get.return_value = mock_resp
+
+        source = DataSourceConfig(
+            name="github_sao_paulo", source_type="api",
+            url="https://api.github.com/search/users",
+            params={"q": 'location:"São Paulo" type:org', "per_page": 100},
+        )
+        profiles = collect_from_github(source, provenance)
+        assert mock_get.call_count == 10  # max 10 pages × 100 = 1000
+
+    @patch("apps.agents.sources.github_orgs.httpx.get")
+    def test_single_page_no_extra_request(self, mock_get, github_source, provenance):
+        """When first page is partial, no second request is made."""
+        mock_resp = Mock()
+        mock_resp.json.return_value = {"total_count": 5, "items": [
+            {"login": f"co-{i}", "html_url": "", "description": ""}
+            for i in range(5)
+        ]}
+        mock_resp.raise_for_status = Mock()
+        mock_get.return_value = mock_resp
+
+        profiles = collect_from_github(github_source, provenance)
+        assert mock_get.call_count == 1
 
 
 # --- enrich_from_github_org tests ---

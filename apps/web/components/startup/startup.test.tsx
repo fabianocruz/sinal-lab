@@ -28,6 +28,9 @@ const fullCompany: Company = {
   founded_date: "2013-05-06",
   team_size: 8000,
   business_model: "B2C",
+  funding_stage: "Series C+",
+  total_funding_usd: 2_200_000_000,
+  is_trending: false,
   website: "https://nubank.com.br",
   github_url: "https://github.com/nubank",
   linkedin_url: "https://linkedin.com/company/nubank",
@@ -53,6 +56,9 @@ const minimalCompany: Company = {
   founded_date: null,
   team_size: null,
   business_model: null,
+  funding_stage: null,
+  total_funding_usd: null,
+  is_trending: null,
   website: null,
   github_url: null,
   linkedin_url: null,
@@ -77,9 +83,18 @@ describe("CompanyCard", () => {
     expect(screen.getByText("Leading digital bank in Brazil")).toBeInTheDocument();
   });
 
-  it("test_companycard_render_shows_sector_badge", () => {
+  it("test_companycard_render_shows_funding_stage_in_stats", () => {
     render(<CompanyCard company={fullCompany} />);
+    // When funding_stage exists, bottom bar shows stage instead of sector
+    expect(screen.getByText("Series C+")).toBeInTheDocument();
+    expect(screen.getByText("Stage")).toBeInTheDocument();
+  });
+
+  it("test_companycard_render_shows_sector_when_no_funding_stage", () => {
+    const company: Company = { ...fullCompany, funding_stage: null };
+    render(<CompanyCard company={company} />);
     expect(screen.getByText("Fintech")).toBeInTheDocument();
+    expect(screen.getByText("Setor")).toBeInTheDocument();
   });
 
   it("test_companycard_render_shows_location", () => {
@@ -98,19 +113,24 @@ describe("CompanyCard", () => {
     expect(screen.getByText("fintech")).toBeInTheDocument();
     expect(screen.getByText("banking")).toBeInTheDocument();
     expect(screen.getByText("unicorn")).toBeInTheDocument();
-    // 4th tag should be hidden, showing "+1" instead
+    // 4th tag should be hidden (only 3 shown)
     expect(screen.queryByText("payments")).not.toBeInTheDocument();
-    expect(screen.getByText("+1")).toBeInTheDocument();
   });
 
-  it("test_companycard_render_shows_source_count_when_multiple", () => {
+  it("test_companycard_render_shows_funding_stage", () => {
     render(<CompanyCard company={fullCompany} />);
-    expect(screen.getByText("5 fontes")).toBeInTheDocument();
+    expect(screen.getByText("Series C+")).toBeInTheDocument();
   });
 
-  it("test_companycard_render_hides_source_count_when_single", () => {
-    render(<CompanyCard company={minimalCompany} />);
-    expect(screen.queryByText(/fontes/)).not.toBeInTheDocument();
+  it("test_companycard_render_shows_funding_amount", () => {
+    render(<CompanyCard company={fullCompany} />);
+    expect(screen.getByText("$2.2B")).toBeInTheDocument();
+  });
+
+  it("test_companycard_render_shows_team_size", () => {
+    render(<CompanyCard company={fullCompany} />);
+    expect(screen.getByText("8000")).toBeInTheDocument();
+    expect(screen.getByText("Equipe")).toBeInTheDocument();
   });
 
   it("test_companycard_render_handles_minimal_company", () => {
@@ -146,7 +166,9 @@ describe("CompanyDetail", () => {
 
   it("test_companydetail_render_shows_sector_badge", () => {
     render(<CompanyDetail company={fullCompany} />);
-    expect(screen.getByText("Fintech")).toBeInTheDocument();
+    // Sector appears in breadcrumb and meta row
+    const sectorElements = screen.getAllByText("Fintech");
+    expect(sectorElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it("test_companydetail_render_shows_sub_sector", () => {
@@ -154,9 +176,9 @@ describe("CompanyDetail", () => {
     expect(screen.getByText("Digital Banking")).toBeInTheDocument();
   });
 
-  it("test_companydetail_render_shows_location_with_state", () => {
+  it("test_companydetail_render_shows_location", () => {
     render(<CompanyDetail company={fullCompany} />);
-    expect(screen.getByText("São Paulo, SP, Brazil")).toBeInTheDocument();
+    expect(screen.getByText(/São Paulo, Brazil/)).toBeInTheDocument();
   });
 
   it("test_companydetail_render_shows_description", () => {
@@ -166,10 +188,9 @@ describe("CompanyDetail", () => {
     ).toBeInTheDocument();
   });
 
-  it("test_companydetail_render_shows_founded_date", () => {
+  it("test_companydetail_render_shows_founded_year", () => {
     render(<CompanyDetail company={fullCompany} />);
-    expect(screen.getByText("Fundada")).toBeInTheDocument();
-    expect(screen.getByText("2013-05-06")).toBeInTheDocument();
+    expect(screen.getByText(/Fundada em 2013/)).toBeInTheDocument();
   });
 
   it("test_companydetail_render_shows_team_size", () => {
@@ -186,7 +207,7 @@ describe("CompanyDetail", () => {
 
   it("test_companydetail_render_shows_tech_stack", () => {
     render(<CompanyDetail company={fullCompany} />);
-    expect(screen.getByText("Tech Stack")).toBeInTheDocument();
+    expect(screen.getByText(/Stack Tecnológico/)).toBeInTheDocument();
     expect(screen.getByText("Python")).toBeInTheDocument();
     expect(screen.getByText("Clojure")).toBeInTheDocument();
     expect(screen.getByText("Kafka")).toBeInTheDocument();
@@ -203,12 +224,14 @@ describe("CompanyDetail", () => {
 
   it("test_companydetail_render_shows_external_links", () => {
     render(<CompanyDetail company={fullCompany} />);
-    expect(screen.getByText("Website")).toBeInTheDocument();
-    expect(screen.getByText("GitHub")).toBeInTheDocument();
-    expect(screen.getByText("LinkedIn")).toBeInTheDocument();
-    expect(screen.getByText("Twitter")).toBeInTheDocument();
+    // Website shows cleaned domain
+    expect(screen.getByText(/nubank\.com\.br/)).toBeInTheDocument();
+    // LinkedIn shows "in" label
+    expect(screen.getByText("in")).toBeInTheDocument();
+    // GitHub shows "gh" label
+    expect(screen.getByText("gh")).toBeInTheDocument();
 
-    const websiteLink = screen.getByText("Website").closest("a");
+    const websiteLink = screen.getByText(/nubank\.com\.br/).closest("a");
     expect(websiteLink).toHaveAttribute("href", "https://nubank.com.br");
     expect(websiteLink).toHaveAttribute("target", "_blank");
   });
@@ -220,22 +243,52 @@ describe("CompanyDetail", () => {
     expect(backLinks[0]).toHaveAttribute("href", "/startups");
   });
 
-  it("test_companydetail_render_shows_source_count", () => {
+  it("test_companydetail_render_shows_source_count_in_provenance", () => {
     render(<CompanyDetail company={fullCompany} />);
-    expect(screen.getByText("5 fontes")).toBeInTheDocument();
+    // Source count appears in stat box and provenance section
+    const fontesElements = screen.getAllByText("Fontes");
+    expect(fontesElements.length).toBeGreaterThanOrEqual(1);
+    // "5" also appears in stat box and provenance
+    const countElements = screen.getAllByText(String(fullCompany.source_count));
+    expect(countElements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("test_companydetail_render_shows_funding_stage_badge", () => {
+    render(<CompanyDetail company={fullCompany} />);
+    expect(screen.getByText("Series C+")).toBeInTheDocument();
   });
 
   it("test_companydetail_render_handles_minimal_company", () => {
     render(<CompanyDetail company={minimalCompany} />);
     expect(screen.getByRole("heading", { name: "Stealth Startup" })).toBeInTheDocument();
     // No tech stack section
-    expect(screen.queryByText("Tech Stack")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Stack Tecnológico/)).not.toBeInTheDocument();
     // No tags section
     expect(screen.queryByText("Tags")).not.toBeInTheDocument();
-    // No links section
-    expect(screen.queryByText("Links")).not.toBeInTheDocument();
-    // No details (founded, team, model)
-    expect(screen.queryByText("Fundada")).not.toBeInTheDocument();
+    // No founded date
+    expect(screen.queryByText(/Fundada em/)).not.toBeInTheDocument();
+  });
+
+  it("test_companydetail_render_shows_placeholder_when_no_description_or_tags", () => {
+    render(<CompanyDetail company={minimalCompany} />);
+    expect(screen.getByText(/Perfil em construção/)).toBeInTheDocument();
+    expect(screen.getByText(/Nossos agentes estão coletando/)).toBeInTheDocument();
+  });
+
+  it("test_companydetail_render_shows_github_link_in_placeholder_when_available", () => {
+    const ghCompany: Company = {
+      ...minimalCompany,
+      github_url: "https://github.com/example-org",
+    };
+    render(<CompanyDetail company={ghCompany} />);
+    expect(screen.getByText(/Perfil em construção/)).toBeInTheDocument();
+    const ghLink = screen.getByRole("link", { name: /Ver no GitHub/ });
+    expect(ghLink).toHaveAttribute("href", "https://github.com/example-org");
+  });
+
+  it("test_companydetail_render_hides_placeholder_when_description_exists", () => {
+    render(<CompanyDetail company={fullCompany} />);
+    expect(screen.queryByText(/Perfil em construção/)).not.toBeInTheDocument();
   });
 });
 

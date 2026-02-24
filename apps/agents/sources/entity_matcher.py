@@ -45,6 +45,9 @@ class CandidateCompany:
     linkedin_url: Optional[str] = None
     github_url: Optional[str] = None
     twitter_url: Optional[str] = None
+    # Funding fields (sourced from Crunchbase; propagated through pipeline)
+    funding_stage: Optional[str] = None  # Canonical stage: pre_seed, seed, series_a … ipo
+    total_funding_usd: Optional[float] = None  # Cumulative USD raised
 
 
 @dataclass
@@ -132,6 +135,62 @@ def normalize_cnpj(cnpj: Optional[str]) -> Optional[str]:
         return None
 
     return digits
+
+
+# Canonical country names (Portuguese) used in the frontend CountryFilter.
+# Maps common English/variant spellings to the canonical form.
+_COUNTRY_ALIASES: dict[str, str] = {
+    "brazil": "Brasil",
+    "brasil": "Brasil",
+    "mexico": "México",
+    "méxico": "México",
+    "colombia": "Colômbia",
+    "colômbia": "Colômbia",
+    "argentina": "Argentina",
+    "chile": "Chile",
+    "peru": "Peru",
+    "perú": "Peru",
+    "uruguay": "Uruguai",
+    "uruguai": "Uruguai",
+    "ecuador": "Equador",
+    "equador": "Equador",
+    "costa rica": "Costa Rica",
+    "panama": "Panamá",
+    "panamá": "Panamá",
+    "dominican republic": "Rep. Dominicana",
+    "rep. dominicana": "Rep. Dominicana",
+    "paraguay": "Paraguai",
+    "paraguai": "Paraguai",
+    "bolivia": "Bolívia",
+    "bolívia": "Bolívia",
+    "puerto rico": "Porto Rico",
+    "porto rico": "Porto Rico",
+    "venezuela": "Venezuela",
+    "el salvador": "El Salvador",
+    "guatemala": "Guatemala",
+    "honduras": "Honduras",
+    "nicaragua": "Nicarágua",
+    "cuba": "Cuba",
+    "haiti": "Haiti",
+}
+
+
+def normalize_country(country: Optional[str]) -> str:
+    """Normalize a country name to the canonical Portuguese form.
+
+    Returns 'Brasil' as default for empty/None values.
+
+    Examples:
+        >>> normalize_country("Brazil")
+        'Brasil'
+        >>> normalize_country("México")
+        'México'
+        >>> normalize_country(None)
+        'Brasil'
+    """
+    if not country or not country.strip():
+        return "Brasil"
+    return _COUNTRY_ALIASES.get(country.strip().lower(), country.strip())
 
 
 def _name_similarity(a: str, b: str) -> float:

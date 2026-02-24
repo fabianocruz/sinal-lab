@@ -61,9 +61,9 @@ describe("Navbar", () => {
       expect(screen.getByRole("link", { name: "Preços" })).toBeInTheDocument();
     });
 
-    it("test_navbar_renders_para_empresas_link", () => {
+    it("test_navbar_renders_mapa_link", () => {
       render(<Navbar />);
-      expect(screen.getByRole("link", { name: "Para Empresas" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Mapa" })).toBeInTheDocument();
     });
 
     it("test_navbar_renders_arquivo_link", () => {
@@ -163,7 +163,7 @@ describe("Navbar", () => {
       expect(screen.getAllByRole("link", { name: "Briefing" })).toHaveLength(2);
       expect(screen.getAllByRole("link", { name: "Metodologia" })).toHaveLength(2);
       expect(screen.getAllByRole("link", { name: "Preços" })).toHaveLength(2);
-      expect(screen.getAllByRole("link", { name: "Para Empresas" })).toHaveLength(2);
+      expect(screen.getAllByRole("link", { name: "Mapa" })).toHaveLength(2);
       expect(screen.getAllByRole("link", { name: "Arquivo" })).toHaveLength(2);
     });
 

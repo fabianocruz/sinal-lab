@@ -367,8 +367,14 @@ def fetch_coresignal_companies(
 ) -> List[CoreSignalCompany]:
     """Fetch LATAM companies from CoreSignal API.
 
-    Runs search queries per LATAM country to build a deduplicated set of
-    company IDs, then collects full data for up to ``max_collect`` companies.
+    Two-phase process:
+
+    1. **Search**: Queries per LATAM country x tech industry to build a
+       deduplicated set of company IDs (search costs 1 credit per call).
+    2. **Collect**: Fetches full company data for up to ``max_collect`` IDs,
+       newest first (collect costs 1 credit per call). Stops early after
+       10 consecutive failures to avoid burning credits when the account
+       balance is exhausted (HTTP 402).
 
     Adds a 0.5s delay between collect calls to respect rate limits.
 
@@ -421,11 +427,23 @@ def fetch_coresignal_companies(
     # older IDs are more likely to be deleted/stale.
     ids_to_collect = sorted(all_ids, reverse=True)[:max_collect]
     companies: List[CoreSignalCompany] = []
+    consecutive_failures = 0
+    max_consecutive_failures = 10  # Stop early if credits exhausted (402s)
 
     for i, company_id in enumerate(ids_to_collect):
         company = collect_company(client, api_key, company_id)
         if company:
             companies.append(company)
+            consecutive_failures = 0
+        else:
+            consecutive_failures += 1
+            if consecutive_failures >= max_consecutive_failures:
+                logger.warning(
+                    "CoreSignal: %d consecutive failures, stopping early "
+                    "(likely credits exhausted). Collected %d/%d.",
+                    consecutive_failures, len(companies), len(ids_to_collect),
+                )
+                break
 
         # Rate limiting: delay between calls (skip after last call)
         if i < len(ids_to_collect) - 1:

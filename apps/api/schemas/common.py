@@ -72,6 +72,9 @@ class CompanyResponse(BaseModel):
     founded_date: Optional[date] = None
     team_size: Optional[int] = None
     business_model: Optional[str] = None
+    funding_stage: Optional[str] = None
+    total_funding_usd: Optional[float] = None
+    is_trending: Optional[bool] = None
     website: Optional[str] = None
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None

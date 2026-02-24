@@ -43,16 +43,54 @@ class CompanyProfile:
     source_name: str = ""
 
 
-# --- Location map (7 LATAM cities) ---
+# --- Location map (LATAM cities) ---
 
 _LOCATION_MAP = {
+    # Brasil
     "São Paulo": ("São Paulo", "Brasil"),
     "Rio de Janeiro": ("Rio de Janeiro", "Brasil"),
+    "Belo Horizonte": ("Belo Horizonte", "Brasil"),
+    "Curitiba": ("Curitiba", "Brasil"),
+    "Porto Alegre": ("Porto Alegre", "Brasil"),
+    "Florianópolis": ("Florianópolis", "Brasil"),
+    "Campinas": ("Campinas", "Brasil"),
+    "Recife": ("Recife", "Brasil"),
+    "Brasília": ("Brasília", "Brasil"),
+    "Salvador": ("Salvador", "Brasil"),
+    "Fortaleza": ("Fortaleza", "Brasil"),
+    "Manaus": ("Manaus", "Brasil"),
+    # Mexico
     "Mexico City": ("Mexico City", "Mexico"),
+    "Guadalajara": ("Guadalajara", "Mexico"),
+    "Monterrey": ("Monterrey", "Mexico"),
+    # Argentina
     "Buenos Aires": ("Buenos Aires", "Argentina"),
+    "Córdoba": ("Córdoba", "Argentina"),
+    "Rosario": ("Rosario", "Argentina"),
+    # Colombia
     "Bogotá": ("Bogotá", "Colombia"),
+    "Medellín": ("Medellín", "Colombia"),
+    "Cali": ("Cali", "Colombia"),
+    # Chile
     "Santiago": ("Santiago", "Chile"),
+    # Peru
     "Lima": ("Lima", "Peru"),
+    # Uruguay
+    "Montevideo": ("Montevideo", "Uruguay"),
+    # Ecuador
+    "Quito": ("Quito", "Ecuador"),
+    # Costa Rica
+    "San José": ("San José", "Costa Rica"),
+    # Panama
+    "Panama City": ("Panama City", "Panama"),
+    # Dominican Republic
+    "Santo Domingo": ("Santo Domingo", "Dominican Republic"),
+    # Paraguay
+    "Asunción": ("Asunción", "Paraguay"),
+    # Bolivia
+    "La Paz": ("La Paz", "Bolivia"),
+    # Puerto Rico
+    "San Juan": ("San Juan", "Puerto Rico"),
 }
 
 
@@ -256,8 +294,13 @@ def collect_from_github(
     """Collect organization profiles from GitHub Search API.
 
     Uses /search/users with type:org to find tech organizations
-    by LATAM city location. Filters non-startups using
-    ``score_startup_likelihood()`` with configurable threshold.
+    by LATAM city location.  Paginates automatically (per_page=100,
+    page 1-indexed) up to the GitHub Search hard limit of 1,000
+    results per query.  Stops when a partial page is returned or
+    the 1,000-result ceiling is reached.
+
+    Filters non-startups using ``score_startup_likelihood()`` with
+    configurable threshold.
 
     Args:
         source: GitHub API data source configuration.
@@ -276,58 +319,74 @@ def collect_from_github(
         if token:
             headers["Authorization"] = "token {}".format(token)
 
-        response = httpx.get(
-            source.url,
-            params=source.params,
-            headers=headers,
-            timeout=15.0,
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        total = data.get("total_count", 0)
-        logger.info(
-            "GitHub API returned %d organizations from %s",
-            total,
-            source.name,
-        )
-
         query = source.params.get("q", "")
         city, country = _resolve_location(query)
+        per_page = source.params.get("per_page", 100)
+        # Build base params without 'page' (added per iteration)
+        base_params = {k: v for k, v in source.params.items() if k != "page"}
 
+        page = 1
         filtered_count = 0
-        for org in data.get("items", []):
-            org_login = org.get("login", "")
-            org_url = org.get("html_url", "")
-            description = org.get("description") or ""
+        _GITHUB_MAX_RESULTS = 1000  # GitHub Search API hard limit
 
-            if not org_login:
-                continue
-
-            # Score-based filtering instead of binary is_likely_startup
-            score = score_startup_likelihood(org_login, description)
-            if score < min_startup_score:
-                filtered_count += 1
-                continue
-
-            profile = CompanyProfile(
-                name=_format_display_name(org_login),
-                slug=org_login.lower(),
-                description=description,
-                city=city,
-                country=country,
-                github_url=org_url,
-                source_url=org_url,
-                source_name=source.name,
+        while True:
+            params = {**base_params, "page": page}
+            response = httpx.get(
+                source.url,
+                params=params,
+                headers=headers,
+                timeout=15.0,
             )
+            response.raise_for_status()
+            data = response.json()
 
-            profiles.append(profile)
+            if page == 1:
+                total = data.get("total_count", 0)
+                logger.info(
+                    "GitHub API returned %d organizations from %s",
+                    total,
+                    source.name,
+                )
 
-            provenance.track(
-                source_url=org_url,
-                source_name=source.name,
-                extraction_method="api",
-            )
+            items = data.get("items", [])
+            for org in items:
+                org_login = org.get("login", "")
+                org_url = org.get("html_url", "")
+                description = org.get("description") or ""
+
+                if not org_login:
+                    continue
+
+                score = score_startup_likelihood(org_login, description)
+                if score < min_startup_score:
+                    filtered_count += 1
+                    continue
+
+                profile = CompanyProfile(
+                    name=_format_display_name(org_login),
+                    slug=org_login.lower(),
+                    description=description,
+                    city=city,
+                    country=country,
+                    github_url=org_url,
+                    source_url=org_url,
+                    source_name=source.name,
+                )
+
+                profiles.append(profile)
+
+                provenance.track(
+                    source_url=org_url,
+                    source_name=source.name,
+                    extraction_method="api",
+                )
+
+            # Stop conditions
+            if len(items) < per_page:
+                break  # Partial or empty page — last page
+            if page * per_page >= _GITHUB_MAX_RESULTS:
+                break  # GitHub hard limit
+            page += 1
 
         if filtered_count:
             logger.info("Filtered out %d non-startup orgs from %s", filtered_count, source.name)

@@ -149,6 +149,48 @@ class TestMerge:
         _merge_into(merged, candidate)
         assert merged.best_confidence == 0.9
 
+    def test_merge_total_funding_takes_max(self):
+        merged = _create_merged(_candidate(total_funding_usd=1_000_000.0, source_name="s1"))
+        candidate2 = _candidate(total_funding_usd=5_000_000.0, source_name="s2")
+        _merge_into(merged, candidate2)
+        assert merged.total_funding_usd == 5_000_000.0
+
+    def test_merge_total_funding_none_does_not_overwrite(self):
+        merged = _create_merged(_candidate(total_funding_usd=2_000_000.0, source_name="s1"))
+        candidate2 = _candidate(total_funding_usd=None, source_name="s2")
+        _merge_into(merged, candidate2)
+        assert merged.total_funding_usd == 2_000_000.0
+
+    def test_merge_total_funding_lower_does_not_overwrite(self):
+        merged = _create_merged(_candidate(total_funding_usd=5_000_000.0, source_name="s1"))
+        candidate2 = _candidate(total_funding_usd=1_000_000.0, source_name="s2")
+        _merge_into(merged, candidate2)
+        assert merged.total_funding_usd == 5_000_000.0
+
+    def test_merge_funding_stage_takes_highest(self):
+        merged = _create_merged(_candidate(funding_stage="seed", source_name="s1"))
+        candidate2 = _candidate(funding_stage="series_b", source_name="s2")
+        _merge_into(merged, candidate2)
+        assert merged.funding_stage == "series_b"
+
+    def test_merge_funding_stage_does_not_downgrade(self):
+        merged = _create_merged(_candidate(funding_stage="series_c", source_name="s1"))
+        candidate2 = _candidate(funding_stage="seed", source_name="s2")
+        _merge_into(merged, candidate2)
+        assert merged.funding_stage == "series_c"
+
+    def test_merge_funding_stage_none_does_not_overwrite(self):
+        merged = _create_merged(_candidate(funding_stage="series_a", source_name="s1"))
+        candidate2 = _candidate(funding_stage=None, source_name="s2")
+        _merge_into(merged, candidate2)
+        assert merged.funding_stage == "series_a"
+
+    def test_create_merged_carries_funding_fields(self):
+        c = _candidate(funding_stage="seed", total_funding_usd=500_000.0)
+        merged = _create_merged(c)
+        assert merged.funding_stage == "seed"
+        assert merged.total_funding_usd == 500_000.0
+
 
 # --- Full pipeline tests ---
 

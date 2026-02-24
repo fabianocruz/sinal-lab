@@ -108,6 +108,49 @@ class TestUpsertCompanyFromIndex:
         assert company.description == "Original description"
         assert company.website == "https://test.com"
 
+    def test_inserts_funding_fields(self, session):
+        merged = _merged(
+            slug="funded-co", name="FundedCo",
+            funding_stage="series_a", total_funding_usd=10_000_000.0,
+        )
+        upsert_company_from_index(session, merged, score=0.7)
+        company = session.query(Company).filter_by(slug="funded-co").first()
+        assert company.funding_stage == "series_a"
+        assert company.total_funding_usd == 10_000_000.0
+
+    def test_updates_funding_fields_when_higher_score(self, session):
+        merged1 = _merged(slug="co", name="Co", funding_stage="seed", total_funding_usd=1_000_000.0)
+        upsert_company_from_index(session, merged1, score=0.5)
+
+        merged2 = _merged(slug="co", name="Co", funding_stage="series_a", total_funding_usd=5_000_000.0)
+        upsert_company_from_index(session, merged2, score=0.8)
+
+        company = session.query(Company).filter_by(slug="co").first()
+        assert company.funding_stage == "series_a"
+        assert company.total_funding_usd == 5_000_000.0
+
+    def test_funding_fields_none_does_not_overwrite(self, session):
+        merged1 = _merged(slug="co2", name="Co2", funding_stage="series_b", total_funding_usd=20_000_000.0)
+        upsert_company_from_index(session, merged1, score=0.5)
+
+        merged2 = _merged(slug="co2", name="Co2", funding_stage=None, total_funding_usd=None)
+        upsert_company_from_index(session, merged2, score=0.8)
+
+        company = session.query(Company).filter_by(slug="co2").first()
+        assert company.funding_stage == "series_b"
+        assert company.total_funding_usd == 20_000_000.0
+
+    def test_funding_stage_takes_highest_priority(self, session):
+        merged1 = _merged(slug="co3", name="Co3", funding_stage="series_c")
+        upsert_company_from_index(session, merged1, score=0.5)
+
+        # Lower stage should not overwrite
+        merged2 = _merged(slug="co3", name="Co3", funding_stage="seed")
+        upsert_company_from_index(session, merged2, score=0.8)
+
+        company = session.query(Company).filter_by(slug="co3").first()
+        assert company.funding_stage == "series_c"
+
 
 class TestRegisterExternalIds:
     def test_registers_cnpj(self, session):

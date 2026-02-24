@@ -57,7 +57,7 @@ def list_companies(
 
     total = query.count()
     companies = (
-        query.order_by(desc(Company.created_at))
+        query.order_by(desc(Company.source_count), desc(Company.created_at))
         .offset(offset)
         .limit(limit)
         .all()

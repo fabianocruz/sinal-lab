@@ -5,6 +5,7 @@ bulk data sources (Receita Federal, ABStartups, YC, GitHub, Crunchbase).
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Any
 
@@ -166,6 +167,37 @@ class IndexAgent(BaseAgent):
                     logger.info("CoreSignal: %d companies", len(cs_companies))
             except Exception as e:
                 logger.warning("CoreSignal collection failed: %s", e)
+
+        # Crunchbase Basic API — LATAM company profiles
+        cb_source = self.config.get_source_by_name("crunchbase_companies_latam")
+        if cb_source and cb_source.enabled:
+            try:
+                if not os.getenv("CRUNCHBASE_API_KEY"):
+                    logger.warning("CRUNCHBASE_API_KEY not set, skipping Crunchbase API")
+                else:
+                    import httpx
+                    from apps.agents.sources.crunchbase import fetch_companies
+                    with httpx.Client(timeout=30.0) as client:
+                        locations = [l.strip() for l in cb_source.params.get("locations", "").split(",") if l.strip()]
+                        categories = [c.strip() for c in cb_source.params.get("categories", "").split(",") if c.strip()]
+                        limit = cb_source.params.get("limit", 500)
+                        cb_companies = fetch_companies(
+                            cb_source, client,
+                            locations=locations or None,
+                            categories=categories or None,
+                            limit=limit,
+                        )
+                    if cb_companies:
+                        collected["crunchbase"] = cb_companies
+                        self._sources_used.append("crunchbase")
+                        self.provenance.track(
+                            source_url="https://api.crunchbase.com",
+                            source_name="crunchbase",
+                            extraction_method="api",
+                        )
+                        logger.info("Crunchbase API: %d companies", len(cb_companies))
+            except Exception as e:
+                logger.warning("Crunchbase API collection failed: %s", e)
 
         # GitHub org search
         github_sources = [s for s in self.config.data_sources if "github" in s.name and s.enabled]

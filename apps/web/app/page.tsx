@@ -9,6 +9,7 @@ import Pricing from "@/components/landing/Pricing";
 import SocialProof from "@/components/landing/SocialProof";
 import CTASection from "@/components/landing/CTASection";
 import EditionsPreviews from "@/components/landing/EditionsPreviews";
+import MapaHighlight from "@/components/landing/MapaHighlight";
 import ForCompanies from "@/components/landing/ForCompanies";
 import FAQ from "@/components/landing/FAQ";
 import Manifesto from "@/components/landing/Manifesto";
@@ -39,6 +40,7 @@ export default function HomePage() {
         <SocialProof />
         <CTASection />
         <EditionsPreviews />
+        <MapaHighlight />
         <ForCompanies />
         <FAQ />
         <Manifesto />
