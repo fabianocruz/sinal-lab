@@ -265,6 +265,8 @@ def convert_all(
         yc_companies: List of YCCompany objects.
         github_profiles: List of CompanyProfile objects.
         crunchbase_companies: List of CrunchbaseCompany/CrunchbaseOpenCompany objects.
+        startups_latam_companies: List of StartupsLatamCompany objects.
+        coresignal_companies: List of CoreSignalCompany objects.
 
     Returns:
         Combined list of CandidateCompany objects.

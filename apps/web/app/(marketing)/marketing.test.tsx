@@ -8,8 +8,23 @@ vi.mock("lucide-react", () => ({
   X: () => <span data-testid="x-icon" />,
 }));
 
+// Mock IntersectionObserver for LegalPageLayout
+const observeMock = vi.fn();
+const disconnectMock = vi.fn();
+vi.stubGlobal(
+  "IntersectionObserver",
+  vi.fn(() => ({
+    observe: observeMock,
+    disconnect: disconnectMock,
+    unobserve: vi.fn(),
+  })),
+);
+
 import SobrePage, { metadata as sobreMetadata } from "./sobre/page";
 import MetodologiaPage, { metadata as metodologiaMetadata } from "./metodologia/page";
+import ContatoPage, { metadata as contatoMetadata } from "./contato/page";
+import TermosPage, { metadata as termosMetadata } from "./termos/page";
+import PrivacidadePage, { metadata as privacidadeMetadata } from "./privacidade/page";
 
 // ---------------------------------------------------------------------------
 // SobrePage
@@ -418,6 +433,351 @@ describe("MetodologiaPage", () => {
       // "Log de Correções" appears in both the TRANSPARENCIA section and the
       // Footer column — assert at least one instance is present.
       const links = screen.getAllByRole("link", { name: "Log de Correções" });
+      expect(links.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ContatoPage
+// ---------------------------------------------------------------------------
+
+describe("ContatoPage", () => {
+  describe("page structure", () => {
+    it("test_contato_page_renders_navbar", () => {
+      render(<ContatoPage />);
+      expect(screen.getByRole("navigation")).toBeInTheDocument();
+    });
+
+    it("test_contato_page_renders_footer", () => {
+      render(<ContatoPage />);
+      expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    });
+
+    it("test_contato_page_renders_main_element", () => {
+      render(<ContatoPage />);
+      expect(screen.getByRole("main")).toBeInTheDocument();
+    });
+  });
+
+  describe("metadata export", () => {
+    it("test_contato_metadata_has_correct_title", () => {
+      expect(contatoMetadata.title).toBe("Contato");
+    });
+
+    it("test_contato_metadata_has_description", () => {
+      expect(contatoMetadata.description).toContain("contato");
+    });
+
+    it("test_contato_metadata_has_opengraph_title", () => {
+      expect((contatoMetadata.openGraph as { title: string }).title).toBe("Contato | Sinal");
+    });
+
+    it("test_contato_metadata_opengraph_type_is_website", () => {
+      expect((contatoMetadata.openGraph as { type: string }).type).toBe("website");
+    });
+  });
+
+  describe("hero section", () => {
+    it("test_contato_renders_section_label_contato", () => {
+      render(<ContatoPage />);
+      expect(screen.getByText("CONTATO")).toBeInTheDocument();
+    });
+
+    it("test_contato_renders_h1_fale_com_a_sinal", () => {
+      render(<ContatoPage />);
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Fale com a Sinal." }),
+      ).toBeInTheDocument();
+    });
+
+    it("test_contato_renders_response_time", () => {
+      render(<ContatoPage />);
+      expect(screen.getByText("48 horas úteis")).toBeInTheDocument();
+    });
+  });
+
+  describe("form integration", () => {
+    it("test_contato_renders_topic_selector", () => {
+      render(<ContatoPage />);
+      expect(screen.getByText("Dúvida geral")).toBeInTheDocument();
+    });
+
+    it("test_contato_renders_email_field", () => {
+      render(<ContatoPage />);
+      expect(screen.getByPlaceholderText("seu@email.com")).toBeInTheDocument();
+    });
+
+    it("test_contato_renders_submit_button", () => {
+      render(<ContatoPage />);
+      expect(screen.getByRole("button", { name: /Enviar mensagem/ })).toBeInTheDocument();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TermosPage
+// ---------------------------------------------------------------------------
+
+describe("TermosPage", () => {
+  describe("page structure", () => {
+    it("test_termos_page_renders_navbar", () => {
+      render(<TermosPage />);
+      // Navbar nav + mobile TOC nav
+      expect(screen.getAllByRole("navigation").length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_termos_page_renders_footer", () => {
+      render(<TermosPage />);
+      expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    });
+
+    it("test_termos_page_renders_main_element", () => {
+      render(<TermosPage />);
+      expect(screen.getByRole("main")).toBeInTheDocument();
+    });
+  });
+
+  describe("metadata export", () => {
+    it("test_termos_metadata_has_correct_title", () => {
+      expect(termosMetadata.title).toBe("Termos de Uso");
+    });
+
+    it("test_termos_metadata_has_description", () => {
+      expect(termosMetadata.description).toContain("Termos de uso");
+    });
+
+    it("test_termos_metadata_has_opengraph_title", () => {
+      expect((termosMetadata.openGraph as { title: string }).title).toBe("Termos de Uso | Sinal");
+    });
+
+    it("test_termos_metadata_opengraph_type_is_website", () => {
+      expect((termosMetadata.openGraph as { type: string }).type).toBe("website");
+    });
+  });
+
+  describe("hero section", () => {
+    it("test_termos_renders_label_institucional", () => {
+      render(<TermosPage />);
+      expect(screen.getByText("INSTITUCIONAL")).toBeInTheDocument();
+    });
+
+    it("test_termos_renders_h1_termos_de_uso", () => {
+      render(<TermosPage />);
+      expect(screen.getByRole("heading", { level: 1, name: "Termos de Uso" })).toBeInTheDocument();
+    });
+
+    it("test_termos_renders_version_badge", () => {
+      render(<TermosPage />);
+      expect(screen.getByText("v1.0")).toBeInTheDocument();
+    });
+  });
+
+  describe("sections", () => {
+    it("test_termos_renders_all_10_sections", () => {
+      render(<TermosPage />);
+      [
+        "Definições",
+        "Objeto",
+        "Cadastro e Conta",
+        "Planos e Pagamentos",
+        "Propriedade Intelectual",
+        "Conteúdo Gerado por IA",
+        "Uso Aceitável",
+        "Limitação de Responsabilidade",
+        "Modificações",
+        "Legislação e Foro",
+      ].forEach((title) => {
+        expect(
+          screen.getByRole("heading", { level: 2, name: new RegExp(title) }),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("test_termos_renders_company_name", () => {
+      render(<TermosPage />);
+      expect(screen.getAllByText(/Sinal Tecnologia Ltda\./).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_termos_renders_cnpj", () => {
+      render(<TermosPage />);
+      expect(screen.getAllByText(/59\.864\.556\/0001-79/).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_termos_renders_contato_cta_link", () => {
+      render(<TermosPage />);
+      const ctaLink = screen.getByRole("link", { name: /Fale conosco/ });
+      expect(ctaLink).toHaveAttribute("href", "/contato");
+    });
+  });
+
+  describe("sidebar TOC", () => {
+    it("test_termos_renders_toc_with_items", () => {
+      render(<TermosPage />);
+      expect(screen.getAllByText(/ÍNDICE/).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_termos_renders_privacy_sidebar_link", () => {
+      render(<TermosPage />);
+      const links = screen.getAllByText(/Privacidade \(LGPD\)/);
+      expect(links.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PrivacidadePage
+// ---------------------------------------------------------------------------
+
+describe("PrivacidadePage", () => {
+  describe("page structure", () => {
+    it("test_privacidade_page_renders_navbar", () => {
+      render(<PrivacidadePage />);
+      // Navbar nav + mobile TOC nav
+      expect(screen.getAllByRole("navigation").length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_privacidade_page_renders_footer", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    });
+
+    it("test_privacidade_page_renders_main_element", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByRole("main")).toBeInTheDocument();
+    });
+  });
+
+  describe("metadata export", () => {
+    it("test_privacidade_metadata_has_correct_title", () => {
+      expect(privacidadeMetadata.title).toBe("Política de Privacidade");
+    });
+
+    it("test_privacidade_metadata_has_description", () => {
+      expect(privacidadeMetadata.description).toContain("LGPD");
+    });
+
+    it("test_privacidade_metadata_has_opengraph_title", () => {
+      expect((privacidadeMetadata.openGraph as { title: string }).title).toBe(
+        "Política de Privacidade | Sinal",
+      );
+    });
+
+    it("test_privacidade_metadata_opengraph_type_is_website", () => {
+      expect((privacidadeMetadata.openGraph as { type: string }).type).toBe("website");
+    });
+  });
+
+  describe("hero section", () => {
+    it("test_privacidade_renders_label_privacidade_lgpd", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByText("PRIVACIDADE & LGPD")).toBeInTheDocument();
+    });
+
+    it("test_privacidade_renders_h1_politica_de_privacidade", () => {
+      render(<PrivacidadePage />);
+      expect(
+        screen.getByRole("heading", {
+          level: 1,
+          name: "Política de Privacidade",
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it("test_privacidade_renders_version_badge", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByText("v1.0")).toBeInTheDocument();
+    });
+  });
+
+  describe("key commitments", () => {
+    it("test_privacidade_renders_nao_vendemos_commitment", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByText("Não vendemos seus dados")).toBeInTheDocument();
+    });
+
+    it("test_privacidade_renders_sem_trackers_commitment", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByText("Sem trackers de terceiros")).toBeInTheDocument();
+    });
+
+    it("test_privacidade_renders_minimo_dados_commitment", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByText("Mínimo de dados coletados")).toBeInTheDocument();
+    });
+
+    it("test_privacidade_renders_exclusao_commitment", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByText("Exclusão a qualquer momento")).toBeInTheDocument();
+    });
+  });
+
+  describe("sections", () => {
+    it("test_privacidade_renders_all_12_sections", () => {
+      render(<PrivacidadePage />);
+      [
+        "Controlador",
+        "Dados que Coletamos",
+        "Finalidade e Base Legal",
+        "Cookies",
+        "Compartilhamento",
+        "Armazenamento e Segurança",
+        "Retenção",
+        "Seus Direitos \\(LGPD\\)",
+        "Dados de Menores",
+        "Transferência Internacional",
+        "Encarregado \\(DPO\\)",
+        "Alterações",
+      ].forEach((title) => {
+        expect(
+          screen.getByRole("heading", { level: 2, name: new RegExp(title) }),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("test_privacidade_renders_cnpj", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getAllByText(/59\.864\.556\/0001-79/).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_privacidade_renders_dpo_email", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getAllByText("privacidade@sinal.tech").length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_privacidade_renders_data_table", () => {
+      render(<PrivacidadePage />);
+      // The "Dados que Coletamos" section has a table with "Email" row
+      const tables = screen.getAllByRole("table");
+      expect(tables.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe("DPO contact card", () => {
+    it("test_privacidade_renders_dpo_card_label", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getByText("ENCARREGADO DE PROTEÇÃO DE DADOS")).toBeInTheDocument();
+    });
+
+    it("test_privacidade_renders_dpo_mailto_link", () => {
+      render(<PrivacidadePage />);
+      const dpoLinks = screen.getAllByRole("link", {
+        name: /privacidade@sinal\.tech/,
+      });
+      const mailtoLink = dpoLinks.find((link) => link.getAttribute("href")?.startsWith("mailto:"));
+      expect(mailtoLink).toBeDefined();
+    });
+  });
+
+  describe("sidebar TOC", () => {
+    it("test_privacidade_renders_toc_with_items", () => {
+      render(<PrivacidadePage />);
+      expect(screen.getAllByText(/ÍNDICE/).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("test_privacidade_renders_termos_sidebar_link", () => {
+      render(<PrivacidadePage />);
+      const links = screen.getAllByText(/Termos de Uso/);
       expect(links.length).toBeGreaterThanOrEqual(1);
     });
   });

@@ -33,6 +33,15 @@ CORESIGNAL_COLLECT_URL = (
 DEFAULT_CONFIDENCE = 0.8
 COLLECT_DELAY_SECONDS = 0.5
 
+# Tech/startup-relevant industries on CoreSignal (LinkedIn industry names).
+# Searched per country to focus on startup-like companies.
+TECH_INDUSTRIES: List[str] = [
+    "Computer Software",
+    "Internet",
+    "Financial Services",
+    "Information Technology & Services",
+]
+
 # LATAM countries as CoreSignal search filter strings.
 # Each entry is a single-country filter value for the "country" field.
 LATAM_COUNTRIES: List[str] = [
@@ -381,16 +390,21 @@ def fetch_coresignal_companies(
         )
         return []
 
-    # Phase 1: Search across all LATAM countries, deduplicating IDs
+    # Phase 1: Search across LATAM countries x tech industries, deduplicating IDs.
+    # Uses founded_year_gte=2010 and employees_count_lte=500 to focus on startups.
     all_ids: Set[int] = set()
 
     for country in LATAM_COUNTRIES:
-        ids = search_companies(
-            client=client,
-            api_key=api_key,
-            country=country,
-        )
-        all_ids.update(ids)
+        for industry in TECH_INDUSTRIES:
+            ids = search_companies(
+                client=client,
+                api_key=api_key,
+                country=country,
+                industry=industry,
+                founded_year_gte=2010,
+                employees_count_lte=500,
+            )
+            all_ids.update(ids)
 
     if not all_ids:
         logger.info("CoreSignal: no company IDs found across LATAM searches")
@@ -402,8 +416,10 @@ def fetch_coresignal_companies(
         len(LATAM_COUNTRIES),
     )
 
-    # Phase 2: Collect full data, up to max_collect
-    ids_to_collect = sorted(all_ids)[:max_collect]
+    # Phase 2: Collect full data, up to max_collect.
+    # Sort descending so newest companies (higher IDs) are collected first —
+    # older IDs are more likely to be deleted/stale.
+    ids_to_collect = sorted(all_ids, reverse=True)[:max_collect]
     companies: List[CoreSignalCompany] = []
 
     for i, company_id in enumerate(ids_to_collect):

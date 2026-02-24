@@ -7,7 +7,7 @@ const FOOTER_COLUMNS = [
       { label: "Briefing Semanal", href: "/newsletter" },
       { label: "Índices LATAM", href: "#" },
       { label: "Deep Dives", href: "#" },
-      { label: "API de Dados", href: "#" },
+      { label: "API de Dados", href: "/developers" },
       { label: "Para Empresas", href: "/#empresas" },
     ],
   },
@@ -35,9 +35,9 @@ const FOOTER_COLUMNS = [
     links: [
       { label: "Sobre", href: "/sobre" },
       { label: "Manifesto", href: "/#manifesto" },
-      { label: "Contato", href: "#" },
-      { label: "Termos", href: "#" },
-      { label: "Privacidade (LGPD)", href: "#" },
+      { label: "Contato", href: "/contato" },
+      { label: "Termos", href: "/termos" },
+      { label: "Privacidade (LGPD)", href: "/privacidade" },
     ],
   },
 ];

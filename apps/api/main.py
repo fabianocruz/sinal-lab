@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.config import get_settings
-from apps.api.routers import admin_content, agents, auth, companies, content, editorial, health, waitlist
+from apps.api.routers import admin_content, agents, auth, companies, content, developers, editorial, health, waitlist
 
 settings = get_settings()
 
@@ -42,6 +42,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(content.router, prefix="/api")
 app.include_router(companies.router, prefix="/api")
 app.include_router(waitlist.router, prefix="/api")
+app.include_router(developers.router, prefix="/api")
 app.include_router(editorial.router, prefix="/api")
 app.include_router(admin_content.router, prefix="/api")
 
