@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { getCountryFlag } from "@/lib/company";
 
 const COUNTRIES = [
   { value: "todos", label: "Todos", flag: "\u{1F30E}" },
