@@ -18,6 +18,7 @@ LANGUAGE_WEIGHTS: dict[str, float] = {
     "kotlin": 0.6, "swift": 0.5, "java": 0.5,
     "c++": 0.5, "c#": 0.5, "ruby": 0.4,
     "elixir": 0.6, "dart": 0.5, "scala": 0.4,
+    "solidity": 0.7,
 }
 
 DEFAULT_LANGUAGE_WEIGHT = 0.3
@@ -52,6 +53,11 @@ DEV_CATEGORIES: dict[str, list[str]] = {
     "security": [
         "auth", "security", "encryption", "vulnerability",
         "oauth", "jwt", "identity", "secrets",
+    ],
+    "fintech_infra": [
+        "blockchain", "smart contract", "solidity", "web3", "defi",
+        "stablecoin", "token", "wallet", "dex", "evm",
+        "open banking", "pix", "payment", "fintech",
     ],
 }
 

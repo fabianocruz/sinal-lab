@@ -208,3 +208,77 @@ class TestGitHubRepoItem:
             content_hash="manual_hash",
         )
         assert item.content_hash == "manual_hash"
+
+
+class TestTopicFilter:
+    """Test optional topic-filtered queries via source.params['topics']."""
+
+    def test_topic_qualifiers_appended(self) -> None:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"items": []}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.get.return_value = mock_response
+
+        source = _make_source(topics="fintech,stablecoin,defi")
+        fetch_github_repos(source, mock_client)
+
+        call_kwargs = mock_client.get.call_args
+        params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params", {}))
+        q = params.get("q", "")
+        assert "topic:fintech" in q
+        assert "topic:stablecoin" in q
+        assert "topic:defi" in q
+
+    def test_no_topics_param_backward_compat(self) -> None:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"items": []}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.get.return_value = mock_response
+
+        source = _make_source()  # No topics param
+        fetch_github_repos(source, mock_client)
+
+        call_kwargs = mock_client.get.call_args
+        params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params", {}))
+        q = params.get("q", "")
+        assert "topic:" not in q
+
+    def test_empty_topics_ignored(self) -> None:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"items": []}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.get.return_value = mock_response
+
+        source = _make_source(topics="")
+        fetch_github_repos(source, mock_client)
+
+        call_kwargs = mock_client.get.call_args
+        params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params", {}))
+        q = params.get("q", "")
+        assert "topic:" not in q
+
+    def test_whitespace_topics_trimmed(self) -> None:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"items": []}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.get.return_value = mock_response
+
+        source = _make_source(topics=" fintech , , defi ")
+        fetch_github_repos(source, mock_client)
+
+        call_kwargs = mock_client.get.call_args
+        params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params", {}))
+        q = params.get("q", "")
+        assert "topic:fintech" in q
+        assert "topic:defi" in q
+        # Empty entries between commas should be skipped
+        assert "topic: " not in q
+        assert "topic:," not in q

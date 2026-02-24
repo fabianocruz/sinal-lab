@@ -69,6 +69,41 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
         params={"subreddit": "webdev", "sort": "hot", "limit": 25},
     ),
 
+    # --- GitHub Trending (fintech/DeFi topics) ---
+    DataSourceConfig(
+        name="github_trending_fintech",
+        source_type="api",
+        url="https://api.github.com/search/repositories",
+        params={
+            "window": "weekly",
+            "topics": "fintech,open-banking,pix,stablecoin,decentralized-finance",
+        },
+    ),
+
+    # --- Fintech/DeFi Dev RSS ---
+    DataSourceConfig(
+        name="ethereum_blog",
+        source_type="rss",
+        url="https://blog.ethereum.org/feed.xml",
+    ),
+    DataSourceConfig(
+        name="a16z_crypto",
+        source_type="rss",
+        url="https://a16zcrypto.com/feed/",
+    ),
+
+    # --- Reddit (fintech/DeFi dev communities) ---
+    DataSourceConfig(
+        name="reddit_defi_dev", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "ethdev", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_solana_dev", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "solanadev", "sort": "hot", "limit": 25},
+    ),
+
     # --- ProductHunt GraphQL (dev token, free) ---
     DataSourceConfig(
         name="producthunt_tools", source_type="api",

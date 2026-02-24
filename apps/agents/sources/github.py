@@ -75,8 +75,16 @@ def fetch_github_repos(
 
     date_qualifier = f"created:>{cutoff.strftime('%Y-%m-%d')}"
 
+    # Optional topic filter (e.g., "fintech,stablecoin,defi")
+    topic_qualifier = ""
+    topics_str = source.params.get("topics", "")
+    if topics_str:
+        topic_list = [t.strip() for t in topics_str.split(",") if t.strip()]
+        if topic_list:
+            topic_qualifier = " " + " ".join(f"topic:{t}" for t in topic_list)
+
     params: Dict[str, Any] = {
-        "q": f"stars:>{min_stars} {date_qualifier}",
+        "q": f"stars:>{min_stars} {date_qualifier}{topic_qualifier}",
         "sort": "stars",
         "order": "desc",
         "per_page": 30,

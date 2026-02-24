@@ -75,6 +75,23 @@ INDEX_SOURCES: list[DataSourceConfig] = [
         params={"q": 'location:"Lima" type:org repos:>3', "sort": "repositories", "per_page": 30},
     ),
 
+    # StartupsLatam — WordPress REST API directory (510+ startups)
+    DataSourceConfig(
+        name="startups_latam",
+        source_type="api",
+        url="https://startupslatam.com/wp-json/wp/v2/startup",
+        params={"confidence": 0.7},
+    ),
+
+    # CoreSignal — LinkedIn-sourced company database API
+    DataSourceConfig(
+        name="coresignal_latam",
+        source_type="api",
+        url="https://api.coresignal.com/cdapi/v2/company_base",
+        api_key_env="CORESIGNAL_API_KEY",
+        params={"max_collect": 200, "confidence": 0.8},
+    ),
+
     # Crunchbase Open Data CSV (optional, bulk file)
     DataSourceConfig(
         name="crunchbase_open",

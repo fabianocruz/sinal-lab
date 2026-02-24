@@ -42,6 +42,9 @@ TOPIC_PATTERNS: dict[str, list[str]] = {
         "cryptocurrency", "bitcoin", "ethereum", "stablecoin",
         "open banking", "open finance", "pix", "cbdc", "drex",
         "insurtech", "lending", "credit",
+        "web3", "smart contract", "solidity", "token", "wallet",
+        "dex", "amm", "liquidity", "yield farming",
+        "solana", "polygon", "layer 2", "rollup", "bridge", "tvl",
     ],
     "latam_tech": [
         "brasil", "brazil", "latam", "america latina", "latin america",

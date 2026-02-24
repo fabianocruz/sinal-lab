@@ -78,6 +78,22 @@ class TestClassifyTopics:
         _, _, confidence = classify_topics(signal)
         assert confidence <= 1.0
 
+    def test_defi_classified_as_fintech(self):
+        signal = make_signal(title="New defi protocol launches stablecoin yield farming on ethereum")
+        topics, primary, confidence = classify_topics(signal)
+        assert "fintech" in topics
+
+    def test_web3_classified_as_fintech(self):
+        signal = make_signal(title="web3 wallet smart contract bridge for solana dex")
+        topics, primary, confidence = classify_topics(signal)
+        assert "fintech" in topics
+        assert primary == "fintech"
+
+    def test_stablecoin_classified_as_fintech(self):
+        signal = make_signal(title="Stablecoin tvl surges amid layer 2 rollup adoption")
+        topics, primary, confidence = classify_topics(signal)
+        assert "fintech" in topics
+
 
 class TestComputeMomentum:
     """Test momentum scoring."""

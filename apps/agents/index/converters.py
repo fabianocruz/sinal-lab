@@ -184,12 +184,78 @@ def from_crunchbase(
     )
 
 
+def from_startups_latam(
+    company,  # StartupsLatamCompany
+    confidence: float = 0.7,
+) -> CandidateCompany:
+    """Convert a StartupsLatam record to CandidateCompany.
+
+    Args:
+        company: StartupsLatamCompany dataclass.
+        confidence: Source confidence (default 0.7 for curated directory).
+
+    Returns:
+        CandidateCompany with slug and name as dedup keys.
+    """
+    from apps.agents.sources.startups_latam import INDUSTRY_ALIASES
+
+    # Map StartupsLatam industry → sector normalizer input
+    raw_sector = INDUSTRY_ALIASES.get(company.industry, company.industry)
+    sector = normalize_sector(raw_sector)
+
+    return CandidateCompany(
+        name=company.name,
+        slug=company.slug,
+        description=company.description,
+        sector=sector,
+        country=company.country,
+        source_name="startups_latam",
+        confidence=confidence,
+        tags=[company.industry.lower()] if company.industry else [],
+    )
+
+
+def from_coresignal(
+    company,  # CoreSignalCompany
+    confidence: float = 0.8,
+) -> CandidateCompany:
+    """Convert a CoreSignal record to CandidateCompany.
+
+    Args:
+        company: CoreSignalCompany dataclass.
+        confidence: Source confidence (default 0.8 for LinkedIn-sourced data).
+
+    Returns:
+        CandidateCompany with domain and linkedin_url as dedup keys.
+    """
+    domain = normalize_domain(company.website)
+    sector = normalize_sector(company.industry) if company.industry else None
+
+    return CandidateCompany(
+        name=company.name,
+        slug=company.slug,
+        website=company.website,
+        description=company.description,
+        sector=sector,
+        city=company.city,
+        country=company.country or "Brasil",
+        domain=domain,
+        linkedin_url=company.linkedin_url,
+        source_name="coresignal",
+        confidence=confidence,
+        team_size=company.employees_count,
+        founded_date=str(company.founded_year) if company.founded_year else None,
+    )
+
+
 def convert_all(
     receita_companies: list = None,
     abstartups_companies: list = None,
     yc_companies: list = None,
     github_profiles: list = None,
     crunchbase_companies: list = None,
+    startups_latam_companies: list = None,
+    coresignal_companies: list = None,
 ) -> list[CandidateCompany]:
     """Convert all source records to CandidateCompany format.
 
@@ -229,6 +295,16 @@ def convert_all(
         for c in crunchbase_companies:
             candidates.append(from_crunchbase(c))
         logger.info("Converted %d Crunchbase records", len(crunchbase_companies))
+
+    if startups_latam_companies:
+        for c in startups_latam_companies:
+            candidates.append(from_startups_latam(c))
+        logger.info("Converted %d StartupsLatam records", len(startups_latam_companies))
+
+    if coresignal_companies:
+        for c in coresignal_companies:
+            candidates.append(from_coresignal(c))
+        logger.info("Converted %d CoreSignal records", len(coresignal_companies))
 
     logger.info("Total candidates converted: %d", len(candidates))
     return candidates
