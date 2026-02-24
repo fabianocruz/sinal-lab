@@ -60,3 +60,11 @@ vi.mock("react-markdown", () => ({
   ),
 }));
 vi.mock("remark-gfm", () => ({ default: () => {} }));
+
+// Mock IntersectionObserver (not available in jsdom)
+class MockIntersectionObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);

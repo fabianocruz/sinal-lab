@@ -7,7 +7,7 @@ const FOOTER_COLUMNS = [
       { label: "Briefing Semanal", href: "/newsletter" },
       { label: "Índices LATAM", href: "#" },
       { label: "Deep Dives", href: "#" },
-      { label: "API de Dados", href: "#" },
+      { label: "API de Dados", href: "/developers" },
       { label: "Para Empresas", href: "/#empresas" },
     ],
   },

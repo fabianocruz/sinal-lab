@@ -199,7 +199,8 @@ export async function fetchCompanies(params?: {
 
 export async function fetchCompanyBySlug(slug: string): Promise<Company | null> {
   try {
-    const response = await fetch(`${API_BASE}/api/companies/${slug}`, {
+    const encoded = encodeURIComponent(slug);
+    const response = await fetch(`${API_BASE}/api/companies/${encoded}`, {
       next: { revalidate: 300 },
     });
     if (!response.ok) return null;
@@ -207,6 +208,35 @@ export async function fetchCompanyBySlug(slug: string): Promise<Company | null> 
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Developers — API Access Request
+// ---------------------------------------------------------------------------
+
+export interface ApiAccessRequestData {
+  name: string;
+  email: string;
+  company: string;
+  role: string;
+  use_case: string;
+}
+
+export async function submitApiAccessRequest(
+  data: ApiAccessRequestData,
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/api/developers/request-access`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Erro ao enviar solicitação." }));
+    throw new Error(error.detail || "Erro ao enviar solicitação.");
+  }
+
+  return response.json();
 }
 
 // ---------------------------------------------------------------------------

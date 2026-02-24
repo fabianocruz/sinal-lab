@@ -749,6 +749,65 @@ a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !im
 </html>"""
 
 
+def send_api_access_notification(
+    name: str,
+    email: str,
+    company: str,
+    role: str,
+    use_case: str,
+) -> bool:
+    """Send API access request notification to contact@sinal.tech via Resend.
+
+    Returns True on success, False on failure. Gracefully degrades
+    when RESEND_API_KEY is not configured (returns False without error).
+    """
+    settings = get_settings()
+
+    if not settings.resend_api_key:
+        logger.warning("RESEND_API_KEY not set, skipping API access notification")
+        return False
+
+    subject = f"[API Access] {company} — {name}"
+    html_body = f"""\
+<h2>Nova solicitação de acesso à API</h2>
+<table style="border-collapse:collapse;">
+<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Nome:</td><td>{name}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>{email}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Empresa:</td><td>{company}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Cargo:</td><td>{role}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Caso de uso:</td><td>{use_case}</td></tr>
+</table>"""
+
+    try:
+        response = httpx.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": settings.resend_from_email,
+                "to": ["contact@sinal.tech"],
+                "subject": subject,
+                "html": html_body,
+            },
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        logger.info("API access notification sent for %s (%s)", name, company)
+        return True
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "Resend API returned %d for API access notification: %s",
+            exc.response.status_code,
+            exc.response.text,
+        )
+        return False
+    except Exception as exc:
+        logger.error("Failed to send API access notification: %s", exc)
+        return False
+
+
 def send_welcome_email(email: str, name: Optional[str] = None) -> bool:
     """Send a branded welcome email via the Resend REST API.
 
