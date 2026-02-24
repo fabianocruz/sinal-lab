@@ -17,6 +17,14 @@ from apps.agents.sources.entity_matcher import (
 
 logger = logging.getLogger(__name__)
 
+# Priority ordering for funding stages (higher = later stage).
+# Used during merge to keep the most advanced stage, and in db_writer
+# to avoid downgrading an existing company's stage on re-import.
+FUNDING_STAGE_PRIORITY: dict[str, int] = {
+    "pre_seed": 0, "seed": 1, "series_a": 2, "series_b": 3,
+    "series_c": 4, "series_d": 5, "growth": 6, "ipo": 7,
+}
+
 
 @dataclass
 class MergedCompany:
@@ -44,6 +52,8 @@ class MergedCompany:
     founded_date: Optional[str] = None
     team_size: Optional[int] = None
     business_model: Optional[str] = None
+    funding_stage: Optional[str] = None  # Canonical stage (see FUNDING_STAGE_PRIORITY)
+    total_funding_usd: Optional[float] = None  # Cumulative USD raised (MAX across sources)
     tech_stack: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     source_count: int = 1
@@ -80,6 +90,21 @@ def _merge_into(merged: MergedCompany, candidate: CandidateCompany) -> None:
     merged.founded_date = _merge_field(merged.founded_date, candidate.founded_date)
     merged.team_size = _merge_field(merged.team_size, candidate.team_size)
     merged.business_model = _merge_field(merged.business_model, candidate.business_model)
+
+    # total_funding_usd: take MAX value across sources
+    if candidate.total_funding_usd is not None:
+        if merged.total_funding_usd is None or candidate.total_funding_usd > merged.total_funding_usd:
+            merged.total_funding_usd = candidate.total_funding_usd
+
+    # funding_stage: take highest priority stage
+    if candidate.funding_stage is not None:
+        if merged.funding_stage is None:
+            merged.funding_stage = candidate.funding_stage
+        else:
+            current = FUNDING_STAGE_PRIORITY.get(merged.funding_stage, -1)
+            incoming = FUNDING_STAGE_PRIORITY.get(candidate.funding_stage, -1)
+            if incoming > current:
+                merged.funding_stage = candidate.funding_stage
 
     # Merge lists (deduplicated)
     if candidate.tech_stack:
@@ -123,6 +148,8 @@ def _create_merged(candidate: CandidateCompany) -> MergedCompany:
         founded_date=candidate.founded_date,
         team_size=candidate.team_size,
         business_model=candidate.business_model,
+        funding_stage=candidate.funding_stage,
+        total_funding_usd=candidate.total_funding_usd,
         tech_stack=list(candidate.tech_stack),
         tags=list(candidate.tags),
         source_count=1,

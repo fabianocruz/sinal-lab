@@ -10,13 +10,45 @@ interface PaginationProps {
   basePath?: string;
 }
 
+type PageItem = number | "ellipsis";
+
+/**
+ * Build a truncated page list with ellipsis for large page counts.
+ * Shows first page, last page, and a window of ±1 around current page.
+ * For ≤7 pages, shows all numbers without truncation.
+ */
+export function getPageItems(current: number, total: number): PageItem[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const items = new Set<number>();
+  items.add(1);
+  items.add(total);
+  for (let i = current - 1; i <= current + 1; i++) {
+    if (i >= 1 && i <= total) items.add(i);
+  }
+
+  const sorted = [...items].sort((a, b) => a - b);
+  const result: PageItem[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) {
+      result.push("ellipsis");
+    }
+    result.push(sorted[i]);
+  }
+
+  return result;
+}
+
 export default function Pagination({
   currentPage,
   totalPages,
   basePath = "/newsletter",
 }: PaginationProps) {
   const searchParams = useSearchParams();
-  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const pageItems = getPageItems(currentPage, totalPages);
 
   function buildHref(page: number): string {
     const params = new URLSearchParams(searchParams.toString());
@@ -55,21 +87,31 @@ export default function Pagination({
         </Link>
       )}
 
-      {pageNumbers.map((page) => (
-        <Link
-          key={page}
-          href={buildHref(page)}
-          aria-current={page === currentPage ? "page" : undefined}
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg border font-mono text-[13px] transition-all duration-200",
-            page === currentPage
-              ? "border-signal bg-signal font-semibold text-sinal-black"
-              : "border-[rgba(255,255,255,0.06)] bg-sinal-graphite text-ash hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white",
-          )}
-        >
-          {page}
-        </Link>
-      ))}
+      {pageItems.map((item, idx) =>
+        item === "ellipsis" ? (
+          <span
+            key={`ellipsis-${idx}`}
+            className="flex h-10 w-10 items-center justify-center font-mono text-[13px] text-ash"
+            aria-hidden="true"
+          >
+            &hellip;
+          </span>
+        ) : (
+          <Link
+            key={item}
+            href={buildHref(item)}
+            aria-current={item === currentPage ? "page" : undefined}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-lg border font-mono text-[13px] transition-all duration-200",
+              item === currentPage
+                ? "border-signal bg-signal font-semibold text-sinal-black"
+                : "border-[rgba(255,255,255,0.06)] bg-sinal-graphite text-ash hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white",
+            )}
+          >
+            {item}
+          </Link>
+        ),
+      )}
 
       {currentPage === totalPages ? (
         <span

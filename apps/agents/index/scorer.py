@@ -26,6 +26,7 @@ _COMPLETENESS_FIELDS = [
     "name", "website", "description", "sector", "city",
     "country", "cnpj", "domain", "founded_date", "team_size",
     "business_model", "github_url", "linkedin_url",
+    "funding_stage", "total_funding_usd",
 ]
 
 

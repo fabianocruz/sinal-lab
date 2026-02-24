@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { href: "/#briefing", label: "Briefing" },
   { href: "/#metodologia", label: "Metodologia" },
   { href: "/#precos", label: "Preços" },
-  { href: "/#empresas", label: "Para Empresas" },
+  { href: "/startups", label: "Mapa" },
 ];
 
 /**

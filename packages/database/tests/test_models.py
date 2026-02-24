@@ -100,6 +100,9 @@ class TestCompany:
             founded_date=date(2012, 1, 1),
             team_size=4000,
             business_model="B2C",
+            funding_stage="Series B",
+            total_funding_usd=200_000_000.0,
+            is_trending=True,
             website="https://creditas.com.br",
             github_url="https://github.com/creditas",
             status="active",
@@ -110,6 +113,23 @@ class TestCompany:
         assert company.sector == "fintech"
         assert company.team_size == 4000
         assert company.founded_date == date(2012, 1, 1)
+        assert company.funding_stage == "Series B"
+        assert company.total_funding_usd == 200_000_000.0
+        assert company.is_trending is True
+
+    def test_funding_fields_default_to_none(self, session: Session):
+        """New funding/trending columns should default to None when not set."""
+        company = Company(
+            id=uuid.uuid4(),
+            name="MinimalCo",
+            slug="minimalco",
+        )
+        session.add(company)
+        session.flush()
+
+        assert company.funding_stage is None
+        assert company.total_funding_usd is None
+        assert company.is_trending is None or company.is_trending is False
 
     def test_company_slug_unique(self, session: Session):
         c1 = Company(id=uuid.uuid4(), name="A", slug="same-slug")

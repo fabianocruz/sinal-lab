@@ -7,7 +7,7 @@ import { AGENT_PERSONAS } from "@/lib/constants";
 
 import SearchBar from "@/components/newsletter/SearchBar";
 import FilterPills from "@/components/newsletter/FilterPills";
-import Pagination from "@/components/newsletter/Pagination";
+import Pagination, { getPageItems } from "@/components/newsletter/Pagination";
 import ArchiveCard from "@/components/newsletter/ArchiveCard";
 import FeaturedCard from "@/components/newsletter/FeaturedCard";
 import NewsletterArchivePage from "@/app/newsletter/page";
@@ -167,7 +167,9 @@ describe("FilterPills", () => {
   it("test_filterpills_click_agent_pill_deactivates_todos", () => {
     // Simulate URL with agent=radar already active
     vi.spyOn(nextNavigation, "useSearchParams").mockReturnValue(
-      new URLSearchParams("agent=radar") as unknown as ReturnType<typeof nextNavigation.useSearchParams>,
+      new URLSearchParams("agent=radar") as unknown as ReturnType<
+        typeof nextNavigation.useSearchParams
+      >,
     );
 
     render(<FilterPills />);
@@ -182,7 +184,9 @@ describe("FilterPills", () => {
   it("test_filterpills_click_todos_after_agent_makes_todos_active_again", () => {
     // Simulate URL with agent=radar active
     vi.spyOn(nextNavigation, "useSearchParams").mockReturnValue(
-      new URLSearchParams("agent=radar") as unknown as ReturnType<typeof nextNavigation.useSearchParams>,
+      new URLSearchParams("agent=radar") as unknown as ReturnType<
+        typeof nextNavigation.useSearchParams
+      >,
     );
     const pushMock = vi.fn();
     vi.spyOn(nextNavigation, "useRouter").mockReturnValue({
@@ -287,6 +291,95 @@ describe("Pagination", () => {
 
     expect(screen.getByLabelText("Página anterior")).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByLabelText("Próxima página")).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("test_pagination_truncates_large_page_counts_with_ellipsis", () => {
+    render(<Pagination currentPage={40} totalPages={81} />);
+
+    // Should show first, last, and neighborhood of current
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("39")).toBeInTheDocument();
+    expect(screen.getByText("40")).toBeInTheDocument();
+    expect(screen.getByText("41")).toBeInTheDocument();
+    expect(screen.getByText("81")).toBeInTheDocument();
+
+    // Should NOT show far-away pages
+    expect(screen.queryByText("10")).not.toBeInTheDocument();
+    expect(screen.queryByText("70")).not.toBeInTheDocument();
+
+    // Should have ellipsis elements
+    const ellipses = screen.getAllByText("…");
+    expect(ellipses.length).toBe(2);
+  });
+
+  it("test_pagination_no_truncation_for_7_or_fewer_pages", () => {
+    render(<Pagination currentPage={3} totalPages={7} />);
+
+    for (let i = 1; i <= 7; i++) {
+      expect(screen.getByText(String(i))).toBeInTheDocument();
+    }
+    expect(screen.queryByText("…")).not.toBeInTheDocument();
+  });
+
+  it("test_pagination_first_page_shows_no_leading_ellipsis", () => {
+    render(<Pagination currentPage={1} totalPages={20} />);
+
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("20")).toBeInTheDocument();
+
+    // Only one ellipsis (trailing)
+    const ellipses = screen.getAllByText("…");
+    expect(ellipses.length).toBe(1);
+  });
+
+  it("test_pagination_last_page_shows_no_trailing_ellipsis", () => {
+    render(<Pagination currentPage={20} totalPages={20} />);
+
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("19")).toBeInTheDocument();
+    expect(screen.getByText("20")).toBeInTheDocument();
+
+    // Only one ellipsis (leading)
+    const ellipses = screen.getAllByText("…");
+    expect(ellipses.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPageItems (pure function — unit tests)
+// ---------------------------------------------------------------------------
+
+describe("getPageItems", () => {
+  it("returns all pages for small totals", () => {
+    expect(getPageItems(1, 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(getPageItems(3, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it("truncates middle pages for large totals", () => {
+    const items = getPageItems(40, 81);
+    expect(items).toEqual([1, "ellipsis", 39, 40, 41, "ellipsis", 81]);
+  });
+
+  it("shows no leading ellipsis when near start", () => {
+    const items = getPageItems(1, 20);
+    expect(items).toEqual([1, 2, "ellipsis", 20]);
+  });
+
+  it("shows no trailing ellipsis when near end", () => {
+    const items = getPageItems(20, 20);
+    expect(items).toEqual([1, "ellipsis", 19, 20]);
+  });
+
+  it("merges adjacent pages without ellipsis", () => {
+    // Page 2: neighborhood is [1, 2, 3], plus first=1 and last=10
+    const items = getPageItems(2, 10);
+    expect(items).toEqual([1, 2, 3, "ellipsis", 10]);
+  });
+
+  it("handles page adjacent to last", () => {
+    const items = getPageItems(9, 10);
+    expect(items).toEqual([1, "ellipsis", 8, 9, 10]);
   });
 });
 

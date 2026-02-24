@@ -67,9 +67,20 @@ class TestCompletenessScore:
             business_model="SaaS",
             github_url="https://github.com/test",
             linkedin_url="https://linkedin.com/company/test",
+            funding_stage="series_a",
+            total_funding_usd=10_000_000.0,
         )
         score = _completeness_score(merged)
-        assert score > 0.8
+        assert score == 1.0
+
+    def test_funding_fields_count_toward_completeness(self):
+        base = _merged()
+        score_base = _completeness_score(base)
+
+        with_funding = _merged(funding_stage="series_a", total_funding_usd=5_000_000.0)
+        score_with = _completeness_score(with_funding)
+
+        assert score_with > score_base
 
 
 class TestScoreCompany:

@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, Index, Integer, JSON, String, Text
+from sqlalchemy import Boolean, Date, Float, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.database.models.base import Base, TimestampMixin, UUIDMixin
@@ -39,6 +39,11 @@ class Company(UUIDMixin, TimestampMixin, Base):
     team_size: Mapped[Optional[int]] = mapped_column(nullable=True)
     tech_stack: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
     business_model: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Funding
+    funding_stage: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    total_funding_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    is_trending: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
 
     # Links
     website: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

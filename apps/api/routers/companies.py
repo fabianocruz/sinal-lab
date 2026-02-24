@@ -15,7 +15,7 @@ Individual endpoint (/{slug}) returns a single CompanyDetailResponse.
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc
+from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
@@ -56,8 +56,21 @@ def list_companies(
         query = query.filter(Company.tags.contains([tags]))
 
     total = query.count()
+
+    # Prioritize companies with richer data (description, sector, website, etc.)
+    # Use func.length > 0 to exclude empty strings stored by GitHub-only sources.
+    _has_text = lambda col: (func.coalesce(func.length(col), 0) > 0)
+    data_richness = (
+        case((_has_text(Company.description), 1), else_=0)
+        + case((_has_text(Company.sector), 1), else_=0)
+        + case((_has_text(Company.website), 1), else_=0)
+        + case((Company.funding_stage.isnot(None), 1), else_=0)
+        + case((Company.team_size.isnot(None), 1), else_=0)
+        + case((Company.founded_date.isnot(None), 1), else_=0)
+    )
+
     companies = (
-        query.order_by(desc(Company.created_at))
+        query.order_by(desc(data_richness), desc(Company.source_count), desc(Company.created_at))
         .offset(offset)
         .limit(limit)
         .all()

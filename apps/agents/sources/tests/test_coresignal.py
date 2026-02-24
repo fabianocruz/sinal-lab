@@ -871,3 +871,75 @@ class TestFetchCoresignalCompanies:
 
         # sleep should be called N-1 times for N companies (not after last)
         assert mock_sleep.call_count == 2
+
+    @patch("apps.agents.sources.coresignal.time.sleep")
+    @patch("apps.agents.sources.coresignal.os.getenv")
+    def test_stops_early_after_consecutive_failures(
+        self, mock_getenv: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Stops collecting after 10 consecutive failures (e.g. 402 credit exhaustion)."""
+        mock_getenv.return_value = "api_key_abc"
+        source = _source()
+        client = MagicMock(spec=httpx.Client)
+
+        # Search returns 20 IDs
+        search_resp = MagicMock(spec=httpx.Response)
+        search_resp.status_code = 200
+        search_resp.json.return_value = list(range(1, 21))
+        search_resp.raise_for_status.return_value = None
+        client.post.return_value = search_resp
+
+        # All collect calls fail with 402
+        fail_resp = MagicMock(spec=httpx.Response)
+        fail_resp.status_code = 402
+        fail_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Payment Required", request=MagicMock(), response=fail_resp
+        )
+        client.get.return_value = fail_resp
+
+        result = fetch_coresignal_companies(source, client, max_collect=20)
+
+        assert result == []
+        # Should stop after 10 consecutive failures, not try all 20
+        assert client.get.call_count == 10
+
+    @patch("apps.agents.sources.coresignal.time.sleep")
+    @patch("apps.agents.sources.coresignal.os.getenv")
+    def test_resets_failure_counter_on_success(
+        self, mock_getenv: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """A successful collect resets the consecutive failure counter."""
+        mock_getenv.return_value = "api_key_abc"
+        source = _source()
+        client = MagicMock(spec=httpx.Client)
+
+        search_resp = MagicMock(spec=httpx.Response)
+        search_resp.status_code = 200
+        search_resp.json.return_value = list(range(1, 16))
+        search_resp.raise_for_status.return_value = None
+        client.post.return_value = search_resp
+
+        fail_resp = MagicMock(spec=httpx.Response)
+        fail_resp.status_code = 402
+        fail_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Payment Required", request=MagicMock(), response=fail_resp
+        )
+
+        def make_ok(cid: int) -> MagicMock:
+            resp = MagicMock(spec=httpx.Response)
+            resp.status_code = 200
+            resp.raise_for_status.return_value = None
+            resp.json.return_value = {**_full_company_json(company_id=cid), "name": f"Co{cid}"}
+            return resp
+
+        # 9 failures, then 1 success, then 9 more failures => should NOT early-stop
+        # because the success resets the counter
+        responses = (
+            [fail_resp] * 9 + [make_ok(6)] + [fail_resp] * 5
+        )
+        client.get.side_effect = responses
+
+        result = fetch_coresignal_companies(source, client, max_collect=15)
+
+        assert len(result) == 1
+        assert client.get.call_count == 15

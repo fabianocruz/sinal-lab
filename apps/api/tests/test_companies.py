@@ -309,14 +309,14 @@ def test_list_companies_limit_validation(client, sample_companies):
 
 
 def test_companies_ordering(client, sample_companies):
-    """Test that companies are ordered by created_at descending."""
+    """Test that companies are ordered by data richness, then source count, then recency."""
     response = client.get("/api/companies")
 
     assert response.status_code == 200
     data = response.json()
     items = data["items"]
-    # Most recently created active company (rappi, Feb 12) should be first
-    assert items[0]["slug"] == "rappi"
+    # Nubank has the most filled fields (description, sector, website, team_size, founded_date)
+    assert items[0]["slug"] == "nubank"
 
 
 # ---------------------------------------------------------------------------
