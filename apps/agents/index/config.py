@@ -83,6 +83,15 @@ INDEX_SOURCES: list[DataSourceConfig] = [
         params={"confidence": 0.7},
     ),
 
+    # CoreSignal — LinkedIn-sourced company database API
+    DataSourceConfig(
+        name="coresignal_latam",
+        source_type="api",
+        url="https://api.coresignal.com/cdapi/v2/company_base",
+        api_key_env="CORESIGNAL_API_KEY",
+        params={"max_collect": 200, "confidence": 0.8},
+    ),
+
     # Crunchbase Open Data CSV (optional, bulk file)
     DataSourceConfig(
         name="crunchbase_open",

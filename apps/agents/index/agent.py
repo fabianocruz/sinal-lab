@@ -144,6 +144,29 @@ class IndexAgent(BaseAgent):
             except Exception as e:
                 logger.warning("StartupsLatam collection failed: %s", e)
 
+        # CoreSignal — LinkedIn-sourced company database
+        cs_source = self.config.get_source_by_name("coresignal_latam")
+        if cs_source and cs_source.enabled:
+            try:
+                import httpx
+                from apps.agents.sources.coresignal import fetch_coresignal_companies
+                with httpx.Client(timeout=30.0) as client:
+                    cs_companies = fetch_coresignal_companies(
+                        cs_source, client,
+                        max_collect=cs_source.params.get("max_collect", 200),
+                    )
+                if cs_companies:
+                    collected["coresignal"] = cs_companies
+                    self._sources_used.append("coresignal")
+                    self.provenance.track(
+                        source_url="https://api.coresignal.com",
+                        source_name="coresignal",
+                        extraction_method="api",
+                    )
+                    logger.info("CoreSignal: %d companies", len(cs_companies))
+            except Exception as e:
+                logger.warning("CoreSignal collection failed: %s", e)
+
         # GitHub org search
         github_sources = [s for s in self.config.data_sources if "github" in s.name and s.enabled]
         if github_sources:
@@ -188,6 +211,7 @@ class IndexAgent(BaseAgent):
             github_profiles=collected.get("github"),
             crunchbase_companies=collected.get("crunchbase"),
             startups_latam_companies=collected.get("startups_latam"),
+            coresignal_companies=collected.get("coresignal"),
         )
 
         # Run pipeline with empty indices (no DB in process phase)
