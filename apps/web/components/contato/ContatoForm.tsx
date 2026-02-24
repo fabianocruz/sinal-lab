@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const CONTACT_EMAIL = "contato@sinal.tech";
@@ -61,8 +62,14 @@ const LGPD_TYPES = [
 
 type TopicId = (typeof TOPICS)[number]["id"];
 
+const VALID_TOPICS = new Set(TOPICS.map((t) => t.id));
+
 export default function ContatoForm() {
-  const [topic, setTopic] = useState<TopicId | "">("");
+  const searchParams = useSearchParams();
+  const initialTopic = searchParams.get("topic") || "";
+  const [topic, setTopic] = useState<TopicId | "">(
+    VALID_TOPICS.has(initialTopic as TopicId) ? (initialTopic as TopicId) : "",
+  );
   const [lgpdType, setLgpdType] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -33,7 +34,9 @@ export default function ContatoPage() {
 
         <section className="border-b border-[rgba(255,255,255,0.04)] py-8 pb-20">
           <div className="mx-auto max-w-[720px] px-6 md:px-10">
-            <ContatoForm />
+            <Suspense>
+              <ContatoForm />
+            </Suspense>
           </div>
         </section>
       </main>
