@@ -18,6 +18,7 @@ export interface WaitlistSignupData {
   name?: string;
   company?: string;
   role?: string;
+  plan?: string;
 }
 
 export interface WaitlistSignupResponse {

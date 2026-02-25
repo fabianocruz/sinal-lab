@@ -39,6 +39,7 @@ class WaitlistSignup(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     role: Optional[str] = Field(None, max_length=50)
     company: Optional[str] = Field(None, max_length=255)
+    plan: Optional[str] = Field(None, max_length=50)
 
 
 class WaitlistResponse(BaseModel):

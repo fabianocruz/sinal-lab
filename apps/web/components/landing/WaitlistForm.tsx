@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { submitWaitlist } from "@/lib/api";
 
 interface WaitlistFormProps {
@@ -17,6 +18,8 @@ export default function WaitlistForm({
   className = "",
 }: WaitlistFormProps) {
   const { status: authStatus } = useSession();
+  const searchParams = useSearchParams();
+  const plan = searchParams.get("plan") || undefined;
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -33,7 +36,7 @@ export default function WaitlistForm({
     setStatus("loading");
     setErrorMsg("");
     try {
-      await submitWaitlist({ email });
+      await submitWaitlist({ email, plan });
       setStatus("success");
       setEmail("");
     } catch (err) {

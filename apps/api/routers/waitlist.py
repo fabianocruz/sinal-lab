@@ -38,6 +38,8 @@ def signup_waitlist(
     current_count = db.query(func.count(User.id)).scalar() or 0
     position = current_count + 1
 
+    metadata = {"plan": body.plan} if body.plan else None
+
     user = User(
         id=uuid.uuid4(),
         email=email,
@@ -46,6 +48,7 @@ def signup_waitlist(
         company=body.company,
         waitlist_position=position,
         status="waitlist",
+        metadata_=metadata,
     )
     db.add(user)
     db.commit()
