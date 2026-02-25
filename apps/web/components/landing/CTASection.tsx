@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import WaitlistForm from './WaitlistForm';
+import { Suspense } from "react";
+import WaitlistForm from "./WaitlistForm";
 
 export default function CTASection() {
   return (
@@ -17,19 +18,22 @@ export default function CTASection() {
           </div>
 
           <h2 className="mb-4 font-display text-[clamp(28px,4vw,44px)] font-normal leading-[1.15] tracking-[-0.01em] text-sinal-white">
-            Pronto para receber<br />inteligência de verdade?
+            Pronto para receber
+            <br />
+            inteligência de verdade?
           </h2>
           <p className="mx-auto mb-9 max-w-[600px] text-[17px] leading-[1.7] text-ash">
-            O próximo Briefing sai na segunda-feira. Junte-se a milhares de
-            fundadores, CTOs e investidores que começam a semana com os dados
-            certos.
+            O próximo Briefing sai na segunda-feira. Junte-se a milhares de fundadores, CTOs e
+            investidores que começam a semana com os dados certos.
           </p>
 
-          <WaitlistForm
-            inputBg="black"
-            buttonLabel="Assinar →"
-            className="mx-auto mb-4 max-w-[440px]"
-          />
+          <Suspense>
+            <WaitlistForm
+              inputBg="black"
+              buttonLabel="Assinar →"
+              className="mx-auto mb-4 max-w-[440px]"
+            />
+          </Suspense>
 
           <p className="text-[12px] text-sinal-slate">
             Sem spam. Cancelamento em 1 clique. Seus dados nunca são vendidos.

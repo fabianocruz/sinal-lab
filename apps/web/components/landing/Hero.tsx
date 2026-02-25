@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import WaitlistForm from "./WaitlistForm";
 
@@ -49,7 +50,9 @@ export default function Hero() {
           </p>
 
           {/* Waitlist form */}
-          <WaitlistForm className="mb-4 max-w-[480px]" />
+          <Suspense>
+            <WaitlistForm className="mb-4 max-w-[480px]" />
+          </Suspense>
 
           {/* Micro copy */}
           <p className="mb-12 text-[13px] text-sinal-slate">
