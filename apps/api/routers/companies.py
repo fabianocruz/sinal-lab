@@ -57,16 +57,19 @@ def list_companies(
 
     total = query.count()
 
-    # Prioritize companies with richer data (description, sector, website, etc.)
-    # Use func.length > 0 to exclude empty strings stored by GitHub-only sources.
+    # Prioritize companies with richer data using weighted scoring.
+    # Essential fields (description, sector, website) get 3x weight;
+    # enrichment fields (funding, team, founded) get 2x; extras get 1x.
+    # Max score: 9 (essential) + 6 (enrichment) + 1 (extra) = 16.
     _has_text = lambda col: (func.coalesce(func.length(col), 0) > 0)
     data_richness = (
-        case((_has_text(Company.description), 1), else_=0)
-        + case((_has_text(Company.sector), 1), else_=0)
-        + case((_has_text(Company.website), 1), else_=0)
-        + case((Company.funding_stage.isnot(None), 1), else_=0)
-        + case((Company.team_size.isnot(None), 1), else_=0)
-        + case((Company.founded_date.isnot(None), 1), else_=0)
+        case((_has_text(Company.description), 3), else_=0)
+        + case((_has_text(Company.sector), 3), else_=0)
+        + case((_has_text(Company.website), 3), else_=0)
+        + case((Company.funding_stage.isnot(None), 2), else_=0)
+        + case((Company.team_size.isnot(None), 2), else_=0)
+        + case((Company.founded_date.isnot(None), 2), else_=0)
+        + case((_has_text(Company.business_model), 1), else_=0)
     )
 
     companies = (
