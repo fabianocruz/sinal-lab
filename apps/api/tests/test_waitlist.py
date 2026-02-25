@@ -244,6 +244,35 @@ def test_list_waitlist_users_includes_all_fields(client, sample_waitlist_users):
     assert required_fields.issubset(set(user.keys()))
 
 
+def test_signup_waitlist_stores_plan_in_metadata(client, db_session):
+    """Test that plan field is stored in user metadata."""
+    payload = {
+        "email": "plan@example.com",
+        "name": "Plan User",
+        "plan": "pro",
+    }
+    response = client.post("/api/waitlist", json=payload)
+
+    assert response.status_code == 200
+    user = db_session.query(User).filter(User.email == "plan@example.com").first()
+    assert user is not None
+    assert user.metadata_ == {"plan": "pro"}
+
+
+def test_signup_waitlist_no_plan_stores_no_metadata(client, db_session):
+    """Test that omitting plan field results in no metadata."""
+    payload = {
+        "email": "noplan@example.com",
+        "name": "No Plan User",
+    }
+    response = client.post("/api/waitlist", json=payload)
+
+    assert response.status_code == 200
+    user = db_session.query(User).filter(User.email == "noplan@example.com").first()
+    assert user is not None
+    assert user.metadata_ is None
+
+
 def test_waitlist_only_counts_waitlist_status(client, db_session):
     """Test that count only includes users with waitlist status."""
     # Add a waitlist user

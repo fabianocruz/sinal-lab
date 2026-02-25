@@ -124,6 +124,18 @@ describe("submitWaitlist", () => {
 
     await expect(submitWaitlist(payload)).rejects.toThrow("Network failure");
   });
+
+  it("includes plan field when provided", async () => {
+    vi.mocked(fetch).mockResolvedValue(mockResponse(successBody));
+
+    const payloadWithPlan: WaitlistSignupData = { email: "test@example.com", plan: "pro" };
+    await submitWaitlist(payloadWithPlan);
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toEqual(
+      expect.objectContaining({ email: "test@example.com", plan: "pro" }),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

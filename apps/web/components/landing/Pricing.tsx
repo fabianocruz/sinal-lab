@@ -1,59 +1,61 @@
+import Link from "next/link";
+
 const PRICING_TIERS = [
   {
-    name: 'Briefing',
-    price: 'R$0',
-    period: 'Grátis, para sempre.',
+    name: "Briefing",
+    planId: "briefing",
+    price: "R$0",
+    period: "Grátis, para sempre.",
     features: [
-      'Briefing semanal por email',
-      'Acesso ao arquivo de edições',
-      'Newsletter com dados e análises',
-      'Índices públicos LATAM',
+      "Briefing semanal por email",
+      "Acesso ao arquivo de edições",
+      "Newsletter com dados e análises",
+      "Índices públicos LATAM",
     ],
-    cta: 'Assinar grátis',
-    ctaVariant: 'secondary' as const,
+    cta: "Assinar grátis",
+    ctaVariant: "secondary" as const,
     featured: false,
   },
   {
-    name: 'Pro',
-    price: 'R$29',
-    period: 'ou R$249/ano (economize 28%)',
+    name: "Pro",
+    planId: "pro",
+    price: "R$29",
+    period: "ou R$249/ano (economize 28%)",
     features: [
-      'Tudo do Briefing, mais:',
-      'Deep dives mensais exclusivos',
-      'Alertas de deals e tendências',
-      'Acesso à comunidade de builders',
-      'Dados exportáveis (CSV/API)',
-      'Perfis detalhados de 500+ startups',
+      "Tudo do Briefing, mais:",
+      "Deep dives mensais exclusivos",
+      "Alertas de deals e tendências",
+      "Acesso à comunidade de builders",
+      "Dados exportáveis (CSV/API)",
+      "Perfis detalhados de 500+ startups",
     ],
-    cta: 'Começar Pro',
-    ctaVariant: 'primary' as const,
+    cta: "Começar Pro",
+    ctaVariant: "primary" as const,
     featured: true,
   },
   {
-    name: 'Founding Member',
-    price: 'R$79',
-    period: 'Vagas limitadas.',
-    priceSuffix: '/ano',
+    name: "Founding Member",
+    planId: "founding",
+    price: "R$79",
+    period: "Vagas limitadas.",
+    priceSuffix: "/ano",
     features: [
-      'Tudo do Pro, mais:',
-      'Nome na página de fundadores',
-      'Acesso antecipado a features',
-      'Convite para eventos exclusivos',
-      'Voto em prioridades do roadmap',
+      "Tudo do Pro, mais:",
+      "Nome na página de fundadores",
+      "Acesso antecipado a features",
+      "Convite para eventos exclusivos",
+      "Voto em prioridades do roadmap",
       'Badge "Founding Member"',
     ],
-    cta: 'Seja um Founding Member →',
-    ctaVariant: 'secondary' as const,
+    cta: "Seja um Founding Member →",
+    ctaVariant: "secondary" as const,
     featured: false,
   },
 ];
 
 export default function Pricing() {
   return (
-    <section
-      id="precos"
-      className="border-b border-[rgba(255,255,255,0.04)] py-section"
-    >
+    <section id="precos" className="border-b border-[rgba(255,255,255,0.04)] py-section">
       <div className="mx-auto max-w-container px-6 md:px-10">
         {/* Section label */}
         <div className="mb-4 flex items-center gap-2.5">
@@ -67,8 +69,8 @@ export default function Pricing() {
           Quanto custa?
         </h2>
         <p className="mb-12 max-w-[600px] text-[17px] leading-[1.7] text-ash">
-          Inteligência de mercado não deveria ser privilégio de quem paga
-          US$50.000/ano por um terminal. O Sinal nasceu aberto.
+          Inteligência de mercado não deveria ser privilégio de quem paga US$50.000/ano por um
+          terminal. O Sinal nasceu aberto.
         </p>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -76,9 +78,7 @@ export default function Pricing() {
             <div
               key={tier.name}
               className={`relative flex flex-col rounded-2xl border bg-sinal-graphite p-9 ${
-                tier.featured
-                  ? 'border-signal'
-                  : 'border-[rgba(255,255,255,0.06)]'
+                tier.featured ? "border-signal" : "border-[rgba(255,255,255,0.06)]"
               }`}
             >
               {tier.featured && (
@@ -92,9 +92,9 @@ export default function Pricing() {
               </div>
 
               <div className="mb-1 font-display text-[36px] text-sinal-white">
-                {tier.price}{' '}
+                {tier.price}{" "}
                 <span className="font-body text-[15px] font-normal text-ash">
-                  {tier.priceSuffix ?? '/mês'}
+                  {tier.priceSuffix ?? "/mês"}
                 </span>
               </div>
 
@@ -112,23 +112,23 @@ export default function Pricing() {
                 ))}
               </ul>
 
-              <a
-                href="#hero"
+              <Link
+                href={`/?plan=${tier.planId}#hero`}
                 className={`block rounded-[10px] border py-3.5 text-center text-[14px] font-semibold transition-all duration-200 ${
-                  tier.ctaVariant === 'primary'
-                    ? 'border-signal bg-signal text-sinal-black hover:bg-signal-dim'
-                    : 'border-sinal-slate bg-transparent text-sinal-white hover:border-silver'
+                  tier.ctaVariant === "primary"
+                    ? "border-signal bg-signal text-sinal-black hover:bg-signal-dim"
+                    : "border-sinal-slate bg-transparent text-sinal-white hover:border-silver"
                 }`}
               >
                 {tier.cta}
-              </a>
+              </Link>
             </div>
           ))}
         </div>
 
         <p className="mx-auto mt-8 max-w-[560px] text-center text-[14px] italic text-ash">
-          Os dados que importam são abertos. Sempre serão. A assinatura Pro
-          financia a pesquisa — não tranca o acesso.
+          Os dados que importam são abertos. Sempre serão. A assinatura Pro financia a pesquisa —
+          não tranca o acesso.
         </p>
       </div>
     </section>
