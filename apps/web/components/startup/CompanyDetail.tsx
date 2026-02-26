@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import type { Company } from "@/lib/company";
-import { getAccentColor, getCountryFlag, formatFunding } from "@/lib/company";
+import { getAccentColor, getCountryFlag, formatFunding, formatDomain } from "@/lib/company";
 
 interface CompanyDetailProps {
   company: Company;
@@ -155,7 +155,7 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 rounded-lg border border-sinal-slate px-3.5 py-2 font-mono text-[11px] text-silver transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
                 >
-                  &nearr; {company.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                  {"\u2197"} {formatDomain(company.website)}
                 </a>
               )}
               {company.linkedin_url && (
@@ -185,21 +185,37 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
             </div>
           </div>
 
-          {/* Key stats row */}
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[10px] bg-sinal-slate sm:grid-cols-4">
-            <StatBox label="Funding Total" value={funding ?? "\u2014"} color="text-sinal-white" />
-            <StatBox
-              label="Equipe"
-              value={company.team_size ? `~${company.team_size}` : "\u2014"}
-              color="text-sinal-white"
-            />
-            <StatBox label="Fontes" value={String(company.source_count)} color="text-sinal-white" />
-            <StatBox
-              label="Modelo"
-              value={company.business_model ?? "\u2014"}
-              color="text-signal"
-            />
-          </div>
+          {/* Key stats row — only show stats with real data */}
+          {(() => {
+            const stats: { label: string; value: string; color: string }[] = [];
+            if (funding)
+              stats.push({ label: "Funding Total", value: funding, color: "text-sinal-white" });
+            if (company.team_size)
+              stats.push({
+                label: "Equipe",
+                value: `~${company.team_size}`,
+                color: "text-sinal-white",
+              });
+            stats.push({
+              label: "Fontes",
+              value: String(company.source_count),
+              color: "text-sinal-white",
+            });
+            if (company.business_model)
+              stats.push({ label: "Modelo", value: company.business_model, color: "text-signal" });
+            if (foundedYear)
+              stats.push({ label: "Fundada", value: foundedYear, color: "text-ash" });
+            return (
+              <div
+                className="grid gap-px overflow-hidden rounded-[10px] bg-sinal-slate"
+                style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, 1fr)` }}
+              >
+                {stats.map((s) => (
+                  <StatBox key={s.label} label={s.label} value={s.value} color={s.color} />
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -233,10 +249,10 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
           {/* Minimal data placeholder */}
           {!company.description && (!company.tags || company.tags.length === 0) && (
             <div className="rounded-xl border border-dashed border-sinal-slate px-6 py-8 text-center">
-              <p className="mb-1.5 text-[14px] text-silver">Perfil em constru&ccedil;&atilde;o</p>
+              <p className="mb-1.5 text-[14px] text-silver">Perfil em construção</p>
               <p className="mx-auto max-w-[360px] text-[12px] leading-[1.6] text-[#4A4A56]">
-                Nossos agentes est&atilde;o coletando mais dados sobre esta empresa.
-                Informa&ccedil;&otilde;es ser&atilde;o adicionadas automaticamente.
+                Nossos agentes estão coletando mais dados sobre esta empresa. Informações serão
+                adicionadas automaticamente.
               </p>
               {company.github_url && (
                 <a
@@ -245,7 +261,7 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
                   rel="noopener noreferrer"
                   className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-sinal-slate px-4 py-2 font-mono text-[11px] text-silver transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
                 >
-                  Ver no GitHub &nearr;
+                  Ver no GitHub {"\u2197"}
                 </a>
               )}
             </div>
@@ -256,7 +272,7 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
         <div className="flex flex-col gap-4">
           {/* Tech stack */}
           {company.tech_stack && company.tech_stack.length > 0 && (
-            <SideBlock title="Stack Tecnol&oacute;gico" agentColor="#59B4FF">
+            <SideBlock title="Stack Tecnológico" agentColor="#59B4FF">
               <div className="flex flex-wrap gap-1.5">
                 {company.tech_stack.map((tech) => (
                   <span
@@ -276,7 +292,7 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
               <div className="flex items-center gap-2">
                 <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-agent-radar" />
                 <span className="font-mono text-[9px] uppercase tracking-[1.5px] text-[#4A4A56]">
-                  Proven&iacute;ncia
+                  Proveniência
                 </span>
               </div>
               {/* Confidence dots */}
@@ -294,7 +310,7 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between">
                 <span className="font-mono text-[10px] text-[#4A4A56]">Agente</span>
-                <span className="font-mono text-[10px] text-agent-mercado">MERCADO</span>
+                <span className="font-mono text-[10px] text-agent-mercado">INDEX</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-mono text-[10px] text-[#4A4A56]">Fontes</span>
@@ -308,7 +324,7 @@ export default function CompanyDetail({ company }: CompanyDetailProps) {
             href="/startups"
             className="flex items-center justify-center gap-1.5 rounded-lg border border-sinal-slate py-2.5 font-mono text-[11px] text-[#4A4A56] transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-ash"
           >
-            &larr; Voltar ao Mapa
+            {"\u2190"} Voltar ao Mapa
           </Link>
         </div>
       </div>
