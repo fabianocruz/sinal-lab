@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Company } from "@/lib/company";
-import { getAccentColor, getCountryFlag, formatFunding } from "@/lib/company";
+import { getAccentColor, getCountryFlag, formatFunding, formatDomain } from "@/lib/company";
 
 interface CompanyCardProps {
   company: Company;
@@ -24,6 +24,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
   const flag = getCountryFlag(company.country);
   const foundedYear = getFoundedYear(company.founded_date);
   const funding = formatFunding(company.total_funding_usd);
+  const domain = formatDomain(company.website);
   const showNew = isNew(company.created_at);
 
   return (
@@ -78,6 +79,12 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                 <>
                   <span className="text-[#4A4A56]">&middot;</span>
                   <span>{foundedYear}</span>
+                </>
+              )}
+              {domain && (
+                <>
+                  <span className="text-[#4A4A56]">&middot;</span>
+                  <span className="truncate text-[#4A4A56]">{domain}</span>
                 </>
               )}
             </div>

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { Company } from "@/lib/company";
-import { SECTOR_OPTIONS } from "@/lib/company";
+import { SECTOR_OPTIONS, formatDomain } from "@/lib/company";
 import { companyJsonLd } from "@/lib/jsonld";
 
 import CompanyCard from "@/components/startup/CompanyCard";
@@ -151,6 +151,16 @@ describe("CompanyCard", () => {
     expect(
       screen.getByText("A long description for a startup without a short description field"),
     ).toBeInTheDocument();
+  });
+
+  it("test_companycard_render_shows_website_domain", () => {
+    render(<CompanyCard company={fullCompany} />);
+    expect(screen.getByText("nubank.com.br")).toBeInTheDocument();
+  });
+
+  it("test_companycard_render_hides_domain_when_no_website", () => {
+    render(<CompanyCard company={minimalCompany} />);
+    expect(screen.queryByText(/\.com/)).not.toBeInTheDocument();
   });
 });
 
@@ -338,6 +348,32 @@ describe("SectorFilter", () => {
   it("test_sectorfilter_render_group_has_accessible_label", () => {
     render(<SectorFilter />);
     expect(screen.getByRole("group", { name: "Filtrar por setor" })).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatDomain helper
+// ---------------------------------------------------------------------------
+
+describe("formatDomain", () => {
+  it("test_formatdomain_strips_protocol_and_www", () => {
+    expect(formatDomain("https://www.nubank.com.br")).toBe("nubank.com.br");
+  });
+
+  it("test_formatdomain_handles_no_www", () => {
+    expect(formatDomain("https://nubank.com.br")).toBe("nubank.com.br");
+  });
+
+  it("test_formatdomain_handles_missing_protocol", () => {
+    expect(formatDomain("www.lapzo.com")).toBe("lapzo.com");
+  });
+
+  it("test_formatdomain_returns_null_for_null", () => {
+    expect(formatDomain(null)).toBeNull();
+  });
+
+  it("test_formatdomain_returns_null_for_invalid_url", () => {
+    expect(formatDomain("not a url")).toBeNull();
   });
 });
 

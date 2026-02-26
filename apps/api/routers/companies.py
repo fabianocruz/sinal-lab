@@ -58,18 +58,33 @@ def list_companies(
     total = query.count()
 
     # Prioritize companies with richer data using weighted scoring.
-    # Essential fields (description, sector, website) get 3x weight;
-    # enrichment fields (funding, team, founded) get 2x; extras get 1x.
-    # Max score: 9 (essential) + 6 (enrichment) + 1 (extra) = 16.
+    # Tier 1 — essential fields (3x): description, sector, website
+    # Tier 2 — enrichment fields (2x): funding_stage, team_size, founded_date
+    # Tier 3 — quality signals (1x): business_model, tags, linkedin, github,
+    #          long description (>100 chars), multi-source (source_count > 1)
+    # Max score: 9 (essential) + 6 (enrichment) + 6 (quality) = 21.
     _has_text = lambda col: (func.coalesce(func.length(col), 0) > 0)
+    _desc_len = (
+        func.coalesce(func.length(Company.description), 0)
+        + func.coalesce(func.length(Company.short_description), 0)
+    )
     data_richness = (
-        case((_has_text(Company.description), 3), else_=0)
+        # Tier 1 — essential (3x each, max 9)
+        # Description: count either description or short_description
+        case((_desc_len > 0, 3), else_=0)
         + case((_has_text(Company.sector), 3), else_=0)
         + case((_has_text(Company.website), 3), else_=0)
+        # Tier 2 — enrichment (2x each, max 6)
         + case((Company.funding_stage.isnot(None), 2), else_=0)
         + case((Company.team_size.isnot(None), 2), else_=0)
         + case((Company.founded_date.isnot(None), 2), else_=0)
+        # Tier 3 — quality signals (1x each, max 6)
         + case((_has_text(Company.business_model), 1), else_=0)
+        + case((_has_text(Company.linkedin_url), 1), else_=0)
+        + case((_has_text(Company.github_url), 1), else_=0)
+        + case((Company.tags.isnot(None), 1), else_=0)
+        + case((_desc_len > 100, 1), else_=0)
+        + case((Company.source_count > 1, 1), else_=0)
     )
 
     companies = (

@@ -100,6 +100,17 @@ export function getAccentColor(fundingStage: string | null, sector: string | nul
   return "#8A8A96"; // ash fallback
 }
 
+/** Extract clean domain from a URL (e.g. "https://www.lapzo.com/" → "lapzo.com"). */
+export function formatDomain(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const hostname = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+    return hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 /** Format funding amount as compact string (e.g. "$1.5M", "$200K"). */
 export function formatFunding(usd: number | null): string | null {
   if (usd == null) return null;
