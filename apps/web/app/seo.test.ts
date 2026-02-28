@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FALLBACK_NEWSLETTERS } from "@/lib/newsletter";
 
-// Mock the fetchCompanies API call used by sitemap
+// Mock the API calls used by sitemap
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return {
     ...actual,
     fetchCompanies: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
+    fetchArticles: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
   };
 });
 
@@ -25,13 +26,16 @@ describe("sitemap", () => {
     expect(Array.isArray(result)).toBe(true);
   });
 
-  it("test_sitemap_contains_5_static_pages", async () => {
+  it("test_sitemap_contains_10_static_pages", async () => {
     const { default: sitemap } = await import("./sitemap");
     const result = await sitemap();
     const staticUrls = result.filter(
-      (entry) => !entry.url.includes("/newsletter/") && !entry.url.includes("/startup/"),
+      (entry) =>
+        !entry.url.includes("/newsletter/") &&
+        !entry.url.includes("/startup/") &&
+        !entry.url.includes("/artigos/"),
     );
-    expect(staticUrls).toHaveLength(5);
+    expect(staticUrls).toHaveLength(10);
   });
 
   it("test_sitemap_contains_all_newsletter_slugs", async () => {
@@ -41,11 +45,11 @@ describe("sitemap", () => {
     expect(newsletterUrls).toHaveLength(FALLBACK_NEWSLETTERS.length);
   });
 
-  it("test_sitemap_total_is_5_plus_newsletters", async () => {
+  it("test_sitemap_total_is_10_plus_newsletters", async () => {
     const { default: sitemap } = await import("./sitemap");
     const result = await sitemap();
-    // 5 static pages + newsletter pages (no company pages since fetch is mocked empty)
-    expect(result).toHaveLength(5 + FALLBACK_NEWSLETTERS.length);
+    // 10 static pages + newsletter pages (no company/article pages since fetch is mocked empty)
+    expect(result).toHaveLength(10 + FALLBACK_NEWSLETTERS.length);
   });
 
   it("test_sitemap_homepage_has_priority_1", async () => {
@@ -97,6 +101,24 @@ describe("sitemap", () => {
     );
     expect(startups).toBeDefined();
     expect(startups!.priority).toBe(0.9);
+  });
+
+  it("test_sitemap_includes_artigos_page", async () => {
+    const { default: sitemap } = await import("./sitemap");
+    const result = await sitemap();
+    const artigos = result.find(
+      (entry) => entry.url.endsWith("/artigos") && !entry.url.includes("/artigos/"),
+    );
+    expect(artigos).toBeDefined();
+    expect(artigos!.priority).toBe(0.8);
+  });
+
+  it("test_sitemap_includes_developers_page", async () => {
+    const { default: sitemap } = await import("./sitemap");
+    const result = await sitemap();
+    const developers = result.find((entry) => entry.url.endsWith("/developers"));
+    expect(developers).toBeDefined();
+    expect(developers!.priority).toBe(0.6);
   });
 
   it("test_sitemap_newsletter_pages_have_never_frequency", async () => {
@@ -217,17 +239,33 @@ describe("robots", () => {
     expect(wildcard!.disallow).toContain("/api/");
   });
 
+  it("test_robots_disallows_admin", async () => {
+    const { default: robots } = await import("./robots");
+    const result = robots();
+    const rules = Array.isArray(result.rules) ? result.rules : [result.rules];
+    const wildcard = rules.find((r) => r.userAgent === "*");
+    expect(wildcard!.disallow).toContain("/admin/");
+  });
+
+  it("test_robots_disallows_conta", async () => {
+    const { default: robots } = await import("./robots");
+    const result = robots();
+    const rules = Array.isArray(result.rules) ? result.rules : [result.rules];
+    const wildcard = rules.find((r) => r.userAgent === "*");
+    expect(wildcard!.disallow).toContain("/conta");
+  });
+
   it("test_robots_has_sitemap_url", async () => {
     const { default: robots } = await import("./robots");
     const result = robots();
     expect(result.sitemap).toBe("https://sinal.ai/sitemap.xml");
   });
 
-  it("test_robots_disallows_exactly_3_paths", async () => {
+  it("test_robots_disallows_exactly_5_paths", async () => {
     const { default: robots } = await import("./robots");
     const result = robots();
     const rules = Array.isArray(result.rules) ? result.rules : [result.rules];
     const wildcard = rules.find((r) => r.userAgent === "*");
-    expect(wildcard!.disallow).toHaveLength(3);
+    expect(wildcard!.disallow).toHaveLength(5);
   });
 });

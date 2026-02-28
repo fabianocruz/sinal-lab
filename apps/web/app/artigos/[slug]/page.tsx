@@ -5,6 +5,8 @@ import Footer from "@/components/layout/Footer";
 import ArticleContent from "@/components/article/ArticleContent";
 import { fetchNewsletterBySlug } from "@/lib/api";
 
+export const revalidate = 300;
+
 interface PageProps {
   params: { slug: string };
 }

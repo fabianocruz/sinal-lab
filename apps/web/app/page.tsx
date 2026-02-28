@@ -13,6 +13,7 @@ import MapaHighlight from "@/components/landing/MapaHighlight";
 import ForCompanies from "@/components/landing/ForCompanies";
 import FAQ from "@/components/landing/FAQ";
 import Manifesto from "@/components/landing/Manifesto";
+import { homepageJsonLd } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
   title: "Sinal — Inteligência essencial sobre o ecossistema tech LATAM",
@@ -46,6 +47,10 @@ export default function HomePage() {
         <Manifesto />
       </main>
       <Footer />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageJsonLd()) }}
+      />
     </>
   );
 }

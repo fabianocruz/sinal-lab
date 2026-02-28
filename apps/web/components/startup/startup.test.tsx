@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { Company } from "@/lib/company";
 import { SECTOR_OPTIONS, formatDomain } from "@/lib/company";
-import { companyJsonLd } from "@/lib/jsonld";
+import { companyJsonLd, homepageJsonLd, articleJsonLd } from "@/lib/jsonld";
 
 import CompanyCard from "@/components/startup/CompanyCard";
 import CompanyDetail from "@/components/startup/CompanyDetail";
@@ -279,6 +279,33 @@ describe("CompanyDetail", () => {
     expect(screen.queryByText(/Fundada em/)).not.toBeInTheDocument();
   });
 
+  it("test_companydetail_full_company_shows_all_dynamic_stats", () => {
+    render(<CompanyDetail company={fullCompany} />);
+    // Full company has: funding, team_size, source_count, business_model, founded_date
+    expect(screen.getByText("Funding Total")).toBeInTheDocument();
+    expect(screen.getByText("$2.2B")).toBeInTheDocument();
+    expect(screen.getByText("Equipe")).toBeInTheDocument();
+    expect(screen.getByText("~8000")).toBeInTheDocument();
+    // "Fontes" appears in both stat box and provenance section
+    const fontesElements = screen.getAllByText("Fontes");
+    expect(fontesElements.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Modelo")).toBeInTheDocument();
+    expect(screen.getByText("B2C")).toBeInTheDocument();
+  });
+
+  it("test_companydetail_minimal_company_shows_only_fontes_stat", () => {
+    render(<CompanyDetail company={minimalCompany} />);
+    // Minimal company has no funding, team_size, business_model, or founded_date
+    // "Fontes" appears in both stat box and provenance section
+    const fontesElements = screen.getAllByText("Fontes");
+    expect(fontesElements.length).toBeGreaterThanOrEqual(1);
+    // Verify no rich stats are shown
+    expect(screen.queryByText("Funding Total")).not.toBeInTheDocument();
+    expect(screen.queryByText("Equipe")).not.toBeInTheDocument();
+    expect(screen.queryByText("Modelo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fundada")).not.toBeInTheDocument();
+  });
+
   it("test_companydetail_render_shows_placeholder_when_no_description_or_tags", () => {
     render(<CompanyDetail company={minimalCompany} />);
     expect(screen.getByText(/Perfil em construção/)).toBeInTheDocument();
@@ -424,5 +451,73 @@ describe("companyJsonLd", () => {
     const company: Company = { ...fullCompany, description: null };
     const result = companyJsonLd(company) as Record<string, unknown>;
     expect(result.description).toBe("Leading digital bank in Brazil");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// homepageJsonLd helper
+// ---------------------------------------------------------------------------
+
+describe("homepageJsonLd", () => {
+  it("test_homepage_jsonld_returns_organization_and_website", () => {
+    const result = homepageJsonLd();
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Sinal",
+    });
+    expect(result[1]).toMatchObject({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Sinal",
+    });
+  });
+
+  it("test_homepage_jsonld_website_has_search_action", () => {
+    const result = homepageJsonLd();
+    const website = result[1] as Record<string, unknown>;
+    expect(website.potentialAction).toBeDefined();
+    const action = website.potentialAction as Record<string, unknown>;
+    expect(action["@type"]).toBe("SearchAction");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// articleJsonLd helper
+// ---------------------------------------------------------------------------
+
+describe("articleJsonLd", () => {
+  it("test_article_jsonld_includes_required_fields", () => {
+    const result = articleJsonLd(
+      "Test Article",
+      "Test description",
+      "2026-02-20T10:00:00Z",
+      "test-article",
+    ) as Record<string, unknown>;
+    expect(result).toMatchObject({
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      headline: "Test Article",
+      description: "Test description",
+      datePublished: "2026-02-20T10:00:00Z",
+    });
+    expect(result.url).toContain("/newsletter/test-article");
+  });
+
+  it("test_article_jsonld_omits_date_when_null", () => {
+    const result = articleJsonLd("No Date Article", "Description", null, "no-date") as Record<
+      string,
+      unknown
+    >;
+    expect(result.datePublished).toBeUndefined();
+    expect(result.headline).toBe("No Date Article");
+  });
+
+  it("test_article_jsonld_includes_publisher", () => {
+    const result = articleJsonLd("Title", "Desc", null, "slug") as Record<string, unknown>;
+    const publisher = result.publisher as Record<string, unknown>;
+    expect(publisher["@type"]).toBe("Organization");
+    expect(publisher.name).toBe("Sinal");
   });
 });

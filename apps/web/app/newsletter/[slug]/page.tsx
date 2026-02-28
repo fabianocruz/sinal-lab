@@ -9,6 +9,9 @@ import {
   FALLBACK_NEWSLETTERS,
   type NewsletterMetadata,
 } from "@/lib/newsletter";
+import { articleJsonLd } from "@/lib/jsonld";
+
+export const revalidate = 300;
 
 interface PageProps {
   params: { slug: string };
@@ -53,6 +56,15 @@ export default async function NewsletterSlugPage({ params }: PageProps) {
     notFound();
   }
 
+  const jsonLd = apiItem
+    ? articleJsonLd(
+        apiItem.title,
+        apiItem.subtitle ?? apiItem.summary ?? "",
+        apiItem.published_at,
+        apiItem.slug,
+      )
+    : null;
+
   return (
     <>
       <Navbar />
@@ -60,6 +72,12 @@ export default async function NewsletterSlugPage({ params }: PageProps) {
         <NewsletterContent newsletter={newsletter} />
       </main>
       <Footer />
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
     </>
   );
 }

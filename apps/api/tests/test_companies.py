@@ -430,3 +430,93 @@ def test_list_companies_empty_result(client, db_session):
     data = response.json()
     assert data["total"] == 0
     assert len(data["items"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# Scoring — quality signals
+# ---------------------------------------------------------------------------
+
+
+def test_company_with_short_description_ranks_above_no_description(client, db_session):
+    """Company with short_description (no description) scores higher than one without either."""
+    # Company A: has short_description + sector + website (score: 3 + 3 + 3 = 9)
+    db_session.add(
+        Company(
+            id=uuid.uuid4(),
+            slug="company-a",
+            name="Company A",
+            short_description="Has a short description",
+            sector="Fintech",
+            website="https://company-a.com",
+            country="Brazil",
+            source_count=1,
+            status="active",
+            created_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+    # Company B: no description, no short_description + sector + website (score: 0 + 3 + 3 = 6)
+    db_session.add(
+        Company(
+            id=uuid.uuid4(),
+            slug="company-b",
+            name="Company B",
+            sector="SaaS",
+            website="https://company-b.com",
+            country="Brazil",
+            source_count=1,
+            status="active",
+            created_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/api/companies")
+    data = response.json()
+    assert data["items"][0]["slug"] == "company-a"
+    assert data["items"][1]["slug"] == "company-b"
+
+
+def test_company_with_quality_signals_ranks_above_plain(client, db_session):
+    """Company with tags + linkedin + source_count>1 ranks above a plain company."""
+    # Company with quality signals: desc + sector + website (9) + tags (1) + linkedin (1) + source>1 (1) = 12
+    db_session.add(
+        Company(
+            id=uuid.uuid4(),
+            slug="enriched",
+            name="Enriched Co",
+            description="A well-documented company",
+            sector="Fintech",
+            website="https://enriched.com",
+            tags=["fintech", "payments"],
+            linkedin_url="https://linkedin.com/company/enriched",
+            country="Brazil",
+            source_count=3,
+            status="active",
+            created_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+    # Plain company: desc + sector + website (9) only
+    db_session.add(
+        Company(
+            id=uuid.uuid4(),
+            slug="plain",
+            name="Plain Co",
+            description="Basic company",
+            sector="SaaS",
+            website="https://plain.com",
+            country="Brazil",
+            source_count=1,
+            status="active",
+            created_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/api/companies")
+    data = response.json()
+    assert data["items"][0]["slug"] == "enriched"
+    assert data["items"][1]["slug"] == "plain"

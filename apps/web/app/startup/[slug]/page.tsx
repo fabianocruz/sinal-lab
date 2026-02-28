@@ -6,6 +6,8 @@ import CompanyDetail from "@/components/startup/CompanyDetail";
 import { fetchCompanyBySlug } from "@/lib/api";
 import { companyJsonLd } from "@/lib/jsonld";
 
+export const revalidate = 300;
+
 interface PageProps {
   params: { slug: string };
 }
