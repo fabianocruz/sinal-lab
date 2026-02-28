@@ -60,7 +60,7 @@ export default async function NewsletterSlugPage({ params }: PageProps) {
     ? articleJsonLd(
         apiItem.title,
         apiItem.subtitle ?? apiItem.summary ?? "",
-        apiItem.published_at,
+        apiItem.published_at ?? null,
         apiItem.slug,
       )
     : null;
