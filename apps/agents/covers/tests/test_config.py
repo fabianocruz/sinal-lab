@@ -35,7 +35,7 @@ def test_image_dimensions_are_og_standard():
 def test_system_prompt_contains_key_directives():
     assert "dark" in ART_DIRECTOR_SYSTEM_PROMPT.lower()
     assert "{agent_color}" in ART_DIRECTOR_SYSTEM_PROMPT
-    assert "150 words" in ART_DIRECTOR_SYSTEM_PROMPT
+    assert "120 words" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "NEVER" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "Latin America" in ART_DIRECTOR_SYSTEM_PROMPT
 
