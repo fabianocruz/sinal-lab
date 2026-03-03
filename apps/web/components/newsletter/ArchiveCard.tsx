@@ -18,10 +18,17 @@ export default function ArchiveCard({ newsletter }: ArchiveCardProps) {
     >
       {/* Image area */}
       <div
-        className="relative aspect-[16/10]"
+        className="relative aspect-[16/10] overflow-hidden"
         style={{ background: CARD_GRADIENTS[newsletter.gradientIndex] }}
         aria-hidden="true"
       >
+        {newsletter.metadata?.hero_image?.url && (
+          <img
+            src={newsletter.metadata.hero_image.url}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        )}
         {/* Agent badge */}
         <div
           className="absolute left-3 top-3 flex items-center gap-[5px] rounded-[5px] bg-[rgba(10,10,11,0.75)] px-[10px] py-[5px] font-mono text-[9px] font-semibold uppercase tracking-[1.5px] backdrop-blur-[8px]"
