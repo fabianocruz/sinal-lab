@@ -154,7 +154,8 @@ def sync_covers_to_db(source_db_url: str, target_db_url: str):
             continue
 
         meta = json.loads(row[1]) if row[1] else {}
-        if meta.get("hero_image", {}).get("url") == hero_image["url"]:
+        existing = meta.get("hero_image") or {}
+        if existing.get("url") == hero_image["url"]:
             cur.close()
             continue  # already synced
 
