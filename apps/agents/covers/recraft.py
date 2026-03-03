@@ -17,12 +17,12 @@ from typing import List, Optional
 import httpx
 
 from apps.agents.covers.config import (
-    IMAGE_HEIGHT,
-    IMAGE_WIDTH,
     RECRAFT_API_URL,
     RECRAFT_DEFAULT_MODEL,
     RECRAFT_DEFAULT_STYLE,
+    RECRAFT_HEIGHT,
     RECRAFT_TIMEOUT,
+    RECRAFT_WIDTH,
 )
 from apps.agents.sources.http import HttpClientConfig, create_http_client
 
@@ -68,8 +68,8 @@ class RecraftClient:
         self,
         prompt: str,
         variations: int = 3,
-        width: int = IMAGE_WIDTH,
-        height: int = IMAGE_HEIGHT,
+        width: int = RECRAFT_WIDTH,
+        height: int = RECRAFT_HEIGHT,
         style: str = RECRAFT_DEFAULT_STYLE,
     ) -> List[GeneratedImage]:
         """Generate image variations from a text prompt.
@@ -77,8 +77,8 @@ class RecraftClient:
         Args:
             prompt: Recraft V3 image prompt.
             variations: Number of images to generate (1-3).
-            width: Image width in pixels.
-            height: Image height in pixels.
+            width: Image width in pixels (must be a valid Recraft size).
+            height: Image height in pixels (must be a valid Recraft size).
             style: Recraft style preset.
 
         Returns:

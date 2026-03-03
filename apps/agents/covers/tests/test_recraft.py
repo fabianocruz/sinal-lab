@@ -115,7 +115,10 @@ def test_is_available_with_key():
     assert client.is_available
 
 
-def test_request_includes_correct_dimensions(mock_http_client):
+def test_request_uses_recraft_dimensions_by_default(mock_http_client):
+    """Default dimensions should be Recraft-valid sizes, not OG sizes."""
+    from apps.agents.covers.config import RECRAFT_HEIGHT, RECRAFT_WIDTH
+
     api_response = MagicMock()
     api_response.json.return_value = _make_recraft_response()
     api_response.raise_for_status.return_value = None
@@ -128,7 +131,7 @@ def test_request_includes_correct_dimensions(mock_http_client):
     mock_http_client.get.return_value = img_response
 
     client = RecraftClient(api_key="test-key", http_client=mock_http_client)
-    client.generate("A prompt", variations=1, width=1200, height=628)
+    client.generate("A prompt", variations=1)
 
     call_args = mock_http_client.post.call_args
-    assert call_args.kwargs["json"]["size"] == "1200x628"
+    assert call_args.kwargs["json"]["size"] == f"{RECRAFT_WIDTH}x{RECRAFT_HEIGHT}"

@@ -7,6 +7,8 @@ from apps.agents.covers.config import (
     IMAGE_HEIGHT,
     IMAGE_WIDTH,
     MINI_BAR_COLORS,
+    RECRAFT_HEIGHT,
+    RECRAFT_WIDTH,
 )
 
 
@@ -40,3 +42,9 @@ def test_system_prompt_contains_key_directives():
 
 def test_default_agent_color_is_white():
     assert DEFAULT_AGENT_COLOR == "#FFFFFF"
+
+
+def test_recraft_dimensions_are_valid_api_size():
+    """Recraft V3 only accepts specific dimension pairs."""
+    assert RECRAFT_WIDTH == 1820
+    assert RECRAFT_HEIGHT == 1024

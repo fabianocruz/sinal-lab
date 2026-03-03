@@ -21,6 +21,8 @@ from apps.agents.covers.config import (
     BADGE_PADDING_X,
     BADGE_PADDING_Y,
     GRADIENT_HEIGHT,
+    IMAGE_HEIGHT,
+    IMAGE_WIDTH,
     MINI_BAR_COLORS,
     MINI_BAR_HEIGHT,
     MINI_BAR_MARGIN,
@@ -77,6 +79,11 @@ class BrandOverlay:
         # Ensure RGBA mode — required for alpha_composite blending
         if img.mode != "RGBA":
             img = img.convert("RGBA")
+
+        # Resize to standard OG dimensions (Recraft generates at 1820x1024,
+        # we downscale to 1200x628 for Open Graph / social media)
+        if img.size != (IMAGE_WIDTH, IMAGE_HEIGHT):
+            img = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT), Image.LANCZOS)
 
         width, height = img.size
 

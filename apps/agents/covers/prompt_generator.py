@@ -23,6 +23,7 @@ from apps.agents.covers.config import (
 logger = logging.getLogger(__name__)
 
 MAX_PROMPT_WORDS = 150
+MAX_PROMPT_CHARS = 1000  # Recraft V3 API limit
 
 
 @dataclass
@@ -95,7 +96,8 @@ class CoverPromptGenerator:
             logger.warning("LLM returned empty prompt for cover generation")
             return None
 
-        return _truncate_to_max_words(result.strip())
+        truncated = _truncate_to_max_words(result.strip())
+        return _truncate_to_max_chars(truncated)
 
 
 def _truncate_to_max_words(text: str, max_words: int = MAX_PROMPT_WORDS) -> str:
@@ -104,3 +106,15 @@ def _truncate_to_max_words(text: str, max_words: int = MAX_PROMPT_WORDS) -> str:
     if len(words) <= max_words:
         return text
     return " ".join(words[:max_words])
+
+
+def _truncate_to_max_chars(text: str, max_chars: int = MAX_PROMPT_CHARS) -> str:
+    """Truncate text to max_chars, cutting at the last complete sentence or word."""
+    if len(text) <= max_chars:
+        return text
+    # Cut at last space before the limit to avoid breaking mid-word
+    truncated = text[:max_chars]
+    last_space = truncated.rfind(" ")
+    if last_space > 0:
+        return truncated[:last_space]
+    return truncated

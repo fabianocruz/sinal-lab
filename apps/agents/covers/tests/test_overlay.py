@@ -102,6 +102,14 @@ def test_overlay_config_without_dq_score():
     assert isinstance(result, bytes)
 
 
+def test_resizes_larger_input_to_og_dimensions(overlay):
+    """Recraft generates at 1820x1024; overlay should resize to 1200x628."""
+    large_image = _create_test_image(width=1820, height=1024)
+    result = overlay.apply(large_image)
+    img = Image.open(io.BytesIO(result))
+    assert img.size == (IMAGE_WIDTH, IMAGE_HEIGHT)
+
+
 def test_hex_to_rgb():
     assert _hex_to_rgb("#59FFB4") == (89, 255, 180)
     assert _hex_to_rgb("#000000") == (0, 0, 0)

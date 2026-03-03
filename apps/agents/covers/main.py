@@ -13,8 +13,16 @@ Usage:
 
 import argparse
 import logging
+import os
 import sys
 import webbrowser
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env from project root (same pattern as scripts/run_agents.py)
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+load_dotenv(_PROJECT_ROOT / ".env")
 
 from apps.agents.covers.pipeline import CoverPipeline
 from apps.agents.covers.prompt_generator import CoverBriefing

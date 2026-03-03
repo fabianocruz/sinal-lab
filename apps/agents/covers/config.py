@@ -31,11 +31,18 @@ MINI_BAR_COLORS: List[str] = [
 ]
 
 # ---------------------------------------------------------------------------
-# Image generation defaults
+# Image dimensions
 # ---------------------------------------------------------------------------
 
+# Final OG image size (standard Open Graph / social media)
 IMAGE_WIDTH = 1200
 IMAGE_HEIGHT = 628
+
+# Recraft V3 generation size — must be from their fixed list of valid sizes.
+# 1820x1024 is the closest 16:9 option; we resize to IMAGE_WIDTH x IMAGE_HEIGHT
+# after generation in the overlay step.
+RECRAFT_WIDTH = 1820
+RECRAFT_HEIGHT = 1024
 
 # ---------------------------------------------------------------------------
 # Recraft V3 API defaults
