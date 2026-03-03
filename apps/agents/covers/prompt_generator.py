@@ -45,10 +45,12 @@ class CoverPromptGenerator:
     """
 
     def __init__(self, client: Optional[LLMClient] = None) -> None:
+        """Initialize with an optional LLMClient (creates one if not provided)."""
         self._client = client if client is not None else LLMClient()
 
     @property
     def is_available(self) -> bool:
+        """Check if the underlying LLM client can generate prompts."""
         return self._client.is_available
 
     def generate_prompt(self, briefing: CoverBriefing) -> Optional[str]:

@@ -53,6 +53,7 @@ class CoverPipeline:
         image_generator: Optional[RecraftClient] = None,
         uploader: Optional[BlobUploader] = None,
     ) -> None:
+        """Initialize pipeline with optional component overrides for testing."""
         self._prompt_gen = prompt_generator or CoverPromptGenerator()
         self._image_gen = image_generator or RecraftClient()
         self._uploader = uploader or BlobUploader()

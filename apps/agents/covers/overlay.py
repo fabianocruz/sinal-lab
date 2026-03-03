@@ -54,6 +54,7 @@ class BrandOverlay:
     """
 
     def __init__(self, config: OverlayConfig) -> None:
+        """Initialize with overlay configuration (agent, color, scores)."""
         self._config = config
 
     def apply(self, image_bytes: bytes) -> bytes:
@@ -73,11 +74,14 @@ class BrandOverlay:
         except Exception as e:
             raise ValueError(f"Cannot decode image: {e}") from e
 
-        # Ensure RGBA for compositing
+        # Ensure RGBA mode — required for alpha_composite blending
         if img.mode != "RGBA":
             img = img.convert("RGBA")
 
         width, height = img.size
+
+        # Create a transparent overlay layer — all elements are drawn here,
+        # then composited onto the source image in a single alpha blend pass
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
 
@@ -101,7 +105,7 @@ class BrandOverlay:
         # 6. Mini color bar (bottom-right)
         self._draw_mini_bar(draw, width, height)
 
-        # Composite
+        # Alpha-composite: blend overlay layer onto the source image
         result = Image.alpha_composite(img, overlay)
 
         buf = io.BytesIO()

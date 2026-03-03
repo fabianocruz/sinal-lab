@@ -44,11 +44,18 @@ class BlobUploader:
         token: Optional[str] = None,
         http_client: Optional[httpx.Client] = None,
     ) -> None:
+        """Initialize with an optional Blob token and httpx client.
+
+        Args:
+            token: Vercel Blob read/write token (falls back to BLOB_READ_WRITE_TOKEN env var).
+            http_client: Optional pre-configured httpx client for testing.
+        """
         self._token = token or os.environ.get("BLOB_READ_WRITE_TOKEN", "")
         self._external_client = http_client
 
     @property
     def is_available(self) -> bool:
+        """Check if the Vercel Blob token is configured."""
         return bool(self._token)
 
     def upload(

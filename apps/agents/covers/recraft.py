@@ -50,11 +50,18 @@ class RecraftClient:
         api_key: Optional[str] = None,
         http_client: Optional[httpx.Client] = None,
     ) -> None:
+        """Initialize with an optional API key and httpx client.
+
+        Args:
+            api_key: Recraft API key (falls back to RECRAFT_API_KEY env var).
+            http_client: Optional pre-configured httpx client for testing.
+        """
         self._api_key = api_key or os.environ.get("RECRAFT_API_KEY", "")
         self._external_client = http_client
 
     @property
     def is_available(self) -> bool:
+        """Check if the Recraft API key is configured."""
         return bool(self._api_key)
 
     def generate(
@@ -102,6 +109,7 @@ class RecraftClient:
         """Generate a single image from Recraft V3."""
         client = self._get_client()
         try:
+            # Step 1: POST prompt to Recraft API → returns JSON with image URL
             response = client.post(
                 RECRAFT_API_URL,
                 headers={"Authorization": f"Bearer {self._api_key}"},
@@ -114,10 +122,11 @@ class RecraftClient:
             )
             response.raise_for_status()
 
+            # Step 2: Extract the generated image URL from response
             data = response.json()
             image_url = data["data"][0]["url"]
 
-            # Download the generated image
+            # Step 3: Download the actual image bytes from the URL
             img_response = client.get(image_url)
             img_response.raise_for_status()
 
@@ -136,6 +145,7 @@ class RecraftClient:
             )
             return None
         except (KeyError, IndexError) as e:
+            # Recraft returned an unexpected JSON structure
             logger.warning("Unexpected Recraft response format for variation %d: %s", variation, e)
             return None
         except Exception as e:

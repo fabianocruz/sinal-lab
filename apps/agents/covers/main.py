@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Parse CLI args, run the cover pipeline, and print results."""
     parser = argparse.ArgumentParser(
         description="Generate AI editorial cover images for Sinal publications."
     )
