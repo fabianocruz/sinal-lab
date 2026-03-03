@@ -7,3 +7,6 @@ python-dotenv>=1.0,<2.0
 
 # LLM integration (optional — agents degrade gracefully without it)
 anthropic>=0.40.0
+
+# Cover image generation (overlay compositor)
+Pillow>=10.0.0
