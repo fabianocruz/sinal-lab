@@ -12,6 +12,7 @@ The frontend (apps/web/lib/api.ts) expects this paginated envelope.
 Individual endpoints (/{slug}, /newsletter/latest) return a single object.
 """
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -52,6 +53,14 @@ def list_content(
     if search:
         query = query.filter(ContentPiece.title.ilike(f"%{search}%"))
 
+    # Exclude future-dated content from published listings.
+    if status == "published":
+        now = datetime.now(timezone.utc)
+        query = query.filter(
+            (ContentPiece.published_at <= now)
+            | (ContentPiece.published_at.is_(None))
+        )
+
     total = query.count()
     pieces = (
         query.order_by(desc(ContentPiece.published_at))
@@ -70,12 +79,14 @@ def list_content(
 @router.get("/newsletter/latest", response_model=Optional[ContentResponse])
 def get_latest_newsletter(db: Session = Depends(get_db)):
     """Get the most recently published newsletter."""
+    now = datetime.now(timezone.utc)
     newsletter = (
         db.query(ContentPiece)
         .filter(
             ContentPiece.content_type == "DATA_REPORT",
             ContentPiece.agent_name == "sintese",
             ContentPiece.review_status == "published",
+            ContentPiece.published_at <= now,
         )
         .order_by(desc(ContentPiece.published_at))
         .first()

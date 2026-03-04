@@ -12,7 +12,7 @@ PROJECT_DIR=/opt/sinal
 
 # --- SINTESE: Weekly newsletter (Saturdays at 06:00 UTC) ---
 # Generates, persists to DB, and sends via Resend Broadcasts
-0 6 * * 6  cd $PROJECT_DIR && python scripts/run_agents.py sintese --edition $(date +\%W) --persist --send >> /var/log/sinal/sintese.log 2>&1
+0 6 * * 6  cd $PROJECT_DIR && python scripts/run_agents.py sintese --edition $(date +\%V) --persist --send >> /var/log/sinal/sintese.log 2>&1
 
 # --- RADAR: Daily trend scan (every day at 08:00 UTC) ---
 0 8 * * *  cd $PROJECT_DIR && python scripts/run_agents.py radar --persist >> /var/log/sinal/radar.log 2>&1
