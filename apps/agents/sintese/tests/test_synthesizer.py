@@ -122,6 +122,47 @@ class TestSelectTopItems:
     def test_empty_input(self):
         assert select_top_items([]) == []
 
+    def test_entity_frequency_cap(self):
+        """No more than MAX_PER_ENTITY items about the same company."""
+        items = [
+            make_scored_item(
+                title=f"EFEX raises ${i}M in round {i}",
+                url=f"https://source{i}.com/efex-{i}",
+                source_name=f"source_{i}",  # Different sources
+                composite=0.9 - i * 0.01,
+            )
+            for i in range(6)
+        ]
+        selected = select_top_items(items, count=10)
+        assert len(selected) == 2  # MAX_PER_ENTITY = 2
+
+    def test_entity_cap_different_entities_unaffected(self):
+        """Entity cap for one company doesn't block others."""
+        items = [
+            make_scored_item(title="EFEX raises $5M", url="https://a.com/1", source_name="s1", composite=0.9),
+            make_scored_item(title="EFEX closes round", url="https://b.com/2", source_name="s2", composite=0.89),
+            make_scored_item(title="EFEX gets funding", url="https://c.com/3", source_name="s3", composite=0.88),
+            make_scored_item(title="KAVAK raises $300M", url="https://d.com/4", source_name="s4", composite=0.87),
+            make_scored_item(title="VTEX IPO plans", url="https://e.com/5", source_name="s5", composite=0.86),
+        ]
+        selected = select_top_items(items, count=10)
+        titles = [s.item.title for s in selected]
+        assert len(selected) == 4  # 2 EFEX + 1 KAVAK + 1 VTEX
+        assert sum(1 for t in titles if "EFEX" in t) == 2
+
+    def test_entity_cap_with_source_cap_combined(self):
+        """Both caps apply simultaneously."""
+        items = [
+            # Same source, same entity: both caps hit
+            make_scored_item(title="EFEX article 1", url="https://x.com/1", source_name="same", composite=0.9),
+            make_scored_item(title="EFEX article 2", url="https://x.com/2", source_name="same", composite=0.89),
+            make_scored_item(title="EFEX article 3", url="https://x.com/3", source_name="same", composite=0.88),
+            # Different source, different entity
+            make_scored_item(title="KAVAK news", url="https://y.com/4", source_name="other", composite=0.87),
+        ]
+        selected = select_top_items(items, count=10)
+        assert len(selected) == 3  # 2 EFEX (entity cap) + 1 KAVAK
+
 
 class TestGroupByCategory:
     """Test grouping items into newsletter sections."""

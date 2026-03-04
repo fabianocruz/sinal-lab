@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from apps.agents.base.entity_extract import extract_entities
 from apps.agents.base.llm import strip_html
 from apps.agents.base.persona_registry import get_display_name
 from apps.agents.radar.classifier import ClassifiedSignal
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 TOP_SIGNALS_COUNT = 15
 MIN_SCORE_THRESHOLD = 0.10
+MAX_PER_ENTITY = 2
 
 # Display names for topic categories
 TOPIC_DISPLAY_NAMES: dict[str, str] = {
@@ -62,12 +64,14 @@ def select_top_signals(
     count: int = TOP_SIGNALS_COUNT,
     min_score: float = MIN_SCORE_THRESHOLD,
 ) -> list[ClassifiedSignal]:
-    """Select top signals with source diversity.
+    """Select top signals with source and entity diversity.
 
-    Limits to max 4 items per source to prevent domination.
+    Limits to max 4 items per source and MAX_PER_ENTITY items per
+    company/entity to prevent domination.
     """
     selected: list[ClassifiedSignal] = []
     source_counts: dict[str, int] = {}
+    entity_counts: dict[str, int] = {}
     max_per_source = 4
 
     for item in classified:
@@ -79,8 +83,15 @@ def select_top_signals(
         if current >= max_per_source:
             continue
 
+        # Entity frequency cap
+        entities = extract_entities(item.signal.title)
+        if any(entity_counts.get(e, 0) >= MAX_PER_ENTITY for e in entities):
+            continue
+
         selected.append(item)
         source_counts[source] = current + 1
+        for e in entities:
+            entity_counts[e] = entity_counts.get(e, 0) + 1
 
         if len(selected) >= count:
             break
