@@ -78,7 +78,7 @@ RADAR_SOURCES: list[DataSourceConfig] = [
     DataSourceConfig(
         name="lobsters",
         source_type="rss",
-        url="https://lobste.rs/hottest.rss",
+        url="https://lobste.rs/rss",
     ),
 
     # --- Product Hunt ---
@@ -112,6 +112,16 @@ RADAR_SOURCES: list[DataSourceConfig] = [
         name="reddit_machinelearning", source_type="api",
         url=None, api_key_env="REDDIT_CLIENT_ID",
         params={"subreddit": "MachineLearning", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_localllama", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "LocalLLaMA", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_artificial", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "artificial", "sort": "hot", "limit": 25},
     ),
 
     # --- Fintech / DeFi / Crypto (RSS feeds) ---

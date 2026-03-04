@@ -62,8 +62,12 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "mit_tech_review": 0.9,
     "restofworld": 0.9,
     "hackernews_best": 0.8, "lobsters": 0.7,
+    # Premium LATAM Business/Tech
+    "bloomberg_linea": 0.90, "mobile_time": 0.75,
+    # Independent Tech Journalism
+    "404media": 0.80,
     # LATAM Startup & VC
-    "startse": 0.85, "neofeed": 0.85,
+    "startse": 0.85, "neofeed": 0.85, "lavca": 0.85,
     "contxto": 0.85, "distrito": 0.8,
     "pipeline_valor": 0.85,
     "startupi": 0.7, "abstartups": 0.7,
@@ -77,6 +81,7 @@ SOURCE_AUTHORITY: dict[str, float] = {
     # AI & ML
     "theaibeat": 0.80, "deeplearning_ai": 0.85,
     # Developer & Infrastructure
+    "infoq": 0.85,
     "github_blog": 0.8, "vercel_blog": 0.7,
     "netlify_blog": 0.65, "cloudflare_blog": 0.75,
     "devto": 0.55,
@@ -95,6 +100,8 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "linkedin_fintech_posts": 0.35, "linkedin_ai_posts": 0.35,
     # Reddit (community signals, variable quality)
     "reddit_brdev": 0.45, "reddit_startups": 0.40,
+    "reddit_localllama": 0.55, "reddit_fintech": 0.40,
+    "reddit_venturecapital": 0.40,
     # Bluesky (emerging community, lower than Twitter due to smaller user base)
     "bluesky_fintech": 0.35, "bluesky_ai": 0.35,
 }

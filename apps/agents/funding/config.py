@@ -18,19 +18,30 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
     DataSourceConfig(name="softbank_latam", source_type="rss", url="https://www.softbank.com/en/news/feed", enabled=False),  # Timeout
     DataSourceConfig(name="qed_investors", source_type="rss", url="https://qedinvestors.com/feed/", enabled=False),  # 404
 
+    # --- Premium LATAM Business/Tech ---
+    DataSourceConfig(name="bloomberg_linea", source_type="rss", url="https://www.bloomberglinea.com.br/arc/outboundfeeds/rss/?outputType=xml"),
+    DataSourceConfig(name="lavca", source_type="rss", url="https://www.lavca.org/feed/"),
+
     # --- Investment News Sources ---
     DataSourceConfig(name="pipeline_valor", source_type="rss", url="https://pipelinevalor.globo.com/rss/", enabled=False),  # 404
     DataSourceConfig(name="neofeed", source_type="rss", url="https://neofeed.com.br/feed/"),
-    DataSourceConfig(name="startupi", source_type="rss", url="https://startupi.com.br/feed/"),
+    DataSourceConfig(name="startupi", source_type="rss", url="https://startupi.com.br/feed/", enabled=False),  # Low editorial quality
     DataSourceConfig(name="distrito_funding", source_type="rss", url="https://distrito.me/blog/category/funding/feed/", enabled=False),  # 404
     DataSourceConfig(name="contxto", source_type="rss", url="https://contxto.com/feed/", enabled=False),  # SSL protocol error
+
+    # --- VC Firms (portfolio announcements) ---
+    DataSourceConfig(name="ycombinator", source_type="rss", url="https://www.ycombinator.com/blog/rss/"),
+    DataSourceConfig(name="a16z", source_type="rss", url="https://a16z.substack.com/feed"),
+    DataSourceConfig(name="sequoia", source_type="rss", url="https://www.sequoiacap.com/feed/"),
+    DataSourceConfig(name="lightspeed", source_type="rss", url="https://lsvp.com/feed/"),
+    DataSourceConfig(name="greylock", source_type="rss", url="https://greylock.com/feed/"),
 
     # --- Funding News (cross-validated with SINTESE sources) ---
     DataSourceConfig(name="crunchbase_news", source_type="rss", url="https://news.crunchbase.com/feed/"),
     DataSourceConfig(name="techcrunch_latam", source_type="rss", url="https://techcrunch.com/tag/latin-america/feed/"),
     DataSourceConfig(name="latamlist", source_type="rss", url="https://latamlist.com/feed/"),
     DataSourceConfig(name="abstartups", source_type="rss", url="https://abstartups.com.br/feed/"),
-    DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/"),
+    DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/", enabled=False),  # 403 Forbidden (bot blocking)
 
     # --- Google News (LATAM funding) ---
     DataSourceConfig(

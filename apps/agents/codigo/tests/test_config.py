@@ -7,8 +7,8 @@ class TestCodigoSources:
     """Verify CODIGO data sources are well-formed."""
 
     def test_source_count(self):
-        # 11 original + 5 fintech = 16
-        assert len(CODIGO_SOURCES) == 16
+        # 11 original + 5 fintech + 3 (infoq, experienceddevs, selfhosted) = 19
+        assert len(CODIGO_SOURCES) == 19
 
     def test_all_sources_have_names(self):
         names = [s.name for s in CODIGO_SOURCES]

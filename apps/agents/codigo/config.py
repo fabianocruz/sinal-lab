@@ -47,6 +47,11 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
 
     # --- Dev Community RSS ---
     DataSourceConfig(
+        name="infoq",
+        source_type="rss",
+        url="https://www.infoq.com/feed/",
+    ),
+    DataSourceConfig(
         name="devto",
         source_type="rss",
         url="https://dev.to/feed",
@@ -67,6 +72,16 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
         name="reddit_webdev", source_type="api",
         url=None, api_key_env="REDDIT_CLIENT_ID",
         params={"subreddit": "webdev", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_experienceddevs", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "ExperiencedDevs", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_selfhosted", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "selfhosted", "sort": "hot", "limit": 25},
     ),
 
     # --- GitHub Trending (fintech/DeFi topics) ---
@@ -89,7 +104,7 @@ CODIGO_SOURCES: list[DataSourceConfig] = [
     DataSourceConfig(
         name="a16z_crypto",
         source_type="rss",
-        url="https://a16zcrypto.com/feed/",
+        url="https://a16zcrypto.substack.com/feed",  # Migrated from a16zcrypto.com/feed/ to Substack
     ),
 
     # --- Reddit (fintech/DeFi dev communities) ---

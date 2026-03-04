@@ -7,8 +7,8 @@ class TestRadarSources:
     """Verify RADAR data sources are well-formed."""
 
     def test_source_count(self):
-        # 19 original + 8 fintech = 27
-        assert len(RADAR_SOURCES) == 27
+        # 19 original + 8 fintech + 2 reddit (localllama, artificial) = 29
+        assert len(RADAR_SOURCES) == 29
 
     def test_all_sources_have_names(self):
         names = [s.name for s in RADAR_SOURCES]
