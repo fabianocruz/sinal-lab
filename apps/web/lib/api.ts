@@ -198,6 +198,24 @@ export async function fetchCompanies(params?: {
   }
 }
 
+export interface CompanyStats {
+  total: number;
+  countries: number;
+  sectors: number;
+}
+
+export async function fetchCompanyStats(): Promise<CompanyStats> {
+  try {
+    const response = await fetch(`${API_BASE}/api/companies/stats`, {
+      next: { revalidate: 60 },
+    });
+    if (!response.ok) return { total: 0, countries: 0, sectors: 0 };
+    return response.json();
+  } catch {
+    return { total: 0, countries: 0, sectors: 0 };
+  }
+}
+
 export async function fetchCompanyBySlug(slug: string): Promise<Company | null> {
   try {
     const encoded = encodeURIComponent(slug);

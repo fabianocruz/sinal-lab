@@ -6,7 +6,7 @@ import SectorFilter from "@/components/startup/SectorFilter";
 import CountryFilter from "@/components/startup/CountryFilter";
 import SearchBar from "@/components/newsletter/SearchBar";
 import Pagination from "@/components/newsletter/Pagination";
-import { fetchCompanies } from "@/lib/api";
+import { fetchCompanies, fetchCompanyStats } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Mapa de Startups LATAM | Sinal",
@@ -36,14 +36,17 @@ export default async function StartupsPage({
   const page = parseInt(searchParams.page ?? "1", 10);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const data = await fetchCompanies({
-    sector: searchParams.sector,
-    city: searchParams.city,
-    country: searchParams.country,
-    search: searchParams.q,
-    limit: PAGE_SIZE,
-    offset,
-  });
+  const [data, stats] = await Promise.all([
+    fetchCompanies({
+      sector: searchParams.sector,
+      city: searchParams.city,
+      country: searchParams.country,
+      search: searchParams.q,
+      limit: PAGE_SIZE,
+      offset,
+    }),
+    fetchCompanyStats(),
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
@@ -74,7 +77,7 @@ export default async function StartupsPage({
             <div className="flex gap-6 rounded-xl border border-sinal-slate bg-sinal-graphite px-6 py-4">
               <div className="text-center">
                 <div className="font-display text-[28px] leading-none text-signal">
-                  {data.total}
+                  {stats.total || data.total}
                 </div>
                 <div className="mt-1 font-mono text-[9px] uppercase tracking-[1px] text-[#4A4A56]">
                   Startups
@@ -82,14 +85,18 @@ export default async function StartupsPage({
               </div>
               <div className="w-px bg-sinal-slate" />
               <div className="text-center">
-                <div className="font-display text-[28px] leading-none text-sinal-white">6</div>
+                <div className="font-display text-[28px] leading-none text-sinal-white">
+                  {stats.countries || "—"}
+                </div>
                 <div className="mt-1 font-mono text-[9px] uppercase tracking-[1px] text-[#4A4A56]">
                   Pa&iacute;ses
                 </div>
               </div>
               <div className="w-px bg-sinal-slate" />
               <div className="text-center">
-                <div className="font-display text-[28px] leading-none text-sinal-white">10</div>
+                <div className="font-display text-[28px] leading-none text-sinal-white">
+                  {stats.sectors || "—"}
+                </div>
                 <div className="mt-1 font-mono text-[9px] uppercase tracking-[1px] text-[#4A4A56]">
                   Setores
                 </div>

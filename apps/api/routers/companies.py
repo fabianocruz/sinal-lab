@@ -101,6 +101,20 @@ def list_companies(
     }
 
 
+@router.get("/stats")
+def company_stats(db: Session = Depends(get_db)):
+    """Aggregate stats for the startups page hero."""
+    base = db.query(Company).filter(Company.status == "active")
+    total = base.count()
+    countries = db.query(func.count(func.distinct(Company.country))).filter(
+        Company.status == "active"
+    ).scalar()
+    sectors = db.query(func.count(func.distinct(Company.sector))).filter(
+        Company.status == "active", Company.sector.isnot(None)
+    ).scalar()
+    return {"total": total, "countries": countries, "sectors": sectors}
+
+
 @router.get("/{slug}", response_model=CompanyDetailResponse)
 def get_company_by_slug(slug: str, db: Session = Depends(get_db)):
     """Get a specific company by slug."""

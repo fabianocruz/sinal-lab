@@ -40,6 +40,14 @@ export const SECTOR_OPTIONS = [
   "AI/ML",
   "Proptech",
   "HR Tech",
+  "Cleantech",
+  "Biotech",
+  "Cybersecurity",
+  "Consumer",
+  "Industrials",
+  "Telecom",
+  "Legal Tech",
+  "Government",
 ] as const;
 
 /** Country → flag emoji mapping for LATAM. */
@@ -77,6 +85,14 @@ export const SECTOR_COLORS: Record<string, string> = {
   Agritech: "#59FFB4",
   Proptech: "#59B4FF",
   "HR Tech": "#C459FF",
+  Cleantech: "#59FFB4",
+  Biotech: "#59B4FF",
+  Cybersecurity: "#FF8A59",
+  Consumer: "#C459FF",
+  Industrials: "#8A8A96",
+  Telecom: "#59B4FF",
+  "Legal Tech": "#C459FF",
+  Government: "#8A8A96",
 };
 
 /** Funding stage → accent color hex. */
