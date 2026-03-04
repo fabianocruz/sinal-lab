@@ -437,6 +437,78 @@ def test_list_companies_empty_result(client, db_session):
 # ---------------------------------------------------------------------------
 
 
+def test_stats_returns_correct_counts(client, sample_companies):
+    """Test /stats returns correct total, countries, and sectors for active companies."""
+    response = client.get("/api/companies/stats")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3  # 3 active, 1 inactive
+    assert data["countries"] == 3  # Brazil, Argentina, Colombia
+    assert data["sectors"] == 3  # Fintech, E-commerce, Delivery
+
+
+def test_stats_excludes_inactive_companies(client, sample_companies):
+    """Test /stats does not count inactive companies."""
+    response = client.get("/api/companies/stats")
+
+    data = response.json()
+    # inactive-startup is Fintech + Brazil — but should not inflate counts
+    assert data["total"] == 3
+
+
+def test_stats_empty_database(client, db_session):
+    """Test /stats returns zeros when no active companies exist."""
+    response = client.get("/api/companies/stats")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 0
+    assert data["countries"] == 0
+    assert data["sectors"] == 0
+
+
+def test_stats_excludes_null_sectors(client, db_session):
+    """Test /stats does not count companies with null sector."""
+    db_session.add(
+        Company(
+            id=uuid.uuid4(),
+            slug="no-sector",
+            name="No Sector Co",
+            country="Brazil",
+            source_count=1,
+            status="active",
+            created_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+    db_session.add(
+        Company(
+            id=uuid.uuid4(),
+            slug="has-sector",
+            name="Has Sector Co",
+            sector="Fintech",
+            country="Brazil",
+            source_count=1,
+            status="active",
+            created_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/api/companies/stats")
+    data = response.json()
+    assert data["total"] == 2
+    assert data["countries"] == 1  # both are Brazil
+    assert data["sectors"] == 1  # only Fintech (null excluded)
+
+
+# ---------------------------------------------------------------------------
+# Scoring — quality signals
+# ---------------------------------------------------------------------------
+
+
 def test_company_with_short_description_ranks_above_no_description(client, db_session):
     """Company with short_description (no description) scores higher than one without either."""
     # Company A: has short_description + sector + website (score: 3 + 3 + 3 = 9)
