@@ -58,7 +58,8 @@ SOURCE_AUTHORITY: dict[str, float] = {
     # Global Tech
     "techcrunch": 0.9, "techcrunch_latam": 0.95,
     "arstechnica": 0.85, "theverge": 0.8,
-    "wired": 0.85, "geekwire": 0.75, "cnbc_tech": 0.80,
+    "wired": 0.85, "engadget": 0.75, "fastcompany_tech": 0.80,
+    "geekwire": 0.75, "cnbc_tech": 0.80,
     "mit_tech_review": 0.9,
     "restofworld": 0.9,
     "hackernews_best": 0.8, "lobsters": 0.7,

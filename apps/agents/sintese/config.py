@@ -36,6 +36,8 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="arstechnica", source_type="rss", url="https://feeds.arstechnica.com/arstechnica/index"),
     DataSourceConfig(name="wired", source_type="rss", url="https://www.wired.com/feed/rss"),
     DataSourceConfig(name="geekwire", source_type="rss", url="https://www.geekwire.com/feed/"),
+    DataSourceConfig(name="engadget", source_type="rss", url="https://www.engadget.com/rss.xml"),
+    DataSourceConfig(name="fastcompany_tech", source_type="rss", url="https://www.fastcompany.com/technology/rss"),
     DataSourceConfig(name="cnbc_tech", source_type="rss", url="https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"),
     DataSourceConfig(name="hackernews_best", source_type="rss", url="https://hnrss.org/best"),
     DataSourceConfig(name="lobsters", source_type="rss", url="https://lobste.rs/rss"),
