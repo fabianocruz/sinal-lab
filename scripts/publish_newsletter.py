@@ -25,7 +25,9 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from apps.agents.sintese.email_renderer import AgentCard, extract_agent_summary
 from apps.agents.sintese.newsletter import (
+    build_newsletter_email,
     markdown_to_html,
     send_broadcast,
     wrap_in_email_template,
@@ -41,6 +43,21 @@ AGENT_SECTIONS: Dict[str, str] = {
     "codigo": "Código & Infraestrutura",
     "funding": "Investimentos",
     "mercado": "Ecossistema LATAM",
+}
+
+# Display names and colors for agent cards in the email.
+AGENT_DISPLAY_NAMES: Dict[str, str] = {
+    "radar": "RADAR",
+    "codigo": "CÓDIGO",
+    "funding": "FUNDING",
+    "mercado": "MERCADO",
+}
+
+AGENT_COLORS: Dict[str, str] = {
+    "radar": "#59FFB4",
+    "codigo": "#59B4FF",
+    "funding": "#FF8A59",
+    "mercado": "#C459FF",
 }
 
 # Order in which agent sections appear after SINTESE.
@@ -152,35 +169,61 @@ def publish_newsletter(
         logger.error("No agent outputs found. Nothing to publish.")
         return
 
-    # Compose newsletter
-    newsletter_md = compose_newsletter(edition, outputs)
     logger.info(
-        "Composed newsletter from %d agent(s): %s",
+        "Loaded %d agent(s): %s",
         len(outputs),
         ", ".join(outputs.keys()),
     )
 
-    # Convert to HTML
-    html_body = markdown_to_html(newsletter_md)
+    # SINTESE markdown for the hero section
+    sintese_body = outputs.get("sintese", {}).get("body", "")
+    if not sintese_body:
+        sintese_body = f"# Sinal Semanal #{edition}\n"
+
+    # Build agent cards for secondary agents (RADAR, CODIGO, FUNDING, MERCADO)
+    agent_cards = []
+    for agent_name in SECTION_ORDER:
+        if agent_name not in outputs:
+            continue
+        body = outputs[agent_name]["body"]
+        summary = extract_agent_summary(body)
+        if not summary:
+            continue
+        slug = AGENTS[agent_name]["slug_pattern"].format(period=week)
+        agent_cards.append(
+            AgentCard(
+                name=AGENT_DISPLAY_NAMES[agent_name],
+                color=AGENT_COLORS[agent_name],
+                label=AGENT_SECTIONS[agent_name],
+                summary=summary,
+                site_url=f"https://sinal.tech/newsletter/{slug}",
+            )
+        )
+
+    edition_url = f"https://sinal.tech/newsletter/sinal-semanal-{edition}"
+
+    # Convert to email-safe HTML (SINTESE hero + agent cards)
     subject = f"Sinal Semanal #{edition}"
-    html_full = wrap_in_email_template(html_body, subject)
+    html_email = build_newsletter_email(
+        sintese_body, agent_cards=agent_cards, edition_url=edition_url,
+    )
 
     # Always save HTML to standard output directory
     newsletter_dir = root / NEWSLETTER_OUTPUT_SUBDIR
     newsletter_dir.mkdir(parents=True, exist_ok=True)
     default_filename = f"sinal-semanal-{edition}-week-{week}.html"
     default_path = newsletter_dir / default_filename
-    default_path.write_text(html_full, encoding="utf-8")
+    default_path.write_text(html_email, encoding="utf-8")
     logger.info("HTML saved to %s", default_path)
 
     # Save additional copy if custom path requested
     if html_path:
-        Path(html_path).write_text(html_full, encoding="utf-8")
+        Path(html_path).write_text(html_email, encoding="utf-8")
         logger.info("HTML copy saved to %s", html_path)
 
     # Send via Resend Broadcasts
     if not dry_run:
-        ok = send_broadcast(html_full, subject)
+        ok = send_broadcast(html_email, subject)
         if ok:
             logger.info("Newsletter broadcast sent via Resend")
         else:

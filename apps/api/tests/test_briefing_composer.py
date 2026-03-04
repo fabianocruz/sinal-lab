@@ -254,43 +254,40 @@ class TestStripHtml:
 class TestComputeDateRange:
     """Tests for _compute_date_range().
 
-    Note: The implementation uses strptime '%W' (week number with Sunday as
-    first day of the week) rather than ISO week numbering. Week N in this
-    scheme starts on the Monday that falls in the Nth Sunday-to-Saturday
-    period of the year. This means week numbers are offset from ISO weeks
-    by 1. Tests use the concrete output values verified from the implementation.
+    Uses ISO week numbering (%G-W%V-%u): week 1 is the first week with
+    a Thursday in the new year, and Monday is day 1.
     """
 
     def test_week_in_middle_of_month_returns_correct_range(self):
-        """Week 6 maps to 9-15 Fev 2026 (entirely within February)."""
+        """ISO week 6 maps to 2-8 Fev 2026 (entirely within February)."""
         result = _compute_date_range(6)
 
-        # Verified output: '9\u201315 Fev 2026'
+        # ISO week 6 of 2026: Mon 02 Feb – Sun 08 Feb
         assert "Fev" in result
         assert "2026" in result
-        assert "9" in result
-        assert "15" in result
+        assert "2" in result
+        assert "8" in result
 
     def test_week_spanning_two_months_shows_both_months(self):
-        """Week 4 spans January and February (26 Jan-1 Fev 2026)."""
-        result = _compute_date_range(4)
+        """ISO week 5 spans January and February (26 Jan-1 Fev 2026)."""
+        result = _compute_date_range(5)
 
-        # Verified output: '26 Jan\u20131 Fev 2026'
+        # ISO week 5 of 2026: Mon 26 Jan – Sun 01 Feb
         assert "Jan" in result
         assert "Fev" in result
 
     def test_first_week_of_year_returns_january(self):
-        """Week 1 should be in January."""
+        """ISO week 1 of 2026 starts on Dec 29, 2025 — spans Dec/Jan."""
         result = _compute_date_range(1)
 
+        # ISO week 1 of 2026: Mon 29 Dec 2025 – Sun 04 Jan 2026
         assert "Jan" in result
-        assert "2026" in result
 
     def test_last_week_of_year_returns_december(self):
-        """Week 52 spans December and January (28 Dez-3 Jan 2026)."""
+        """ISO week 52 of 2026 is in December."""
         result = _compute_date_range(52)
 
-        # Verified output: '28 Dez\u20133 Jan 2026'
+        # ISO week 52 of 2026: Mon 21 Dec – Sun 27 Dec
         assert "Dez" in result
 
 

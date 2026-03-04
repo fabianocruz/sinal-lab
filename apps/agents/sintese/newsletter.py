@@ -4,13 +4,19 @@ Converts the Markdown newsletter draft into HTML and provides
 delivery via Resend (transactional and broadcasts).
 
 Brand template lives in apps.api.services.email_template (single source
-of truth for all branded emails).
+of truth for all branded emails).  Email-safe newsletter rendering lives
+in apps.agents.sintese.email_renderer.
 """
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from apps.api.services.email_template import build_brand_html
+from apps.agents.sintese.email_renderer import (
+    AgentCard,
+    build_newsletter_email_html,
+    parse_newsletter_markdown,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +74,28 @@ def wrap_in_email_template(
         edition_title,
         newsletter_styles=True,
         unsubscribe_url=unsubscribe_url,
+    )
+
+
+def build_newsletter_email(
+    markdown_content: str,
+    agent_cards: Optional[List[AgentCard]] = None,
+    edition_url: Optional[str] = None,
+) -> str:
+    """Convert newsletter Markdown to email-safe HTML.
+
+    Parses the structured Markdown into typed data, then renders
+    table-based HTML with inline styles compatible with Gmail,
+    Outlook, and Apple Mail.
+
+    Args:
+        markdown_content: Markdown do SINTESE (hero da newsletter).
+        agent_cards: Cards resumidos dos agentes secundários.
+        edition_url: URL da edição completa no site.
+    """
+    data = parse_newsletter_markdown(markdown_content)
+    return build_newsletter_email_html(
+        data, agent_cards=agent_cards, edition_url=edition_url,
     )
 
 
