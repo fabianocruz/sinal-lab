@@ -5,9 +5,11 @@ from datetime import datetime, timezone, timedelta
 
 from apps.agents.sintese.collector import FeedItem
 from apps.agents.sintese.scorer import (
+    BLOCKED_DOMAINS,
     MIN_TOPIC_SCORE,
     NEGATIVE_KEYWORDS,
     ScoredItem,
+    _is_blocked_source,
     score_topic_relevance,
     score_recency,
     score_source_authority,
@@ -482,3 +484,98 @@ class TestSourceCalibration:
         all_names = {s.name for s in SINTESE_CONFIG.data_sources}
         missing = all_names - set(SOURCE_AUTHORITY.keys())
         assert missing == set(), f"Sources without authority score: {missing}"
+
+
+class TestBlockedDomains:
+    """Tests for domain blocklist filtering."""
+
+    def test_startupi_url_blocked(self):
+        """Articles from startupi.com.br should be blocked."""
+        item = make_item(
+            title="Startup fecha rodada de investimento",
+            url="https://startupi.com.br/startup-fecha-rodada/",
+        )
+        assert _is_blocked_source(item) is True
+
+    def test_exame_url_blocked(self):
+        """Articles from exame.com should be blocked."""
+        item = make_item(
+            title="Nova startup de AI",
+            url="https://exame.com/negocios/nova-startup-ai/",
+        )
+        assert _is_blocked_source(item) is True
+
+    def test_infomoney_url_blocked(self):
+        """Articles from infomoney.com.br should be blocked."""
+        item = make_item(
+            title="Fintech cresce 200%",
+            url="https://www.infomoney.com.br/fintech-cresce/",
+        )
+        assert _is_blocked_source(item) is True
+
+    def test_allowed_domain_not_blocked(self):
+        """Articles from allowed domains should NOT be blocked."""
+        item = make_item(
+            title="AI startup raises $10M",
+            url="https://techcrunch.com/ai-startup-raises/",
+        )
+        assert _is_blocked_source(item) is False
+
+    def test_gnews_exame_title_blocked(self):
+        """Google News articles with 'Exame:' title prefix should be blocked."""
+        item = make_item(
+            title="Exame: Como uma startup de drones já vale metade da Embraer",
+            url="https://news.google.com/rss/articles/CBMiswFBVV95cUxO...",
+            source_name="gnews_venture_br",
+        )
+        assert _is_blocked_source(item) is True
+
+    def test_gnews_startupi_title_blocked(self):
+        """Google News articles with 'Startupi:' title prefix should be blocked."""
+        item = make_item(
+            title="Startupi: Kavak capta US$ 300 milhões",
+            url="https://news.google.com/rss/articles/XYZ123...",
+            source_name="gnews_venture_br",
+        )
+        assert _is_blocked_source(item) is True
+
+    def test_gnews_allowed_source_not_blocked(self):
+        """Google News articles from allowed sources should NOT be blocked."""
+        item = make_item(
+            title="Valor Econômico: Startup de AI fecha Série B",
+            url="https://news.google.com/rss/articles/ABC456...",
+            source_name="gnews_venture_br",
+        )
+        assert _is_blocked_source(item) is False
+
+    def test_score_items_excludes_blocked(self):
+        """score_items() should filter out items from blocked domains."""
+        items = [
+            make_item(
+                title="AI startup raises funding",
+                url="https://techcrunch.com/ai-startup/",
+                source_name="techcrunch",
+                tags=["startup", "inteligencia artificial"],
+            ),
+            make_item(
+                title="Startup fecha rodada de investimento",
+                url="https://startupi.com.br/startup-fecha-rodada/",
+                source_name="startupi",
+                tags=["startup", "investimento"],
+            ),
+            make_item(
+                title="Exame: Nova startup de drones",
+                url="https://news.google.com/rss/articles/XYZ...",
+                source_name="gnews_venture_br",
+                tags=["startup", "investimento"],
+            ),
+        ]
+        scored = score_items(items)
+        urls = [s.item.url for s in scored]
+        assert "https://techcrunch.com/ai-startup/" in urls
+        assert "https://startupi.com.br/startup-fecha-rodada/" not in urls
+        assert "https://news.google.com/rss/articles/XYZ..." not in urls
+
+    def test_blocked_domains_list_not_empty(self):
+        """BLOCKED_DOMAINS should contain entries."""
+        assert len(BLOCKED_DOMAINS) >= 5
