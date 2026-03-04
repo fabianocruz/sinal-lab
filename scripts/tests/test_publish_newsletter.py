@@ -12,6 +12,7 @@ import pytest
 from scripts.publish_newsletter import (
     compose_newsletter,
     load_agent_output,
+    publish_briefing_email,
     publish_newsletter,
 )
 
@@ -382,3 +383,99 @@ class TestPublishNewsletter:
 
         # Should succeed without error even with missing agent outputs
         mock_broadcast.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# TestPublishBriefingEmail
+# ---------------------------------------------------------------------------
+
+
+class TestPublishBriefingEmail:
+    """Tests for publish_briefing_email() — transactional email path."""
+
+    @patch("apps.agents.sintese.newsletter.send_via_resend")
+    def test_dry_run_does_not_send(self, mock_send, tmp_output_dir: Path):
+        publish_briefing_email(
+            edition=8,
+            week=8,
+            dry_run=True,
+            project_root=tmp_output_dir,
+        )
+
+        mock_send.assert_not_called()
+
+    @patch("apps.agents.sintese.newsletter.send_via_resend")
+    def test_dry_run_saves_preview_html(self, mock_send, tmp_output_dir: Path):
+        publish_briefing_email(
+            edition=8,
+            week=8,
+            dry_run=True,
+            project_root=tmp_output_dir,
+        )
+
+        preview_path = tmp_output_dir / "output" / "newsletters" / "briefing-8-preview.html"
+        assert preview_path.exists()
+        content = preview_path.read_text(encoding="utf-8")
+        assert "<html" in content
+
+    @patch("apps.agents.sintese.newsletter.send_via_resend")
+    def test_sends_to_recipient(self, mock_send, tmp_output_dir: Path):
+        mock_send.return_value = True
+
+        publish_briefing_email(
+            edition=8,
+            week=8,
+            recipient="test@example.com",
+            project_root=tmp_output_dir,
+        )
+
+        mock_send.assert_called_once()
+        call_args = mock_send.call_args
+        assert call_args[0][1] == "Sinal Semanal #8"  # subject
+        assert call_args[0][2] == "test@example.com"   # to_email
+
+    @patch("apps.agents.sintese.newsletter.send_via_resend")
+    def test_requires_recipient_for_send(self, mock_send, tmp_output_dir: Path):
+        """Without --recipient and not --dry-run, should not send."""
+        publish_briefing_email(
+            edition=8,
+            week=8,
+            recipient=None,
+            project_root=tmp_output_dir,
+        )
+
+        mock_send.assert_not_called()
+
+    @patch("apps.agents.sintese.newsletter.send_via_resend")
+    def test_requires_sintese_output(self, mock_send, tmp_path: Path):
+        """Without SINTESE output, briefing should not attempt send."""
+        # Only create radar output (no sintese)
+        radar_dir = tmp_path / "apps" / "agents" / "radar" / "output"
+        radar_dir.mkdir(parents=True)
+        (radar_dir / "radar-week-8.md").write_text(SAMPLE_RADAR_MD, encoding="utf-8")
+
+        publish_briefing_email(
+            edition=8,
+            week=8,
+            recipient="test@example.com",
+            project_root=tmp_path,
+        )
+
+        mock_send.assert_not_called()
+
+    @patch("apps.agents.sintese.newsletter.send_via_resend")
+    def test_html_uses_email_safe_template(self, mock_send, tmp_output_dir: Path):
+        """Briefing should use the same table-based template as broadcast."""
+        mock_send.return_value = True
+
+        publish_briefing_email(
+            edition=8,
+            week=8,
+            recipient="test@example.com",
+            project_root=tmp_output_dir,
+        )
+
+        # Check that the HTML sent uses table-based email template
+        html_content = mock_send.call_args[0][0]
+        assert 'role="presentation"' in html_content
+        assert "background-color:#0A0A0B" in html_content or "#0A0A0B" in html_content

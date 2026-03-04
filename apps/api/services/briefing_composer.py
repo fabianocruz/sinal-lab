@@ -107,8 +107,8 @@ def _compute_date_range(week: int) -> str:
         Formatted date range in Portuguese.
     """
     year = datetime.utcnow().year
-    # Monday of the given ISO week.
-    monday = datetime.strptime(f"{year}-W{week:02d}-1", "%Y-W%W-%w")
+    # Monday of the given ISO week (%G=ISO year, %V=ISO week, %u=weekday 1=Mon).
+    monday = datetime.strptime(f"{year}-W{week:02d}-1", "%G-W%V-%u")
     sunday = monday + timedelta(days=6)
 
     start_month = _PT_MONTHS[monday.month]

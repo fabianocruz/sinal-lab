@@ -159,7 +159,7 @@ def parse_cb_rank(raw: str) -> int | None:
         return None
 
 
-def run(csv_path: str, dry_run: bool = False):
+def run(csv_path: str, dry_run: bool = False) -> None:
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)

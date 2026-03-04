@@ -25,7 +25,9 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from apps.agents.sintese.email_renderer import AgentCard, extract_agent_summary
 from apps.agents.sintese.newsletter import (
+    build_newsletter_email,
     markdown_to_html,
     send_broadcast,
     wrap_in_email_template,
@@ -41,6 +43,21 @@ AGENT_SECTIONS: Dict[str, str] = {
     "codigo": "Código & Infraestrutura",
     "funding": "Investimentos",
     "mercado": "Ecossistema LATAM",
+}
+
+# Display names and colors for agent cards in the email.
+AGENT_DISPLAY_NAMES: Dict[str, str] = {
+    "radar": "RADAR",
+    "codigo": "CÓDIGO",
+    "funding": "FUNDING",
+    "mercado": "MERCADO",
+}
+
+AGENT_COLORS: Dict[str, str] = {
+    "radar": "#59FFB4",
+    "codigo": "#59B4FF",
+    "funding": "#FF8A59",
+    "mercado": "#C459FF",
 }
 
 # Order in which agent sections appear after SINTESE.
@@ -152,35 +169,61 @@ def publish_newsletter(
         logger.error("No agent outputs found. Nothing to publish.")
         return
 
-    # Compose newsletter
-    newsletter_md = compose_newsletter(edition, outputs)
     logger.info(
-        "Composed newsletter from %d agent(s): %s",
+        "Loaded %d agent(s): %s",
         len(outputs),
         ", ".join(outputs.keys()),
     )
 
-    # Convert to HTML
-    html_body = markdown_to_html(newsletter_md)
+    # SINTESE markdown for the hero section
+    sintese_body = outputs.get("sintese", {}).get("body", "")
+    if not sintese_body:
+        sintese_body = f"# Sinal Semanal #{edition}\n"
+
+    # Build agent cards for secondary agents (RADAR, CODIGO, FUNDING, MERCADO)
+    agent_cards = []
+    for agent_name in SECTION_ORDER:
+        if agent_name not in outputs:
+            continue
+        body = outputs[agent_name]["body"]
+        summary = extract_agent_summary(body)
+        if not summary:
+            continue
+        slug = AGENTS[agent_name]["slug_pattern"].format(period=week)
+        agent_cards.append(
+            AgentCard(
+                name=AGENT_DISPLAY_NAMES[agent_name],
+                color=AGENT_COLORS[agent_name],
+                label=AGENT_SECTIONS[agent_name],
+                summary=summary,
+                site_url=f"https://sinal.tech/newsletter/{slug}",
+            )
+        )
+
+    edition_url = f"https://sinal.tech/newsletter/sinal-semanal-{edition}"
+
+    # Convert to email-safe HTML (SINTESE hero + agent cards)
     subject = f"Sinal Semanal #{edition}"
-    html_full = wrap_in_email_template(html_body, subject)
+    html_email = build_newsletter_email(
+        sintese_body, agent_cards=agent_cards, edition_url=edition_url,
+    )
 
     # Always save HTML to standard output directory
     newsletter_dir = root / NEWSLETTER_OUTPUT_SUBDIR
     newsletter_dir.mkdir(parents=True, exist_ok=True)
     default_filename = f"sinal-semanal-{edition}-week-{week}.html"
     default_path = newsletter_dir / default_filename
-    default_path.write_text(html_full, encoding="utf-8")
+    default_path.write_text(html_email, encoding="utf-8")
     logger.info("HTML saved to %s", default_path)
 
     # Save additional copy if custom path requested
     if html_path:
-        Path(html_path).write_text(html_full, encoding="utf-8")
+        Path(html_path).write_text(html_email, encoding="utf-8")
         logger.info("HTML copy saved to %s", html_path)
 
     # Send via Resend Broadcasts
     if not dry_run:
-        ok = send_broadcast(html_full, subject)
+        ok = send_broadcast(html_email, subject)
         if ok:
             logger.info("Newsletter broadcast sent via Resend")
         else:
@@ -194,58 +237,96 @@ def publish_briefing_email(
     week: Optional[int] = None,
     dry_run: bool = False,
     recipient: Optional[str] = None,
+    project_root: Optional[Path] = None,
 ) -> None:
-    """Compose a rich briefing email from DB content and send via Resend.
+    """Compose a newsletter email from agent Markdown files and send to one recipient.
 
-    Reads published ContentPiece records, extracts structured metadata,
-    and builds a BriefingData payload for the branded email template.
+    Uses the same email-safe template as broadcast (table-based HTML with
+    inline styles), but sends to a single recipient via transactional email
+    instead of Resend Broadcasts.
 
     Args:
         edition: Newsletter edition number.
         week: ISO week number. Defaults to current week.
         dry_run: If True, save HTML preview but don't send.
-        recipient: Email address for test send. Required unless dry_run.
+        recipient: Email address to send to. Required unless dry_run.
+        project_root: Override project root (used in tests).
     """
-    from apps.api.deps import get_session_factory
-    from apps.api.services.briefing_composer import compose_briefing_data
-    from apps.api.services.email import _build_briefing_html, send_newsletter_email
+    from apps.agents.sintese.newsletter import send_via_resend
+
+    root = project_root or PROJECT_ROOT
 
     if week is None:
         week = datetime.now().isocalendar()[1]
 
-    SessionLocal = get_session_factory()
-    session = SessionLocal()
-    try:
-        data = compose_briefing_data(session, edition, week)
-        if not data:
-            logger.error("No published SINTESE content found. Cannot compose briefing.")
-            return
+    # Load all available agent outputs (same as broadcast path)
+    outputs: Dict[str, dict] = {}
+    for agent_name, cfg in AGENTS.items():
+        period = edition if cfg["period_arg"] == "edition" else week
+        filename = cfg["filename_pattern"].format(period=period)
+        filepath = root / cfg["output_dir"] / filename
 
-        logger.info(
-            "Composed briefing #%d (week %d): %s",
-            edition, week, data["sintese_title"],
+        result = load_agent_output(filepath)
+        if result is not None:
+            outputs[agent_name] = result
+            logger.info("Loaded %s output: %s", agent_name.upper(), filepath.name)
+        else:
+            logger.warning("No output found for %s: %s", agent_name.upper(), filepath)
+
+    if "sintese" not in outputs:
+        logger.error("No SINTESE output found. Cannot compose briefing.")
+        return
+
+    sintese_body = outputs["sintese"]["body"]
+
+    # Build agent cards for secondary agents
+    agent_cards = []
+    for agent_name in SECTION_ORDER:
+        if agent_name not in outputs:
+            continue
+        body = outputs[agent_name]["body"]
+        summary = extract_agent_summary(body)
+        if not summary:
+            continue
+        slug = AGENTS[agent_name]["slug_pattern"].format(period=week)
+        agent_cards.append(
+            AgentCard(
+                name=AGENT_DISPLAY_NAMES[agent_name],
+                color=AGENT_COLORS[agent_name],
+                label=AGENT_SECTIONS[agent_name],
+                summary=summary,
+                site_url=f"https://sinal.tech/newsletter/{slug}",
+            )
         )
 
-        if dry_run:
-            html = _build_briefing_html(data)
-            newsletter_dir = PROJECT_ROOT / NEWSLETTER_OUTPUT_SUBDIR
-            newsletter_dir.mkdir(parents=True, exist_ok=True)
-            preview_path = newsletter_dir / f"briefing-{edition}-preview.html"
-            preview_path.write_text(html, encoding="utf-8")
-            logger.info("Preview saved to %s", preview_path)
-            return
+    edition_url = f"https://sinal.tech/newsletter/sinal-semanal-{edition}"
 
-        if not recipient:
-            logger.error("--recipient is required for non-dry-run sends.")
-            return
+    # Convert to email-safe HTML (same template as broadcast)
+    subject = f"Sinal Semanal #{edition}"
+    html_email = build_newsletter_email(
+        sintese_body, agent_cards=agent_cards, edition_url=edition_url,
+    )
 
-        ok = send_newsletter_email(recipient, data)
-        if ok:
-            logger.info("Briefing email sent to %s", recipient)
-        else:
-            logger.warning("Failed to send briefing email to %s", recipient)
-    finally:
-        session.close()
+    # Save preview HTML
+    newsletter_dir = root / NEWSLETTER_OUTPUT_SUBDIR
+    newsletter_dir.mkdir(parents=True, exist_ok=True)
+    preview_path = newsletter_dir / f"briefing-{edition}-preview.html"
+    preview_path.write_text(html_email, encoding="utf-8")
+    logger.info("Preview saved to %s", preview_path)
+
+    if dry_run:
+        logger.info("Dry run -- skipping send")
+        return
+
+    if not recipient:
+        logger.error("--recipient is required for non-dry-run sends.")
+        return
+
+    ok = send_via_resend(html_email, subject, recipient)
+    if ok:
+        logger.info("Briefing email sent to %s", recipient)
+    else:
+        logger.warning("Failed to send briefing email to %s", recipient)
 
 
 def main() -> None:

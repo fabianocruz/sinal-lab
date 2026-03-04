@@ -11,13 +11,18 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="convergenciadigital", source_type="rss", url="https://convergenciadigital.com.br/feed/", enabled=False),  # Telecom/regulatory focus, not aligned with technical audience
     DataSourceConfig(name="baguete", source_type="rss", url="https://www.baguete.com.br/rss/noticias/feed", enabled=False),  # Corporate IT news, low relevance for founders/CTOs
 
+    # --- Premium LATAM Business/Tech ---
+    DataSourceConfig(name="bloomberg_linea", source_type="rss", url="https://www.bloomberglinea.com.br/arc/outboundfeeds/rss/?outputType=xml"),
+    DataSourceConfig(name="mobile_time", source_type="rss", url="https://www.mobiletime.com.br/feed/"),
+
     # --- Startup & VC ---
     DataSourceConfig(name="distrito", source_type="rss", url="https://distrito.me/blog/feed/", enabled=False),  # RSS feed removed
     DataSourceConfig(name="abstartups", source_type="rss", url="https://abstartups.com.br/feed/"),
-    DataSourceConfig(name="startupi", source_type="rss", url="https://startupi.com.br/feed/"),
+    DataSourceConfig(name="startupi", source_type="rss", url="https://startupi.com.br/feed/", enabled=False),  # Low editorial quality
     DataSourceConfig(name="pipeline_valor", source_type="rss", url="https://pipelinevalor.globo.com/rss/", enabled=False),  # RSS feed removed
     DataSourceConfig(name="neofeed", source_type="rss", url="https://neofeed.com.br/feed/"),
-    DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/"),
+    DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/", enabled=False),  # 403 Forbidden (bot blocking)
+    DataSourceConfig(name="lavca", source_type="rss", url="https://www.lavca.org/feed/"),
 
     # --- LATAM (non-Brazil) ---
     DataSourceConfig(name="contxto", source_type="rss", url="https://contxto.com/feed/", enabled=False),  # SSL protocol error (TLS version mismatch)
@@ -31,9 +36,14 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="arstechnica", source_type="rss", url="https://feeds.arstechnica.com/arstechnica/index"),
     DataSourceConfig(name="wired", source_type="rss", url="https://www.wired.com/feed/rss"),
     DataSourceConfig(name="geekwire", source_type="rss", url="https://www.geekwire.com/feed/"),
+    DataSourceConfig(name="engadget", source_type="rss", url="https://www.engadget.com/rss.xml"),
+    DataSourceConfig(name="fastcompany_tech", source_type="rss", url="https://www.fastcompany.com/technology/rss"),
     DataSourceConfig(name="cnbc_tech", source_type="rss", url="https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"),
     DataSourceConfig(name="hackernews_best", source_type="rss", url="https://hnrss.org/best"),
     DataSourceConfig(name="lobsters", source_type="rss", url="https://lobste.rs/rss"),
+
+    # --- Independent Tech Journalism ---
+    DataSourceConfig(name="404media", source_type="rss", url="https://www.404media.co/rss/"),
 
     # --- AI & ML ---
     DataSourceConfig(name="theaibeat", source_type="rss", url="https://venturebeat.com/category/ai/feed/"),
@@ -41,6 +51,7 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="deeplearning_ai", source_type="rss", url="https://www.deeplearning.ai/blog/feed/", enabled=False),  # RSS feed removed
 
     # --- Developer & Infrastructure ---
+    DataSourceConfig(name="infoq", source_type="rss", url="https://www.infoq.com/feed/"),
     DataSourceConfig(name="devto", source_type="rss", url="https://dev.to/feed"),
     DataSourceConfig(name="github_blog", source_type="rss", url="https://github.blog/feed/"),
     DataSourceConfig(name="netlify_blog", source_type="rss", url="https://www.netlify.com/blog/rss.xml", enabled=False),  # RSS feed removed (404)
@@ -53,7 +64,7 @@ LATAM_TECH_FEEDS: list[DataSourceConfig] = [
     DataSourceConfig(name="infomoney", source_type="rss", url="https://www.infomoney.com.br/feed/"),
 
     # --- VC & Startup Ops ---
-    DataSourceConfig(name="a16z", source_type="rss", url="https://a16z.com/feed/", enabled=False),  # RSS feed removed (404)
+    DataSourceConfig(name="a16z", source_type="rss", url="https://a16z.substack.com/feed"),  # Migrated from a16z.com/feed/ to Substack
     DataSourceConfig(name="ycombinator", source_type="rss", url="https://www.ycombinator.com/blog/rss/"),
     DataSourceConfig(name="first_round", source_type="rss", url="https://review.firstround.com/feed.xml", enabled=False),  # RSS feed removed
     DataSourceConfig(name="crunchbase_news", source_type="rss", url="https://news.crunchbase.com/feed/"),
@@ -138,6 +149,21 @@ REDDIT_SOURCES: list[DataSourceConfig] = [
         name="reddit_startups", source_type="api",
         url=None, api_key_env="REDDIT_CLIENT_ID",
         params={"subreddit": "startups", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_localllama", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "LocalLLaMA", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_fintech", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "fintech", "sort": "hot", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="reddit_venturecapital", source_type="api",
+        url=None, api_key_env="REDDIT_CLIENT_ID",
+        params={"subreddit": "venturecapital", "sort": "hot", "limit": 25},
     ),
 ]
 

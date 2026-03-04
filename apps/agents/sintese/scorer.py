@@ -58,12 +58,17 @@ SOURCE_AUTHORITY: dict[str, float] = {
     # Global Tech
     "techcrunch": 0.9, "techcrunch_latam": 0.95,
     "arstechnica": 0.85, "theverge": 0.8,
-    "wired": 0.85, "geekwire": 0.75, "cnbc_tech": 0.80,
+    "wired": 0.85, "engadget": 0.75, "fastcompany_tech": 0.80,
+    "geekwire": 0.75, "cnbc_tech": 0.80,
     "mit_tech_review": 0.9,
     "restofworld": 0.9,
     "hackernews_best": 0.8, "lobsters": 0.7,
+    # Premium LATAM Business/Tech
+    "bloomberg_linea": 0.90, "mobile_time": 0.75,
+    # Independent Tech Journalism
+    "404media": 0.80,
     # LATAM Startup & VC
-    "startse": 0.85, "neofeed": 0.85,
+    "startse": 0.85, "neofeed": 0.85, "lavca": 0.85,
     "contxto": 0.85, "distrito": 0.8,
     "pipeline_valor": 0.85,
     "startupi": 0.7, "abstartups": 0.7,
@@ -77,6 +82,7 @@ SOURCE_AUTHORITY: dict[str, float] = {
     # AI & ML
     "theaibeat": 0.80, "deeplearning_ai": 0.85,
     # Developer & Infrastructure
+    "infoq": 0.85,
     "github_blog": 0.8, "vercel_blog": 0.7,
     "netlify_blog": 0.65, "cloudflare_blog": 0.75,
     "devto": 0.55,
@@ -95,6 +101,8 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "linkedin_fintech_posts": 0.35, "linkedin_ai_posts": 0.35,
     # Reddit (community signals, variable quality)
     "reddit_brdev": 0.45, "reddit_startups": 0.40,
+    "reddit_localllama": 0.55, "reddit_fintech": 0.40,
+    "reddit_venturecapital": 0.40,
     # Bluesky (emerging community, lower than Twitter due to smaller user base)
     "bluesky_fintech": 0.35, "bluesky_ai": 0.35,
 }
@@ -121,6 +129,61 @@ NEGATIVE_KEYWORDS: list[str] = [
     # Celebrity / Gossip
     "influenciador", "famoso", "fofoca",
 ]
+
+# Blocked domains — articles from these domains are filtered out regardless
+# of topic score. Catches low-editorial-quality sources that slip through
+# Google News aggregator (gnews_*) or are disabled in config but still
+# referenced. Matched against URL domain and Google News title prefix.
+BLOCKED_DOMAINS: list[str] = [
+    "exame.com",
+    "startupi.com.br",
+    "abstartups.com.br",
+    "infomoney.com.br",
+    "canaltech.com.br",
+    "olhardigital.com.br",
+    "techtudo.com.br",
+    "tecmundo.com.br",
+]
+
+# Title prefixes used by Google News RSS (e.g., "Exame: titulo do artigo").
+# Built from BLOCKED_DOMAINS to also catch gnews articles where the URL
+# is news.google.com but the title reveals the original source.
+_BLOCKED_TITLE_PREFIXES: list[str] = [
+    "exame:",
+    "startupi:",
+    "infomoney:",
+    "canaltech:",
+    "olhar digital:",
+    "techtudo:",
+    "tecmundo:",
+    "abstartups:",
+]
+
+
+def _is_blocked_source(item: "FeedItem") -> bool:
+    """Check if an item comes from a blocked domain.
+
+    Checks two signals:
+    1. URL domain — catches direct RSS feeds and resolved Google News URLs.
+    2. Title prefix — catches Google News aggregator items where URL is
+       news.google.com but title starts with "Exame:", "Startupi:", etc.
+
+    Returns True if the item should be blocked.
+    """
+    # Check URL domain
+    url_lower = item.url.lower()
+    for domain in BLOCKED_DOMAINS:
+        if domain in url_lower:
+            return True
+
+    # Check Google News title prefix (e.g., "Exame: Como uma startup...")
+    title_lower = item.title.lower().lstrip()
+    for prefix in _BLOCKED_TITLE_PREFIXES:
+        if title_lower.startswith(prefix):
+            return True
+
+    return False
+
 
 # Cache for compiled regex patterns used by _keyword_in_text
 _KEYWORD_RE_CACHE: dict[str, re.Pattern] = {}
@@ -335,8 +398,14 @@ def score_items(
     """
     scored: list[ScoredItem] = []
     filtered_count = 0
+    blocked_count = 0
 
     for item in items:
+        # Block items from low-quality editorial sources
+        if _is_blocked_source(item):
+            blocked_count += 1
+            continue
+
         topic = score_topic_relevance(item)
 
         if topic < min_topic_score:
@@ -352,6 +421,11 @@ def score_items(
         )
         scored.append(scored_item)
 
+    if blocked_count > 0:
+        logger.info(
+            "Blocked %d/%d items from blocked domains",
+            blocked_count, len(items),
+        )
     if filtered_count > 0:
         logger.info(
             "Filtered %d/%d items below min_topic_score=%.2f",

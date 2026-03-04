@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from apps.agents.base.entity_extract import extract_entities
 from apps.agents.base.persona_registry import get_display_name
 from apps.agents.sintese.scorer import ScoredItem
 
@@ -21,6 +22,9 @@ logger = logging.getLogger(__name__)
 # How many items to include in the newsletter
 TOP_ITEMS_COUNT = 18
 MIN_SCORE_THRESHOLD = 0.35
+
+# Max articles per company/entity to prevent one company from dominating.
+MAX_PER_ENTITY = 2
 
 # Category definitions for grouping newsletter items (aligned with Editorial v2)
 CATEGORIES: dict[str, list[str]] = {
@@ -83,13 +87,15 @@ def select_top_items(
     count: int = TOP_ITEMS_COUNT,
     min_score: float = MIN_SCORE_THRESHOLD,
 ) -> list[ScoredItem]:
-    """Select top items ensuring source diversity.
+    """Select top items ensuring source and entity diversity.
 
-    Limits to max 3 items per source to prevent any single
-    feed from dominating the newsletter.
+    Limits to max 3 items per source and MAX_PER_ENTITY items per
+    company/entity to prevent any single feed or company from
+    dominating the newsletter.
     """
     selected: list[ScoredItem] = []
     source_counts: dict[str, int] = {}
+    entity_counts: dict[str, int] = {}
     max_per_source = 3
 
     for item in scored_items:
@@ -102,8 +108,15 @@ def select_top_items(
         if current_count >= max_per_source:
             continue
 
+        # Entity frequency cap: skip if any extracted entity already at limit
+        entities = extract_entities(item.item.title)
+        if any(entity_counts.get(e, 0) >= MAX_PER_ENTITY for e in entities):
+            continue
+
         selected.append(item)
         source_counts[source] = current_count + 1
+        for e in entities:
+            entity_counts[e] = entity_counts.get(e, 0) + 1
 
         if len(selected) >= count:
             break
