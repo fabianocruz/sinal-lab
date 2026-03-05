@@ -14,7 +14,7 @@ from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.base.provenance import ProvenanceTracker
 from apps.agents.mercado.classifier import classify_all_profiles
-from apps.agents.mercado.collector import CompanyProfile, collect_all_sources
+from apps.agents.mercado.collector import CompanyProfile, collect_all_sources, dedup_profiles
 from apps.agents.mercado.config import MERCADO_CONFIG
 from apps.agents.mercado.enricher import enrich_all_profiles
 from apps.agents.mercado.scorer import ScoredCompanyProfile, score_all_profiles
@@ -55,7 +55,7 @@ class MercadoAgent(BaseAgent):
         """Collect company profiles from all configured sources.
 
         Returns:
-            List of CompanyProfile objects
+            Deduplicated list of CompanyProfile objects
         """
         logger.info("Starting COLLECT phase")
 
@@ -64,7 +64,10 @@ class MercadoAgent(BaseAgent):
             provenance=self.provenance,
         )
 
-        logger.info("COLLECT phase complete: %d profiles collected", len(profiles))
+        # Deduplicate profiles across sources (e.g. same org from multiple city queries)
+        profiles = dedup_profiles(profiles)
+
+        logger.info("COLLECT phase complete: %d profiles after dedup", len(profiles))
         return profiles
 
     def process(self, raw_data: list[Any]) -> list[Any]:
