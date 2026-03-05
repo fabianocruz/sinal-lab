@@ -314,6 +314,14 @@ Available agents:
         help="Send unified newsletter via Resend Broadcasts after all agents complete",
     )
     parser.add_argument(
+        "--auto-publish", action="store_true",
+        help="Persist content as 'published' instead of 'pending_review'",
+    )
+    parser.add_argument(
+        "--covers", action="store_true",
+        help="Generate cover images after all agents complete",
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true",
         help="Verbose logging",
     )
@@ -381,6 +389,9 @@ Available agents:
                 output_path = str(PROJECT_ROOT / cfg["output_dir"] / filename)
                 extra_args.extend(["--output", output_path])
 
+            if args.auto_publish:
+                extra_args.append("--auto-publish")
+
             if args.verbose:
                 extra_args.append("--verbose")
 
@@ -396,6 +407,23 @@ Available agents:
     if failed:
         logger.error("%d agent(s) failed", failed)
         sys.exit(1)
+
+    # Generate cover images if requested and all agents succeeded
+    if args.covers and failed == 0:
+        logger.info("Generating cover images...")
+        cover_cmd = [sys.executable, str(PROJECT_ROOT / "scripts" / "generate_covers.py")]
+        if args.dry_run:
+            logger.info("Dry run — skipping cover generation")
+        else:
+            cover_result = subprocess.run(
+                cover_cmd,
+                cwd=str(PROJECT_ROOT),
+                env={**os.environ, "PYTHONPATH": str(PROJECT_ROOT)},
+            )
+            if cover_result.returncode == 0:
+                logger.info("Cover generation completed successfully")
+            else:
+                logger.warning("Cover generation failed (exit code %d)", cover_result.returncode)
 
     # Publish unified newsletter if requested and all agents succeeded
     if args.publish and failed == 0:

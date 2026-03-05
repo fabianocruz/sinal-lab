@@ -103,6 +103,11 @@ def build_base_parser(
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "--auto-publish",
+        action="store_true",
+        help="Persist content as 'published' instead of 'pending_review'",
+    )
 
     if extra_args_fn:
         extra_args_fn(parser)
@@ -263,14 +268,15 @@ def run_agent_cli(
     # Persist to database
     persisted = False
     if args.persist:
-        agent_log.info("Persisting to database...")
+        review_status = "published" if args.auto_publish else "pending_review"
+        agent_log.info("Persisting to database (review_status=%s)...", review_status)
         try:
             from packages.database.session import get_session
             session = get_session()
 
             try:
                 slug = slug_fn(agent, args) if slug_fn else f"{agent.agent_name}-{period_arg}-{period_value}"
-                persist_agent_output(session, agent, result, slug=slug)
+                persist_agent_output(session, agent, result, slug=slug, review_status=review_status)
 
                 # Agent-specific post-processing
                 if post_run_fn:

@@ -372,3 +372,45 @@ class TestRunAgentCli:
             )
 
         assert os.path.exists(output_path)
+
+    def test_auto_publish_flag_in_parser(self):
+        parser = build_base_parser("Test Agent")
+        args = parser.parse_args(["--auto-publish"])
+        assert args.auto_publish is True
+
+    def test_auto_publish_default_false(self):
+        parser = build_base_parser("Test Agent")
+        args = parser.parse_args([])
+        assert args.auto_publish is False
+
+    def test_auto_publish_passes_published_status(self, tmp_path):
+        """--auto-publish + --persist passes review_status='published'."""
+        with patch("sys.argv", ["prog", "--persist", "--auto-publish"]):
+            with patch("apps.agents.base.cli.persist_agent_output") as mock_persist:
+                mock_persist.return_value = (MagicMock(), MagicMock())
+                run_agent_cli(
+                    agent_class=FakeAgent,
+                    description="Fake Agent",
+                    default_output_dir=str(tmp_path),
+                )
+
+        mock_persist.assert_called_once()
+        call_kwargs = mock_persist.call_args
+        assert call_kwargs.kwargs.get("review_status") == "published" or \
+            "published" in str(call_kwargs)
+
+    def test_persist_without_auto_publish_uses_pending(self, tmp_path):
+        """--persist without --auto-publish uses pending_review."""
+        with patch("sys.argv", ["prog", "--persist"]):
+            with patch("apps.agents.base.cli.persist_agent_output") as mock_persist:
+                mock_persist.return_value = (MagicMock(), MagicMock())
+                run_agent_cli(
+                    agent_class=FakeAgent,
+                    description="Fake Agent",
+                    default_output_dir=str(tmp_path),
+                )
+
+        mock_persist.assert_called_once()
+        call_kwargs = mock_persist.call_args
+        assert call_kwargs.kwargs.get("review_status") == "pending_review" or \
+            "pending_review" in str(call_kwargs)
