@@ -3,9 +3,13 @@
 Usage:
     python -m apps.agents.sintese.main [--edition N] [--output PATH] [--dry-run]
     python -m apps.agents.sintese.main --edition 3 --persist --send
+
+When --edition is omitted, the next edition number is auto-detected
+from the database (max existing edition + 1).
 """
 
 import logging
+import re
 
 from apps.agents.base.cli import run_agent_cli
 from apps.agents.sintese.agent import SinteseAgent
@@ -16,6 +20,41 @@ from apps.agents.sintese.newsletter import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _next_edition_from_db() -> int:
+    """Query the database for the latest SINTESE edition and return the next number.
+
+    Scans all ``sinal-semanal-<N>`` slugs, finds the maximum N, and returns N + 1.
+    Falls back to 1 if the database is unreachable or has no SINTESE entries.
+    """
+    try:
+        from packages.database.session import get_session
+        from packages.database.models import ContentPiece
+
+        session = get_session()
+        try:
+            rows = (
+                session.query(ContentPiece.slug)
+                .filter(
+                    ContentPiece.agent_name == "sintese",
+                    ContentPiece.slug.like("sinal-semanal-%"),
+                )
+                .all()
+            )
+            max_edition = 0
+            for (slug,) in rows:
+                match = re.search(r"sinal-semanal-(\d+)", slug)
+                if match:
+                    max_edition = max(max_edition, int(match.group(1)))
+            next_ed = max_edition + 1
+            logger.info("DB has editions up to %d, next: %d", max_edition, next_ed)
+            return next_ed
+        finally:
+            session.close()
+    except Exception as exc:
+        logger.warning("Could not auto-detect edition from DB: %s", exc)
+        return 1
 
 
 def _add_sintese_args(parser):
@@ -61,6 +100,7 @@ def main() -> None:
         filename_fn=lambda agent, args: f"sinal-semanal-{args.edition}.md",
         post_run_fn=_sintese_post_run,
         extra_args_fn=_add_sintese_args,
+        auto_period_fn=_next_edition_from_db,
     )
 
 

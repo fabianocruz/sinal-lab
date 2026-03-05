@@ -141,6 +141,7 @@ class CodigoAgent(BaseAgent):
             confidence=confidence,
             sources=source_urls,
             content_type="ANALYSIS",
+            llm_used=writer.is_available,
             summary=(
                 f"Semana {self.week_number}: {len(analyzed)} sinais dev analisados "
                 f"de {len(self.provenance.get_sources())} fontes."

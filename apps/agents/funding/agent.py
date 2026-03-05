@@ -206,6 +206,7 @@ class FundingAgent(BaseAgent):
             confidence=aggregate_confidence,
             sources=source_urls,
             content_type="DATA_REPORT",
+            llm_used=writer.is_available,
             summary=(
                 f"Semana {self.week_number}: {len(scored_events)} rodadas analisadas "
                 f"de {len(self.provenance.get_sources())} fontes."
