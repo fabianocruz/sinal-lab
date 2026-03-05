@@ -14,7 +14,7 @@ from apps.agents.base.output import AgentOutput
 from apps.agents.radar.classifier import ClassifiedSignal, classify_signals
 from apps.agents.radar.collector import TrendSignal, collect_all_sources
 from apps.agents.radar.config import RADAR_CONFIG
-from apps.agents.radar.synthesizer import synthesize_trend_report
+from apps.agents.radar.synthesizer import group_by_topic, select_top_signals, synthesize_trend_report
 from apps.agents.radar.writer import RadarWriter
 
 logger = logging.getLogger(__name__)
@@ -94,8 +94,27 @@ class RadarAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Select hero image from highest-scored signal that has an image
+        hero_image = None
+        for s in classified[:15]:
+            if getattr(s.signal, "image_url", None):
+                hero_image = {
+                    "url": s.signal.image_url,
+                    "alt": s.signal.title,
+                    "caption": f"Fonte: {s.signal.source_name}",
+                }
+                break
+
+        # Generate editorial title via LLM (falls back to template)
+        top_signals = select_top_signals(classified)
+        sections = group_by_topic(top_signals)
+        editorial_title = writer.write_headline(sections, self.week_number, item_count=len(classified))
+        if not editorial_title:
+            editorial_title = f"RADAR Semanal — Semana {self.week_number}"
+
         # Extract structured per-item data for email rendering and API
         metadata = {
+            "hero_image": hero_image,
             "items": [
                 {
                     "title": s.signal.title,
@@ -106,6 +125,7 @@ class RadarAgent(BaseAgent):
                     "metrics": s.signal.metrics,
                     "momentum_score": round(s.momentum_score, 3),
                     "primary_topic": s.primary_topic,
+                    "image_url": getattr(s.signal, "image_url", None),
                 }
                 for s in classified[:10]
             ],
@@ -114,7 +134,7 @@ class RadarAgent(BaseAgent):
         }
 
         return AgentOutput(
-            title=f"RADAR Semanal — Semana {self.week_number}",
+            title=editorial_title,
             body_md=report_md,
             agent_name=self.agent_name,
             agent_category=self.agent_category,

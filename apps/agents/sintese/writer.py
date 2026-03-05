@@ -103,6 +103,49 @@ class SinteseWriter:
         """Check if the writer can generate content."""
         return self._client.is_available
 
+    def write_headline(
+        self,
+        sections: list[NewsletterSection],
+        edition_number: int,
+    ) -> Optional[str]:
+        """Generate an editorial headline for the SINTESE newsletter.
+
+        Args:
+            sections: Grouped newsletter sections with items.
+            edition_number: Edition number.
+
+        Returns:
+            Headline string (max ~15 words), or None if generation fails.
+        """
+        if not sections or not self.is_available:
+            return None
+
+        sections_summary = self._build_sections_summary(sections)
+
+        user_prompt = (
+            f"Crie um titulo editorial (maximo 15 palavras) para a edicao "
+            f"#{edition_number} do Sinal Semanal.\n\n"
+            f"Conteudo:\n\n{sections_summary}\n\n"
+            f"Direcoes:\n"
+            f"- Capture o tema ou insight mais marcante da semana\n"
+            f"- Seja especifico (cite dado, empresa ou tendencia quando possivel)\n"
+            f"- Tom direto e analitico, sem hype\n"
+            f"- Escreva em portugues brasileiro\n"
+            f"- Retorne APENAS o titulo, sem aspas, sem formatacao extra"
+        )
+
+        result = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=64,
+        )
+
+        if not result or not result.strip():
+            logger.warning("LLM returned empty headline for edition #%d", edition_number)
+            return None
+
+        return result.strip().strip('"').strip("'")
+
     def write_newsletter_intro(
         self,
         sections: list[NewsletterSection],

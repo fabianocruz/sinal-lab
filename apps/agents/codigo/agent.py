@@ -14,7 +14,7 @@ from apps.agents.base.output import AgentOutput
 from apps.agents.codigo.analyzer import AnalyzedSignal, analyze_signals
 from apps.agents.codigo.collector import DevSignal, collect_all_sources
 from apps.agents.codigo.config import CODIGO_CONFIG
-from apps.agents.codigo.synthesizer import synthesize_dev_report
+from apps.agents.codigo.synthesizer import group_by_category, select_top_signals, synthesize_dev_report
 from apps.agents.codigo.writer import CodigoWriter
 
 logger = logging.getLogger(__name__)
@@ -92,8 +92,27 @@ class CodigoAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Select hero image from highest-scored signal that has an image
+        hero_image = None
+        for s in analyzed[:15]:
+            if getattr(s.signal, "image_url", None):
+                hero_image = {
+                    "url": s.signal.image_url,
+                    "alt": s.signal.title,
+                    "caption": f"Fonte: {s.signal.source_name}",
+                }
+                break
+
+        # Generate editorial title via LLM (falls back to template)
+        top = select_top_signals(analyzed)
+        sections = group_by_category(top)
+        editorial_title = writer.write_headline(sections, self.week_number)
+        if not editorial_title:
+            editorial_title = f"CODIGO Semanal — Semana {self.week_number}"
+
         # Extract structured per-item data for email rendering and API
         metadata = {
+            "hero_image": hero_image,
             "items": [
                 {
                     "title": s.signal.title,
@@ -105,14 +124,16 @@ class CodigoAgent(BaseAgent):
                     "metrics": s.signal.metrics,
                     "category": s.category,
                     "adoption_indicator": s.adoption_indicator,
+                    "image_url": getattr(s.signal, "image_url", None),
                 }
                 for s in analyzed[:10]
             ],
             "item_count": len(analyzed),
+            "total_sources": len(self.provenance.get_sources()),
         }
 
         return AgentOutput(
-            title=f"CODIGO Semanal — Semana {self.week_number}",
+            title=editorial_title,
             body_md=report_md,
             agent_name=self.agent_name,
             agent_category=self.agent_category,

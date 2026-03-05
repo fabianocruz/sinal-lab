@@ -85,6 +85,54 @@ class FundingWriter:
         """Check if the writer can generate content."""
         return self._client.is_available
 
+    def write_headline(
+        self,
+        scored_events: list[ScoredFundingEvent],
+        week_number: int,
+    ) -> Optional[str]:
+        """Generate an editorial headline for the FUNDING report.
+
+        Args:
+            scored_events: Scored funding events for the week.
+            week_number: Week number for the report.
+
+        Returns:
+            Headline string (max ~15 words), or None if generation fails.
+        """
+        if not scored_events or not self.is_available:
+            return None
+
+        events_summary = self._build_events_summary(scored_events)
+        total_raised = sum(
+            e.event.amount_usd for e in scored_events if e.event.amount_usd is not None
+        )
+
+        user_prompt = (
+            f"Crie um titulo editorial (maximo 15 palavras) para o relatorio de "
+            f"investimentos da semana {week_number}.\n\n"
+            f"Dados:\n"
+            f"- Total de rodadas: {len(scored_events)}\n"
+            f"- Volume total: US$ {total_raised:.1f}M\n\n"
+            f"Rodadas:\n\n{events_summary}\n\n"
+            f"Direcoes:\n"
+            f"- Cite valores e setores concretos no titulo\n"
+            f"- Tom analitico e factual, sem hype\n"
+            f"- Escreva em portugues brasileiro\n"
+            f"- Retorne APENAS o titulo, sem aspas, sem formatacao extra"
+        )
+
+        result = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=64,
+        )
+
+        if not result or not result.strip():
+            logger.warning("LLM returned empty headline for week %d", week_number)
+            return None
+
+        return result.strip().strip('"').strip("'")
+
     def write_report_intro(
         self,
         scored_events: list[ScoredFundingEvent],

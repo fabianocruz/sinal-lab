@@ -148,8 +148,13 @@ class SinteseAgent(BaseAgent):
             "total_sources": len(self.provenance.get_sources()),
         }
 
+        # Generate editorial title via LLM (falls back to branded template)
+        editorial_title = writer.write_headline(sections, self.edition_number)
+        if not editorial_title:
+            editorial_title = f"Sinal Semanal #{self.edition_number}"
+
         return AgentOutput(
-            title=f"Sinal Semanal #{self.edition_number}",
+            title=editorial_title,
             body_md=newsletter_md,
             agent_name=self.agent_name,
             agent_category=self.agent_category,

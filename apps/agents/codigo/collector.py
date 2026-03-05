@@ -38,6 +38,7 @@ class DevSignal:
     tags: List[str] = field(default_factory=list)
     metrics: dict = field(default_factory=dict)
     content_hash: str = ""
+    image_url: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.content_hash:
@@ -55,6 +56,7 @@ def _rss_to_signal(item: RSSItem, signal_type: str) -> DevSignal:
         summary=item.summary,
         tags=item.tags,
         content_hash=item.content_hash,
+        image_url=item.image_url,
     )
 
 

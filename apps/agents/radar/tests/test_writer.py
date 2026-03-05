@@ -313,3 +313,103 @@ class TestWriteSectionContent:
         result = writer.write_section_content(section)
 
         assert result is None
+
+
+class TestWriteHeadline:
+    """Test write_headline()."""
+
+    def test_returns_string_on_success(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "AI agents dominam sinais da semana 10"
+
+        writer = RadarWriter(client=mock_client)
+        sections = [make_section("AI & Machine Learning"), make_section("Startups & Ecossistema")]
+        result = writer.write_headline(sections, week_number=10, item_count=42)
+
+        assert result == "AI agents dominam sinais da semana 10"
+
+    def test_strips_surrounding_quotes(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = '"AI agents dominam sinais da semana"'
+
+        writer = RadarWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result == "AI agents dominam sinais da semana"
+
+    def test_returns_none_when_client_unavailable(self):
+        mock_client = MagicMock()
+        mock_client.is_available = False
+
+        writer = RadarWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_returns_none_when_generate_fails(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = None
+
+        writer = RadarWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_string(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "   "
+
+        writer = RadarWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_sections(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+
+        writer = RadarWriter(client=mock_client)
+        result = writer.write_headline([], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_prompt_contains_section_headings(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = RadarWriter(client=mock_client)
+        sections = [make_section("AI & Machine Learning"), make_section("Fintech")]
+        writer.write_headline(sections, week_number=5)
+
+        user_prompt = mock_client.generate.call_args[1].get("user_prompt") or mock_client.generate.call_args[0][0]
+        assert "AI & Machine Learning" in user_prompt
+        assert "Fintech" in user_prompt
+
+    def test_prompt_includes_item_count_when_provided(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = RadarWriter(client=mock_client)
+        writer.write_headline([make_section()], week_number=5, item_count=120)
+
+        user_prompt = mock_client.generate.call_args[1].get("user_prompt") or mock_client.generate.call_args[0][0]
+        assert "120" in user_prompt
+
+    def test_uses_max_tokens_64(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = RadarWriter(client=mock_client)
+        writer.write_headline([make_section()], week_number=1)
+
+        call_kwargs = mock_client.generate.call_args[1]
+        assert call_kwargs.get("max_tokens") == 64

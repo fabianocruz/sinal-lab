@@ -86,6 +86,49 @@ class CodigoWriter:
         """Check if the writer can generate content."""
         return self._client.is_available
 
+    def write_headline(
+        self,
+        sections: list[ReportSection],
+        week_number: int,
+    ) -> Optional[str]:
+        """Generate an editorial headline for the CODIGO report.
+
+        Args:
+            sections: Grouped report sections with signals.
+            week_number: Week number for the report.
+
+        Returns:
+            Headline string (max ~15 words), or None if generation fails.
+        """
+        if not sections or not self.is_available:
+            return None
+
+        sections_summary = self._build_sections_summary(sections)
+
+        user_prompt = (
+            f"Crie um titulo editorial (maximo 15 palavras) para a edicao da semana "
+            f"{week_number} do CODIGO Semanal.\n\n"
+            f"Destaques:\n\n{sections_summary}\n\n"
+            f"Direcoes:\n"
+            f"- O titulo deve capturar a tendencia dev ou ferramenta mais relevante da semana\n"
+            f"- Seja especifico (cite framework, linguagem ou metrica quando possivel)\n"
+            f"- Tom tecnico e direto, sem hype\n"
+            f"- Escreva em portugues brasileiro\n"
+            f"- Retorne APENAS o titulo, sem aspas, sem formatacao extra"
+        )
+
+        result = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=64,
+        )
+
+        if not result or not result.strip():
+            logger.warning("LLM returned empty headline for week %d", week_number)
+            return None
+
+        return result.strip().strip('"').strip("'")
+
     def write_report_intro(
         self,
         sections: list[ReportSection],
