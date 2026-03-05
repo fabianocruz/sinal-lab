@@ -398,3 +398,92 @@ class TestWriteSectionContent:
 
         user_prompt = mock_client.generate.call_args[1].get("user_prompt") or mock_client.generate.call_args[0][0]
         assert "rising" in user_prompt.lower()
+
+
+class TestWriteHeadline:
+    """Test write_headline()."""
+
+    def test_returns_string_on_success(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Vue Router 5 redefine roteamento em projetos frontend"
+
+        writer = CodigoWriter(client=mock_client)
+        sections = [make_section("AI Frameworks & Tools"), make_section("Web Frameworks")]
+        result = writer.write_headline(sections, week_number=10)
+
+        assert result == "Vue Router 5 redefine roteamento em projetos frontend"
+
+    def test_strips_surrounding_quotes(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = '"Rust cresce entre frameworks de AI"'
+
+        writer = CodigoWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result == "Rust cresce entre frameworks de AI"
+
+    def test_returns_none_when_client_unavailable(self):
+        mock_client = MagicMock()
+        mock_client.is_available = False
+
+        writer = CodigoWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_returns_none_when_generate_fails(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = None
+
+        writer = CodigoWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_string(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "   "
+
+        writer = CodigoWriter(client=mock_client)
+        result = writer.write_headline([make_section()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_sections(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+
+        writer = CodigoWriter(client=mock_client)
+        result = writer.write_headline([], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_prompt_contains_section_headings(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = CodigoWriter(client=mock_client)
+        sections = [make_section("AI Frameworks & Tools"), make_section("Web Frameworks")]
+        writer.write_headline(sections, week_number=5)
+
+        user_prompt = mock_client.generate.call_args[1].get("user_prompt") or mock_client.generate.call_args[0][0]
+        assert "AI Frameworks & Tools" in user_prompt
+        assert "Web Frameworks" in user_prompt
+
+    def test_uses_max_tokens_64(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = CodigoWriter(client=mock_client)
+        writer.write_headline([make_section()], week_number=1)
+
+        call_kwargs = mock_client.generate.call_args[1]
+        assert call_kwargs.get("max_tokens") == 64

@@ -284,3 +284,101 @@ class TestWriteHighlightDescriptions:
         assert result is not None
         assert len(result) == 1
         assert result[0] == "Unica empresa destaque da semana."
+
+
+class TestWriteHeadline:
+    """Test write_headline()."""
+
+    def test_returns_string_on_success(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Sao Paulo domina com 88% das startups mapeadas"
+
+        writer = MercadoWriter(client=mock_client)
+        profiles = [
+            make_scored_profile("NuPay", "São Paulo", "Brasil", "Fintech"),
+            make_scored_profile("MedApp", "Rio de Janeiro", "Brasil", "HealthTech"),
+        ]
+        result = writer.write_headline(profiles, week_number=10)
+
+        assert result == "Sao Paulo domina com 88% das startups mapeadas"
+
+    def test_strips_surrounding_quotes(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = '"Fintech lidera ecossistema LATAM"'
+
+        writer = MercadoWriter(client=mock_client)
+        result = writer.write_headline([make_scored_profile()], week_number=1)
+
+        assert result == "Fintech lidera ecossistema LATAM"
+
+    def test_returns_none_when_client_unavailable(self):
+        mock_client = MagicMock()
+        mock_client.is_available = False
+
+        writer = MercadoWriter(client=mock_client)
+        result = writer.write_headline([make_scored_profile()], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_returns_none_when_generate_fails(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = None
+
+        writer = MercadoWriter(client=mock_client)
+        result = writer.write_headline([make_scored_profile()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_string(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "   "
+
+        writer = MercadoWriter(client=mock_client)
+        result = writer.write_headline([make_scored_profile()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_profiles(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+
+        writer = MercadoWriter(client=mock_client)
+        result = writer.write_headline([], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_prompt_contains_aggregate_data(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = MercadoWriter(client=mock_client)
+        profiles = [
+            make_scored_profile("Co1", "São Paulo", "Brasil", "Fintech"),
+            make_scored_profile("Co2", "Rio de Janeiro", "Brasil", "HealthTech"),
+        ]
+        writer.write_headline(profiles, week_number=7)
+
+        user_prompt = (
+            mock_client.generate.call_args[1].get("user_prompt")
+            or mock_client.generate.call_args[0][0]
+        )
+        assert "São Paulo" in user_prompt or "Sao Paulo" in user_prompt
+        assert "Fintech" in user_prompt
+
+    def test_uses_max_tokens_64(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = MercadoWriter(client=mock_client)
+        writer.write_headline([make_scored_profile()], week_number=1)
+
+        call_kwargs = mock_client.generate.call_args[1]
+        assert call_kwargs.get("max_tokens") == 64

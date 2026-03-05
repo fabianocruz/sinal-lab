@@ -300,3 +300,103 @@ class TestWriteDealHighlights:
         assert result is not None
         assert len(result) == 1
         assert result[0] == "Unico destaque da semana."
+
+
+class TestWriteHeadline:
+    """Test write_headline()."""
+
+    def test_returns_string_on_success(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Semana 7: US$ 85M em 3 rodadas com foco em fintech"
+
+        writer = FundingWriter(client=mock_client)
+        events = [
+            make_scored_event("Nubank", "series_b", 50.0),
+            make_scored_event("Creditas", "series_a", 30.0),
+        ]
+        result = writer.write_headline(events, week_number=7)
+
+        assert result == "Semana 7: US$ 85M em 3 rodadas com foco em fintech"
+
+    def test_strips_surrounding_quotes(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = '"Fintech lidera rodadas da semana"'
+
+        writer = FundingWriter(client=mock_client)
+        result = writer.write_headline([make_scored_event()], week_number=1)
+
+        assert result == "Fintech lidera rodadas da semana"
+
+    def test_returns_none_when_client_unavailable(self):
+        mock_client = MagicMock()
+        mock_client.is_available = False
+
+        writer = FundingWriter(client=mock_client)
+        result = writer.write_headline([make_scored_event()], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_returns_none_when_generate_fails(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = None
+
+        writer = FundingWriter(client=mock_client)
+        result = writer.write_headline([make_scored_event()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_string(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "   "
+
+        writer = FundingWriter(client=mock_client)
+        result = writer.write_headline([make_scored_event()], week_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_events(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+
+        writer = FundingWriter(client=mock_client)
+        result = writer.write_headline([], week_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_prompt_contains_event_details(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = FundingWriter(client=mock_client)
+        events = [
+            make_scored_event("Nubank", "series_b", 50.0),
+            make_scored_event("Creditas", "series_a", 30.0),
+        ]
+        writer.write_headline(events, week_number=7)
+
+        user_prompt = (
+            mock_client.generate.call_args[1].get("user_prompt")
+            or mock_client.generate.call_args[0][0]
+        )
+        assert "Nubank" in user_prompt
+        assert "Creditas" in user_prompt
+        # Total raised should appear
+        assert "80.0" in user_prompt or "80" in user_prompt
+
+    def test_uses_max_tokens_64(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = FundingWriter(client=mock_client)
+        writer.write_headline([make_scored_event()], week_number=1)
+
+        call_kwargs = mock_client.generate.call_args[1]
+        assert call_kwargs.get("max_tokens") == 64

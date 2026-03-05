@@ -589,3 +589,103 @@ class TestWriteEditorialMetadata:
         assert isinstance(result, EditorialMetadata)
         assert result.callouts == []
         assert result.companies_mentioned == ["Nubank"]
+
+
+class TestWriteHeadline:
+    """Test write_headline()."""
+
+    def test_returns_string_on_success(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "AI agents e fintech dominam a semana"
+
+        writer = SinteseWriter(client=mock_client)
+        sections = [make_section("AI & Machine Learning"), make_section("Startups & Funding")]
+        result = writer.write_headline(sections, edition_number=48)
+
+        assert result == "AI agents e fintech dominam a semana"
+
+    def test_strips_surrounding_quotes(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = '"VC bate recorde enquanto AI avanca"'
+
+        writer = SinteseWriter(client=mock_client)
+        result = writer.write_headline([make_section()], edition_number=1)
+
+        assert result == "VC bate recorde enquanto AI avanca"
+
+    def test_returns_none_when_client_unavailable(self):
+        mock_client = MagicMock()
+        mock_client.is_available = False
+
+        writer = SinteseWriter(client=mock_client)
+        result = writer.write_headline([make_section()], edition_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_returns_none_when_generate_fails(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = None
+
+        writer = SinteseWriter(client=mock_client)
+        result = writer.write_headline([make_section()], edition_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_string(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "   "
+
+        writer = SinteseWriter(client=mock_client)
+        result = writer.write_headline([make_section()], edition_number=1)
+
+        assert result is None
+
+    def test_returns_none_on_empty_sections(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+
+        writer = SinteseWriter(client=mock_client)
+        result = writer.write_headline([], edition_number=1)
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_prompt_contains_section_headings(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = SinteseWriter(client=mock_client)
+        sections = [make_section("AI & Machine Learning"), make_section("Fintech")]
+        writer.write_headline(sections, edition_number=5)
+
+        user_prompt = mock_client.generate.call_args[1].get("user_prompt") or mock_client.generate.call_args[0][0]
+        assert "AI & Machine Learning" in user_prompt
+        assert "Fintech" in user_prompt
+
+    def test_prompt_contains_edition_number(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = SinteseWriter(client=mock_client)
+        writer.write_headline([make_section()], edition_number=48)
+
+        user_prompt = mock_client.generate.call_args[1].get("user_prompt") or mock_client.generate.call_args[0][0]
+        assert "48" in user_prompt
+
+    def test_uses_max_tokens_64(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Titulo"
+
+        writer = SinteseWriter(client=mock_client)
+        writer.write_headline([make_section()], edition_number=1)
+
+        call_kwargs = mock_client.generate.call_args[1]
+        assert call_kwargs.get("max_tokens") == 64
