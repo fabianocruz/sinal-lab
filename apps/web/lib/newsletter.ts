@@ -43,6 +43,12 @@ export interface NewsletterMetadata {
     // FUNDING-specific fields
     round_type?: string;
     amount_usd?: number;
+    // RADAR-specific fields
+    primary_topic?: string;
+    momentum_score?: number;
+    // CODIGO-specific fields
+    category?: string;
+    adoption_indicator?: string;
   }>;
   item_count?: number;
   total_sources?: number;
@@ -109,6 +115,10 @@ function buildSubtitle(item: ContentApiItem): string {
     case "radar": {
       if (meta.item_count) parts.push(`${meta.item_count} sinais analisados`);
       if (meta.total_sources) parts.push(`${meta.total_sources} fontes`);
+      const radarTopics = [
+        ...new Set((meta.items ?? []).map((i) => i.primary_topic).filter(Boolean)),
+      ].slice(0, 3);
+      if (radarTopics.length) parts.push(radarTopics.join(", "));
       break;
     }
     case "codigo": {
@@ -129,6 +139,11 @@ function buildSubtitle(item: ContentApiItem): string {
       break;
     }
     case "sintese": {
+      // Prefer first callout as editorial subtitle
+      const callout = meta.callouts?.[0]?.content;
+      if (callout) {
+        return callout.length > 120 ? callout.slice(0, 117) + "..." : callout;
+      }
       if (meta.item_count) parts.push(`${meta.item_count} itens analisados`);
       if (meta.total_sources) parts.push(`${meta.total_sources} fontes`);
       break;

@@ -45,10 +45,11 @@ export default async function NewsletterArchivePage({
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
-  // Promote the first RADAR in this page as hero (richest content).
-  // If no RADAR exists in the current page, fall back to the first item.
+  // Promote the first SINTESE in this page as hero (main newsletter).
+  // Fall back to RADAR, then first item.
+  const sinteseIdx = newsletters.findIndex((n) => n.agent === "sintese");
   const radarIdx = newsletters.findIndex((n) => n.agent === "radar");
-  const featuredIdx = radarIdx >= 0 ? radarIdx : 0;
+  const featuredIdx = sinteseIdx >= 0 ? sinteseIdx : radarIdx >= 0 ? radarIdx : 0;
   const featured = newsletters[featuredIdx];
   const rest = newsletters.filter((_, i) => i !== featuredIdx);
 
