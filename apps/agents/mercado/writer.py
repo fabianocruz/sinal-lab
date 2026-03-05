@@ -3,31 +3,44 @@
 Uses the shared LLMClient to generate editorial content for the
 MERCADO agent's ecosystem snapshot reports:
   - Ecosystem narrative intro (aggregate stats about new discoveries)
-  - Highlight descriptions (meaningful context for top-ranked companies)
+  - Per-sector analysis with contextual company descriptions
+  - Headline generation
 
-Architecture (DIFFERENT from SINTESE):
-    MERCADO has 500+ company profiles per run — too many for per-item
-    LLM calls. Instead, the writer uses exactly 2 API calls total:
-
+Architecture:
     synthesizer.py (orchestrator)
     ├── writer.py           <- LLM editorial content (this module)
-    │   ├── write_snapshot_intro()           -> 1 API call (aggregate narrative)
-    │   └── write_highlight_descriptions()   -> 1 API call (top 3-5 companies)
-    └── template-based sections              <- city/sector breakdowns (existing)
+    │   ├── write_snapshot_intro()       -> 1 API call (aggregate narrative)
+    │   ├── write_sector_analysis()      -> 1 API call per sector section
+    │   └── write_headline()             -> 1 API call (title)
+    └── template-based fallback          <- when LLM unavailable
 
 Gracefully falls back (returns None) when the LLM client is unavailable
 or API calls fail, allowing the synthesizer to use template-based output.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from collections import Counter
-from typing import Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
 
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.mercado.scorer import ScoredCompanyProfile
 
+if TYPE_CHECKING:
+    from apps.agents.mercado.synthesizer import SectorSection
+
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SectorContent:
+    """LLM-generated editorial content for a sector section."""
+
+    intro: str
+    descriptions: list[str]
 
 
 # Editorial voice for MERCADO ecosystem analysis
@@ -70,8 +83,8 @@ class MercadoWriter:
     Uses LLMClient to generate editorial content. Falls back gracefully
     (returns None) when the client is unavailable or calls fail.
 
-    Only 2 API calls per report run (not per-profile), designed for
-    the scale of 500+ company profiles.
+    ~4-5 API calls per report run (intro + 1 per sector section +
+    headline), designed for the scale of 500+ company profiles.
     """
 
     def __init__(self, client: Optional[LLMClient] = None) -> None:
@@ -230,6 +243,105 @@ class MercadoWriter:
             return None
 
         return self._parse_descriptions_json(raw, profile_count)
+
+    def write_sector_analysis(
+        self,
+        section: SectorSection,
+        aggregate_context: str,
+    ) -> Optional[SectorContent]:
+        """Generate editorial analysis for a sector section.
+
+        One API call per sector that produces an intro paragraph and
+        per-profile descriptions for the section.
+
+        Args:
+            section: Sector section with heading and profiles.
+            aggregate_context: Aggregate stats string for broader context.
+
+        Returns:
+            SectorContent with intro and descriptions, or None on failure.
+        """
+        if not self.is_available:
+            return None
+
+        profile_count = len(section.profiles)
+        profiles_detail = self._build_highlights_detail(section.profiles)
+
+        user_prompt = (
+            f"Analise o setor **{section.heading}** no ecossistema LATAM desta semana.\n\n"
+            f"Contexto geral do ecossistema:\n{aggregate_context}\n\n"
+            f"Empresas neste setor:\n\n{profiles_detail}\n\n"
+            f"Retorne um JSON valido com esta estrutura exata:\n"
+            f'{{\n'
+            f'  "intro": "Analise do setor em 2-3 frases (tendencias, relevancia no ecossistema).",\n'
+            f'  "descriptions": [\n'
+            f'    "Descricao contextualizada da empresa 1 (2-3 frases).",\n'
+            f'    "Descricao contextualizada da empresa 2 (2-3 frases)."\n'
+            f"  ]\n"
+            f"}}\n\n"
+            f"Regras:\n"
+            f'- "intro" deve contextualizar o setor {section.heading} no ecossistema LATAM\n'
+            f'- O array "descriptions" DEVE ter exatamente {profile_count} elemento(s), '
+            f"um por empresa, na mesma ordem\n"
+            f"- Cada descricao deve explicar por que a empresa e relevante\n"
+            f"- Mencione localizacao e sinais tecnicos quando disponivel\n"
+            f"- Retorne APENAS o JSON, sem texto antes ou depois"
+        )
+
+        max_tokens = max(1024, profile_count * 250 + 400)
+
+        raw = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=max_tokens,
+        )
+
+        if not raw:
+            logger.warning("LLM returned empty sector analysis for %s", section.heading)
+            return None
+
+        return self._parse_sector_content_json(raw, profile_count)
+
+    def _parse_sector_content_json(
+        self,
+        raw: str,
+        expected_count: int,
+    ) -> Optional[SectorContent]:
+        """Parse and validate the JSON response for sector analysis.
+
+        Args:
+            raw: Raw LLM output (may include code fences).
+            expected_count: Expected number of descriptions.
+
+        Returns:
+            SectorContent, or None on parse/validation failure.
+        """
+        cleaned = strip_code_fences(raw)
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError:
+            logger.warning("Failed to parse sector content JSON: %.100s", raw)
+            return None
+
+        intro = data.get("intro")
+        descriptions = data.get("descriptions")
+
+        if not isinstance(intro, str) or not intro.strip():
+            logger.warning("Invalid JSON structure: 'intro' missing or empty")
+            return None
+
+        if not isinstance(descriptions, list):
+            logger.warning("Invalid JSON structure: 'descriptions' is not a list")
+            return None
+
+        if len(descriptions) != expected_count:
+            logger.warning(
+                "Description count mismatch: expected %d, got %d",
+                expected_count, len(descriptions),
+            )
+            return None
+
+        return SectorContent(intro=intro.strip(), descriptions=descriptions)
 
     def _build_aggregate_summary(
         self,
