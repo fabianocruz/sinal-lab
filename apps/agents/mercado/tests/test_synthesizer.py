@@ -71,21 +71,18 @@ def test_synthesize_ecosystem_snapshot():
     # Verify report structure
     assert "Ecossistema LATAM" in report
     assert "Semana 7/2026" in report
-    assert "Novas Startups Descobertas: 3" in report
 
-    # Verify highlights section (top 3)
-    assert "Destaques da Semana" in report
+    # Verify company names appear
     assert "BigCorp" in report
     assert "HealthStartup" in report
     assert "EdTechCo" in report
 
-    # Verify sector information
+    # Verify sector sections
     assert "Fintech" in report
     assert "HealthTech" in report
     assert "Edtech" in report
 
-    # Verify city breakdown
-    assert "Mapa por Cidade" in report
+    # Verify city distribution in panorama
     assert "São Paulo" in report
     assert "Rio de Janeiro" in report
 
@@ -93,8 +90,8 @@ def test_synthesize_ecosystem_snapshot():
     assert "Python" in report
 
 
-def test_synthesize_includes_confidence_grades():
-    """Test that report includes confidence grades."""
+def test_synthesize_includes_panorama_stats():
+    """Test that report includes aggregate statistics in Panorama section."""
     profile = CompanyProfile(
         name="TestCo",
         slug="testco",
@@ -111,10 +108,10 @@ def test_synthesize_includes_confidence_grades():
 
     report = synthesize_ecosystem_snapshot(scored, week_number=7)
 
-    # Should include confidence grade
-    assert confidence.grade in report
-    assert "DQ" in report
-    assert "AC" in report
+    # Should include panorama section with city/sector stats
+    assert "Panorama" in report
+    assert "Distribuição por cidade" in report
+    assert "Distribuição por setor" in report
 
 
 def test_synthesize_groups_by_sector():
@@ -144,8 +141,8 @@ def test_synthesize_groups_by_sector():
 
     report = synthesize_ecosystem_snapshot(scored, week_number=7)
 
-    # Should show sector distribution
-    assert "Distribuição por Setor" in report
+    # Should show sector as section heading
+    assert "## Fintech" in report
     assert "Fintech" in report
     assert "5 startups" in report or "5" in report
 
@@ -192,7 +189,7 @@ def test_synthesize_groups_by_city():
 
     report = synthesize_ecosystem_snapshot(scored, week_number=7)
 
-    # Should show city breakdown
+    # Should show city breakdown in panorama
     assert "São Paulo" in report
     assert "Rio de Janeiro" in report
     assert "3 startups" in report or "(3)" in report

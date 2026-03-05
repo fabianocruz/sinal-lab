@@ -183,7 +183,7 @@ class MercadoAgent(BaseAgent):
                     "description": (s.profile.description or "")[:200],
                     "tech_stack": s.profile.tech_stack[:5],
                 }
-                for s in scored_profiles[:10]
+                for s in scored_profiles[:15]
             ],
             "item_count": len(scored_profiles),
         }

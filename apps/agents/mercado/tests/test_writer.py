@@ -382,3 +382,163 @@ class TestWriteHeadline:
 
         call_kwargs = mock_client.generate.call_args[1]
         assert call_kwargs.get("max_tokens") == 64
+
+
+class TestWriteSectorAnalysis:
+    """Test write_sector_analysis()."""
+
+    def test_returns_sector_content_on_success(self):
+        from apps.agents.mercado.writer import SectorContent
+
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = json.dumps({
+            "intro": "O setor de fintech segue em expansão na América Latina.",
+            "descriptions": [
+                "NuPay se destaca como plataforma de pagamentos digitais.",
+                "PayCo inova em crédito para PMEs.",
+            ],
+        })
+
+        writer = MercadoWriter(client=mock_client)
+        from apps.agents.mercado.synthesizer import SectorSection
+
+        section = SectorSection(
+            heading="Fintech",
+            profiles=[
+                make_scored_profile("NuPay", sector="Fintech"),
+                make_scored_profile("PayCo", sector="Fintech"),
+            ],
+        )
+        result = writer.write_sector_analysis(section, aggregate_context="100 total companies")
+
+        assert result is not None
+        assert isinstance(result, SectorContent)
+        assert "fintech" in result.intro.lower()
+        assert len(result.descriptions) == 2
+        assert "NuPay" in result.descriptions[0]
+
+    def test_returns_none_when_unavailable(self):
+        mock_client = MagicMock()
+        mock_client.is_available = False
+
+        writer = MercadoWriter(client=mock_client)
+        from apps.agents.mercado.synthesizer import SectorSection
+
+        section = SectorSection(
+            heading="Fintech",
+            profiles=[make_scored_profile()],
+        )
+        result = writer.write_sector_analysis(section, aggregate_context="")
+
+        assert result is None
+        mock_client.generate.assert_not_called()
+
+    def test_returns_none_when_generate_fails(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = None
+
+        writer = MercadoWriter(client=mock_client)
+        from apps.agents.mercado.synthesizer import SectorSection
+
+        section = SectorSection(
+            heading="Fintech",
+            profiles=[make_scored_profile()],
+        )
+        result = writer.write_sector_analysis(section, aggregate_context="")
+
+        assert result is None
+
+    def test_returns_none_on_invalid_json(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = "Not valid JSON"
+
+        writer = MercadoWriter(client=mock_client)
+        from apps.agents.mercado.synthesizer import SectorSection
+
+        section = SectorSection(
+            heading="Fintech",
+            profiles=[make_scored_profile()],
+        )
+        result = writer.write_sector_analysis(section, aggregate_context="")
+
+        assert result is None
+
+    def test_returns_none_on_description_count_mismatch(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = json.dumps({
+            "intro": "Intro text.",
+            "descriptions": ["Only one"],
+        })
+
+        writer = MercadoWriter(client=mock_client)
+        from apps.agents.mercado.synthesizer import SectorSection
+
+        section = SectorSection(
+            heading="Fintech",
+            profiles=[
+                make_scored_profile("Co1"),
+                make_scored_profile("Co2"),
+            ],
+        )
+        result = writer.write_sector_analysis(section, aggregate_context="")
+
+        assert result is None
+
+    def test_parses_json_with_code_fences(self):
+        from apps.agents.mercado.writer import SectorContent
+
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = (
+            '```json\n'
+            '{\n'
+            '  "intro": "Sector intro.",\n'
+            '  "descriptions": ["Desc 1."]\n'
+            '}\n'
+            '```'
+        )
+
+        writer = MercadoWriter(client=mock_client)
+        from apps.agents.mercado.synthesizer import SectorSection
+
+        section = SectorSection(
+            heading="Fintech",
+            profiles=[make_scored_profile()],
+        )
+        result = writer.write_sector_analysis(section, aggregate_context="")
+
+        assert result is not None
+        assert result.intro == "Sector intro."
+        assert result.descriptions == ["Desc 1."]
+
+    def test_prompt_contains_sector_and_profiles(self):
+        mock_client = MagicMock()
+        mock_client.is_available = True
+        mock_client.generate.return_value = json.dumps({
+            "intro": "Intro.",
+            "descriptions": ["Desc."],
+        })
+
+        writer = MercadoWriter(client=mock_client)
+        from apps.agents.mercado.synthesizer import SectorSection
+
+        section = SectorSection(
+            heading="HealthTech",
+            profiles=[
+                make_scored_profile("MedApp", city="Rio de Janeiro", sector="HealthTech"),
+            ],
+        )
+        writer.write_sector_analysis(section, aggregate_context="500 companies total")
+
+        user_prompt = (
+            mock_client.generate.call_args[1].get("user_prompt")
+            or mock_client.generate.call_args[0][0]
+        )
+        assert "HealthTech" in user_prompt
+        assert "MedApp" in user_prompt
+        assert "Rio de Janeiro" in user_prompt
+        assert "500 companies total" in user_prompt
