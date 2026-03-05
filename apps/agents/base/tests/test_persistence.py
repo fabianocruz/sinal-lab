@@ -459,3 +459,62 @@ class TestPersistAgentOutput:
         )
 
         assert content.body_html == "<p>Report</p>"
+
+
+# ---------------------------------------------------------------------------
+# TestAutoPublish
+# ---------------------------------------------------------------------------
+
+
+class TestAutoPublish:
+    """Tests for auto-publish functionality (published_at)."""
+
+    def test_published_status_sets_published_at(self, session: Session):
+        """When review_status='published', published_at should be set."""
+        result = _make_result()
+
+        piece = persist_content_piece(
+            session, result, slug="test-auto-pub",
+            review_status="published",
+        )
+        session.flush()
+
+        assert piece.published_at is not None
+
+    def test_pending_review_leaves_published_at_none(self, session: Session):
+        """Default pending_review should NOT set published_at."""
+        result = _make_result()
+
+        piece = persist_content_piece(
+            session, result, slug="test-pending",
+        )
+        session.flush()
+
+        assert piece.published_at is None
+
+    def test_upsert_to_published_sets_published_at(self, session: Session):
+        """Upsert from pending_review → published sets published_at."""
+        result = _make_result()
+        persist_content_piece(session, result, slug="test-upsert-pub")
+        session.flush()
+
+        piece = persist_content_piece(
+            session, result, slug="test-upsert-pub",
+            review_status="published",
+        )
+        session.flush()
+
+        assert piece.published_at is not None
+
+    def test_persist_agent_output_published(self, session: Session):
+        """Full persist with published status sets published_at."""
+        agent = _make_agent()
+        result = _make_result()
+
+        _, content = persist_agent_output(
+            session, agent, result, slug="test-full-pub",
+            review_status="published",
+        )
+
+        assert content.review_status == "published"
+        assert content.published_at is not None

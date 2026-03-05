@@ -97,6 +97,9 @@ def persist_content_piece(
     """
     existing = session.query(ContentPiece).filter_by(slug=slug).first()
 
+    now = datetime.now(timezone.utc)
+    published_at = now if review_status == "published" else None
+
     if existing:
         existing.title = result.title
         existing.body_md = result.body_md
@@ -109,9 +112,11 @@ def persist_content_piece(
         existing.agent_name = result.agent_name
         existing.content_type = result.content_type
         existing.metadata_ = result.metadata
+        if published_at:
+            existing.published_at = published_at
         if body_html is not None:
             existing.body_html = body_html
-        logger.info("Updated ContentPiece slug=%s", slug)
+        logger.info("Updated ContentPiece slug=%s (status=%s)", slug, review_status)
         return existing
 
     piece = ContentPiece(
@@ -128,6 +133,7 @@ def persist_content_piece(
         confidence_dq=result.confidence.dq_display,
         confidence_ac=result.confidence.ac_display,
         review_status=review_status,
+        published_at=published_at,
         metadata_=result.metadata,
     )
     session.add(piece)
