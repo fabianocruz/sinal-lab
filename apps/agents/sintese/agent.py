@@ -162,6 +162,7 @@ class SinteseAgent(BaseAgent):
             confidence=confidence,
             sources=source_urls,
             content_type="DATA_REPORT",
+            llm_used=writer.is_available,
             summary=(
                 f"Edicao #{self.edition_number} do Sinal Semanal — "
                 f"{len(scored_items)} itens analisados de {len(self.provenance.get_sources())} fontes."

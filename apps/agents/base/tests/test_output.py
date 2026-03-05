@@ -108,6 +108,34 @@ class TestAgentOutput:
         d = output.to_dict()
         assert d["agent_category"] == "data"
 
+    def test_llm_used_default_false(self):
+        output = self._make_output()
+        assert output.llm_used is False
+
+    def test_llm_used_explicit_true(self):
+        output = self._make_output(llm_used=True)
+        assert output.llm_used is True
+
+    def test_to_markdown_has_llm_used(self):
+        output = self._make_output(llm_used=True)
+        md = output.to_markdown()
+        assert "llm_used: true" in md
+
+    def test_to_markdown_has_llm_used_false(self):
+        output = self._make_output(llm_used=False)
+        md = output.to_markdown()
+        assert "llm_used: false" in md
+
+    def test_to_dict_has_llm_used(self):
+        output = self._make_output(llm_used=True)
+        d = output.to_dict()
+        assert d["llm_used"] is True
+
+    def test_to_dict_llm_used_default(self):
+        output = self._make_output()
+        d = output.to_dict()
+        assert d["llm_used"] is False
+
 
 class TestFormatMarkdownOutput:
     """Test the format_markdown_output helper."""

@@ -18,6 +18,7 @@ from apps.agents.base.output import AgentOutput
 from apps.agents.base.provenance import ProvenanceTracker
 
 from apps.agents.base.cli import (
+    _load_dotenv,
     setup_logging,
     build_base_parser,
     write_markdown_output,
@@ -421,3 +422,73 @@ class TestRunAgentCli:
 
         captured = capsys.readouterr()
         assert "=" in captured.out
+
+    def test_run_agent_cli_calls_load_dotenv(self, tmp_path, capsys):
+        """run_agent_cli calls _load_dotenv before agent execution."""
+        with patch("sys.argv", ["prog", "--dry-run"]):
+            with patch("apps.agents.base.cli._load_dotenv") as mock_dotenv:
+                run_agent_cli(
+                    agent_class=FakeAgent,
+                    description="Fake Agent",
+                    default_output_dir=str(tmp_path),
+                )
+        mock_dotenv.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# TestLoadDotenv
+# ---------------------------------------------------------------------------
+
+
+class TestLoadDotenv:
+    """Tests for _load_dotenv()."""
+
+    def test_calls_load_dotenv_when_available(self):
+        """Calls dotenv.load_dotenv when importable."""
+        with patch("apps.agents.base.cli.Path") as mock_path_cls:
+            mock_env_file = MagicMock()
+            mock_env_file.exists.return_value = True
+            mock_path_cls.return_value.resolve.return_value.parent.parent.parent.parent.__truediv__ = MagicMock(return_value=mock_env_file)
+
+            with patch.dict("sys.modules", {"dotenv": MagicMock()}):
+                # Re-import to pick up the mock
+                import importlib
+                import apps.agents.base.cli as cli_module
+                importlib.reload(cli_module)
+                # Just verify it doesn't crash
+                cli_module._load_dotenv()
+
+    def test_handles_missing_dotenv_gracefully(self):
+        """Doesn't crash when python-dotenv is not installed."""
+        with patch("builtins.__import__", side_effect=ImportError("No module named 'dotenv'")):
+            # Should not raise
+            _load_dotenv()
+
+
+# ---------------------------------------------------------------------------
+# TestDisplayRunSummaryLLMStatus
+# ---------------------------------------------------------------------------
+
+
+class TestDisplayRunSummaryLLMStatus:
+    """Tests for LLM status in display_run_summary."""
+
+    def test_shows_llm_mode(self, capsys):
+        agent = _make_mock_agent()
+        result = _make_result()
+        result.llm_used = True
+
+        display_run_summary(agent, result, "/tmp/out.md")
+
+        captured = capsys.readouterr()
+        assert "Mode: LLM" in captured.out
+
+    def test_shows_template_mode(self, capsys):
+        agent = _make_mock_agent()
+        result = _make_result()
+        result.llm_used = False
+
+        display_run_summary(agent, result, "/tmp/out.md")
+
+        captured = capsys.readouterr()
+        assert "TEMPLATE" in captured.out

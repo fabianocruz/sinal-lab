@@ -27,6 +27,7 @@ class AgentOutput:
     agent_category: str = "content"
     summary: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    llm_used: bool = False
 
     def to_markdown(self) -> str:
         """Render the full output as Markdown with YAML frontmatter."""
@@ -42,6 +43,7 @@ class AgentOutput:
             f"confidence_ac: {self.confidence.analysis_confidence}",
             f"confidence_grade: {self.confidence.grade}",
             f"source_count: {self.confidence.source_count}",
+            f"llm_used: {str(self.llm_used).lower()}",
         ]
 
         if self.sources:
@@ -71,6 +73,7 @@ class AgentOutput:
             "sources": self.sources,
             "summary": self.summary,
             "metadata": self.metadata,
+            "llm_used": self.llm_used,
         }
 
     def validate(self) -> list[str]:
