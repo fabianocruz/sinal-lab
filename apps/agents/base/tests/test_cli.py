@@ -372,3 +372,52 @@ class TestRunAgentCli:
             )
 
         assert os.path.exists(output_path)
+
+    def test_edition_default_is_none_without_explicit_arg(self):
+        """Edition default is None when not explicitly passed."""
+        parser = build_base_parser("Test Agent", period_arg="edition")
+        args = parser.parse_args([])
+        assert args.edition is None
+
+    def test_auto_period_fn_called_when_edition_is_none(self, tmp_path):
+        """auto_period_fn is called when edition defaults to None."""
+        auto_fn = MagicMock(return_value=49)
+
+        with patch("sys.argv", ["prog", "--dry-run"]):
+            run_agent_cli(
+                agent_class=FakeAgent,
+                description="Fake Agent",
+                default_output_dir=str(tmp_path),
+                period_arg="edition",
+                auto_period_fn=auto_fn,
+            )
+
+        auto_fn.assert_called_once()
+
+    def test_auto_period_fn_not_called_when_edition_explicit(self, tmp_path):
+        """auto_period_fn is NOT called when --edition is passed."""
+        auto_fn = MagicMock(return_value=99)
+
+        with patch("sys.argv", ["prog", "--edition", "5", "--dry-run"]):
+            run_agent_cli(
+                agent_class=FakeAgent,
+                description="Fake Agent",
+                default_output_dir=str(tmp_path),
+                period_arg="edition",
+                auto_period_fn=auto_fn,
+            )
+
+        auto_fn.assert_not_called()
+
+    def test_edition_falls_back_to_1_without_auto_fn(self, tmp_path, capsys):
+        """Edition defaults to 1 when no auto_period_fn and not explicit."""
+        with patch("sys.argv", ["prog", "--dry-run"]):
+            run_agent_cli(
+                agent_class=FakeAgent,
+                description="Fake Agent",
+                default_output_dir=str(tmp_path),
+                period_arg="edition",
+            )
+
+        captured = capsys.readouterr()
+        assert "=" in captured.out
