@@ -82,6 +82,48 @@ class MercadoWriter:
         """Check if the writer can generate content."""
         return self._client.is_available
 
+    def write_headline(
+        self,
+        scored_profiles: list[ScoredCompanyProfile],
+        week_number: int,
+    ) -> Optional[str]:
+        """Generate an editorial headline for the MERCADO report.
+
+        Args:
+            scored_profiles: Scored company profiles for the week.
+            week_number: Week number for the report.
+
+        Returns:
+            Headline string (max ~15 words), or None if generation fails.
+        """
+        if not scored_profiles or not self.is_available:
+            return None
+
+        aggregate_summary = self._build_aggregate_summary(scored_profiles)
+
+        user_prompt = (
+            f"Crie um titulo editorial (maximo 15 palavras) para o snapshot do "
+            f"ecossistema LATAM na semana {week_number}.\n\n"
+            f"Dados:\n\n{aggregate_summary}\n\n"
+            f"Direcoes:\n"
+            f"- Cite cidades, setores ou padroes concretos no titulo\n"
+            f"- Tom analitico e factual, sem hype\n"
+            f"- Escreva em portugues brasileiro\n"
+            f"- Retorne APENAS o titulo, sem aspas, sem formatacao extra"
+        )
+
+        result = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=64,
+        )
+
+        if not result or not result.strip():
+            logger.warning("LLM returned empty headline for week %d", week_number)
+            return None
+
+        return result.strip().strip('"').strip("'")
+
     def write_snapshot_intro(
         self,
         scored_profiles: list[ScoredCompanyProfile],

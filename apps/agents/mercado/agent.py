@@ -162,6 +162,11 @@ class MercadoAgent(BaseAgent):
         # Get source URLs
         source_urls = self.provenance.get_source_urls()[:20]  # Top 20 sources
 
+        # Generate editorial title via LLM (falls back to template)
+        editorial_title = writer.write_headline(scored_profiles, self.week_number)
+        if not editorial_title:
+            editorial_title = f"MERCADO Report — Semana {self.week_number}/2026"
+
         # Extract structured per-item data for email rendering and API
         metadata = {
             "items": [
@@ -185,7 +190,7 @@ class MercadoAgent(BaseAgent):
 
         # Create output
         output = AgentOutput(
-            title=f"MERCADO Report — Semana {self.week_number}/2026",
+            title=editorial_title,
             body_md=body_md,
             agent_name=self.agent_name,
             agent_category=self.agent_category,

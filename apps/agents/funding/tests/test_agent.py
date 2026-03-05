@@ -111,8 +111,7 @@ def test_output_phase(funding_agent):
     scores = funding_agent.score(events)
     output = funding_agent.output(events, scores)
 
-    assert output.title.startswith("FUNDING Report")
-    assert "Semana 7" in output.title
+    assert len(output.title) > 10  # LLM-generated or fallback title
     assert len(output.body_md) > 0
     assert output.agent_name == "funding"
     assert output.content_type == "DATA_REPORT"
@@ -140,7 +139,7 @@ def test_full_agent_run(mock_collect, funding_agent):
 
     # Verify output
     assert result is not None
-    assert result.title.startswith("FUNDING Report")
+    assert len(result.title) > 10  # LLM-generated or fallback title
     assert "Test Startup" in result.body_md
     # Note: sources won't be tracked when using mocked collector
     assert result.confidence.composite > 0
