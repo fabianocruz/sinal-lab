@@ -8,6 +8,14 @@ from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, Da
 # GitHub Search API: Discover tech companies via org profiles
 # Free tier: 30 req/min, 5000 req/hour
 MERCADO_SOURCES: list[DataSourceConfig] = [
+    # --- Primary source: companies table (populated by INDEX agent) ---
+    DataSourceConfig(
+        name="companies_db",
+        source_type="database",
+        url=None,
+        params={"limit": 500},
+    ),
+
     # GitHub Search — discover tech organizations by LATAM city
     # Uses /search/users endpoint with type:org filter
     DataSourceConfig(
