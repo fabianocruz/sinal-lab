@@ -153,6 +153,9 @@ class SinteseAgent(BaseAgent):
         if not editorial_title:
             editorial_title = f"Sinal Semanal #{self.edition_number}"
 
+        # Generate short email subject via LLM (for newsletter dispatch)
+        email_subject = writer.write_email_subject(sections, self.edition_number)
+
         return AgentOutput(
             title=editorial_title,
             body_md=newsletter_md,
@@ -166,5 +169,6 @@ class SinteseAgent(BaseAgent):
                 f"Edicao #{self.edition_number} do Sinal Semanal — "
                 f"{len(scored_items)} itens analisados de {len(self.provenance.get_sources())} fontes."
             ),
+            email_subject=email_subject,
             metadata=metadata,
         )
