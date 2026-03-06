@@ -1,6 +1,6 @@
-# ARCHITECTURE.md — Sinal.lab Frontend (Fase 3)
+# ARCHITECTURE.md -- Sinal.lab Frontend
 
-> Documentacao dos subsistemas adicionados na Fase 3. Atualizado em: 2026-02-20.
+> Atualizado em: 2026-03-06.
 
 ---
 
@@ -9,25 +9,39 @@
 ```
 apps/web/
 ├── app/
-│   ├── layout.tsx                          # Root layout — monta SessionProvider
+│   ├── layout.tsx                          # Root layout -- SessionProvider, fonts, metadata
 │   ├── page.tsx                            # Landing page
+│   ├── globals.css                         # Tailwind + global styles
+│   ├── sitemap.ts                          # Async sitemap (fetches dynamic slugs from API)
 │   ├── (auth)/
-│   │   ├── login/page.tsx                  # Pagina de login (LoginForm)
-│   │   └── cadastro/page.tsx               # Pagina de cadastro (SignupForm)
+│   │   ├── login/page.tsx                  # Login (LoginForm)
+│   │   └── cadastro/page.tsx               # Signup (SignupForm)
 │   ├── (marketing)/
 │   │   ├── marketing.test.tsx
-│   │   ├── sobre/page.tsx                  # Pagina institucional
+│   │   ├── sobre/page.tsx                  # Institucional
 │   │   └── metodologia/page.tsx            # Transparencia editorial
 │   ├── api/auth/[...nextauth]/route.ts     # Catch-all NextAuth handler
-│   └── newsletter/
-│       ├── page.tsx                        # Arquivo de edicoes
-│       ├── error.tsx                       # Error boundary do arquivo
-│       ├── loading.tsx                     # Skeleton do arquivo
-│       └── [slug]/
-│           ├── page.tsx                    # Edicao individual
-│           ├── opengraph-image.tsx         # OG image dinamica (Edge runtime)
-│           ├── error.tsx                   # Error boundary do slug
-│           └── loading.tsx                 # Skeleton do slug
+│   ├── newsletter/
+│   │   ├── page.tsx                        # Arquivo de edicoes (SSR + ISR 60s)
+│   │   ├── error.tsx                       # Error boundary
+│   │   ├── loading.tsx                     # Skeleton
+│   │   └── [slug]/
+│   │       ├── page.tsx                    # Edicao individual (SSR + ISR 300s)
+│   │       ├── opengraph-image.tsx         # OG image dinamica (Edge runtime)
+│   │       ├── error.tsx
+│   │       └── loading.tsx
+│   ├── artigos/
+│   │   ├── page.tsx                        # Artigos listing (SSR + ISR 60s)
+│   │   ├── artigos.test.tsx                # ArticleContent tests (13 tests)
+│   │   └── [slug]/
+│   │       └── page.tsx                    # Artigo detail (SSR + ISR 300s)
+│   ├── startups/
+│   │   └── page.tsx                        # Startup map listing (SSR + ISR 60s)
+│   ├── startup/
+│   │   └── [slug]/
+│   │       └── page.tsx                    # Startup detail + JSON-LD (SSR + ISR 300s)
+│   └── conta/
+│       └── page.tsx                        # User account page
 ├── components/
 │   ├── Providers.tsx                       # SessionProvider + futuros providers
 │   ├── agents/
@@ -35,29 +49,43 @@ apps/web/
 │   │   ├── AgentCard.tsx
 │   │   ├── AgentTeam.tsx
 │   │   └── agents.test.tsx
+│   ├── article/
+│   │   └── ArticleContent.tsx              # Article detail: hero image, header, gated body
 │   ├── auth/
 │   │   ├── LoginForm.tsx
 │   │   ├── SignupForm.tsx
 │   │   └── auth.test.tsx
 │   ├── layout/
-│   │   ├── Navbar.tsx                      # Inclui NavbarAuthState
+│   │   ├── Navbar.tsx                      # NavbarAuthState + UserMenu dropdown
 │   │   ├── Footer.tsx
 │   │   ├── Section.tsx
 │   │   └── layout.test.tsx
-│   └── newsletter/
-│       ├── NewsletterContent.tsx           # Gating client-side
-│       ├── GatedOverlay.tsx                # Overlay de conversao
-│       ├── gating.test.tsx
-│       └── newsletter.test.tsx
+│   ├── newsletter/
+│   │   ├── ArchiveCard.tsx                 # Newsletter card with cover image
+│   │   ├── NewsletterContent.tsx           # Newsletter detail: gated body
+│   │   ├── GatedOverlay.tsx                # Conversion overlay (unauthenticated)
+│   │   ├── HeroImage.tsx                   # Reusable hero image (figure + figcaption)
+│   │   ├── MarkdownRenderer.tsx            # Markdown -> HTML renderer
+│   │   ├── SourcesList.tsx                 # Source links with favicons
+│   │   ├── Pagination.tsx                  # Generalized pagination (basePath prop)
+│   │   ├── SearchBar.tsx                   # Generalized search (basePath prop)
+│   │   ├── gating.test.tsx
+│   │   └── newsletter.test.tsx
+│   └── startup/
+│       ├── CompanyCard.tsx                 # Startup card for listing
+│       ├── CompanyDetail.tsx               # Startup detail page content
+│       └── SectorFilter.tsx               # URL-based sector filter (Client Component)
 ├── lib/
 │   ├── auth.ts                             # NextAuth config
 │   ├── auth.test.ts
+│   ├── api.ts                              # API client (newsletters, companies, articles)
+│   ├── api.test.ts
 │   ├── constants.ts                        # AGENT_PERSONAS, AGENT_COLORS
 │   ├── constants.test.ts
-│   ├── newsletter.ts
+│   ├── newsletter.ts                       # Newsletter + ContentApiItem types, CARD_GRADIENTS
 │   ├── newsletter.test.ts
-│   ├── api.ts
-│   ├── api.test.ts
+│   ├── company.ts                          # Company type + SECTOR_OPTIONS
+│   ├── jsonld.ts                           # JSON-LD helpers (companyJsonLd)
 │   ├── utils.ts
 │   └── utils.test.ts
 └── test/
@@ -68,13 +96,13 @@ apps/web/
 
 ## 1. Autenticacao (NextAuth.js v5)
 
-**Estrategia:** JWT stateless — sem adapter de banco no Next.js. O FastAPI e o dono do banco de usuarios.
+**Estrategia:** JWT stateless. O FastAPI e o dono do banco de usuarios.
 
 ### Fluxo
 
 ```
-Browser → NextAuth → CredentialsProvider → POST /api/auth/verify (FastAPI)
-                   → GoogleProvider       → OAuth Google
+Browser -> NextAuth -> CredentialsProvider -> POST /api/auth/verify (FastAPI)
+                    -> GoogleProvider       -> OAuth Google
 JWT persiste: token.id, token.status
 Session expoe: session.user.id, session.user.status
 ```
@@ -83,10 +111,10 @@ Session expoe: session.user.id, session.user.status
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `lib/auth.ts` | Config NextAuth — providers, callbacks, paginas customizadas |
+| `lib/auth.ts` | Config NextAuth: providers, callbacks, paginas customizadas |
 | `app/api/auth/[...nextauth]/route.ts` | Catch-all para GET/POST do NextAuth |
-| `components/Providers.tsx` | Monta `<SessionProvider>` no root layout |
-| `components/auth/LoginForm.tsx` | Chama `signIn("credentials", ...)` |
+| `components/Providers.tsx` | `<SessionProvider>` no root layout |
+| `components/auth/LoginForm.tsx` | `signIn("credentials", ...)` |
 | `components/auth/SignupForm.tsx` | POST `/api/users` no FastAPI, depois `signIn` |
 
 ### Callbacks JWT
@@ -94,7 +122,7 @@ Session expoe: session.user.id, session.user.status
 ```typescript
 // jwt: persiste campos customizados no token
 token.id     = user.id
-token.status = user.status ?? "active"   // Google sign-ins: default "active"
+token.status = user.status ?? "active"
 
 // session: expoe no cliente
 session.user.id     = token.id
@@ -120,129 +148,167 @@ session.user.status = token.status
 ### Logica de split
 
 ```typescript
-// NewsletterContent.tsx
-const paragraphs    = newsletter.body.split("\n\n").filter(p => p.trim().length > 0);
-const previewCount  = Math.ceil(paragraphs.length * 0.3);  // ~30% visivel
-const preview       = paragraphs.slice(0, previewCount);   // sempre renderizado
-const gated         = paragraphs.slice(previewCount);       // condicional
+// NewsletterContent.tsx / ArticleContent.tsx
+const blocks     = body.split("\n\n").filter(p => p.trim().length > 0);
+const previewCount = Math.ceil(blocks.length * 0.3);  // ~30% visivel
+const previewMd    = blocks.slice(0, previewCount);    // sempre renderizado
+const gatedMd      = blocks.slice(previewCount);        // condicional
 ```
 
 ### Estados de renderizacao
 
 | Status da sessao | Conteudo exibido |
 |---|---|
-| `"loading"` | Apenas preview (30%) — sem overlay |
+| `"loading"` | Apenas preview (30%), sem overlay |
 | `"unauthenticated"` | Preview + `<GatedOverlay>` |
-| `"authenticated"` | Conteudo completo |
+| `"authenticated"` | Conteudo completo + sources + footer links |
 
-### GatedOverlay
-
-Componente `components/newsletter/GatedOverlay.tsx`:
-- Gradiente fade de 100px sobrepondo o ultimo paragrafo visivel
-- Card com CTA: "Criar conta gratuita" (`/cadastro`) e "Ja tenho conta" (`/login`)
-
-**Limitacao conhecida:** o gating e bypassavel via JavaScript desabilitado ou ferramentas de dev. Gating server-side esta planejado para versao futura (requer middleware + sessao validada no servidor).
+Usado em: `NewsletterContent.tsx` (newsletters) e `ArticleContent.tsx` (artigos).
 
 ---
 
-## 3. OG Image Dinamica
+## 3. Cover Images
 
-**Arquivo:** `app/newsletter/[slug]/opengraph-image.tsx`
+### Newsletter Cards (ArchiveCard.tsx)
 
-**Runtime:** Edge (Vercel Edge Network). Usa `ImageResponse` do `next/og` (motor Satori).
+Cards exibem cover image do `metadata.hero_image.url` sobre gradiente CSS fallback:
 
-### Dimensoes e conteudo
+```tsx
+{newsletter.metadata?.hero_image?.url && (
+  <img src={newsletter.metadata.hero_image.url} alt="" className="..." />
+)}
+```
 
-- Tamanho: 1200 x 630 px
-- Elementos renderizados: logo Sinal, badge do agente com cor, titulo (max 3 linhas via `-webkit-line-clamp`), linha de edicao/data, barra de gradiente com as 5 cores dos agentes
-- Fallback para slugs desconhecidos: branding generico Sinal + tagline
+Gradientes definidos em `lib/newsletter.ts` (`CARD_GRADIENTS`): 6 variacoes com cores dos agentes.
 
-### Limitacoes
+### Article Cards (artigos/page.tsx)
 
-- Fontes: sistema apenas (Georgia, monospace) — sem carregamento de fontes customizadas
-- Nao testavel com jsdom — `ImageResponse` usa APIs exclusivas do Edge runtime. Verificacao feita via `next build`
+Mesmo pattern dos newsletter cards, mas com `metadata_?.hero_image?.url` (note o underscore do campo da API).
+
+### Detail Pages
+
+Ambos usam o componente `HeroImage` para exibir a imagem hero com caption e credit:
+
+```tsx
+<HeroImage hero_image={item.metadata_?.hero_image} agentColor={ACCENT_COLOR} />
+```
+
+### Pipeline de geracao
+
+Covers sao geradas pelo pipeline em `apps/agents/covers/`:
+1. LLM (Claude Sonnet) gera prompt de imagem baseado no conteudo
+2. Recraft V3 gera imagem (realistic_image, 1820x1024)
+3. Pillow aplica overlay (badge, gradiente, barra de cores)
+4. Resize para 1200x628 (OG standard)
+5. Upload para Vercel Blob
+6. `metadata.hero_image` atualizado no banco
 
 ---
 
-## 4. Componentes de Agentes
+## 4. Paginas de Conteudo
 
-Dados de persona centralizados em `lib/constants.ts` (`AGENT_PERSONAS`). Todos os componentes consomem esse Record — sem duplicacao de dados de cor ou nome.
+### /newsletter (arquivo)
 
-### Componentes
+Server Component. Busca via `fetchNewsletters()`. Grid 3 colunas com `ArchiveCard`. Pagination generalizada com `basePath="/newsletter"`.
 
-| Componente | Descricao | Props principais |
+### /newsletter/[slug] (detalhe)
+
+Server Component que busca `fetchNewsletterBySlug()`. Renderiza `NewsletterContent` (Client Component) com gating.
+
+### /artigos (listing)
+
+Server Component. Busca via `fetchArticles()`. Grid 3 colunas com cards inline (mesma pattern de ArchiveCard mas com author info e badge "ARTIGO").
+
+### /artigos/[slug] (detalhe)
+
+Server Component que busca o artigo. Renderiza `ArticleContent` (Client Component) com:
+- Hero image via `HeroImage`
+- Badge "Artigo" + data formatada
+- Author info (nome + "Autor" ou "Sinal Editorial" + "Redacao")
+- Corpo markdown via `MarkdownRenderer`
+- Gating (30% preview / full para autenticados)
+
+### /startups (mapa)
+
+Server Component com `searchParams` para filtros. Busca via `fetchCompanies()`. Grid com `CompanyCard`. Filtros: sector, country, search. Pagination com `basePath="/startups"`.
+
+### /startup/[slug] (detalhe)
+
+Server Component com `CompanyDetail`. JSON-LD Organization (schema.org) via `companyJsonLd()`. 22 campos do banco.
+
+---
+
+## 5. Componentes de Agentes
+
+Dados de persona centralizados em `lib/constants.ts` (`AGENT_PERSONAS`).
+
+| Componente | Descricao | Props |
 |---|---|---|
-| `AgentAvatar` | Avatar circular com iniciais, cor do agente | `agentKey`, `size: "sm" \| "md" \| "lg"` |
-| `AgentCard` | Card completo com avatar, nome, cargo, badge, descricao | `agentKey` |
-| `AgentTeam` | Grid com os 5 agentes — renderiza `AgentCard` para cada key | nenhuma |
+| `AgentAvatar` | Avatar circular com iniciais + cor | `agentKey`, `size` |
+| `AgentCard` | Card completo: avatar, nome, cargo, badge, descricao | `agentKey` |
+| `AgentTeam` | Grid com os 5 agentes | nenhuma |
 
 ### AGENT_PERSONAS (lib/constants.ts)
 
-```typescript
-// 5 agentes, cada um com: name, role, agentCode, color (hex), description, avatarPath
-sintese  → Clara Medeiros   → #E8FF59
-radar    → Tomas Aguirre    → #59FFB4
-codigo   → Marina Costa     → #59B4FF
-funding  → Rafael Oliveira  → #FF8A59
-mercado  → Valentina Rojas  → #C459FF
+```
+sintese  -> Clara Medeiros   -> #E8FF59
+radar    -> Tomas Aguirre    -> #59FFB4
+codigo   -> Marina Costa     -> #59B4FF
+funding  -> Rafael Oliveira  -> #FF8A59
+mercado  -> Valentina Rojas  -> #C459FF
 ```
 
 ---
 
-## 5. Paginas Internas de Marketing
+## 6. Componentes Reutilizaveis
 
-Ambas sao Server Components puros (sem `"use client"`), com metadata SSR e rota dentro do route group `(marketing)`.
-
-### /sobre
-
-4 secoes usando o wrapper `<Section label="...">`:
-
-1. **SOBRE** — definicao da plataforma
-2. **MISSAO** — proposta de valor e diferenciais
-3. **COMO FUNCIONA** — grid 3 cards (pesquisa → filtragem → revisao humana)
-4. **OS AGENTES** — grid iterando sobre `Object.values(AGENT_PERSONAS)`
-
-### /metodologia
-
-4 secoes:
-
-1. **METODOLOGIA** — introducao ao pipeline
-2. **PIPELINE** — 6 steps em grid (Coleta → Processamento → Validacao → Filtragem → Sintese → Revisao)
-3. **SCORE DE QUALIDADE** — DQ grades A/B/C/D com cor de agente correspondente
-4. **TRANSPARENCIA** — links para GitHub e Log de Correcoes
-
----
-
-## 6. Estado de Autenticacao na Navbar
-
-**Subcomponente:** `NavbarAuthState` (dentro de `Navbar.tsx`, nao exportado separadamente).
-
-Usa `useSession()` — por isso `Navbar.tsx` e `"use client"`.
-
-| Estado (`status`) | Desktop | Mobile |
+| Componente | Prop-chave | Usado em |
 |---|---|---|
-| `"loading"` | `<span>` vazio 8x8 (evita layout shift) | idem |
-| `"authenticated"` | Circulo com inicial do usuario → `/newsletter` | Item "Minha conta" com circulo + label |
-| `"unauthenticated"` | Link "Entrar" → `/login` | Link "Entrar" |
+| `Pagination` | `basePath` (default: `/newsletter`) | /newsletter, /artigos, /startups |
+| `SearchBar` | `basePath` (default: `/newsletter`) | /newsletter, /startups |
+| `SectorFilter` | usa `useSearchParams`/`useRouter` | /startups |
+| `HeroImage` | `hero_image`, `agentColor` | newsletter detail, article detail |
+| `MarkdownRenderer` | `content`, `agentColor` | newsletter detail, article detail |
+| `GatedOverlay` | nenhuma | newsletter detail, article detail |
+| `SourcesList` | `sources`, `agentColor` | newsletter detail, article detail |
 
 ---
 
-## 7. Error Boundaries e Loading States
+## 7. OG Image Dinamica
+
+**Arquivo:** `app/newsletter/[slug]/opengraph-image.tsx`
+
+**Runtime:** Edge (Vercel Edge Network). Usa `ImageResponse` do `next/og`.
+
+- Tamanho: 1200 x 630 px
+- Elementos: logo Sinal, badge do agente com cor, titulo, linha de edicao/data, barra de gradiente
+- Fallback para slugs desconhecidos: branding generico Sinal
+
+---
+
+## 8. Error Boundaries e Loading States
 
 Todas as rotas data-fetching tem `error.tsx` e `loading.tsx` co-localizados.
 
 | Rota | error.tsx | loading.tsx |
 |---|---|---|
-| `/newsletter` | "Algo deu errado" + botoes retry/home | Header skeleton + 6 pills + featured card + 6 cards |
-| `/newsletter/[slug]` | "Algo deu errado" + botoes retry/arquivo | Back link + header + avatar + 5 linhas de corpo |
+| `/newsletter` | "Algo deu errado" + retry/home | Header skeleton + 6 pills + featured card + 6 cards |
+| `/newsletter/[slug]` | "Algo deu errado" + retry/arquivo | Back link + header + avatar + 5 linhas |
 
-Todos os `error.tsx` sao `"use client"` (exigencia do Next.js para receber a prop `reset`).
+---
+
+## 9. SEO
+
+- Metadata (title, description, OG tags) em todas as paginas
+- JSON-LD Organization em `/startup/[slug]` via `companyJsonLd()`
+- Sitemap async (`app/sitemap.ts`) com slugs dinamicos de newsletters, artigos, e companies
+- Paginas programaticas com min 300 palavras unicas
 
 ---
 
 ## Cobertura de Testes
 
-**Total:** 580+ testes em 12+ arquivos.
+**Total:** 998 testes frontend (Vitest + Testing Library).
 
 | Area | Arquivo de teste | Status |
 |---|---|---|
@@ -250,6 +316,7 @@ Todos os `error.tsx` sao `"use client"` (exigencia do Next.js para receber a pro
 | Auth (LoginForm, SignupForm) | `components/auth/auth.test.tsx` | testado |
 | Gating (NewsletterContent, GatedOverlay) | `components/newsletter/gating.test.tsx` | testado |
 | Newsletter components | `components/newsletter/newsletter.test.tsx` | testado |
+| Article components | `app/artigos/artigos.test.tsx` | testado (13 tests) |
 | Layout (Navbar, Footer, Section) | `components/layout/layout.test.tsx` | testado |
 | Landing components | `components/landing/landing.test.tsx` | testado |
 | Paginas marketing | `app/(marketing)/marketing.test.tsx` | testado |
@@ -258,18 +325,15 @@ Todos os `error.tsx` sao `"use client"` (exigencia do Next.js para receber a pro
 | lib/newsletter | `lib/newsletter.test.ts` | testado |
 | lib/api | `lib/api.test.ts` | testado |
 | lib/utils | `lib/utils.test.ts` | testado |
-| OG image (`opengraph-image.tsx`) | — | **nao testavel** (Edge runtime) |
-
-**O que nao e testavel:** `app/newsletter/[slug]/opengraph-image.tsx` usa `ImageResponse` do Edge runtime, incompativel com jsdom. Verificado apenas via `next build`.
+| OG image | -- | nao testavel (Edge runtime) |
 
 ---
 
-## Dependencias Externas (Fase 3)
+## Dependencias Externas
 
-| Pacote | Versao | Uso |
-|---|---|---|
-| `next-auth` | `5.0.0-beta.25` | Autenticacao (JWT, OAuth) |
-| `lucide-react` | latest | Icones (Menu, X na Navbar) |
-| `class-variance-authority` | latest | Variantes de estilo tipadas |
-| `clsx` | latest | Condicional de classes CSS |
-| `tailwind-merge` | latest | Merge de classes Tailwind sem conflito |
+| Pacote | Uso |
+|---|---|
+| `next-auth` (v5 beta) | Autenticacao (JWT, OAuth) |
+| `lucide-react` | Icones |
+| `class-variance-authority` | Variantes de estilo tipadas |
+| `clsx` + `tailwind-merge` | Merge de classes CSS |
