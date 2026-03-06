@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import MarkdownRenderer from "@/components/newsletter/MarkdownRenderer";
+import HeroImage from "@/components/newsletter/HeroImage";
 import SourcesList from "@/components/newsletter/SourcesList";
 import GatedOverlay from "@/components/newsletter/GatedOverlay";
 import type { ContentApiItem } from "@/lib/newsletter";
@@ -40,6 +41,9 @@ export default function ArticleContent({ item }: ArticleContentProps) {
       >
         &larr; Voltar aos Artigos
       </Link>
+
+      {/* Hero cover image */}
+      <HeroImage hero_image={item.metadata_?.hero_image} agentColor={ACCENT_COLOR} />
 
       {/* Article header */}
       <header className="mb-10 border-b border-[rgba(255,255,255,0.06)] pb-10">
