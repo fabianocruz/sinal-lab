@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from apps.agents.covers.config import AGENT_COLORS
+from apps.agents.covers.config import AGENT_COLORS, AGENT_VISUAL_IDENTITY
 from apps.agents.covers.prompt_generator import (
     CoverBriefing,
     CoverPromptGenerator,
@@ -106,6 +106,56 @@ def test_unknown_agent_uses_default_color(mock_client):
     gen.generate_prompt(briefing)
     call_args = mock_client.generate.call_args
     assert "#FFFFFF" in call_args.kwargs["user_prompt"]
+
+
+def test_system_prompt_has_visual_identity_resolved(mock_client, briefing):
+    """Visual identity placeholder should be replaced with agent-specific content."""
+    mock_client.generate.return_value = "A prompt."
+    gen = CoverPromptGenerator(client=mock_client)
+    gen.generate_prompt(briefing)
+    call_args = mock_client.generate.call_args
+    system = call_args.kwargs["system_prompt"]
+    assert "{agent_visual_identity}" not in system
+    assert AGENT_VISUAL_IDENTITY["radar"] in system
+
+
+def test_system_prompt_contains_visual_vocabulary_for_each_agent(mock_client):
+    """Each agent should inject its own visual vocabulary into the system prompt."""
+    for agent_name, identity in AGENT_VISUAL_IDENTITY.items():
+        briefing = CoverBriefing(
+            headline="Test headline", lede="Test lede", agent=agent_name, edition=1
+        )
+        mock_client.generate.return_value = "A prompt."
+        gen = CoverPromptGenerator(client=mock_client)
+        gen.generate_prompt(briefing)
+        call_args = mock_client.generate.call_args
+        system = call_args.kwargs["system_prompt"]
+        assert identity in system, f"{agent_name} visual identity not in system prompt"
+
+
+def test_user_prompt_references_agent_vocabulary(mock_client, briefing):
+    """User prompt should reference the agent's visual vocabulary."""
+    mock_client.generate.return_value = "A prompt."
+    gen = CoverPromptGenerator(client=mock_client)
+    gen.generate_prompt(briefing)
+    call_args = mock_client.generate.call_args
+    user = call_args.kwargs["user_prompt"]
+    assert "RADAR" in user
+    assert "visual vocabulary" in user.lower()
+
+
+def test_unknown_agent_gets_empty_visual_identity(mock_client):
+    """Unknown agents should get empty visual identity, not crash."""
+    briefing = CoverBriefing(
+        headline="Test", lede="Test lede", agent="unknown_agent", edition=1
+    )
+    mock_client.generate.return_value = "A prompt."
+    gen = CoverPromptGenerator(client=mock_client)
+    gen.generate_prompt(briefing)
+    call_args = mock_client.generate.call_args
+    system = call_args.kwargs["system_prompt"]
+    # Placeholder should be replaced (with empty string for unknown agent)
+    assert "{agent_visual_identity}" not in system
 
 
 def test_truncate_to_max_words_short_text():
