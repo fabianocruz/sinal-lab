@@ -16,6 +16,7 @@ from typing import Optional
 from apps.agents.base.llm import LLMClient
 from apps.agents.covers.config import (
     AGENT_COLORS,
+    AGENT_VISUAL_IDENTITY,
     ART_DIRECTOR_SYSTEM_PROMPT,
     DEFAULT_AGENT_COLOR,
 )
@@ -72,7 +73,13 @@ class CoverPromptGenerator:
             return None
 
         agent_color = AGENT_COLORS.get(briefing.agent, DEFAULT_AGENT_COLOR)
-        system_prompt = ART_DIRECTOR_SYSTEM_PROMPT.replace("{agent_color}", agent_color)
+        visual_identity = AGENT_VISUAL_IDENTITY.get(briefing.agent, "")
+
+        system_prompt = (
+            ART_DIRECTOR_SYSTEM_PROMPT
+            .replace("{agent_color}", agent_color)
+            .replace("{agent_visual_identity}", visual_identity)
+        )
 
         user_prompt = (
             f"Generate an image prompt for this editorial cover:\n\n"
@@ -80,9 +87,11 @@ class CoverPromptGenerator:
             f"Accent color: {agent_color}\n"
             f"Headline: {briefing.headline}\n"
             f"Lede: {briefing.lede}\n\n"
-            f"Remember: dark background, {briefing.agent.upper()} agent color "
-            f"({agent_color}) as dominant accent. Editorial magazine cover aesthetic. "
-            f"Leave left 40% open for text overlay. No text in image."
+            f"Use the {briefing.agent.upper()} visual vocabulary to pick objects "
+            f"that match THIS SPECIFIC story. "
+            f"Photorealistic, cinematic lighting, dramatic rim lights. "
+            f"Subject must be brightly lit and pop against dark background. "
+            f"Accent color ({agent_color}) as lighting/glows. No text in image."
         )
 
         result = self._client.generate(
