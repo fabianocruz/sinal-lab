@@ -504,23 +504,20 @@ EDITORIAL_TERRITORIES = {
 
 ## Roadmap
 
-### Phase 1: Foundation ✅ (Current)
+### Phase 1: Foundation (Done)
 - [x] Core validation logic
 - [x] Territory classification
 - [x] Red flag detection
 - [x] Comprehensive test suite
 - [x] Documentation
 
-### Phase 2: Agent Integration (Next)
-- [ ] Integrate with SINTESE agent
-- [ ] Integrate with RADAR agent
-- [ ] Integrate with CODIGO agent
-- [ ] Integrate with FUNDING agent
-- [ ] Integrate with MERCADO agent
-- [ ] Update agent system prompts
+### Phase 2: Agent Integration (Done)
+- [x] Integrate with all 5 content/data agents via orchestrator
+- [x] Editorial-in-the-loop: `--orchestrate` mode runs editorial pipeline automatically
+- [x] Content graded `publish_ready` -> `approved`; others -> `pending_review`
+- [x] API endpoints: `/api/editorial/review`, `/api/editorial/queue`, `/api/editorial/approve/{slug}`
 
-### Phase 3: Feedback Loop (Future)
-- [ ] Editorial dashboard for human review
+### Phase 3: Feedback Loop (Next)
 - [ ] Rejection analytics (which criteria fail most)
 - [ ] Auto-revision based on recommendations
 - [ ] A/B testing different thresholds
@@ -664,6 +661,6 @@ Part of Sinal.ai monorepo. Internal use only.
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-03-06
 **Version**: 1.0.0
 **Maintainers**: @platform-team
