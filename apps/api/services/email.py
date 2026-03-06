@@ -116,6 +116,15 @@ class _BriefingDataRequired(TypedDict):
     mercado_url: str
 
 
+class SinteseArticle(TypedDict, total=False):
+    """A single article item from the SINTESE agent's curated feed."""
+
+    title: str
+    url: str
+    summary: str
+    source_name: str
+
+
 class BriefingData(_BriefingDataRequired, total=False):
     """Full data payload for building a weekly briefing email.
 
@@ -125,6 +134,7 @@ class BriefingData(_BriefingDataRequired, total=False):
 
     sintese_image_url: str
     sintese_image_alt: str
+    sintese_articles: List[SinteseArticle]
     radar_image_url: str
     radar_image_alt: str
     codigo_image_url: str
@@ -1203,27 +1213,85 @@ def _briefing_why_it_matters(
     )
 
 
-def _briefing_section_sintese(data: BriefingData) -> str:
-    """SINTESE section: label + image + title + paragraphs + DQ badge.
+def _briefing_sintese_article_row(
+    article: "SinteseArticle", is_last: bool = False
+) -> str:
+    """Render a single SINTESE article as a compact row.
 
+    Each article shows: linked title, summary snippet, source name.
+    """
+    border = (
+        f"border-bottom: 1px solid rgba(255,255,255,0.04);"
+        if not is_last
+        else ""
+    )
+    title_html = _briefing_inline_link(
+        article.get("title", ""), article.get("url"), _COLOR_SINTESE
+    )
+    summary = article.get("summary", "")
+    source_name = article.get("source_name", "")
+    source_url = article.get("url", "")
+    source_html = _briefing_source_attribution(source_name, source_url, _COLOR_MUTED)
+    source_block = (
+        f'\n          <p style="margin:4px 0 0 0;">{source_html}</p>'
+        if source_html
+        else ""
+    )
+    return f"""\
+    <tr>
+    <td style="padding: 10px 0; {border}">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td>
+          <p style="font-family:{_FONT_SANS}; font-size:14px; font-weight:600; color:{_COLOR_HEADING}; margin:0 0 2px 0;">
+            {title_html}
+          </p>
+          <p style="font-family:{_FONT_SANS}; font-size:13px; color:{_COLOR_BODY}; margin:0; line-height:1.5;">
+            {summary}
+          </p>{source_block}
+        </td>
+      </tr>
+      </table>
+    </td>
+    </tr>"""
+
+
+def _briefing_section_sintese(data: BriefingData) -> str:
+    """SINTESE section: label + image + title + articles (or paragraphs) + DQ badge.
+
+    When ``sintese_articles`` is present, renders article cards (title + link
+    + summary). Falls back to body paragraphs for backward compatibility.
     Supports optional rich fields: section image, source URLs, CTA link.
     """
-    paragraphs_html = "\n".join(
-        f'  <p style="font-family: {_FONT_SANS}; font-size: 15px; '
-        f'color: {_COLOR_BODY}; line-height: 1.7; margin: 0 0 16px 0;">'
-        f"\n    {p}\n  </p>"
-        for p in data["sintese_paragraphs"]
-    )
+    articles = data.get("sintese_articles", [])
 
-    # Source attribution line (e.g. "Fontes: Name1 . Name2 . Name3")
+    if articles:
+        # Render article cards (preferred when available).
+        article_rows = "\n".join(
+            _briefing_sintese_article_row(a, is_last=(i == len(articles) - 1))
+            for i, a in enumerate(articles)
+        )
+        content_html = f"""\
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+{article_rows}
+  </table>"""
+    else:
+        # Fallback: render body paragraphs.
+        content_html = "\n".join(
+            f'  <p style="font-family: {_FONT_SANS}; font-size: 15px; '
+            f'color: {_COLOR_BODY}; line-height: 1.7; margin: 0 0 16px 0;">'
+            f"\n    {p}\n  </p>"
+            for p in data["sintese_paragraphs"]
+        )
+
+    # Source attribution line (e.g. "Fontes: Name1 · Name2 · Name3")
     source_urls = data.get("sintese_source_urls")
-    sources_html = ""
     if source_urls:
         linked_names = " \u00b7 ".join(
             _briefing_inline_link(s.get("name", ""), s.get("url"), _COLOR_MUTED)
             for s in source_urls
         )
-        sources_html = (
+        content_html += (
             f'\n  <p style="font-family:{_FONT_MONO};font-size:10px;'
             f'color:{_COLOR_MUTED};margin:8px 0 0 0;">'
             f"Fontes: {linked_names}</p>"
@@ -1255,7 +1323,7 @@ def _briefing_section_sintese(data: BriefingData) -> str:
   <p style="font-family: {_FONT_SERIF}; font-size: 21px; color: {_COLOR_HEADING}; line-height: 1.4; margin: 0 0 16px 0;">
     {data["sintese_title"]}
   </p>
-{paragraphs_html}{sources_html}
+{content_html}
 </td>
 </tr>""",
         _briefing_dq_badge(
