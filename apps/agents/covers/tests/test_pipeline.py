@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 
 from apps.agents.covers.pipeline import CoverPipeline, CoverResult
-from apps.agents.covers.prompt_generator import CoverBriefing
+from apps.agents.covers.prompt_generator import ArticleBriefing, CoverBriefing
 from apps.agents.covers.recraft import GeneratedImage
 from apps.agents.covers.uploader import UploadedCover
 
@@ -200,3 +200,63 @@ def test_pipeline_collects_all_errors(briefing, mock_prompt_gen):
     # Variation 1: overlay fails (invalid bytes), Variation 2: upload fails
     assert len(result.errors) >= 2
     assert result.images == []
+
+
+# ---------------------------------------------------------------------------
+# Article pipeline tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def article_briefing():
+    return ArticleBriefing(
+        title="6 PRs para colocar um site no ar",
+        thesis="A jornada de construir infra do zero",
+        article_type="diary",
+        author="Fabiano Cruz",
+    )
+
+
+def test_article_pipeline_success(article_briefing, mock_prompt_gen, mock_image_gen, mock_uploader):
+    mock_prompt_gen.generate_article_prompt = MagicMock(
+        return_value="Dark scene of monitors."
+    )
+    pipeline = CoverPipeline(
+        prompt_generator=mock_prompt_gen,
+        image_generator=mock_image_gen,
+        uploader=mock_uploader,
+    )
+    result = pipeline.run_article(article_briefing, variations=3)
+
+    assert len(result.images) == 3
+    assert result.agent == "artigo"
+    assert result.prompt_used == "Dark scene of monitors."
+    assert result.errors == []
+
+
+def test_article_pipeline_prompt_failure(article_briefing, mock_image_gen, mock_uploader):
+    prompt_gen = MagicMock()
+    prompt_gen.generate_article_prompt.return_value = None
+
+    pipeline = CoverPipeline(
+        prompt_generator=prompt_gen,
+        image_generator=mock_image_gen,
+        uploader=mock_uploader,
+    )
+    result = pipeline.run_article(article_briefing)
+
+    assert result.images == []
+    assert "Article prompt generation failed" in result.errors
+
+
+def test_article_pipeline_uses_artigo_badge(article_briefing, mock_prompt_gen, mock_image_gen, mock_uploader):
+    mock_prompt_gen.generate_article_prompt = MagicMock(return_value="A prompt.")
+    pipeline = CoverPipeline(
+        prompt_generator=mock_prompt_gen,
+        image_generator=mock_image_gen,
+        uploader=mock_uploader,
+    )
+    result = pipeline.run_article(article_briefing, variations=1)
+
+    assert result.agent == "artigo"
+    # Check uploaded path includes artigos/ folder
+    assert "artigos/" in result.images[0]["pathname"]

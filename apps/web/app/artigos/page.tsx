@@ -64,12 +64,19 @@ export default async function ArtigosPage({ searchParams }: { searchParams: { pa
                     className="group block overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite transition-all duration-300 hover:-translate-y-[3px] hover:border-[rgba(255,255,255,0.10)]"
                     aria-label={`Ler: ${item.title}`}
                   >
-                    {/* Gradient image area — matches ArchiveCard aspect ratio */}
+                    {/* Cover image area — matches ArchiveCard aspect ratio */}
                     <div
-                      className="relative aspect-[16/10]"
+                      className="relative aspect-[16/10] overflow-hidden"
                       style={{ background: CARD_GRADIENTS[gradientIndex] }}
                       aria-hidden="true"
                     >
+                      {item.metadata_?.hero_image?.url && (
+                        <img
+                          src={item.metadata_.hero_image.url}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        />
+                      )}
                       {/* Type badge */}
                       <div className="absolute left-3 top-3 flex items-center gap-[5px] rounded-[5px] bg-[rgba(10,10,11,0.75)] px-[10px] py-[5px] font-mono text-[9px] font-semibold uppercase tracking-[1.5px] text-signal backdrop-blur-[8px]">
                         <span

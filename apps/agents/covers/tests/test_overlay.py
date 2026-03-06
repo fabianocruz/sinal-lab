@@ -115,3 +115,61 @@ def test_hex_to_rgb():
     assert _hex_to_rgb("#000000") == (0, 0, 0)
     assert _hex_to_rgb("#FFFFFF") == (255, 255, 255)
     assert _hex_to_rgb("FF8A59") == (255, 138, 89)  # without #
+
+
+# ---------------------------------------------------------------------------
+# Article overlay tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def article_overlay():
+    return BrandOverlay(OverlayConfig(
+        agent="ARTIGO",
+        agent_color="#59FFB4",
+        is_article=True,
+        author="Fabiano Cruz",
+    ))
+
+
+def test_article_overlay_returns_png(article_overlay):
+    result = article_overlay.apply(_create_test_image())
+    img = Image.open(io.BytesIO(result))
+    assert img.format == "PNG"
+    assert img.size == (IMAGE_WIDTH, IMAGE_HEIGHT)
+
+
+def test_article_overlay_has_top_bar(article_overlay):
+    result = article_overlay.apply(_create_test_image())
+    img = Image.open(io.BytesIO(result))
+    pixel = img.getpixel((IMAGE_WIDTH // 2, 1))
+    # Article color #59FFB4 = (89, 255, 180)
+    assert pixel[0] == 89
+    assert pixel[1] == 255
+    assert pixel[2] == 180
+
+
+def test_article_overlay_has_full_width_bottom_bar(article_overlay):
+    result = article_overlay.apply(_create_test_image())
+    img = Image.open(io.BytesIO(result))
+    # Check bottom row — should have colored pixels from full-width bar
+    bottom_pixel = img.getpixel((10, IMAGE_HEIGHT - 1))
+    # The first color in MINI_BAR_COLORS is #59FFB4 (radar green)
+    assert bottom_pixel[0] == 89  # R of first mini bar color
+    assert bottom_pixel[1] == 255  # G
+
+
+def test_article_overlay_no_dq_score(article_overlay):
+    """Article overlay should not crash even though dq_score is None."""
+    result = article_overlay.apply(_create_test_image())
+    assert isinstance(result, bytes)
+
+
+def test_article_overlay_without_author():
+    overlay = BrandOverlay(OverlayConfig(
+        agent="ARTIGO",
+        agent_color="#59FFB4",
+        is_article=True,
+        author="",
+    ))
+    result = overlay.apply(_create_test_image())
+    assert isinstance(result, bytes)
