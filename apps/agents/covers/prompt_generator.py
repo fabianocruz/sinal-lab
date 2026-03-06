@@ -16,6 +16,8 @@ from typing import Optional
 from apps.agents.base.llm import LLMClient
 from apps.agents.covers.config import (
     AGENT_COLORS,
+    ARTICLE_ART_DIRECTION,
+    ARTICLE_COLOR,
     ART_DIRECTOR_SYSTEM_PROMPT,
     DEFAULT_AGENT_COLOR,
 )
@@ -35,6 +37,17 @@ class CoverBriefing:
     agent: str
     edition: int
     dq_score: Optional[float] = None
+
+
+@dataclass
+class ArticleBriefing:
+    """Input briefing for article cover image generation."""
+
+    title: str
+    thesis: str
+    article_type: str = "essay"  # diary, essay, tutorial
+    mood: str = ""
+    author: str = ""
 
 
 class CoverPromptGenerator:
@@ -94,6 +107,53 @@ class CoverPromptGenerator:
 
         if not result or not result.strip():
             logger.warning("LLM returned empty prompt for cover generation")
+            return None
+
+        truncated = _truncate_to_max_words(result.strip())
+        return _truncate_to_max_chars(truncated)
+
+    def generate_article_prompt(self, briefing: ArticleBriefing) -> Optional[str]:
+        """Generate a Recraft V3 image prompt from an article briefing.
+
+        Args:
+            briefing: Article briefing with title, thesis, type, and mood.
+
+        Returns:
+            Image prompt string (max 150 words), or None if generation fails.
+        """
+        if not briefing.title.strip():
+            logger.warning("Empty title in article briefing")
+            return None
+
+        if not self.is_available:
+            logger.warning("LLM client unavailable for article cover prompt generation")
+            return None
+
+        art_direction = ARTICLE_ART_DIRECTION.get(briefing.article_type, "")
+        system_prompt = ART_DIRECTOR_SYSTEM_PROMPT.replace("{agent_color}", ARTICLE_COLOR)
+
+        mood_line = f"Mood/tone: {briefing.mood}\n" if briefing.mood else ""
+
+        user_prompt = (
+            f"Generate an image prompt for this ARTICLE cover:\n\n"
+            f"Title: {briefing.title}\n"
+            f"Thesis: {briefing.thesis}\n"
+            f"{mood_line}"
+            f"Accent color: {ARTICLE_COLOR}\n\n"
+            f"{art_direction}\n"
+            f"Remember: dark background, accent color ({ARTICLE_COLOR}) as dominant. "
+            f"Editorial magazine cover aesthetic. No text in image."
+        )
+
+        result = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            max_tokens=512,
+            temperature=0.8,
+        )
+
+        if not result or not result.strip():
+            logger.warning("LLM returned empty prompt for article cover generation")
             return None
 
         truncated = _truncate_to_max_words(result.strip())

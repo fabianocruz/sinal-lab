@@ -73,30 +73,66 @@ MINI_BAR_MARGIN = 20
 ART_DIRECTOR_SYSTEM_PROMPT = (
     "You are the art director for Sinal, a tech intelligence platform "
     "for Latin America.\n\n"
-    "You receive: a headline + lede from an editorial briefing.\n"
-    "You produce: an image prompt for Recraft V3.\n\n"
-    "CRITICAL — CONTEXTUAL IMAGERY:\n"
-    "Each cover MUST be visually specific to the story. A reader should look "
-    "at the image and immediately understand what sector or topic it covers.\n"
-    "- Banking story → vaults, cards, digital banking interfaces\n"
-    "- Autonomous vehicles → cars, roads, sensors, lidar\n"
-    "- AI/ML story → neural networks, data pipelines, chips\n"
-    "- Fintech funding → growth charts, coins, investment symbols\n"
-    "- Healthcare → medical devices, molecules, lab environments\n"
-    "- Logistics → warehouses, drones, supply chain\n"
-    "NEVER produce a generic 'futuristic tech' image that could fit any story.\n\n"
-    "VISUAL RULES:\n"
-    "1. Show CONCRETE objects related to the story's industry/sector.\n"
-    "2. Use the company's actual product domain as visual reference.\n"
-    "3. Background ALWAYS dark (#0A0A0B to #1A1A1F).\n"
-    "4. Dominant accent color: {agent_color} — use it for lighting, glows, highlights.\n"
-    "5. Style: tech magazine editorial, cinematic, photorealistic.\n"
-    "6. Composition: leave 40% left side clean for text overlay.\n"
-    "7. Mood: serious, data-driven, futuristic but grounded in reality.\n"
-    "8. NEVER include text, words, or letters in the image.\n"
-    "9. NEVER use cartoon, clipart, or generic stock photo style.\n"
-    "10. Include Latin American elements when relevant "
+    "You receive: a headline + lede from a publication.\n"
+    "You produce: an image prompt for Recraft V3 (realistic_image).\n\n"
+    "RULES:\n"
+    "1. Background ALWAYS dark (#0A0A0B to #1A1A1F).\n"
+    "2. Dominant accent color: {agent_color} — use it for lighting, glows, highlights.\n"
+    "3. Style: photorealistic, tech magazine editorial, cinematic.\n"
+    "4. Composition: leave space for overlay (badges at top, gradient at bottom).\n"
+    "5. Mood: serious, data-driven, futuristic but grounded in reality.\n"
+    "6. NEVER include text, words, or letters in the image.\n"
+    "7. NEVER use cartoon, clipart, or generic stock photo style.\n"
+    "8. Include Latin American elements when relevant "
     "(skylines, architecture, cultural references).\n\n"
-    "OUTPUT: Only the image prompt in English, maximum 120 words.\n"
+    "CRITICAL — CONTEXTUAL IMAGERY:\n"
+    "Each cover MUST show CONCRETE OBJECTS related to the story's industry/sector. "
+    "A reader should look at the image and immediately understand what topic it covers. "
+    "NEVER produce a generic 'futuristic tech' image that could fit any story.\n\n"
+    "Sector examples:\n"
+    "- Banking/Fintech → vaults, credit cards, payment terminals, candlestick charts\n"
+    "- Healthcare → medical devices, hospital equipment, diagnostic interfaces\n"
+    "- Logistics → automated warehouses, delivery drones, containers, truck fleets\n"
+    "- AI/ML → data centers, GPUs, server racks, metric dashboards, terminal interfaces\n"
+    "- E-commerce → shopping carts, warehouses, checkout screens\n"
+    "- Regulation → gavels, official documents, government buildings\n"
+    "- DevTools → code terminals, IDEs, network racks, switches\n"
+    "- Autonomous vehicles → cars, roads, sensors, lidar\n\n"
+    "GOLDEN RULE: if the story is about 'Nubank tests AI agents', the image shows "
+    "a futuristic banking environment with AI elements — NOT an 'abstract constellation "
+    "of connected dots'.\n\n"
+    "OUTPUT: Only the image prompt in English, maximum 150 words.\n"
     "Format: 1820x1024 horizontal composition."
 )
+
+# ---------------------------------------------------------------------------
+# Article cover art direction — visual vocabulary by article type
+# ---------------------------------------------------------------------------
+
+ARTICLE_COLOR = "#59FFB4"  # Verde (Santos de Machine)
+ARTICLE_BADGE_TEXT = "ARTIGO"
+
+ARTICLE_ART_DIRECTION: Dict[str, str] = {
+    "diary": (
+        "ARTICLE TYPE: Construction diary (weekly series).\n"
+        "Visual vocabulary: code on screens, deploy pipelines with stages lit up, "
+        "CI/CD dashboards, git commit history as visual timeline, architecture diagrams "
+        "on whiteboards, pull request diffs with syntax highlighting, terminal outputs, "
+        "developer workstations at night. Each week should feel slightly more 'built' "
+        "than the last — progression from empty repo to running system.\n"
+        "Dominant color: green (#59FFB4).\n"
+    ),
+    "essay": (
+        "ARTICLE TYPE: Opinion essay (standalone).\n"
+        "Visual vocabulary: conceptual, metaphorical, provocative. One strong unexpected "
+        "visual idea that captures the thesis. More artistic than briefing covers — "
+        "focus on the argument, not the sector. Think editorial photography meets "
+        "conceptual art.\n"
+    ),
+    "tutorial": (
+        "ARTICLE TYPE: Tutorial / How-to.\n"
+        "Visual vocabulary: show the result — the tool working, the agent in action, "
+        "the dashboard populated. Tangible, everyday with a tech twist. Relatable "
+        "developer experience. Workstation, hands on keyboard, screens showing output.\n"
+    ),
+}

@@ -41,6 +41,8 @@ class OverlayConfig:
     agent_color: str
     dq_score: Optional[float] = None
     edition: int = 1
+    is_article: bool = False
+    author: str = ""
 
 
 class BrandOverlay:
@@ -106,11 +108,15 @@ class BrandOverlay:
         # 4. Bottom gradient
         self._draw_gradient(draw, width, height)
 
-        # 5. URL text (bottom-left)
-        self._draw_url(draw, height)
-
-        # 6. Mini color bar (bottom-right)
-        self._draw_mini_bar(draw, width, height)
+        if self._config.is_article:
+            # Article layout: author badge (bottom-left), full-width bottom bar
+            if self._config.author:
+                self._draw_author_badge(draw, height)
+            self._draw_full_width_bar(draw, width, height)
+        else:
+            # Briefing layout: URL (bottom-left), mini bar (bottom-right)
+            self._draw_url(draw, height)
+            self._draw_mini_bar(draw, width, height)
 
         # Alpha-composite: blend overlay layer onto the source image
         result = Image.alpha_composite(img, overlay)
@@ -120,10 +126,17 @@ class BrandOverlay:
         return buf.getvalue()
 
     def _draw_badge(self, draw: ImageDraw.ImageDraw, color_rgb: Tuple[int, int, int]) -> None:
-        """Draw agent badge with DQ score at top-left."""
+        """Draw agent badge with DQ score at top-left.
+
+        For articles: shows "● ARTIGO" without DQ score.
+        For briefings: shows "● AGENT  DQ X/5".
+        """
         font = _get_font(14)
-        badge_text = self._config.agent.upper()
-        if self._config.dq_score is not None:
+        if self._config.is_article:
+            badge_text = f"\u25cf {self._config.agent.upper()}"
+        else:
+            badge_text = self._config.agent.upper()
+        if not self._config.is_article and self._config.dq_score is not None:
             badge_text += f"  DQ {self._config.dq_score:.0f}/5"
 
         bbox = font.getbbox(badge_text)
@@ -183,6 +196,38 @@ class BrandOverlay:
             fill=(255, 255, 255, 200),
             font=font,
         )
+
+    def _draw_author_badge(self, draw: ImageDraw.ImageDraw, height: int) -> None:
+        """Draw author name badge at bottom-left (articles only)."""
+        font = _get_font(12)
+        author_text = self._config.author
+        bbox = font.getbbox(author_text)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+
+        x = BADGE_MARGIN
+        y = height - BADGE_MARGIN - text_h - BADGE_PADDING_Y * 2
+        bg_rect = [
+            (x, y),
+            (x + text_w + BADGE_PADDING_X * 2, y + text_h + BADGE_PADDING_Y * 2),
+        ]
+        draw.rectangle(bg_rect, fill=(0, 0, 0, 160))
+        draw.text(
+            (x + BADGE_PADDING_X, y + BADGE_PADDING_Y),
+            author_text,
+            fill=(255, 255, 255, 220),
+            font=font,
+        )
+
+    def _draw_full_width_bar(self, draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
+        """Draw full-width 5-color bar at bottom (articles only)."""
+        bar_y = height - MINI_BAR_HEIGHT
+        segment_w = width / len(MINI_BAR_COLORS)
+        for i, color_hex in enumerate(MINI_BAR_COLORS):
+            rgb = _hex_to_rgb(color_hex)
+            x0 = int(i * segment_w)
+            x1 = int((i + 1) * segment_w)
+            draw.rectangle([(x0, bar_y), (x1, height)], fill=(*rgb, 255))
 
     def _draw_mini_bar(self, draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
         """Draw mini 5-color bar at bottom-right."""

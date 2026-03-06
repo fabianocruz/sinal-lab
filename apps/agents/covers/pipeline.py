@@ -20,9 +20,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from apps.agents.covers.config import AGENT_COLORS, DEFAULT_AGENT_COLOR
+from apps.agents.covers.config import AGENT_COLORS, ARTICLE_BADGE_TEXT, ARTICLE_COLOR, DEFAULT_AGENT_COLOR
 from apps.agents.covers.overlay import BrandOverlay, OverlayConfig
-from apps.agents.covers.prompt_generator import CoverBriefing, CoverPromptGenerator
+from apps.agents.covers.prompt_generator import ArticleBriefing, CoverBriefing, CoverPromptGenerator
 from apps.agents.covers.recraft import RecraftClient
 from apps.agents.covers.uploader import BlobUploader
 
@@ -107,6 +107,66 @@ class CoverPipeline:
 
             # Upload to Vercel Blob
             filename = f"covers/{briefing.agent}/ed{briefing.edition}-v{img.variation}.png"
+            uploaded = self._uploader.upload(composited, filename)
+            if not uploaded:
+                result.errors.append(f"Upload failed for variation {img.variation}")
+                continue
+
+            result.images.append({
+                "url": uploaded.url,
+                "variation": img.variation,
+                "pathname": uploaded.pathname,
+            })
+
+        return result
+
+    def run_article(self, briefing: ArticleBriefing, variations: int = 3) -> CoverResult:
+        """Execute cover generation pipeline for an article.
+
+        Args:
+            briefing: Article briefing (title, thesis, type, mood, author).
+            variations: Number of image variations to generate (1-3).
+
+        Returns:
+            CoverResult with list of uploaded image URLs and any errors.
+        """
+        result = CoverResult(agent="artigo")
+
+        # Stage 1: Generate image prompt
+        prompt = self._prompt_gen.generate_article_prompt(briefing)
+        if not prompt:
+            result.errors.append("Article prompt generation failed")
+            return result
+        result.prompt_used = prompt
+
+        # Stage 2: Generate images
+        images = self._image_gen.generate(prompt, variations=variations)
+        if not images:
+            result.errors.append("All image generations failed")
+            return result
+
+        if len(images) < variations:
+            result.errors.append(
+                f"Partial image generation: {len(images)}/{variations} succeeded"
+            )
+
+        # Stage 3 + 4: Overlay and upload each image
+        overlay = BrandOverlay(OverlayConfig(
+            agent=ARTICLE_BADGE_TEXT,
+            agent_color=ARTICLE_COLOR,
+            is_article=True,
+            author=briefing.author,
+        ))
+
+        slug = briefing.title.lower().replace(" ", "-")[:50]
+        for img in images:
+            try:
+                composited = overlay.apply(img.image_bytes)
+            except Exception as e:
+                result.errors.append(f"Overlay failed for variation {img.variation}: {e}")
+                continue
+
+            filename = f"covers/artigos/{slug}-v{img.variation}.png"
             uploaded = self._uploader.upload(composited, filename)
             if not uploaded:
                 result.errors.append(f"Upload failed for variation {img.variation}")
