@@ -1,0 +1,254 @@
+"""Generate cover images for published articles and update the database.
+
+Usage:
+    python3 scripts/generate_article_covers.py                        # all without covers
+    python3 scripts/generate_article_covers.py --limit 10             # only 10
+    python3 scripts/generate_article_covers.py --dry-run              # preview without generating
+    python3 scripts/generate_article_covers.py --database-url "..."   # custom DB (e.g. production)
+"""
+
+import argparse
+import json
+import logging
+import os
+import sys
+import time
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_PROJECT_ROOT))
+
+from dotenv import load_dotenv  # noqa: E402
+
+load_dotenv(_PROJECT_ROOT / ".env")
+
+import psycopg2  # noqa: E402
+
+from apps.agents.covers.pipeline import CoverPipeline  # noqa: E402
+from apps.agents.covers.prompt_generator import ArticleBriefing  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+# Map article subtitles/content to article_type for art direction
+ARTICLE_TYPE_HINTS = {
+    "diário de construção": "diary",
+    "semana": "diary",
+    "deploy": "diary",
+    "PRs": "diary",
+    "commits": "diary",
+    "construí": "diary",
+    "tutorial": "tutorial",
+    "como fazer": "tutorial",
+    "passo a passo": "tutorial",
+}
+
+
+def guess_article_type(title: str, subtitle: str, body: str) -> str:
+    """Guess article_type from content hints. Default: essay."""
+    text = f"{title} {subtitle} {body[:500]}".lower()
+    for hint, atype in ARTICLE_TYPE_HINTS.items():
+        if hint.lower() in text:
+            return atype
+    return "essay"
+
+
+def extract_author(body_md: str) -> str:
+    """Extract author from markdown frontmatter or body patterns."""
+    if not body_md:
+        return ""
+    for line in body_md.split("\n"):
+        stripped = line.strip()
+        if stripped.lower().startswith("author:"):
+            return stripped.split(":", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+
+def get_articles_without_covers(conn, limit: int = 50, force: bool = False):
+    """Fetch published articles that don't have a hero_image yet.
+
+    Args:
+        conn: psycopg2 connection.
+        limit: Max articles to return.
+        force: If True, return all articles regardless of hero_image status.
+    """
+    cur = conn.cursor()
+    if force:
+        cur.execute(
+            """
+            SELECT id, title, subtitle, slug, agent_name, metadata::text,
+                   published_at, body_md
+            FROM content_pieces
+            WHERE review_status = 'published'
+              AND UPPER(content_type) = 'ARTICLE'
+            ORDER BY published_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+    else:
+        cur.execute(
+            """
+            SELECT id, title, subtitle, slug, agent_name, metadata::text,
+                   published_at, body_md
+            FROM content_pieces
+            WHERE review_status = 'published'
+              AND UPPER(content_type) = 'ARTICLE'
+              AND (
+                metadata IS NULL
+                OR metadata->>'hero_image' IS NULL
+              )
+            ORDER BY published_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+    rows = cur.fetchall()
+    cur.close()
+
+    articles = []
+    for row in rows:
+        meta = json.loads(row[5]) if row[5] else {}
+        subtitle = row[2] or ""
+        body = row[7] or ""
+
+        # Build thesis from subtitle or first paragraph
+        thesis = subtitle
+        if not thesis:
+            for line in body.split("\n"):
+                stripped = line.strip()
+                if (
+                    stripped
+                    and not stripped.startswith("#")
+                    and not stripped.startswith("---")
+                    and not stripped.startswith("*")
+                    and not stripped.startswith(">")
+                    and len(stripped) > 30
+                ):
+                    thesis = stripped[:200]
+                    break
+        if not thesis:
+            thesis = row[1]  # fallback to title
+
+        author = meta.get("author", "") or extract_author(body)
+        article_type = guess_article_type(row[1], subtitle, body)
+
+        articles.append({
+            "id": row[0],
+            "title": row[1],
+            "thesis": thesis,
+            "slug": row[3],
+            "author": author,
+            "article_type": article_type,
+            "metadata": meta,
+        })
+    return articles
+
+
+def update_hero_image(conn, content_id: str, image_url: str):
+    """Update metadata.hero_image for an article."""
+    cur = conn.cursor()
+    cur.execute("SELECT metadata::text FROM content_pieces WHERE id = %s", (content_id,))
+    row = cur.fetchone()
+    meta = json.loads(row[0]) if row and row[0] else {}
+
+    meta["hero_image"] = {
+        "url": image_url,
+        "alt": "Cover image for ARTIGO",
+        "caption": "Generated by Sinal AI",
+        "credit": "Sinal / Recraft V3",
+    }
+
+    cur.execute(
+        "UPDATE content_pieces SET metadata = %s::jsonb WHERE id = %s",
+        (json.dumps(meta), content_id),
+    )
+    conn.commit()
+    cur.close()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate covers for articles")
+    parser.add_argument("--limit", type=int, default=50, help="Max articles to process")
+    parser.add_argument("--dry-run", action="store_true", help="Preview without generating")
+    parser.add_argument("--verbose", action="store_true", help="Verbose logging")
+    parser.add_argument("--database-url", type=str, default=None, help="Custom database URL")
+    parser.add_argument("--force", action="store_true", help="Regenerate covers even if hero_image exists")
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+
+    db_url = args.database_url or os.environ.get("DATABASE_URL")
+    if not db_url:
+        print("ERROR: DATABASE_URL not set", file=sys.stderr)
+        sys.exit(1)
+
+    conn = psycopg2.connect(db_url)
+    articles = get_articles_without_covers(conn, limit=args.limit, force=args.force)
+
+    if not articles:
+        print("\nAll articles already have cover images!")
+        conn.close()
+        return
+
+    est_time = len(articles) * 15  # ~15s per cover
+    est_cost = len(articles) * 0.04  # ~$0.04 per Recraft image
+    print(f"\nFound {len(articles)} articles without covers.")
+    print(f"Estimated: ~{est_time // 60}min {est_time % 60}s, ~US${est_cost:.2f} in Recraft API\n")
+
+    for art in articles:
+        print(f"  [{art['article_type']:8s}] {art['title'][:65]}")
+        print(f"           thesis: {art['thesis'][:80]}")
+        if art["author"]:
+            print(f"           author: {art['author']}")
+        print()
+
+    if args.dry_run:
+        print("DRY RUN — no images generated.")
+        conn.close()
+        return
+
+    pipeline = CoverPipeline()
+    results = []
+    failures = []
+    start_time = time.time()
+
+    for i, art in enumerate(articles, 1):
+        print(f"\n[{i}/{len(articles)}] {art['title'][:70]}")
+
+        briefing = ArticleBriefing(
+            title=art["title"],
+            thesis=art["thesis"],
+            article_type=art["article_type"],
+            author=art["author"],
+        )
+
+        result = pipeline.run_article(briefing, variations=1)
+
+        if result.errors:
+            for err in result.errors:
+                print(f"  WARNING: {err}")
+
+        if result.images:
+            url = result.images[0]["url"]
+            update_hero_image(conn, art["id"], url)
+            print(f"  OK: {url}")
+            results.append({"slug": art["slug"], "url": url})
+        else:
+            print(f"  FAILED")
+            failures.append(art["slug"])
+
+    conn.close()
+    elapsed = time.time() - start_time
+
+    print(f"\n{'='*60}")
+    print(f"DONE — {len(results)}/{len(articles)} article covers generated in {elapsed:.0f}s")
+    if failures:
+        print(f"FAILED ({len(failures)}): {', '.join(failures)}")
+    print()
+
+
+if __name__ == "__main__":
+    main()
