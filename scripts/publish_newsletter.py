@@ -202,8 +202,16 @@ def publish_newsletter(
 
     edition_url = f"https://sinal.tech/newsletter/sinal-semanal-{edition}"
 
-    # Convert to email-safe HTML (SINTESE hero + agent cards)
-    subject = f"Sinal Semanal #{edition}"
+    # Build subject: email_subject (short, LLM-generated) > title > generic
+    sintese_fm = outputs.get("sintese", {}).get("frontmatter", {})
+    email_subj = sintese_fm.get("email_subject", "")
+    if email_subj:
+        subject = f"Sinal Semanal #{edition}: {email_subj}"
+    elif sintese_fm.get("title", ""):
+        subject = f"Sinal Semanal #{edition}: {sintese_fm['title']}"
+    else:
+        subject = f"Sinal Semanal #{edition}"
+
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
     )
@@ -301,8 +309,17 @@ def publish_briefing_email(
 
     edition_url = f"https://sinal.tech/newsletter/sinal-semanal-{edition}"
 
+    # Build subject: email_subject (short, LLM-generated) > title > generic
+    sintese_fm = outputs["sintese"].get("frontmatter", {})
+    email_subj = sintese_fm.get("email_subject", "")
+    if email_subj:
+        subject = f"Sinal Semanal #{edition}: {email_subj}"
+    elif sintese_fm.get("title", ""):
+        subject = f"Sinal Semanal #{edition}: {sintese_fm['title']}"
+    else:
+        subject = f"Sinal Semanal #{edition}"
+
     # Convert to email-safe HTML (same template as broadcast)
-    subject = f"Sinal Semanal #{edition}"
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
     )

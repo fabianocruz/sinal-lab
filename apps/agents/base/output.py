@@ -26,6 +26,7 @@ class AgentOutput:
     content_type: str = "DATA_REPORT"
     agent_category: str = "content"
     summary: Optional[str] = None
+    email_subject: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_markdown(self) -> str:
@@ -52,6 +53,9 @@ class AgentOutput:
         if self.summary:
             frontmatter_lines.append(f"summary: \"{self.summary}\"")
 
+        if self.email_subject:
+            frontmatter_lines.append(f"email_subject: \"{self.email_subject}\"")
+
         frontmatter_lines.append("---")
         frontmatter = "\n".join(frontmatter_lines)
 
@@ -70,6 +74,7 @@ class AgentOutput:
             "confidence": self.confidence.to_dict(),
             "sources": self.sources,
             "summary": self.summary,
+            "email_subject": self.email_subject,
             "metadata": self.metadata,
         }
 

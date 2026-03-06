@@ -21,8 +21,11 @@ _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 def _strip_html(text: str, max_length: int = 200) -> str:
     """Remove HTML tags from text and truncate to max_length."""
-    clean = _HTML_TAG_RE.sub("", text).strip()
-    clean = re.sub(r"\s+", " ", clean)
+    # Remove complete HTML tags.
+    clean = _HTML_TAG_RE.sub("", text)
+    # Remove any remaining incomplete/truncated tags (< without >).
+    clean = re.sub(r"<[^>]*", "", clean)
+    clean = re.sub(r"\s+", " ", clean).strip()
     if len(clean) > max_length:
         clean = clean[:max_length].rsplit(" ", 1)[0] + "..."
     return clean
@@ -360,6 +363,51 @@ def _extract_sintese_paragraphs(body_md: str) -> List[str]:
     return paragraphs
 
 
+def _extract_hero_image_url(metadata: dict) -> Optional[str]:
+    """Extract the hero_image URL from agent metadata, if present.
+
+    Args:
+        metadata: The ContentPiece.metadata_ dict.
+
+    Returns:
+        URL string, or None if no hero_image is set.
+    """
+    hero = metadata.get("hero_image")
+    if hero and isinstance(hero, dict):
+        return hero.get("url")
+    return None
+
+
+def _extract_sintese_articles(metadata: dict) -> List[Dict[str, str]]:
+    """Extract top articles from SINTESE metadata items.
+
+    Each article has title, url, summary, and source_name -- the building
+    blocks for rendering article cards in the email.
+
+    Args:
+        metadata: The ContentPiece.metadata_ dict for a sintese agent.
+
+    Returns:
+        List of article dicts (max 5).
+    """
+    items = metadata.get("items", [])
+    articles = []  # type: List[Dict[str, str]]
+
+    for item in items[:5]:
+        title = item.get("title", "")
+        url = item.get("url", "")
+        if not title:
+            continue
+        articles.append({
+            "title": title,
+            "url": url,
+            "summary": _strip_html(item.get("summary", ""), max_length=160),
+            "source_name": item.get("source_name", ""),
+        })
+
+    return articles
+
+
 def _extract_sintese_sources(metadata: dict) -> List[Dict[str, str]]:
     """Extract source attribution list from sintese agent metadata.
 
@@ -430,13 +478,17 @@ def compose_briefing_data(
 
     paragraphs = _extract_sintese_paragraphs(sintese.body_md)
 
+    # Use the summary field for the opening body (avoids repeating the
+    # full first paragraph in both the opening and SINTESE sections).
+    opening_body = sintese.summary or (paragraphs[0] if paragraphs else "")
+
     data = {
         "edition_number": edition,
         "week_number": week,
         "date_range": date_range or _compute_date_range(week),
         "preview_text": sintese.summary or sintese.title[:100],
         "opening_headline": sintese.title,
-        "opening_body": paragraphs[0] if paragraphs else "",
+        "opening_body": opening_body,
         # SINTESE
         "sintese_title": sintese.title,
         "sintese_paragraphs": paragraphs,
@@ -456,6 +508,15 @@ def compose_briefing_data(
         if source_urls:
             data["sintese_source_urls"] = source_urls
 
+        # Articles for the SINTESE section (replaces body paragraphs).
+        articles = _extract_sintese_articles(sintese.metadata_)
+        if articles:
+            data["sintese_articles"] = articles
+
+        hero_url = _extract_hero_image_url(sintese.metadata_)
+        if hero_url:
+            data["sintese_image_url"] = hero_url
+
     # -----------------------------------------------------------------
     # RADAR
     # -----------------------------------------------------------------
@@ -468,6 +529,9 @@ def compose_briefing_data(
         )
         data["radar_dq"] = "{0:.1f}/5".format(radar.confidence_dq or 0)
         data["radar_sources"] = len(radar.sources or [])
+        hero_url = _extract_hero_image_url(radar_meta)
+        if hero_url:
+            data["radar_image_url"] = hero_url
     else:
         data["radar_title"] = "Tendencias da semana"
         data["radar_trends"] = []
@@ -485,6 +549,9 @@ def compose_briefing_data(
         )
         data["codigo_url"] = "{0}/codigo/{1}".format(_BASE_URL, codigo.slug)
         if codigo.metadata_:
+            hero_url = _extract_hero_image_url(codigo.metadata_)
+            if hero_url:
+                data["codigo_image_url"] = hero_url
             items = codigo.metadata_.get("items", [])
             if items:
                 top = items[0]

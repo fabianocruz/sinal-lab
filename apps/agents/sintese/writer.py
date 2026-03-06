@@ -146,6 +146,56 @@ class SinteseWriter:
 
         return result.strip().strip('"').strip("'")
 
+    def write_email_subject(
+        self,
+        sections: list[NewsletterSection],
+        edition_number: int,
+    ) -> Optional[str]:
+        """Generate a short email subject line for the newsletter.
+
+        Optimized for email open rates: curiosity-driven, under 60 chars,
+        no edition number (that's prepended by the publisher).
+
+        Args:
+            sections: Grouped newsletter sections with items.
+            edition_number: Edition number (for context, not included in output).
+
+        Returns:
+            Subject fragment (e.g. "onde o dinheiro está indo em 2026"),
+            or None if generation fails.
+        """
+        if not sections or not self.is_available:
+            return None
+
+        sections_summary = self._build_sections_summary(sections)
+
+        user_prompt = (
+            f"Crie um subject de email (maximo 8 palavras) para a edicao "
+            f"#{edition_number} do Sinal Semanal.\n\n"
+            f"Conteudo:\n\n{sections_summary}\n\n"
+            f"Direcoes:\n"
+            f"- O subject sera prefixado com 'Sinal Semanal #{edition_number}: '\n"
+            f"- Gere APENAS o complemento (ex: 'onde o dinheiro esta indo em 2026')\n"
+            f"- Desperte curiosidade — o leitor precisa querer abrir\n"
+            f"- Seja especifico (cite dado, empresa ou tendencia)\n"
+            f"- Tom direto, sem hype, sem clickbait\n"
+            f"- Minusculas, sem ponto final\n"
+            f"- Escreva em portugues brasileiro\n"
+            f"- Retorne APENAS o texto, sem aspas, sem formatacao extra"
+        )
+
+        result = self._client.generate(
+            user_prompt=user_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=32,
+        )
+
+        if not result or not result.strip():
+            logger.warning("LLM returned empty email subject for edition #%d", edition_number)
+            return None
+
+        return result.strip().strip('"').strip("'").rstrip(".")
+
     def write_newsletter_intro(
         self,
         sections: list[NewsletterSection],

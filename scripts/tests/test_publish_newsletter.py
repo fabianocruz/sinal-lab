@@ -23,10 +23,11 @@ from scripts.publish_newsletter import (
 
 SAMPLE_SINTESE_MD = """\
 ---
-title: "Sinal Semanal #8"
+title: "AI redefine infraestrutura enquanto funding bate recorde"
 agent: sintese
 confidence_grade: A
 summary: "Edicao #8 — 566 itens analisados."
+email_subject: "onde o dinheiro esta indo em 2026"
 ---
 
 # Sinal Semanal #8
@@ -152,7 +153,7 @@ class TestLoadAgentOutput:
         assert result is not None
         assert "frontmatter" in result
         assert "body" in result
-        assert result["frontmatter"]["title"] == "Sinal Semanal #8"
+        assert result["frontmatter"]["title"] == "AI redefine infraestrutura enquanto funding bate recorde"
         assert "Lead editorial paragraph" in result["body"]
 
     def test_returns_none_for_missing_file(self, tmp_path: Path):
@@ -361,6 +362,61 @@ class TestPublishNewsletter:
 
         mock_broadcast.assert_called_once()
         call_args = mock_broadcast.call_args
+        assert call_args[0][1] == "Sinal Semanal #8: onde o dinheiro esta indo em 2026"
+
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_subject_falls_back_to_title_without_email_subject(
+        self, mock_broadcast, tmp_path: Path
+    ):
+        """When email_subject is absent, subject uses title from frontmatter."""
+        md_no_email_subject = """\
+---
+title: "AI redefine a semana"
+agent: sintese
+confidence_grade: A
+---
+
+# Sinal Semanal #8
+
+Lead editorial paragraph.
+"""
+        output_dir = tmp_path / "apps" / "agents" / "sintese" / "output"
+        output_dir.mkdir(parents=True)
+        (output_dir / "sinal-semanal-8.md").write_text(
+            md_no_email_subject, encoding="utf-8"
+        )
+        mock_broadcast.return_value = True
+
+        publish_newsletter(edition=8, week=8, project_root=tmp_path)
+
+        call_args = mock_broadcast.call_args
+        assert call_args[0][1] == "Sinal Semanal #8: AI redefine a semana"
+
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_subject_generic_without_title_or_email_subject(
+        self, mock_broadcast, tmp_path: Path
+    ):
+        """When neither email_subject nor title exist, subject is generic."""
+        md_no_title = """\
+---
+agent: sintese
+confidence_grade: A
+---
+
+# Sinal Semanal #8
+
+Lead editorial paragraph.
+"""
+        output_dir = tmp_path / "apps" / "agents" / "sintese" / "output"
+        output_dir.mkdir(parents=True)
+        (output_dir / "sinal-semanal-8.md").write_text(
+            md_no_title, encoding="utf-8"
+        )
+        mock_broadcast.return_value = True
+
+        publish_newsletter(edition=8, week=8, project_root=tmp_path)
+
+        call_args = mock_broadcast.call_args
         assert call_args[0][1] == "Sinal Semanal #8"
 
     @patch("scripts.publish_newsletter.send_broadcast")
@@ -431,7 +487,7 @@ class TestPublishBriefingEmail:
 
         mock_send.assert_called_once()
         call_args = mock_send.call_args
-        assert call_args[0][1] == "Sinal Semanal #8"  # subject
+        assert call_args[0][1] == "Sinal Semanal #8: onde o dinheiro esta indo em 2026"  # subject
         assert call_args[0][2] == "test@example.com"   # to_email
 
     @patch("apps.agents.sintese.newsletter.send_via_resend")
