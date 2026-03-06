@@ -141,6 +141,10 @@ class CoverPromptGenerator:
             f"{mood_line}"
             f"Accent color: {ARTICLE_COLOR}\n\n"
             f"{art_direction}\n"
+            f"CRITICAL: The image MUST be visually unique to THIS article's specific topic. "
+            f"Use a METAPHOR from the physical world that captures the thesis. "
+            f"NEVER use generic 'developer at monitors' or 'code on screens' imagery. "
+            f"Each article cover should look completely different from the others.\n\n"
             f"Remember: dark background, accent color ({ARTICLE_COLOR}) as dominant. "
             f"Editorial magazine cover aesthetic. No text in image."
         )

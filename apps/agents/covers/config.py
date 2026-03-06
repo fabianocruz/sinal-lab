@@ -115,24 +115,31 @@ ARTICLE_BADGE_TEXT = "ARTIGO"
 ARTICLE_ART_DIRECTION: Dict[str, str] = {
     "diary": (
         "ARTICLE TYPE: Construction diary (weekly series).\n"
-        "Visual vocabulary: code on screens, deploy pipelines with stages lit up, "
-        "CI/CD dashboards, git commit history as visual timeline, architecture diagrams "
-        "on whiteboards, pull request diffs with syntax highlighting, terminal outputs, "
-        "developer workstations at night. Each week should feel slightly more 'built' "
-        "than the last — progression from empty repo to running system.\n"
-        "Dominant color: green (#59FFB4).\n"
+        "CRITICAL: The image MUST depict the SPECIFIC TOPIC described in the title "
+        "and thesis, NOT a generic developer workstation. Each diary entry covers a "
+        "different subject. Choose the visual that best represents THAT subject:\n"
+        "- If about deploy/CI/CD: rocket launch pad, conveyor belt delivering packages\n"
+        "- If about data pipelines: water treatment plant, industrial pipes, flowing data streams\n"
+        "- If about AI agents: robotic arms, autonomous machines, factory floor with robots\n"
+        "- If about email/communication: post office sorting room, mail tubes, signal towers\n"
+        "- If about security/LGPD: vault doors, shield walls, fortified architecture\n"
+        "- If about APIs: bridges connecting buildings, highway interchanges, train stations\n"
+        "- If about frontend: glass facades, window displays, architectural blueprints\n"
+        "- If about pricing/marketplace: bazaar stalls, trading floor, market square\n"
+        "Use METAPHORICAL OBJECTS from the physical world, not literal screens/monitors. "
+        "Cinematic, dramatic lighting. Dominant color: green (#59FFB4).\n"
     ),
     "essay": (
         "ARTICLE TYPE: Opinion essay (standalone).\n"
         "Visual vocabulary: conceptual, metaphorical, provocative. One strong unexpected "
-        "visual idea that captures the thesis. More artistic than briefing covers — "
-        "focus on the argument, not the sector. Think editorial photography meets "
-        "conceptual art.\n"
+        "visual idea that captures the thesis. More artistic than briefing covers. "
+        "Focus on the argument, not the sector. Think editorial photography meets "
+        "conceptual art. Use METAPHORICAL imagery, not literal tech objects.\n"
     ),
     "tutorial": (
         "ARTICLE TYPE: Tutorial / How-to.\n"
-        "Visual vocabulary: show the result — the tool working, the agent in action, "
-        "the dashboard populated. Tangible, everyday with a tech twist. Relatable "
-        "developer experience. Workstation, hands on keyboard, screens showing output.\n"
+        "Visual vocabulary: show the RESULT of the tutorial, not a person coding. "
+        "The tool working, the system running, the output visible. Tangible, everyday "
+        "with a tech twist. Prefer physical-world metaphors over screens and monitors.\n"
     ),
 }

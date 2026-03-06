@@ -78,9 +78,16 @@ def test_article_art_direction_has_three_types():
     assert set(ARTICLE_ART_DIRECTION.keys()) == {"diary", "essay", "tutorial"}
 
 
-def test_article_art_direction_diary_mentions_code():
+def test_article_art_direction_diary_mentions_deploy():
     diary = ARTICLE_ART_DIRECTION["diary"]
-    assert "code" in diary.lower() or "deploy" in diary.lower()
+    assert "deploy" in diary.lower()
+
+
+def test_article_art_direction_diary_uses_metaphors():
+    """Diary art direction should encourage physical-world metaphors, not literal screens."""
+    diary = ARTICLE_ART_DIRECTION["diary"]
+    assert "metaphor" in diary.lower()
+    assert "not literal" in diary.lower() or "not screens" in diary.lower() or "not literal screens" in diary.lower()
 
 
 def test_article_art_direction_essay_is_conceptual():

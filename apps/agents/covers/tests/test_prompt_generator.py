@@ -207,6 +207,17 @@ def test_article_prompt_omits_mood_when_empty(mock_client):
     assert "Mood/tone:" not in call_args.kwargs["user_prompt"]
 
 
+def test_article_prompt_includes_diversity_directive(mock_client, article_briefing):
+    """Prompt must instruct LLM to avoid generic monitor imagery."""
+    mock_client.generate.return_value = "A prompt."
+    gen = CoverPromptGenerator(client=mock_client)
+    gen.generate_article_prompt(article_briefing)
+    call_args = mock_client.generate.call_args
+    prompt = call_args.kwargs["user_prompt"].lower()
+    assert "metaphor" in prompt
+    assert "never" in prompt and "monitor" in prompt
+
+
 def test_article_output_truncated_to_150_words(mock_client, article_briefing):
     long_text = " ".join(["word"] * 200)
     mock_client.generate.return_value = long_text
