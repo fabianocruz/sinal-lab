@@ -359,9 +359,9 @@ class TestNegativeKeywords:
         )
         assert score_topic_relevance(item) == 0.0
 
-    def test_min_topic_score_is_030(self):
-        """MIN_TOPIC_SCORE should be 0.30 to require meaningful keyword matches."""
-        assert MIN_TOPIC_SCORE == 0.30
+    def test_min_topic_score_is_040(self):
+        """MIN_TOPIC_SCORE should be 0.40 to filter low-relevance content."""
+        assert MIN_TOPIC_SCORE == 0.40
 
     def test_single_editorial_keyword_scores_035(self):
         """A single editorial keyword match (not in TOPIC_KEYWORDS) gives 0.35."""
@@ -377,6 +377,47 @@ class TestNegativeKeywords:
         item = make_item(title="Portabilidade bancaria via dock plataforma")
         score = score_topic_relevance(item)
         assert score >= 0.5
+
+    def test_corporate_revenue_tripled_blocked(self):
+        """'triplica receita' corporate press release phrase should score 0.0."""
+        item = make_item(title="Incognia triplica sua receita anual em 2025")
+        assert score_topic_relevance(item) == 0.0
+
+    def test_corporate_revenue_doubled_blocked(self):
+        """'dobra receita' corporate press release phrase should score 0.0.
+
+        Uses a title without strong topic keywords (max_score < 0.9) so the
+        negative keyword gate is not bypassed.
+        """
+        item = make_item(title="Empresa dobra receita anual no terceiro trimestre")
+        assert score_topic_relevance(item) == 0.0
+
+    def test_corporate_quarterly_results_blocked(self):
+        """'resultado financeiro' corporate announcement should score 0.0."""
+        item = make_item(title="Empresa divulga resultado financeiro do trimestre")
+        assert score_topic_relevance(item) == 0.0
+
+    def test_annual_revenue_standalone_blocked(self):
+        """'receita anual' as isolated phrase should score 0.0."""
+        item = make_item(title="Fintech apresenta receita anual de R$ 500 milhoes")
+        assert score_topic_relevance(item) == 0.0
+
+    def test_quarterly_balance_pt_blocked(self):
+        """'balanço trimestral' (with cedilla) should score 0.0."""
+        item = make_item(title="Empresa divulga balanço trimestral positivo")
+        assert score_topic_relevance(item) == 0.0
+
+    def test_press_release_hard_blocked_even_with_strong_topic(self):
+        """Press release keywords (triplica receita) are hard-blocked regardless of topic.
+
+        Even with strong topic matches (startup 0.9 + machine learning 0.9),
+        press release indicators block the article because the *format* is wrong.
+        """
+        item = make_item(
+            title="Startup de machine learning triplica receita com produto B2B",
+        )
+        score = score_topic_relevance(item)
+        assert score == 0.0
 
 
 class TestSourceCalibration:

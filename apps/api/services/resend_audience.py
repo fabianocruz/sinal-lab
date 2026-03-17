@@ -77,10 +77,33 @@ def add_contact_to_audience(
         return False
 
 
-def remove_contact_from_audience(email: str) -> bool:
-    """Remove a contact from the Resend Audience.
+def _find_contact_id(email: str) -> Optional[str]:
+    """Look up a Resend contact ID by email address.
 
-    Returns True on success, False on failure or missing config.
+    Resend's DELETE endpoint requires the contact ID, not the email.
+    This lists all contacts and finds the matching one.
+    """
+    url = _get_contacts_url()
+    if not url:
+        return None
+
+    try:
+        response = httpx.get(url, headers=_auth_headers(), timeout=15.0)
+        response.raise_for_status()
+        contacts = response.json().get("data", [])
+        for contact in contacts:
+            if contact.get("email", "").lower() == email.lower():
+                return contact["id"]
+    except Exception:
+        logger.debug("Failed to look up contact ID for %s", email, exc_info=True)
+    return None
+
+
+def remove_contact_from_audience(email: str) -> bool:
+    """Remove a contact from the Resend Audience by email.
+
+    Looks up the contact ID first (Resend DELETE requires ID, not email),
+    then deletes. Returns True on success, False on failure or missing config.
     """
     url = _get_contacts_url()
     if not url:
@@ -90,10 +113,14 @@ def remove_contact_from_audience(email: str) -> bool:
         )
         return False
 
+    contact_id = _find_contact_id(email)
+    if not contact_id:
+        logger.warning("Contact not found in Resend audience: %s", email)
+        return False
+
     try:
-        # Resend DELETE contact by email
         response = httpx.delete(
-            f"{url}/{email}",
+            f"{url}/{contact_id}",
             headers=_auth_headers(),
             timeout=10.0,
         )

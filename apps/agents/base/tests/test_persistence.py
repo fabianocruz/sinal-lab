@@ -354,6 +354,51 @@ class TestPersistContentPiece:
 
         assert piece.summary == "Custom summary text."
 
+    def test_email_subject_merged_into_metadata_on_create(self, session: Session) -> None:
+        """When AgentOutput has email_subject, it must appear in ContentPiece metadata_."""
+        result = _make_result()
+        result.email_subject = "Sinal Semanal #49: o que os CTOs estao construindo"
+
+        piece = persist_content_piece(session, result, slug="email-subject-create")
+        session.flush()
+
+        assert piece.metadata_ is not None
+        assert piece.metadata_["email_subject"] == "Sinal Semanal #49: o que os CTOs estao construindo"
+
+    def test_no_email_subject_leaves_metadata_unchanged(self, session: Session) -> None:
+        """When AgentOutput has no email_subject, metadata_ keeps its original keys only."""
+        result = _make_result()
+        result.email_subject = None
+        result.metadata = {"edition": 49, "lang": "pt-BR"}
+
+        piece = persist_content_piece(session, result, slug="email-subject-none")
+        session.flush()
+
+        assert piece.metadata_ == {"edition": 49, "lang": "pt-BR"}
+        assert "email_subject" not in piece.metadata_
+
+    def test_email_subject_merged_into_metadata_on_update(self, session: Session) -> None:
+        """On upsert, email_subject is merged into the existing record's metadata_."""
+        # Create initial record without email_subject
+        result1 = _make_result(title="First Version")
+        result1.email_subject = None
+        result1.metadata = {"edition": 49}
+        persist_content_piece(session, result1, slug="email-subject-update")
+        session.flush()
+
+        # Update the same slug with an email_subject
+        result2 = _make_result(title="Second Version")
+        result2.email_subject = "Sinal Semanal #49: edicao atualizada"
+        result2.metadata = {"edition": 49}
+        piece = persist_content_piece(session, result2, slug="email-subject-update")
+        session.flush()
+
+        assert piece.metadata_ is not None
+        assert piece.metadata_["email_subject"] == "Sinal Semanal #49: edicao atualizada"
+        # Only one record for this slug
+        count = session.query(ContentPiece).filter_by(slug="email-subject-update").count()
+        assert count == 1
+
 
 # ---------------------------------------------------------------------------
 # TestPersistAgentOutput

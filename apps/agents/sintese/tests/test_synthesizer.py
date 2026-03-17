@@ -382,6 +382,131 @@ class TestSynthesizeNewsletterWithLLM:
         assert "# Sinal Semanal #1" in newsletter_with
 
 
+class TestFormatItemMarkdownImageDeduplication:
+    """Test seen_image_urls deduplication in format_item_markdown."""
+
+    def test_format_item_markdown_seen_image_urls_none_includes_image(self):
+        """When seen_image_urls is None (backward compat), image is always included."""
+        item = make_scored_item(
+            title="Article A",
+            url="https://example.com/a",
+            image_url="https://cdn.example.com/img.jpg",
+        )
+        result = format_item_markdown(item, index=1, seen_image_urls=None)
+
+        assert "![Article A](https://cdn.example.com/img.jpg)" in result
+
+    def test_format_item_markdown_first_occurrence_includes_image_and_records_url(self):
+        """First call with a fresh set: image is included and URL is added to the set."""
+        seen: set[str] = set()
+        item = make_scored_item(
+            title="Article B",
+            url="https://example.com/b",
+            image_url="https://cdn.example.com/first.jpg",
+        )
+        result = format_item_markdown(item, index=1, seen_image_urls=seen)
+
+        assert "![Article B](https://cdn.example.com/first.jpg)" in result
+        assert "https://cdn.example.com/first.jpg" in seen
+
+    def test_format_item_markdown_duplicate_url_skips_image(self):
+        """Second call with the same image URL omits the image block."""
+        seen: set[str] = {"https://cdn.example.com/shared.jpg"}
+        item = make_scored_item(
+            title="Article C",
+            url="https://example.com/c",
+            image_url="https://cdn.example.com/shared.jpg",
+        )
+        result = format_item_markdown(item, index=2, seen_image_urls=seen)
+
+        assert "![" not in result
+
+    def test_format_item_markdown_deduplication_across_two_calls(self):
+        """Image appears in first call, is skipped in second call with same URL."""
+        seen: set[str] = set()
+        image_url = "https://cdn.example.com/repeated.jpg"
+
+        item1 = make_scored_item(
+            title="Article D1",
+            url="https://example.com/d1",
+            image_url=image_url,
+        )
+        item2 = make_scored_item(
+            title="Article D2",
+            url="https://example.com/d2",
+            image_url=image_url,
+        )
+
+        result1 = format_item_markdown(item1, index=1, seen_image_urls=seen)
+        result2 = format_item_markdown(item2, index=2, seen_image_urls=seen)
+
+        assert "![Article D1]" in result1
+        assert "![Article D2]" not in result2
+
+    def test_format_item_markdown_different_urls_both_included(self):
+        """Two items with distinct image URLs are both rendered when using the same set."""
+        seen: set[str] = set()
+
+        item1 = make_scored_item(
+            title="Article E1",
+            url="https://example.com/e1",
+            image_url="https://cdn.example.com/e1.jpg",
+        )
+        item2 = make_scored_item(
+            title="Article E2",
+            url="https://example.com/e2",
+            image_url="https://cdn.example.com/e2.jpg",
+        )
+
+        result1 = format_item_markdown(item1, index=1, seen_image_urls=seen)
+        result2 = format_item_markdown(item2, index=2, seen_image_urls=seen)
+
+        assert "![Article E1](https://cdn.example.com/e1.jpg)" in result1
+        assert "![Article E2](https://cdn.example.com/e2.jpg)" in result2
+
+
+class TestSynthesizeNewsletterNoDuplicateImages:
+    """Test that synthesize_newsletter never repeats the same image URL."""
+
+    def test_synthesize_newsletter_no_duplicate_image_urls_in_output(self):
+        """Each image URL must appear at most once across the full newsletter Markdown."""
+        shared_image = "https://cdn.example.com/shared.jpg"
+
+        # Multiple items sharing the same cover image (common with aggregator feeds)
+        items = [
+            make_scored_item(
+                title=f"AI Article {i}",
+                url=f"https://example.com/ai-{i}",
+                source_name=f"source_{i}",
+                composite=0.9 - i * 0.05,
+                image_url=shared_image,
+            )
+            for i in range(6)
+        ]
+
+        newsletter, _ = synthesize_newsletter(items, edition_number=1)
+
+        assert newsletter.count(shared_image) <= 1
+
+    def test_synthesize_newsletter_unique_images_all_appear(self):
+        """Items with distinct image URLs each have their image rendered once."""
+        items = [
+            make_scored_item(
+                title=f"Article {i}",
+                url=f"https://example.com/{i}",
+                source_name=f"source_{i}",
+                composite=0.9 - i * 0.05,
+                image_url=f"https://cdn.example.com/img{i}.jpg",
+            )
+            for i in range(5)
+        ]
+
+        newsletter, _ = synthesize_newsletter(items, edition_number=1)
+
+        for i in range(5):
+            assert newsletter.count(f"https://cdn.example.com/img{i}.jpg") == 1
+
+
 class TestFormatItemMarkdown:
     """Test format_item_markdown inline image rendering."""
 

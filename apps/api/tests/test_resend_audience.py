@@ -129,15 +129,21 @@ class TestRemoveContact:
 
     @patch("apps.api.services.resend_audience.get_settings")
     @patch("apps.api.services.resend_audience.httpx.delete")
-    def test_removes_contact_successfully(self, mock_delete, mock_settings):
+    @patch("apps.api.services.resend_audience.httpx.get")
+    def test_removes_contact_successfully(self, mock_get, mock_delete, mock_settings):
         mock_settings.return_value = _mock_settings()
+        # Mock GET to return contact list with matching email
+        mock_get.return_value.raise_for_status = lambda: None
+        mock_get.return_value.json.return_value = {
+            "data": [{"id": "contact-123", "email": "test@example.com"}]
+        }
         mock_delete.return_value.raise_for_status = lambda: None
 
         result = remove_contact_from_audience("test@example.com")
 
         assert result is True
         url = mock_delete.call_args[0][0]
-        assert url.endswith("/test@example.com")
+        assert url.endswith("/contact-123")
 
     @patch("apps.api.services.resend_audience.get_settings")
     def test_returns_false_when_not_configured(self, mock_settings):
@@ -149,8 +155,13 @@ class TestRemoveContact:
 
     @patch("apps.api.services.resend_audience.get_settings")
     @patch("apps.api.services.resend_audience.httpx.delete")
-    def test_returns_false_on_http_error(self, mock_delete, mock_settings):
+    @patch("apps.api.services.resend_audience.httpx.get")
+    def test_returns_false_on_http_error(self, mock_get, mock_delete, mock_settings):
         mock_settings.return_value = _mock_settings()
+        mock_get.return_value.raise_for_status = lambda: None
+        mock_get.return_value.json.return_value = {
+            "data": [{"id": "contact-456", "email": "test@example.com"}]
+        }
         response = httpx.Response(status_code=404, request=httpx.Request("DELETE", "https://api.resend.com"))
         mock_delete.return_value.raise_for_status.side_effect = httpx.HTTPStatusError(
             "404", request=response.request, response=response

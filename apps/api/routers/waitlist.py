@@ -1,6 +1,5 @@
 """Waitlist router — founding member signup and count."""
 
-import re
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -9,12 +8,11 @@ from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
 from apps.api.schemas.common import WaitlistCountResponse, WaitlistResponse, WaitlistSignup
+from apps.api.services.email_validation import validate_email
 from apps.api.services.resend_audience import add_contact_to_audience
 from packages.database.models.user import User
 
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
-
-EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 @router.post("", response_model=WaitlistResponse)
@@ -26,8 +24,9 @@ def signup_waitlist(
     """Add an email to the founding member waitlist."""
     email = body.email.strip().lower()
 
-    if not EMAIL_REGEX.match(email):
-        raise HTTPException(status_code=400, detail="Email inválido.")
+    email_error = validate_email(email)
+    if email_error:
+        raise HTTPException(status_code=400, detail=email_error)
 
     # Check if already signed up
     existing = db.query(User).filter(User.email == email).first()

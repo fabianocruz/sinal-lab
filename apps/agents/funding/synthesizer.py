@@ -137,6 +137,8 @@ def synthesize_funding_report(
     # Header
     lines.append(f"# Investimentos LATAM — Semana {week_number}/2026")
     lines.append("")
+    lines.append("---")
+    lines.append("")
 
     # Try LLM-generated intro, fall back to template
     llm_intro = None
@@ -146,7 +148,16 @@ def synthesize_funding_report(
     if llm_intro:
         lines.append(llm_intro)
     else:
-        lines.append(f"*{len(filtered)} rodadas analisadas de {len(set(s.event.source_name for s in filtered))} fontes.*")
+        # Template fallback: aggregate narrative (must NOT start with *)
+        total_raised = sum(s.event.amount_usd for s in filtered if s.event.amount_usd)
+        source_count = len(set(s.event.source_name for s in filtered))
+        lines.append(
+            f"{len(filtered)} rodadas registradas na America Latina, "
+            f"somando US$ {total_raised:.1f}M de {source_count} "
+            f"{'fonte' if source_count == 1 else 'fontes'}."
+        )
+    lines.append("")
+    lines.append("---")
     lines.append("")
 
     # Top 3 highlights (largest rounds)

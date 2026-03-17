@@ -167,6 +167,9 @@ class RadarWriter:
             f"- Seja factual e especifico (cite numeros quando disponivel)\n"
             f"- Termine com uma frase que convide a leitura aprofundada\n"
             f"- NAO use saudacao ('Ola', 'Caro leitor') — va direto ao ponto\n"
+            f"- NAO comece com 'A semana N' ou variacoes — varie a abertura. "
+            f"Exemplos: comece pelo insight principal, por um dado, por uma tendencia, "
+            f"por uma pergunta retorica, ou por uma observacao especifica\n"
             f"- Retorne APENAS o paragrafo, sem titulo ou formatacao extra"
         )
 

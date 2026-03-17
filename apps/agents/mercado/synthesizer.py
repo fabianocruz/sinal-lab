@@ -68,7 +68,7 @@ Sem novas startups descobertas esta semana.
     report_lines = [
         f"# Ecossistema LATAM — Semana {week_number}/2026",
         "",
-        f"## Novas Startups Descobertas: {len(scored_profiles)}",
+        "---",
         "",
     ]
 
@@ -82,7 +82,21 @@ Sem novas startups descobertas esta semana.
 
     if snapshot_intro:
         report_lines.append(snapshot_intro)
-        report_lines.append("")
+    else:
+        # Template fallback: aggregate narrative for extract_agent_summary
+        city_counts = Counter(s.profile.city for s in scored_profiles if s.profile.city)
+        top_cities = city_counts.most_common(3)
+        city_str = ", ".join(f"{c} ({n})" for c, n in top_cities)
+        top_sector_str = ", ".join(f"{s} ({c})" for s, c in top_sectors[:3])
+        report_lines.append(
+            f"{len(scored_profiles)} organizacoes tech mapeadas no ecossistema LATAM. "
+            f"Cidades: {city_str}. Setores: {top_sector_str}."
+        )
+    report_lines.append("")
+    report_lines.append("---")
+    report_lines.append("")
+    report_lines.append(f"## Novas Startups Descobertas: {len(scored_profiles)}")
+    report_lines.append("")
 
     # Top 3 highlights (highest confidence)
     highlights = scored_profiles[:3]

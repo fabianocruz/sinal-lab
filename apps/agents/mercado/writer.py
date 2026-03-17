@@ -159,6 +159,9 @@ class MercadoWriter:
             f"- Mencione numeros concretos (total de empresas, cidades, setores dominantes)\n"
             f"- Contextualize o que esses numeros significam para o ecossistema LATAM\n"
             f"- NAO use saudacao — va direto ao ponto\n"
+            f"- NAO comece com 'A semana N' ou variacoes — varie a abertura. "
+            f"Exemplos: comece pelo dado mais interessante, por uma cidade emergente, "
+            f"por um padrao setorial, ou por uma comparacao com periodos anteriores\n"
             f"- Retorne APENAS o paragrafo, sem titulo ou formatacao extra"
         )
 

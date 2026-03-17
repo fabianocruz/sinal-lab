@@ -403,7 +403,7 @@ def extract_agent_summary(body: str, max_len: int = 250) -> str:
     if len(blocks) >= 3:
         candidate = blocks[1].strip()
         if len(candidate) > 50 and not candidate.startswith("#"):
-            return _truncate(candidate, max_len)
+            return _strip_inline_markdown(_truncate(candidate, max_len))
 
     # Fallback: encontra primeiro parágrafo substancial
     for paragraph in stripped.split("\n\n"):
@@ -414,9 +414,16 @@ def extract_agent_summary(body: str, max_len: int = 250) -> str:
         if paragraph.startswith(("#", "*", "---", "**", ">", "!", "-", "[")):
             continue
         if len(paragraph) > 50:
-            return _truncate(paragraph, max_len)
+            return _strip_inline_markdown(_truncate(paragraph, max_len))
 
     return ""
+
+
+def _strip_inline_markdown(text: str) -> str:
+    """Remove inline Markdown formatting (**bold**, *italic*) for plain text."""
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    return text
 
 
 def _truncate(text: str, max_len: int) -> str:
