@@ -63,6 +63,14 @@ AGENT_COLORS: Dict[str, str] = {
 # Order in which agent sections appear after SINTESE.
 SECTION_ORDER = ["radar", "codigo", "funding", "mercado"]
 
+# URL path prefix per agent (matches Next.js app/[agent]/[slug] routes).
+AGENT_URL_PREFIX: Dict[str, str] = {
+    "radar": "radar",
+    "codigo": "codigo",
+    "funding": "funding",
+    "mercado": "mercado",
+}
+
 # Default output subdirectory for composed newsletters (relative to project root).
 NEWSLETTER_OUTPUT_SUBDIR = Path("output") / "newsletters"
 
@@ -238,7 +246,7 @@ def publish_newsletter(
                 color=AGENT_COLORS[agent_name],
                 label=AGENT_SECTIONS[agent_name],
                 summary=summary,
-                site_url=f"https://sinal.tech/newsletter/{slug}",
+                site_url=f"https://sinal.tech/{AGENT_URL_PREFIX[agent_name]}/{slug}",
             )
         )
 
@@ -339,7 +347,7 @@ def publish_briefing_email(
                 color=AGENT_COLORS[agent_name],
                 label=AGENT_SECTIONS[agent_name],
                 summary=summary,
-                site_url=f"https://sinal.tech/newsletter/{slug}",
+                site_url=f"https://sinal.tech/{AGENT_URL_PREFIX[agent_name]}/{slug}",
             )
         )
 
