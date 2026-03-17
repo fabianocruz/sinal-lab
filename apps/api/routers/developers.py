@@ -1,18 +1,16 @@
 """Developers router — API access request form."""
 
 import logging
-import re
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 
 from apps.api.schemas.developers import ApiAccessRequest, ApiAccessResponse
 from apps.api.services.email import send_api_access_notification
+from apps.api.services.email_validation import validate_email
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/developers", tags=["developers"])
-
-EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 @router.post(
@@ -31,8 +29,9 @@ def request_api_access(
     """
     email = body.email.strip().lower()
 
-    if not EMAIL_REGEX.match(email):
-        raise HTTPException(status_code=400, detail="Email inválido.")
+    email_error = validate_email(email)
+    if email_error:
+        raise HTTPException(status_code=400, detail=email_error)
 
     background_tasks.add_task(
         send_api_access_notification,

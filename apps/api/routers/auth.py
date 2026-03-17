@@ -1,6 +1,5 @@
 """Auth router — registration, credential verification, and session lookup."""
 
-import re
 import uuid
 from datetime import datetime, timezone
 
@@ -16,13 +15,12 @@ from apps.api.schemas.auth import (
     VerifyRequest,
 )
 from apps.api.services.email import send_welcome_email
+from apps.api.services.email_validation import validate_email
 from apps.api.services.resend_audience import add_contact_to_audience
 from packages.database.models.session import SessionDB
 from packages.database.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 def hash_password(password: str) -> str:
@@ -48,8 +46,9 @@ def register(
     """
     email = body.email.strip().lower()
 
-    if not EMAIL_REGEX.match(email):
-        raise HTTPException(status_code=400, detail="Email inválido.")
+    email_error = validate_email(email)
+    if email_error:
+        raise HTTPException(status_code=400, detail=email_error)
 
     existing = db.query(User).filter(User.email == email).first()
     if existing:
@@ -102,8 +101,9 @@ def sync_oauth(
     """
     email = body.email.strip().lower()
 
-    if not EMAIL_REGEX.match(email):
-        raise HTTPException(status_code=422, detail="Email inválido.")
+    email_error = validate_email(email)
+    if email_error:
+        raise HTTPException(status_code=422, detail=email_error)
 
     now = datetime.now(timezone.utc)
 
