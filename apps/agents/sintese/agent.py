@@ -94,7 +94,10 @@ class SinteseAgent(BaseAgent):
             writer=writer,
         )
 
-        source_urls = self.provenance.get_source_urls()[:20]
+        # Use URLs from selected articles (not raw provenance which is
+        # ordered by collection time and biased toward the first RSS feed).
+        selected_items = [item for section in sections for item in section.items]
+        source_urls = list(dict.fromkeys(item.item.url for item in selected_items))
 
         # Select hero image from highest-scored item that has an image
         hero_image = None

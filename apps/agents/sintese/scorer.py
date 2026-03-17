@@ -64,7 +64,7 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "restofworld": 0.9,
     "hackernews_best": 0.8, "lobsters": 0.7,
     # Premium LATAM Business/Tech
-    "bloomberg_linea": 0.90, "mobile_time": 0.75,
+    "bloomberg_linea": 0.70, "mobile_time": 0.75,
     # Independent Tech Journalism
     "404media": 0.80,
     # LATAM Startup & VC
@@ -113,7 +113,7 @@ DEFAULT_SOURCE_AUTHORITY = 0.5
 # Items below this threshold are filtered out regardless of recency,
 # authority, or LATAM score. Prevents non-editorial content (cars,
 # consumer gadgets, sports, lifestyle) from appearing.
-MIN_TOPIC_SCORE = 0.30
+MIN_TOPIC_SCORE = 0.40
 
 # Negative keywords — if matched, topic score is forced to 0.0.
 # Catches off-topic content that slips through keyword matching
@@ -128,6 +128,33 @@ NEGATIVE_KEYWORDS: list[str] = [
     "horoscopo", "horóscopo", "receita culinaria",
     # Celebrity / Gossip
     "influenciador", "famoso", "fofoca",
+    # Real estate / Retail / Commodities
+    "escritorio", "escritório", "shopping", "ocupacao", "ocupação",
+    "aluguel", "imovel", "imóvel", "imobiliario", "imobiliário",
+    "laje corporativa", "condominio", "condomínio",
+    "varejo", "loja", "vitrine",
+    "petroleo", "petróleo", "mineracao", "mineração",
+    "single malt", "whisky", "vinho",
+    # Agro (unless agritech)
+    "algodao", "algodão", "safra", "colheita",
+    # Auto / Mobility (non-tech)
+    "concessionaria", "concessionária", "automovel", "automóvel",
+    # Corporate press releases / paid content / advertorials
+    "diz cdo", "diz ceo", "diz cfo", "diz cto", "diz coo", "diz cmo",
+    "afirma cdo", "afirma ceo", "afirma cfo", "afirma cto",
+    "diz diretor", "diz vice-presidente", "diz presidente",
+    "afirma diretor", "afirma vice-presidente", "afirma presidente",
+    "seguira como prioridade", "seguirá como prioridade",
+    "aposta em transformacao", "aposta em transformação",
+    "grupo carrefour", "grupo casas bahia", "grupo mateus",
+    "conteudo patrocinado", "conteúdo patrocinado",
+    "publieditorial", "branded content",
+    # Corporate achievement press releases (revenue, growth milestones)
+    "triplica sua receita", "triplica receita", "triplica faturamento",
+    "dobra sua receita", "dobra receita", "dobra faturamento",
+    "quadruplica receita", "quintuplica receita",
+    "receita anual", "faturamento anual",
+    "resultado financeiro", "balanco trimestral", "balanço trimestral",
 ]
 
 # Blocked domains — articles from these domains are filtered out regardless
@@ -258,15 +285,38 @@ def score_topic_relevance(item: FeedItem) -> float:
         max_score = 0.35 if editorial_matches == 1 else 0.5
     match_count += editorial_matches
 
-    # Negative keyword check — hard block for off-topic content.
-    # Only bypassed when topic score >= 0.9 (very strong positive signal,
-    # e.g., "machine learning" + "startup" both matched). A single keyword
-    # like "investimento" (0.8) is NOT enough to override — financial
-    # language appears in sports/lifestyle articles from sources like neofeed.
-    neg_matches = sum(1 for kw in NEGATIVE_KEYWORDS if _keyword_in_text(kw, text))
-    if neg_matches > 0 and max_score < 0.9:
-        logger.debug("Negative keyword hit (%d matches), zeroing topic score", neg_matches)
-        return 0.0
+    # Negative keyword check — blocks content that matches editorial blocklist.
+    # Two tiers of negative keywords:
+    # 1. HARD blocks (press releases, advertorials): always block, no bypass.
+    #    These indicate the *format* is wrong, not the topic.
+    # 2. SOFT blocks (sports, lifestyle): bypassed only with very strong
+    #    topic signal (max_score > 0.9 with 2+ strong matches).
+    neg_matches = [kw for kw in NEGATIVE_KEYWORDS if _keyword_in_text(kw, text)]
+    if neg_matches:
+        # Hard-block keywords: press releases and advertorials are always filtered
+        # regardless of topic relevance. A startup press release about revenue
+        # is still a press release, not editorial content.
+        hard_block_prefixes = (
+            "triplica", "dobra", "quadruplica", "quintuplica",
+            "receita anual", "faturamento anual",
+            "resultado financeiro", "balanco trimestral", "balanço trimestral",
+            "diz c", "afirma c", "diz diretor", "afirma diretor",
+            "diz vice", "afirma vice", "diz presidente", "afirma presidente",
+            "conteudo patrocinado", "conteúdo patrocinado",
+            "publieditorial", "branded content",
+        )
+        has_hard_block = any(
+            any(kw.startswith(prefix) for prefix in hard_block_prefixes)
+            for kw in neg_matches
+        )
+        if has_hard_block:
+            logger.debug("Hard-block negative keyword hit: %s", neg_matches)
+            return 0.0
+
+        # Soft-block: sports, lifestyle, etc. — bypassed only with strong topic
+        if max_score < 0.9:
+            logger.debug("Soft-block negative keyword hit (%d matches), zeroing topic score", len(neg_matches))
+            return 0.0
 
     # Bonus for multiple keyword matches (capped)
     multi_match_bonus = min(match_count * 0.02, 0.1)

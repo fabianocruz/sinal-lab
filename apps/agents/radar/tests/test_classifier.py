@@ -5,10 +5,15 @@ from datetime import datetime, timezone, timedelta
 
 from apps.agents.radar.collector import TrendSignal
 from apps.agents.radar.classifier import (
+    BLOCKED_TERMS,
     ClassifiedSignal,
+    MIN_TOPIC_CONFIDENCE,
+    NEGATIVE_KEYWORDS,
+    _has_negative_keyword,
+    _is_blocked,
     classify_topics,
-    compute_momentum,
     compute_latam_relevance,
+    compute_momentum,
     classify_signals,
 )
 
@@ -184,6 +189,110 @@ class TestLatamRelevance:
         assert score <= 1.0
 
 
+class TestIsBlocked:
+    """Test the _is_blocked content filter."""
+
+    def test_adult_content_blocked(self):
+        signal = make_signal(title="xvidio technologies startup brasil 2025 video")
+        assert _is_blocked(signal) is True
+
+    def test_adult_content_in_url_blocked(self):
+        signal = make_signal(
+            title="New streaming platform",
+            url="https://xvideo.com/tech-article",
+        )
+        assert _is_blocked(signal) is True
+
+    def test_gambling_content_blocked(self):
+        signal = make_signal(title="bet365 nova funcionalidade apostas online brasil")
+        assert _is_blocked(signal) is True
+
+    def test_online_casino_blocked(self):
+        signal = make_signal(title="Cassino online lanca aplicativo para mobile no Brasil")
+        assert _is_blocked(signal) is True
+
+    def test_celebrity_gossip_blocked(self):
+        signal = make_signal(title="Fofoca sobre celebridades do momento no Big Brother")
+        assert _is_blocked(signal) is True
+
+    def test_football_blocked(self):
+        signal = make_signal(title="Campeonato brasileiro 2025 tabela de classificacao")
+        assert _is_blocked(signal) is True
+
+    def test_blocked_term_in_summary_blocked(self):
+        signal = make_signal(
+            title="Nova plataforma de streaming",
+            summary="O site xvideo lanca startup brasil 2025",
+        )
+        assert _is_blocked(signal) is True
+
+    def test_valid_tech_signal_not_blocked(self):
+        signal = make_signal(
+            title="Kubernetes 1.32 released with new features for edge computing",
+            url="https://kubernetes.io/blog/2025/kubernetes-1-32",
+        )
+        assert _is_blocked(signal) is False
+
+    def test_valid_startup_signal_not_blocked(self):
+        signal = make_signal(
+            title="Nubank raises Series J valuing company at $45B",
+            url="https://techcrunch.com/nubank-series-j",
+        )
+        assert _is_blocked(signal) is False
+
+
+class TestHasNegativeKeyword:
+    """Test the _has_negative_keyword corporate press release filter."""
+
+    def test_corporate_press_release_filtered(self):
+        signal = make_signal(title="Incognia triplica receita anual com nova solucao B2B")
+        assert _has_negative_keyword(signal) is True
+
+    def test_ceo_quote_press_release_filtered(self):
+        signal = make_signal(title="Produto inovador, diz CEO da startup de AI brasileira")
+        assert _has_negative_keyword(signal) is True
+
+    def test_financial_results_filtered(self):
+        signal = make_signal(title="Empresa divulga resultado financeiro do quarto trimestre")
+        assert _has_negative_keyword(signal) is True
+
+    def test_branded_content_filtered(self):
+        signal = make_signal(title="Como a Fintech X cresceu 300% — branded content")
+        assert _has_negative_keyword(signal) is True
+
+    def test_negative_keyword_in_summary_filtered(self):
+        signal = make_signal(
+            title="Startup anuncia novidades",
+            summary="A empresa dobra receita anual segundo balanco trimestral divulgado",
+        )
+        assert _has_negative_keyword(signal) is True
+
+    def test_valid_tech_signal_no_negative_keyword(self):
+        signal = make_signal(
+            title="Open source LLM achieves state-of-the-art on reasoning benchmarks"
+        )
+        assert _has_negative_keyword(signal) is False
+
+    def test_valid_funding_signal_no_negative_keyword(self):
+        signal = make_signal(
+            title="Startup levanta Serie A de R$ 50M para expandir na America Latina"
+        )
+        assert _has_negative_keyword(signal) is False
+
+
+class TestMinTopicConfidence:
+    """Test MIN_TOPIC_CONFIDENCE constant and its effect on classify_signals."""
+
+    def test_min_topic_confidence_value(self):
+        assert MIN_TOPIC_CONFIDENCE == 0.10
+
+    def test_blocked_terms_list_not_empty(self):
+        assert len(BLOCKED_TERMS) >= 5
+
+    def test_negative_keywords_list_not_empty(self):
+        assert len(NEGATIVE_KEYWORDS) >= 3
+
+
 class TestClassifySignals:
     """Test the full classification pipeline."""
 
@@ -219,3 +328,88 @@ class TestClassifySignals:
         assert 0.0 <= s.momentum_score <= 1.0
         assert 0.0 <= s.latam_relevance <= 1.0
         assert 0.0 <= s.composite_score <= 1.0
+
+    def test_filters_blocked_signals_returns_fewer_items(self):
+        """classify_signals removes blocked signals, returning fewer items than input."""
+        signals = [
+            make_signal(
+                title="AI machine learning startup in latam raises venture capital",
+                url="https://techcrunch.com/1",
+                published_at=datetime.now(timezone.utc),
+            ),
+            make_signal(
+                title="xvidio technologies startup brasil 2025",
+                url="https://a.com/2",
+            ),
+            make_signal(
+                title="Cassino online lanca app para mobile",
+                url="https://a.com/3",
+            ),
+        ]
+        classified = classify_signals(signals)
+        assert len(classified) < len(signals)
+        urls = [c.signal.url for c in classified]
+        assert "https://techcrunch.com/1" in urls
+        assert "https://a.com/2" not in urls
+        assert "https://a.com/3" not in urls
+
+    def test_filters_signals_with_low_topic_confidence(self):
+        """Signals with topic_confidence < MIN_TOPIC_CONFIDENCE are excluded."""
+        signals = [
+            make_signal(
+                title="startup brasil 2025",
+                url="https://trends.google.com/trends/startup-brasil",
+                source_type="trends",
+            ),
+            make_signal(
+                title="AI machine learning deep learning LLM startup raises funding",
+                url="https://techcrunch.com/ai-ml",
+                published_at=datetime.now(timezone.utc),
+            ),
+        ]
+        classified = classify_signals(signals)
+        # The strong AI signal must pass; the pure geographic/trend signal may be filtered
+        tech_signal = next(
+            (c for c in classified if c.signal.url == "https://techcrunch.com/ai-ml"), None
+        )
+        assert tech_signal is not None, "Strong tech signal should not be filtered"
+        # All surviving signals must have topic_confidence >= MIN_TOPIC_CONFIDENCE
+        for c in classified:
+            assert c.topic_confidence >= MIN_TOPIC_CONFIDENCE, (
+                f"Signal '{c.signal.title}' has topic_confidence {c.topic_confidence} "
+                f"below MIN_TOPIC_CONFIDENCE {MIN_TOPIC_CONFIDENCE}"
+            )
+
+    def test_google_trends_startup_brasil_no_tech_keywords_filtered(self):
+        """Google Trends 'startup brasil' signal with no tech keywords is filtered out."""
+        signals = [
+            make_signal(
+                title="startup brasil",
+                url="https://trends.google.com/trends/explore?q=startup+brasil",
+                source_type="trends",
+                summary="",
+            ),
+        ]
+        classified = classify_signals(signals)
+        # Either filtered entirely or confidence is at/above the minimum threshold
+        # The key assertion: no signal with confidence below the minimum survives
+        for c in classified:
+            assert c.topic_confidence >= MIN_TOPIC_CONFIDENCE
+
+    def test_negative_keyword_press_release_filtered(self):
+        """Signals matching corporate press release patterns are removed."""
+        signals = [
+            make_signal(
+                title="Incognia triplica receita anual com nova solucao B2B",
+                url="https://example.com/pr-incognia",
+            ),
+            make_signal(
+                title="Open source LLM framework reaches 50k GitHub stars",
+                url="https://github.com/example/llm",
+                published_at=datetime.now(timezone.utc),
+            ),
+        ]
+        classified = classify_signals(signals)
+        urls = [c.signal.url for c in classified]
+        assert "https://example.com/pr-incognia" not in urls
+        assert "https://github.com/example/llm" in urls

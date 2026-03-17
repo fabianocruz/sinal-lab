@@ -27,6 +27,7 @@ from apps.agents.sintese.email_renderer import (
     _section_header,
     _section_intro,
     _share_cta,
+    _strip_inline_markdown,
     build_newsletter_email_html,
     extract_agent_summary,
     parse_newsletter_markdown,
@@ -182,6 +183,42 @@ SAMPLE_AGENT_CARDS = [
         site_url="https://sinal.tech/newsletter/funding-semanal-10",
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Testes de _strip_inline_markdown
+# ---------------------------------------------------------------------------
+
+
+class TestStripInlineMarkdown:
+    """Testes para _strip_inline_markdown()."""
+
+    def test_strips_bold(self):
+        assert _strip_inline_markdown("**bold text**") == "bold text"
+
+    def test_strips_italic(self):
+        assert _strip_inline_markdown("*italic text*") == "italic text"
+
+    def test_strips_mixed(self):
+        assert _strip_inline_markdown("The **bold** and *italic* text") == "The bold and italic text"
+
+    def test_no_markdown_unchanged(self):
+        assert _strip_inline_markdown("plain text") == "plain text"
+
+    def test_empty_string(self):
+        assert _strip_inline_markdown("") == ""
+
+    def test_strips_multiple_bold_spans(self):
+        assert _strip_inline_markdown("**first** and **second**") == "first and second"
+
+    def test_strips_bold_leaving_surrounding_text(self):
+        assert _strip_inline_markdown("Hello **world** today") == "Hello world today"
+
+    def test_single_asterisk_not_consumed_as_bold(self):
+        """A lone * that is not wrapping a word should pass through unchanged."""
+        result = _strip_inline_markdown("price * 2 = total")
+        assert "price" in result
+        assert "2 = total" in result
 
 
 # ---------------------------------------------------------------------------

@@ -170,16 +170,18 @@ class SinteseWriter:
         sections_summary = self._build_sections_summary(sections)
 
         user_prompt = (
-            f"Crie um subject de email (maximo 8 palavras) para a edicao "
+            f"Crie um subject de email (maximo 10 palavras) para a edicao "
             f"#{edition_number} do Sinal Semanal.\n\n"
             f"Conteudo:\n\n{sections_summary}\n\n"
             f"Direcoes:\n"
             f"- O subject sera prefixado com 'Sinal Semanal #{edition_number}: '\n"
-            f"- Gere APENAS o complemento (ex: 'onde o dinheiro esta indo em 2026')\n"
-            f"- Desperte curiosidade — o leitor precisa querer abrir\n"
-            f"- Seja especifico (cite dado, empresa ou tendencia)\n"
-            f"- Tom direto, sem hype, sem clickbait\n"
+            f"- Gere APENAS o complemento\n"
+            f"- Cite 2-3 temas ou empresas concretas que aparecem nos artigos\n"
+            f"- O subject deve refletir fielmente o conteudo da newsletter\n"
+            f"- Use virgula para separar temas (ex: 'Incognia 3x, Nubank vs Mercado Pago, agentes de codigo')\n"
+            f"- Tom factual e direto, sem metaforas ou frases vagas\n"
             f"- Minusculas, sem ponto final\n"
+            f"- NUNCA use dois pontos (:) ou travessao (—) no subject\n"
             f"- Escreva em portugues brasileiro\n"
             f"- Retorne APENAS o texto, sem aspas, sem formatacao extra"
         )

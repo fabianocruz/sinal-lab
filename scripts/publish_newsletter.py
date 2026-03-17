@@ -130,6 +130,48 @@ def compose_newsletter(edition: int, outputs: Dict[str, dict]) -> str:
     return "\n\n".join(sections)
 
 
+def _resolve_email_subject(
+    edition: int,
+    frontmatter: dict,
+) -> str:
+    """Build email subject from frontmatter, DB metadata, or fallback.
+
+    Priority: frontmatter email_subject > DB metadata email_subject
+    > frontmatter title > generic.
+    """
+    # 1. Frontmatter email_subject (best case: .md has YAML frontmatter)
+    subj = frontmatter.get("email_subject", "")
+    if subj:
+        return f"Sinal Semanal #{edition}: {subj}"
+
+    # 2. DB metadata fallback (orchestrator persists email_subject there)
+    try:
+        from packages.database.session import get_session
+        from packages.database.models.content_piece import ContentPiece
+
+        session = get_session()
+        piece = session.query(ContentPiece).filter_by(
+            slug=f"sinal-semanal-{edition}",
+        ).first()
+        if piece:
+            meta = piece.metadata_ or {}
+            db_subj = meta.get("email_subject", "")
+            if db_subj:
+                session.close()
+                return f"Sinal Semanal #{edition}: {db_subj}"
+        session.close()
+    except Exception:
+        logger.debug("Could not read email_subject from DB", exc_info=True)
+
+    # 3. Frontmatter title
+    title = frontmatter.get("title", "")
+    if title:
+        return f"Sinal Semanal #{edition}: {title}"
+
+    # 4. Generic fallback
+    return f"Sinal Semanal #{edition}"
+
+
 def publish_newsletter(
     edition: int,
     week: Optional[int] = None,
@@ -202,15 +244,9 @@ def publish_newsletter(
 
     edition_url = f"https://sinal.tech/newsletter/sinal-semanal-{edition}"
 
-    # Build subject: email_subject (short, LLM-generated) > title > generic
+    # Build subject with DB fallback for orchestrator runs (no frontmatter)
     sintese_fm = outputs.get("sintese", {}).get("frontmatter", {})
-    email_subj = sintese_fm.get("email_subject", "")
-    if email_subj:
-        subject = f"Sinal Semanal #{edition}: {email_subj}"
-    elif sintese_fm.get("title", ""):
-        subject = f"Sinal Semanal #{edition}: {sintese_fm['title']}"
-    else:
-        subject = f"Sinal Semanal #{edition}"
+    subject = _resolve_email_subject(edition, sintese_fm)
 
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
@@ -309,15 +345,9 @@ def publish_briefing_email(
 
     edition_url = f"https://sinal.tech/newsletter/sinal-semanal-{edition}"
 
-    # Build subject: email_subject (short, LLM-generated) > title > generic
+    # Build subject with DB fallback for orchestrator runs (no frontmatter)
     sintese_fm = outputs["sintese"].get("frontmatter", {})
-    email_subj = sintese_fm.get("email_subject", "")
-    if email_subj:
-        subject = f"Sinal Semanal #{edition}: {email_subj}"
-    elif sintese_fm.get("title", ""):
-        subject = f"Sinal Semanal #{edition}: {sintese_fm['title']}"
-    else:
-        subject = f"Sinal Semanal #{edition}"
+    subject = _resolve_email_subject(edition, sintese_fm)
 
     # Convert to email-safe HTML (same template as broadcast)
     html_email = build_newsletter_email(

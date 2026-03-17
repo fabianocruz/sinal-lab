@@ -181,6 +181,9 @@ class FundingWriter:
             f"- Cite setores ou teses dominantes na semana\n"
             f"- Seja factual e especifico (cite numeros)\n"
             f"- NAO use saudacao — va direto ao ponto\n"
+            f"- NAO comece com 'A semana N' ou variacoes — varie a abertura. "
+            f"Exemplos: comece pelo deal mais relevante, por um dado agregado, "
+            f"por uma tendencia de mercado, ou por uma comparacao com semanas anteriores\n"
             f"- Retorne APENAS o paragrafo, sem titulo ou formatacao extra"
         )
 

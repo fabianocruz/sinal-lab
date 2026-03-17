@@ -97,6 +97,11 @@ def persist_content_piece(
     """
     existing = session.query(ContentPiece).filter_by(slug=slug).first()
 
+    # Merge email_subject into metadata so it survives DB persistence
+    merged_metadata = dict(result.metadata)
+    if result.email_subject:
+        merged_metadata["email_subject"] = result.email_subject
+
     if existing:
         existing.title = result.title
         existing.body_md = result.body_md
@@ -108,7 +113,7 @@ def persist_content_piece(
         existing.agent_run_id = result.run_id
         existing.agent_name = result.agent_name
         existing.content_type = result.content_type
-        existing.metadata_ = result.metadata
+        existing.metadata_ = merged_metadata
         if body_html is not None:
             existing.body_html = body_html
         logger.info("Updated ContentPiece slug=%s", slug)
@@ -128,7 +133,7 @@ def persist_content_piece(
         confidence_dq=result.confidence.dq_display,
         confidence_ac=result.confidence.ac_display,
         review_status=review_status,
-        metadata_=result.metadata,
+        metadata_=merged_metadata,
     )
     session.add(piece)
     logger.info("Created ContentPiece slug=%s", slug)

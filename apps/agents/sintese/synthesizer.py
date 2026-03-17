@@ -157,6 +157,7 @@ def format_item_markdown(
     item: ScoredItem,
     index: int,
     summary_override: Optional[str] = None,
+    seen_image_urls: Optional[set[str]] = None,
 ) -> str:
     """Format a single newsletter item as Markdown.
 
@@ -164,6 +165,7 @@ def format_item_markdown(
         item: The scored item to format.
         index: The item number in the newsletter.
         summary_override: If provided, use this instead of the RSS summary.
+        seen_image_urls: Set of image URLs already used. Duplicates are skipped.
     """
     lines: list[str] = []
 
@@ -183,8 +185,13 @@ def format_item_markdown(
         lines.append(f"> {summary}")
 
     if item.item.image_url:
-        lines.append("")
-        lines.append(f"![{item.item.title}]({item.item.image_url})")
+        url = item.item.image_url
+        is_duplicate = seen_image_urls is not None and url in seen_image_urls
+        if not is_duplicate:
+            lines.append("")
+            lines.append(f"![{item.item.title}]({url})")
+            if seen_image_urls is not None:
+                seen_image_urls.add(url)
 
     if item.item.video_url:
         lines.append("")
@@ -257,6 +264,7 @@ def synthesize_newsletter(
 
     # Sections: try LLM per section, fallback to template
     item_index = 1
+    seen_image_urls: set[str] = set()
     for section in sections:
         lines.append(f"## {section.heading}")
         lines.append("")
@@ -273,12 +281,16 @@ def synthesize_newsletter(
                 lines.append(format_item_markdown(
                     scored_item, item_index,
                     summary_override=section_content.summaries[i],
+                    seen_image_urls=seen_image_urls,
                 ))
                 item_index += 1
         else:
             # Template fallback
             for scored_item in section.items:
-                lines.append(format_item_markdown(scored_item, item_index))
+                lines.append(format_item_markdown(
+                    scored_item, item_index,
+                    seen_image_urls=seen_image_urls,
+                ))
                 item_index += 1
 
         lines.append("---")

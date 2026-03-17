@@ -2,14 +2,58 @@
 
 Classifies trend signals by topic, computes momentum scores,
 and tags signals with relevance categories for the LATAM tech audience.
+
+Includes content quality filtering to block spam, adult content,
+corporate press releases, and low-editorial-quality signals.
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from apps.agents.radar.collector import TrendSignal
+
+logger = logging.getLogger(__name__)
+
+# Blocked terms — signals containing ANY of these are rejected outright.
+# Catches adult content, spam, and obviously off-topic material that
+# can slip through Google Trends or community sources.
+BLOCKED_TERMS: list[str] = [
+    # Adult content / spam
+    "xvidio", "xvideo", "xvid", "pornhub", "onlyfans", "chaturbate",
+    "brazzers", "redtube", "xhamster", "youporn", "porn", "hentai",
+    "nude", "nudes", "nsfw", "sex tape", "escort",
+    # Gambling / betting
+    "bet365", "apostas online", "cassino online", "slot machine",
+    "jogo de azar", "roleta",
+    # Celebrity / gossip
+    "big brother", "novela", "reality show", "celebridade",
+    "fofoca", "influenciador",
+    # Sports (non-tech)
+    "campeonato", "futebol", "copa do mundo", "olimpiada",
+    "selecao brasileira",
+]
+
+# Negative keywords — if matched, topic confidence is zeroed.
+# Catches corporate press releases, advertorials, and marketing content
+# that may contain tech keywords but lack editorial value.
+NEGATIVE_KEYWORDS: list[str] = [
+    # Corporate press releases
+    "diz ceo", "diz cto", "diz cfo", "diz cdo", "diz coo",
+    "afirma ceo", "afirma cto", "afirma diretor",
+    "triplica receita", "dobra receita", "receita anual",
+    "triplica faturamento", "dobra faturamento",
+    "resultado financeiro", "balanco trimestral",
+    "conteudo patrocinado", "publieditorial", "branded content",
+]
+
+# Minimum topic confidence to include in report. Signals that only match
+# on momentum (Google Trends) or LATAM relevance but have zero topic
+# confidence are noise — they contain geographic/language signals but
+# no actual tech content.
+MIN_TOPIC_CONFIDENCE = 0.10
 
 # Topic taxonomy with keyword patterns
 TOPIC_PATTERNS: dict[str, list[str]] = {
@@ -87,6 +131,31 @@ class ClassifiedSignal:
             + self.latam_relevance * 0.30,
             4,
         )
+
+
+def _is_blocked(signal: TrendSignal) -> bool:
+    """Check if a signal contains blocked terms (spam, adult content, etc.)."""
+    text = " ".join([
+        signal.title.lower(),
+        (signal.summary or "").lower(),
+        signal.url.lower(),
+    ])
+    for term in BLOCKED_TERMS:
+        if term in text:
+            return True
+    return False
+
+
+def _has_negative_keyword(signal: TrendSignal) -> bool:
+    """Check if a signal matches negative keywords (press releases, etc.)."""
+    text = " ".join([
+        signal.title.lower(),
+        (signal.summary or "").lower(),
+    ])
+    for kw in NEGATIVE_KEYWORDS:
+        if kw in text:
+            return True
+    return False
 
 
 def classify_topics(signal: TrendSignal) -> tuple[list[str], str, float]:
@@ -206,11 +275,36 @@ def classify_signals(
     signals: list[TrendSignal],
     reference_time: Optional[datetime] = None,
 ) -> list[ClassifiedSignal]:
-    """Classify and score all signals, returning sorted by composite score."""
+    """Classify and score all signals, returning sorted by composite score.
+
+    Applies three filtering layers:
+    1. Blocked terms — rejects spam, adult content, gambling
+    2. Negative keywords — rejects press releases, advertorials
+    3. Minimum topic confidence — rejects signals with no tech relevance
+    """
     classified: list[ClassifiedSignal] = []
+    blocked_count = 0
+    negative_count = 0
+    low_topic_count = 0
 
     for signal in signals:
+        # Layer 1: blocked terms (spam, adult content)
+        if _is_blocked(signal):
+            blocked_count += 1
+            continue
+
+        # Layer 2: negative keywords (press releases, advertorials)
+        if _has_negative_keyword(signal):
+            negative_count += 1
+            continue
+
         topics, primary_topic, topic_confidence = classify_topics(signal)
+
+        # Layer 3: minimum topic confidence
+        if topic_confidence < MIN_TOPIC_CONFIDENCE:
+            low_topic_count += 1
+            continue
+
         momentum = compute_momentum(signal, reference_time)
         latam = compute_latam_relevance(signal)
 
@@ -222,6 +316,13 @@ def classify_signals(
             momentum_score=momentum,
             latam_relevance=latam,
         ))
+
+    if blocked_count > 0:
+        logger.info("Blocked %d signals (spam/adult content)", blocked_count)
+    if negative_count > 0:
+        logger.info("Filtered %d signals (negative keywords)", negative_count)
+    if low_topic_count > 0:
+        logger.info("Filtered %d signals below min topic confidence", low_topic_count)
 
     classified.sort(key=lambda x: x.composite_score, reverse=True)
     return classified
