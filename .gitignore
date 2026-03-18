@@ -76,3 +76,4 @@ SCRATCHPAD.md
 
 # Branding exports (design tool output, not source code)
 branding/
+.vercel
