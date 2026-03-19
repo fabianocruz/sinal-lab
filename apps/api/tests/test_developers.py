@@ -84,3 +84,53 @@ def test_email_notification_called(mock_send):
         role="CTO",
         use_case="Integrar dados de startups LATAM no nosso dashboard interno de market intelligence.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Honeypot anti-spam
+# ---------------------------------------------------------------------------
+
+
+@patch("apps.api.routers.developers.send_api_access_notification")
+def test_honeypot_filled_returns_201_but_no_email(mock_send):
+    """Filling the honeypot field silently discards the submission."""
+    payload = {**VALID_PAYLOAD, "website": "http://spam.example.com"}
+    response = client.post("/api/developers/request-access", json=payload)
+
+    assert response.status_code == 201
+    assert "contato" in response.json()["message"].lower()
+    mock_send.assert_not_called()
+
+
+def test_honeypot_empty_is_accepted():
+    """An empty honeypot field (normal human) passes through."""
+    payload = {**VALID_PAYLOAD, "website": ""}
+    response = client.post("/api/developers/request-access", json=payload)
+    assert response.status_code == 201
+
+
+def test_honeypot_absent_is_accepted():
+    """Omitting the honeypot field entirely still works (backwards compatible)."""
+    response = client.post("/api/developers/request-access", json=VALID_PAYLOAD)
+    assert response.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Blocked domains (only enforced when API_ENV != "test")
+# ---------------------------------------------------------------------------
+
+
+def test_blocked_domain_rejected_in_production(monkeypatch):
+    """Generic/placeholder domains are rejected when not in test env."""
+    monkeypatch.setenv("API_ENV", "production")
+    payload = {**VALID_PAYLOAD, "email": "spam@empresa.com"}
+    response = client.post("/api/developers/request-access", json=payload)
+    assert response.status_code == 400
+    assert "domínio" in response.json()["detail"].lower()
+
+
+def test_blocked_domain_allowed_in_test_env():
+    """Blocked domains pass through in test environment (API_ENV=test)."""
+    payload = {**VALID_PAYLOAD, "email": "ana@empresa.com"}
+    response = client.post("/api/developers/request-access", json=payload)
+    assert response.status_code == 201

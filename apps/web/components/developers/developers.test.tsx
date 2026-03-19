@@ -101,6 +101,7 @@ describe("ApiAccessForm", () => {
         company: "TechCo",
         role: "CTO",
         use_case: "Integrar dados de startups LATAM no nosso CRM.",
+        website: "",
       });
     });
   });

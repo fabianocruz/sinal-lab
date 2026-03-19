@@ -27,6 +27,14 @@ def request_api_access(
     Sends a notification email to contact@sinal.tech with the request details.
     No authentication required — this is a public lead-gen form.
     """
+    # Honeypot: if the invisible "website" field is filled, it's a bot.
+    # Return 201 silently to avoid revealing the trap.
+    if body.website:
+        logger.info("Honeypot triggered from %s", body.email)
+        return ApiAccessResponse(
+            message="Solicitação enviada! Entraremos em contato em breve."
+        )
+
     email = body.email.strip().lower()
 
     email_error = validate_email(email)

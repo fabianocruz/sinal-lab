@@ -11,6 +11,8 @@ class ApiAccessRequest(BaseModel):
     company: str = Field(..., min_length=1, max_length=255)
     role: str = Field(..., min_length=1, max_length=100)
     use_case: str = Field(..., min_length=10, max_length=2000)
+    # Honeypot: invisible field that bots fill but humans leave empty.
+    website: str = Field(default="", max_length=500)
 
 
 class ApiAccessResponse(BaseModel):
