@@ -53,6 +53,17 @@ BLOCKED_DOMAINS: frozenset[str] = frozenset({
     "tempr.email",
     "fake.com",
     "fakeinbox.com",
+    # Generic/placeholder business domains (common in spam submissions)
+    "empresa.com",
+    "company.com",
+    "startup.com",
+    "negocio.com",
+    "business.com",
+    "corp.com",
+    "acme.com",
+    "contato.com",
+    "info.com",
+    "noreply.com",
 })
 
 

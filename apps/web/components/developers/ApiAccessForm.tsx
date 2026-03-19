@@ -10,6 +10,7 @@ export default function ApiAccessForm() {
     company: "",
     role: "",
     use_case: "",
+    website: "", // honeypot — bots fill this, humans never see it
   });
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -160,6 +161,20 @@ export default function ApiAccessForm() {
           placeholder="Descreva como pretende usar a API (ex: integrar dados de startups no nosso CRM...)"
           disabled={status === "loading"}
           className={`${inputClass} resize-none`}
+        />
+      </div>
+
+      {/* Honeypot — hidden from humans via CSS, bots will fill it */}
+      <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+        <label htmlFor="api-website">Website</label>
+        <input
+          id="api-website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={formData.website}
+          onChange={handleChange}
         />
       </div>
 

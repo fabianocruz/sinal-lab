@@ -84,6 +84,15 @@ class TestBlockedDomainsConstant:
     def test_blocked_domains_contains_yopmail(self) -> None:
         assert "yopmail.com" in BLOCKED_DOMAINS
 
+    def test_blocked_domains_contains_empresa_com(self) -> None:
+        assert "empresa.com" in BLOCKED_DOMAINS
+
+    def test_blocked_domains_contains_company_com(self) -> None:
+        assert "company.com" in BLOCKED_DOMAINS
+
+    def test_blocked_domains_contains_startup_com(self) -> None:
+        assert "startup.com" in BLOCKED_DOMAINS
+
     def test_blocked_domains_stored_as_lowercase(self) -> None:
         for domain in BLOCKED_DOMAINS:
             assert domain == domain.lower(), f"Domain not lowercase: {domain}"
@@ -236,6 +245,21 @@ class TestValidateEmailDomainBlockingProductionMode:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         assert _prod_validate(monkeypatch, "user@example.org") is not None
+
+    def test_validate_email_empresa_com_blocked_in_prod(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert _prod_validate(monkeypatch, "ana@empresa.com") is not None
+
+    def test_validate_email_company_com_blocked_in_prod(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert _prod_validate(monkeypatch, "user@company.com") is not None
+
+    def test_validate_email_startup_com_blocked_in_prod(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert _prod_validate(monkeypatch, "user@startup.com") is not None
 
     def test_validate_email_valid_address_passes_in_prod(
         self, monkeypatch: pytest.MonkeyPatch
