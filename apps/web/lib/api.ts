@@ -117,7 +117,7 @@ export async function fetchNewsletters(params?: {
   try {
     const searchParams = new URLSearchParams();
     searchParams.set("status", "published");
-    searchParams.set("content_type_exclude", "ARTICLE");
+    searchParams.set("content_type_exclude", "ARTICLE,INTELLIGENCE");
     if (params?.agent_name) searchParams.set("agent_name", params.agent_name);
     if (params?.search) searchParams.set("search", params.search);
     if (params?.limit) searchParams.set("limit", String(params.limit));
@@ -256,6 +256,41 @@ export async function submitApiAccessRequest(
   }
 
   return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence Reports
+// ---------------------------------------------------------------------------
+
+export async function fetchIntelligenceReports(params?: {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<ContentApiItem>> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.set("status", "published");
+    searchParams.set("content_type", "INTELLIGENCE");
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+
+    const url = `${API_BASE}/api/content?${searchParams.toString()}`;
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
+    return response.json();
+  } catch {
+    return { items: [], total: 0, limit: 20, offset: 0 };
+  }
+}
+
+export async function fetchLatestIntelligence(): Promise<ContentApiItem | null> {
+  try {
+    const data = await fetchIntelligenceReports({ limit: 1 });
+    return data.items?.[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

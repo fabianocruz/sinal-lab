@@ -144,6 +144,33 @@ def test_list_content_exclude_by_type(client, sample_content):
     assert all(c["content_type"] != "ARTICLE" for c in data["items"])
 
 
+def test_list_content_exclude_multiple_types(client, db_session, sample_content):
+    """Test excluding multiple content types with comma-separated values."""
+    # Add an INTELLIGENCE piece to the existing sample data
+    intel = ContentPiece(
+        slug="devtools-intelligence",
+        title="DevTools Intelligence Report",
+        content_type="INTELLIGENCE",
+        agent_name="mercado",
+        body_md="# Intelligence report",
+        review_status="published",
+        published_at=datetime(2026, 2, 16, 10, 0, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 2, 16, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 2, 16, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(intel)
+    db_session.commit()
+
+    # Exclude both ARTICLE and INTELLIGENCE
+    response = client.get("/api/content?content_type_exclude=ARTICLE,INTELLIGENCE")
+    assert response.status_code == 200
+    data = response.json()
+    types = {c["content_type"] for c in data["items"]}
+    assert "ARTICLE" not in types
+    assert "INTELLIGENCE" not in types
+    assert data["total"] == 2  # DATA_REPORT + TREND_ANALYSIS
+
+
 def test_list_content_filter_by_agent(client, sample_content):
     """Test filtering content by agent."""
     response = client.get("/api/content?agent_name=radar")

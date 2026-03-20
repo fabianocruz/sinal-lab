@@ -43,6 +43,7 @@ Uso::
         build_newsletter_email_html,
         extract_agent_summary,
         AgentCard,
+        IntelligenceHighlight,
     )
 
     data = parse_newsletter_markdown(sintese_md)
@@ -788,6 +789,81 @@ def _agent_card(card: AgentCard) -> str:
 </tr>"""
 
 
+@dataclass
+class IntelligenceHighlight:
+    """Destaque de relatório Intelligence para inclusão no briefing semanal.
+
+    Card em destaque com título, resumo e CTA para ler o relatório completo.
+
+    Exemplo::
+
+        highlight = IntelligenceHighlight(
+            title="DevTools LATAM: 100 startups mapeadas",
+            summary="Mapeamento completo das startups de developer tools...",
+            site_url="https://sinal.tech/intelligence/devtools-market-intelligence-mar-2026",
+            author="Fabiano Cruz",
+        )
+    """
+
+    title: str
+    summary: str
+    site_url: str
+    author: str = "Sinal Intelligence"
+
+
+_COLOR_INTELLIGENCE = "#59B4FF"
+
+
+def _intelligence_highlight(highlight: IntelligenceHighlight) -> str:
+    """Renderiza card de destaque Intelligence no briefing semanal.
+
+    Card mais proeminente que os agent cards regulares, com fundo tintado
+    azul, badge INTELLIGENCE e CTA para ler o relatório completo.
+
+    Uso::
+
+        hl = IntelligenceHighlight('Titulo', 'Resumo...', 'https://...', 'Autor')
+        html = _intelligence_highlight(hl)
+        # Retorna <tr> com card azul de destaque Intelligence
+    """
+    bg_rgba = _hex_to_rgba(_COLOR_INTELLIGENCE, 0.06)
+    border_rgba = _hex_to_rgba(_COLOR_INTELLIGENCE, 0.15)
+    return f"""\
+<!-- ===== INTELLIGENCE HIGHLIGHT ===== -->
+<tr>
+<td style="padding: 20px 40px;" class="mp">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:{bg_rgba}; border:1px solid {border_rgba}; border-radius:12px;">
+  <tr>
+  <td style="padding: 28px;">
+    <p style="font-family:{_FONT_MONO}; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:{_COLOR_INTELLIGENCE}; margin:0 0 14px 0;">
+      <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:{_COLOR_INTELLIGENCE}; vertical-align:middle; margin-right:6px;"></span>
+      <span style="vertical-align:middle;">INTELLIGENCE \u00b7 Novo Relat\u00f3rio</span>
+    </p>
+    <p style="font-family:{_FONT_SERIF}; font-size:18px; font-weight:700; color:{_COLOR_HEADING}; line-height:1.35; margin:0 0 10px 0;">
+      {_esc(highlight.title)}
+    </p>
+    <p style="font-family:{_FONT_SANS}; font-size:14px; color:{_COLOR_BODY}; line-height:1.6; margin:0 0 6px 0;">
+      {_esc(highlight.summary)}
+    </p>
+    <p style="font-family:{_FONT_MONO}; font-size:11px; color:{_COLOR_MUTED}; margin:0 0 18px 0;">
+      Por {_esc(highlight.author)}
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="background-color:{_COLOR_INTELLIGENCE}; border-radius:8px; padding:10px 22px;">
+        <a href="{_esc(highlight.site_url)}" style="font-family:{_FONT_MONO}; font-size:13px; font-weight:700; color:{_COLOR_BG}; text-decoration:none;">
+          Ler relat\u00f3rio completo \u2192
+        </a>
+      </td>
+    </tr>
+    </table>
+  </td>
+  </tr>
+  </table>
+</td>
+</tr>"""
+
+
 def _share_cta() -> str:
     """Seção CTA de compartilhamento (padrão do briefing).
 
@@ -901,6 +977,7 @@ def build_newsletter_email_html(
     agent_cards: Optional[List[AgentCard]] = None,
     max_hero_articles: int = 5,
     edition_url: Optional[str] = None,
+    intelligence: Optional[IntelligenceHighlight] = None,
 ) -> str:
     """Constrói HTML email-safe a partir dos dados da newsletter.
 
@@ -911,15 +988,17 @@ def build_newsletter_email_html(
     1. Cabeçalho (Sinal Semanal + número da edição)
     2. Lead editorial do SINTESE
     3. Artigos hero (top N do SINTESE, com imagens clicáveis)
-    4. Cards de agentes secundários (RADAR, CÓDIGO, FUNDING, MERCADO)
-    5. CTA de compartilhamento
-    6. Rodapé profissional com links
+    4. Intelligence highlight (se disponível)
+    5. Cards de agentes secundários (RADAR, CÓDIGO, FUNDING, MERCADO)
+    6. CTA de compartilhamento
+    7. Rodapé profissional com links
 
     Args:
         data: Dados estruturados da newsletter (output do parser).
         agent_cards: Lista de cards de agentes secundários.
         max_hero_articles: Máximo de artigos do SINTESE no hero. Padrão: 5.
         edition_url: URL da edição completa no site (para CTA "ler mais").
+        intelligence: Destaque opcional de relatório Intelligence.
 
     Returns:
         String HTML completa pronta para envio por email.
@@ -966,6 +1045,11 @@ def build_newsletter_email_html(
         parts.append(
             _read_more_cta(edition_url, total_articles - articles_shown)
         )
+
+    # Intelligence highlight (antes dos cards de agentes)
+    if intelligence:
+        parts.append(_divider())
+        parts.append(_intelligence_highlight(intelligence))
 
     # Cards de agentes secundários
     if agent_cards:

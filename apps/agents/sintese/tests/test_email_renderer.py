@@ -9,7 +9,9 @@ from apps.agents.sintese.email_renderer import (
     _COLOR_HEADING,
     _COLOR_MUTED,
     _COLOR_SINTESE,
+    _COLOR_INTELLIGENCE,
     AgentCard,
+    IntelligenceHighlight,
     NewsletterArticle,
     NewsletterData,
     NewsletterSection,
@@ -23,6 +25,7 @@ from apps.agents.sintese.email_renderer import (
     _footer,
     _header,
     _hex_to_rgba,
+    _intelligence_highlight,
     _read_more_cta,
     _section_header,
     _section_intro,
@@ -689,3 +692,88 @@ class TestBuildNewsletterEmail:
 
         # Professional footer
         assert "Metodologia" in html
+
+
+# ---------------------------------------------------------------------------
+# IntelligenceHighlight
+# ---------------------------------------------------------------------------
+
+
+class TestIntelligenceHighlight:
+    """Testes para o card de destaque Intelligence no briefing."""
+
+    def _make_highlight(self, **overrides):
+        defaults = {
+            "title": "DevTools LATAM: 100 startups mapeadas",
+            "summary": "Mapeamento completo das startups de developer tools na America Latina.",
+            "site_url": "https://sinal.tech/intelligence/devtools-mar-2026",
+            "author": "Fabiano Cruz",
+        }
+        defaults.update(overrides)
+        return IntelligenceHighlight(**defaults)
+
+    def test_renders_intelligence_badge(self):
+        html = _intelligence_highlight(self._make_highlight())
+        assert "INTELLIGENCE" in html
+
+    def test_renders_title(self):
+        html = _intelligence_highlight(self._make_highlight())
+        assert "DevTools LATAM: 100 startups mapeadas" in html
+
+    def test_renders_summary(self):
+        html = _intelligence_highlight(self._make_highlight())
+        assert "Mapeamento completo" in html
+
+    def test_renders_author(self):
+        html = _intelligence_highlight(self._make_highlight())
+        assert "Fabiano Cruz" in html
+
+    def test_renders_cta_link(self):
+        html = _intelligence_highlight(self._make_highlight())
+        assert 'href="https://sinal.tech/intelligence/devtools-mar-2026"' in html
+        assert "Ler relat" in html
+
+    def test_uses_intelligence_color(self):
+        html = _intelligence_highlight(self._make_highlight())
+        assert _COLOR_INTELLIGENCE in html
+
+    def test_escapes_html_in_title(self):
+        html = _intelligence_highlight(
+            self._make_highlight(title="Test <script>alert(1)</script>")
+        )
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
+    def test_default_author(self):
+        hl = IntelligenceHighlight(
+            title="Test", summary="Sum", site_url="https://example.com",
+        )
+        assert hl.author == "Sinal Intelligence"
+
+    def test_build_html_with_intelligence_highlight(self):
+        """Intelligence highlight appears in full email pipeline."""
+        data = parse_newsletter_markdown(MINIMAL_MARKDOWN)
+        hl = self._make_highlight()
+        html = build_newsletter_email_html(
+            data, intelligence=hl, max_hero_articles=1,
+        )
+        assert "INTELLIGENCE" in html
+        assert "DevTools LATAM" in html
+        assert "<!DOCTYPE html>" in html
+
+    def test_build_html_without_intelligence(self):
+        """No intelligence section when not provided."""
+        data = parse_newsletter_markdown(MINIMAL_MARKDOWN)
+        html = build_newsletter_email_html(data)
+        assert "INTELLIGENCE" not in html
+
+    def test_intelligence_appears_before_agent_cards(self):
+        """Intelligence highlight is placed before agent cards."""
+        data = parse_newsletter_markdown(MINIMAL_MARKDOWN)
+        hl = self._make_highlight()
+        html = build_newsletter_email_html(
+            data, agent_cards=SAMPLE_AGENT_CARDS, intelligence=hl,
+        )
+        intel_pos = html.index("INTELLIGENCE")
+        radar_pos = html.index("RADAR")
+        assert intel_pos < radar_pos
