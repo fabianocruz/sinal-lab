@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { FALLBACK_NEWSLETTERS, type Newsletter } from "@/lib/newsletter";
-import { fetchCompanies, fetchArticles } from "@/lib/api";
+import { fetchCompanies, fetchArticles, fetchIntelligenceReports } from "@/lib/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sinal.ai";
 
@@ -33,6 +33,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${BASE_URL}/artigos`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${BASE_URL}/intelligence`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
@@ -98,5 +104,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Silently fail — same pattern as companies
   }
 
-  return [...staticPages, ...newsletterPages, ...companyPages, ...articlePages];
+  // Fetch intelligence report slugs
+  let intelligencePages: MetadataRoute.Sitemap = [];
+  try {
+    const data = await fetchIntelligenceReports({ limit: 100 });
+    intelligencePages = data.items.map((r) => ({
+      url: `${BASE_URL}/intelligence/${r.slug}`,
+      lastModified: r.published_at ? new Date(r.published_at) : new Date(),
+      changeFrequency: "never" as const,
+      priority: 0.7,
+    }));
+  } catch {
+    // Silently fail — same pattern as companies
+  }
+
+  return [
+    ...staticPages,
+    ...newsletterPages,
+    ...companyPages,
+    ...articlePages,
+    ...intelligencePages,
+  ];
 }

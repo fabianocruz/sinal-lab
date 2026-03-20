@@ -9,7 +9,6 @@ import UserMenu from "./UserMenu";
 const NAV_LINKS = [
   { href: "/#briefing", label: "Briefing" },
   { href: "/#metodologia", label: "Metodologia" },
-  { href: "/#precos", label: "Preços" },
   { href: "/startups", label: "Mapa" },
 ];
 
@@ -129,6 +128,12 @@ export default function Navbar() {
           >
             Artigos
           </Link>
+          <Link
+            href="/intelligence"
+            className="font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
+          >
+            Intelligence
+          </Link>
         </div>
 
         {/* Desktop: auth state + CTA */}
@@ -174,6 +179,13 @@ export default function Navbar() {
               className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
             >
               Artigos
+            </Link>
+            <Link
+              href="/intelligence"
+              onClick={() => setMobileOpen(false)}
+              className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
+            >
+              Intelligence
             </Link>
             <NavbarAuthState mobile />
             <NavbarCTA mobile onClick={() => setMobileOpen(false)} />

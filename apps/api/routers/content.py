@@ -31,7 +31,7 @@ router = APIRouter(prefix="/content", tags=["content"])
 @router.get("")
 def list_content(
     content_type: Optional[str] = Query(None, description="Filter by content type"),
-    content_type_exclude: Optional[str] = Query(None, description="Exclude a content type"),
+    content_type_exclude: Optional[str] = Query(None, description="Exclude content types (comma-separated)"),
     agent_name: Optional[str] = Query(None, description="Filter by agent"),
     status: Optional[str] = Query(None, description="Filter by review status"),
     search: Optional[str] = Query(None, description="Case-insensitive title search (LIKE)"),
@@ -45,7 +45,11 @@ def list_content(
     if content_type:
         query = query.filter(ContentPiece.content_type == content_type)
     if content_type_exclude:
-        query = query.filter(ContentPiece.content_type != content_type_exclude)
+        excluded = [t.strip() for t in content_type_exclude.split(",") if t.strip()]
+        if len(excluded) == 1:
+            query = query.filter(ContentPiece.content_type != excluded[0])
+        elif excluded:
+            query = query.filter(ContentPiece.content_type.notin_(excluded))
     if agent_name:
         query = query.filter(ContentPiece.agent_name == agent_name)
     if status:
