@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sinal — Inteligência essencial sobre o ecossistema tech LATAM</title>
+<meta name="description" content="Toda segunda-feira, os dados mais relevantes sobre o ecossistema tech da América Latina — pesquisados por agentes de IA auditáveis, revisados por humanos, entregues no seu inbox.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   SINAL — Design Tokens
+   ============================================ */
+:root {
+  /* Surfaces */
+  --black: #0A0A0B;
+  --graphite: #1A1A1F;
+  --slate: #2A2A32;
+  --slate-border: rgba(255,255,255,0.06);
+  
+  /* Text */
+  --ash: #8A8A96;
+  --silver: #C4C4CC;
+  --bone: #F0EDE8;
+  --white: #FAFAF8;
+  
+  /* Signal accent */
+  --signal: #E8FF59;
+  --signal-dim: #C4D94B;
+  --signal-bg: rgba(232,255,89,0.06);
+  --signal-bg-hover: rgba(232,255,89,0.10);
+  
+  /* Agents */
+  --sintese: #E8FF59;
+  --radar: #59FFB4;
+  --codigo: #59B4FF;
+  --funding: #FF8A59;
+  --mercado: #C459FF;
+  
+  /* Fonts */
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+  
+  /* Spacing */
+  --section-pad: clamp(80px, 10vw, 140px);
+  --container: 1080px;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { 
+  scroll-behavior: smooth; 
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--black);
+  color: var(--silver);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--signal);
+  color: var(--black);
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--black); }
+::-webkit-scrollbar-thumb { background: var(--slate); border-radius: 2px; }
+
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+
+.container {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 48px);
+}
+
+/* ============================================
+   NAVBAR
+   ============================================ */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 0 clamp(20px, 4vw, 48px);
+  transition: background 0.3s, backdrop-filter 0.3s;
+}
+
+.navbar.scrolled {
+  background: rgba(10,10,11,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--slate-border);
+}
+
+.navbar-inner {
+  max-width: var(--container);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+}
+
+.nav-logo {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: -0.02em;
+}
+
+.nav-logo .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 8px rgba(232,255,89,0.4);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  list-style: none;
+}
+
+.nav-links a {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ash);
+  transition: color 0.2s;
+}
+
+.nav-links a:hover { color: var(--white); }
+
+.nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--black) !important;
+  background: var(--signal);
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.nav-cta:hover {
+  background: var(--signal-dim);
+  transform: translateY(-1px);
+}
+
+.mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.mobile-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--white);
+  margin: 5px 0;
+  transition: 0.3s;
+}
+
+/* ============================================
+   HERO
+   ============================================ */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-top: 72px;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(ellipse, rgba(232,255,89,0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: -20%;
+  left: -10%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(ellipse, rgba(89,255,180,0.02) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+}
+
+.hero-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--signal);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-label::before {
+  content: '';
+  width: 24px;
+  height: 1px;
+  background: var(--signal);
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 400;
+  line-height: 1.08;
+  color: var(--white);
+  margin-bottom: 28px;
+  letter-spacing: -0.02em;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--signal);
+}
+
+.hero-sub {
+  font-size: clamp(17px, 2vw, 19px);
+  color: var(--ash);
+  line-height: 1.7;
+  margin-bottom: 40px;
+  max-width: 580px;
+}
+
+.hero-form {
+  display: flex;
+  gap: 0;
+  max-width: 480px;
+  margin-bottom: 16px;
+}
+
+.hero-form input {
+  flex: 1;
+  padding: 16px 20px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  background: var(--graphite);
+  border: 1px solid var(--slate);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  color: var(--white);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.hero-form input::placeholder { color: var(--ash); }
+.hero-form input:focus { border-color: var(--signal); }
+
+.hero-form button {
+  padding: 16px 28px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--signal);
+  color: var(--black);
+  border: 1px solid var(--signal);
+  border-radius: 0 10px 10px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.hero-form button:hover { background: var(--signal-dim); }
+
+.hero-micro {
+  font-size: 13px;
+  color: var(--slate);
+  margin-bottom: 48px;
+}
+
+.hero-micro a {
+  color: var(--ash);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.hero-proof {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 32px;
+  border-top: 1px solid var(--slate-border);
+}
+
+.hero-proof-avatars {
+  display: flex;
+}
+
+.hero-proof-avatars span {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--slate);
+  border: 2px solid var(--black);
+  margin-right: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ash);
+}
+
+.hero-proof-text {
+  font-size: 14px;
+  color: var(--ash);
+}
+
+.hero-proof-text strong {
+  color: var(--bone);
+  font-weight: 600;
+}
+
+/* ============================================
+   SECTION BASE
+   ============================================ */
+.section {
+  padding: var(--section-pad) 0;
+}
+
+.section-border {
+  border-top: 1px solid var(--slate-border);
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--signal);
+  margin-bottom: 16px;
+}
+
+.section h2 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--white);
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+.section-sub {
+  font-size: 17px;
+  color: var(--ash);
+  max-width: 600px;
+  line-height: 1.7;
+  margin-bottom: 48px;
+}
+
+/* ============================================
+   VALUE PROPS — 3 Columns
+   ============================================ */
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.value-card {
+  background: var(--graphite);
+  border-radius: 16px;
+  padding: 36px 28px;
+  border: 1px solid var(--slate-border);
+  transition: border-color 0.3s, transform 0.2s;
+}
+
+.value-card:hover {
+  border-color: rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+
+.value-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 20px;
+  background: var(--signal-bg);
+}
+
+.value-card h3 {
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 12px;
+  line-height: 1.35;
+}
+
+.value-card p {
+  font-size: 15px;
+  color: var(--ash);
+  line-height: 1.65;
+}
+
+/* ============================================
+   BRIEFING EXPLAINER
+   ============================================ */
+.explainer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.explainer-text h2 {
+  margin-bottom: 24px;
+}
+
+.explainer-text p {
+  font-size: 16px;
+  color: var(--silver);
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.explainer-text p strong {
+  color: var(--white);
+}
+
+.explainer-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--signal);
+  margin-top: 16px;
+  transition: gap 0.2s;
+}
+
+.explainer-cta:hover { gap: 12px; }
+
+/* Newsletter Preview Card */
+.nl-preview {
+  background: var(--graphite);
+  border-radius: 16px;
+  border: 1px solid var(--slate-border);
+  overflow: hidden;
+}
+
+.nl-preview-header {
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--slate-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nl-preview-brand {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nl-preview-brand .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.nl-preview-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ash);
+  letter-spacing: 0.5px;
+}
+
+.nl-preview-block {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--slate-border);
+}
+
+.nl-preview-block:last-child { border-bottom: none; }
+
+.nl-agent-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nl-agent-label .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.nl-preview-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--white);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.nl-preview-text {
+  font-size: 14px;
+  color: var(--ash);
+  line-height: 1.6;
+}
+
+.nl-data-strip {
+  background: rgba(255,138,89,0.05);
+  border-left: 2px solid var(--funding);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.nl-data-strip.mercado {
+  background: rgba(196,89,255,0.05);
+  border-left-color: var(--mercado);
+}
+
+.nl-data-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--silver);
+  line-height: 1.8;
+}
+
+/* ============================================
+   PIPELINE
+   ============================================ */
+.pipeline-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 48px;
+}
+
+.pipeline-step {
+  background: var(--graphite);
+  border-radius: 12px;
+  padding: 28px 24px;
+  border: 1px solid var(--slate-border);
+  position: relative;
+}
+
+.pipeline-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--signal);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.pipeline-step h4 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+
+.pipeline-step p {
+  font-size: 14px;
+  color: var(--ash);
+  line-height: 1.55;
+}
+
+.pipeline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--signal);
+  background: var(--signal-bg);
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-top: 32px;
+}
+
+/* ============================================
+   PRICING
+   ============================================ */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 48px;
+}
+
+.pricing-card {
+  background: var(--graphite);
+  border-radius: 16px;
+  padding: 36px 28px;
+  border: 1px solid var(--slate-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-card.featured {
+  border-color: var(--signal);
+  position: relative;
+}
+
+.pricing-card.featured::before {
+  content: 'Recomendado';
+  position: absolute;
+  top: -12px;
+  left: 28px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--black);
+  background: var(--signal);
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.pricing-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ash);
+  margin-bottom: 16px;
+}
+
+.pricing-price {
+  font-family: var(--font-display);
+  font-size: 36px;
+  color: var(--white);
+  margin-bottom: 4px;
+}
+
+.pricing-price span {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ash);
+  font-weight: 400;
+}
+
+.pricing-period {
+  font-size: 13px;
+  color: var(--ash);
+  margin-bottom: 28px;
+}
+
+.pricing-features {
+  list-style: none;
+  margin-bottom: 32px;
+  flex: 1;
+}
+
+.pricing-features li {
+  font-size: 14px;
+  color: var(--silver);
+  padding: 8px 0;
+  padding-left: 20px;
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.pricing-features li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  opacity: 0.5;
+}
+
+.pricing-btn {
+  display: block;
+  text-align: center;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: 1px solid;
+}
+
+.pricing-btn.primary {
+  background: var(--signal);
+  color: var(--black);
+  border-color: var(--signal);
+}
+
+.pricing-btn.primary:hover { background: var(--signal-dim); }
+
+.pricing-btn.secondary {
+  background: transparent;
+  color: var(--white);
+  border-color: var(--slate);
+}
+
+.pricing-btn.secondary:hover { border-color: var(--silver); }
+
+.pricing-note {
+  font-size: 14px;
+  color: var(--ash);
+  text-align: center;
+  margin-top: 32px;
+  font-style: italic;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ============================================
+   SOCIAL PROOF / METRICS
+   ============================================ */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 56px;
+}
+
+.metric-card {
+  text-align: center;
+  padding: 32px 20px;
+  background: var(--graphite);
+  border-radius: 16px;
+  border: 1px solid var(--slate-border);
+}
+
+.metric-number {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 5vw, 52px);
+  color: var(--white);
+  margin-bottom: 8px;
+}
+
+.metric-label {
+  font-size: 14px;
+  color: var(--ash);
+}
+
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.testimonial-card {
+  background: var(--graphite);
+  border-radius: 14px;
+  padding: 28px;
+  border: 1px solid var(--slate-border);
+}
+
+.testimonial-text {
+  font-size: 15px;
+  color: var(--bone);
+  line-height: 1.7;
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.testimonial-author {
+  font-size: 13px;
+  color: var(--ash);
+}
+
+.testimonial-author strong {
+  color: var(--silver);
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* ============================================
+   CTA BAND
+   ============================================ */
+.cta-band {
+  background: var(--graphite);
+  border-top: 1px solid var(--slate-border);
+  border-bottom: 1px solid var(--slate-border);
+}
+
+.cta-band-inner {
+  text-align: center;
+  padding: var(--section-pad) 0;
+}
+
+.cta-band h2 {
+  margin-bottom: 16px;
+}
+
+.cta-band .section-sub {
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 36px;
+}
+
+.cta-form-inline {
+  display: flex;
+  gap: 0;
+  max-width: 440px;
+  margin: 0 auto 16px;
+}
+
+.cta-form-inline input {
+  flex: 1;
+  padding: 16px 20px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  background: var(--black);
+  border: 1px solid var(--slate);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  color: var(--white);
+  outline: none;
+}
+
+.cta-form-inline input:focus { border-color: var(--signal); }
+.cta-form-inline input::placeholder { color: var(--ash); }
+
+.cta-form-inline button {
+  padding: 16px 24px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--signal);
+  color: var(--black);
+  border: 1px solid var(--signal);
+  border-radius: 0 10px 10px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cta-micro {
+  font-size: 12px;
+  color: var(--slate);
+  text-align: center;
+}
+
+/* ============================================
+   EDITIONS PREVIEW
+   ============================================ */
+.editions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.edition-card {
+  background: var(--graphite);
+  border-radius: 14px;
+  border: 1px solid var(--slate-border);
+  overflow: hidden;
+  transition: border-color 0.3s, transform 0.2s;
+  cursor: pointer;
+}
+
+.edition-card:hover {
+  border-color: rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+
+.edition-strip {
+  height: 3px;
+  background: linear-gradient(90deg, var(--signal), var(--radar));
+}
+
+.edition-body {
+  padding: 24px;
+}
+
+.edition-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ash);
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.edition-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--white);
+  line-height: 1.35;
+  margin-bottom: 16px;
+}
+
+.edition-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--signal);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ============================================
+   ENTERPRISE
+   ============================================ */
+.enterprise-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.enterprise-card {
+  background: var(--graphite);
+  border-radius: 14px;
+  padding: 32px 24px;
+  border: 1px solid var(--slate-border);
+}
+
+.enterprise-card h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 10px;
+}
+
+.enterprise-card p {
+  font-size: 14px;
+  color: var(--ash);
+  line-height: 1.6;
+}
+
+.enterprise-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: transparent;
+  color: var(--white);
+  border: 1px solid var(--slate);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.2s;
+}
+
+.enterprise-cta:hover { border-color: var(--silver); }
+
+/* ============================================
+   FAQ
+   ============================================ */
+.faq-list {
+  max-width: 720px;
+}
+
+.faq-item {
+  border-bottom: 1px solid var(--slate-border);
+}
+
+.faq-question {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 24px 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--white);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.faq-question::after {
+  content: '+';
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--ash);
+  transition: transform 0.3s;
+  flex-shrink: 0;
+}
+
+.faq-item.open .faq-question::after {
+  transform: rotate(45deg);
+  color: var(--signal);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.3s;
+}
+
+.faq-item.open .faq-answer {
+  max-height: 400px;
+  padding-bottom: 24px;
+}
+
+.faq-answer p {
+  font-size: 15px;
+  color: var(--ash);
+  line-height: 1.7;
+}
+
+/* ============================================
+   MANIFESTO
+   ============================================ */
+.manifesto {
+  background: var(--graphite);
+  border-top: 1px solid var(--slate-border);
+  border-bottom: 1px solid var(--slate-border);
+}
+
+.manifesto-inner {
+  max-width: 640px;
+}
+
+.manifesto p {
+  font-size: 17px;
+  color: var(--silver);
+  line-height: 1.8;
+  margin-bottom: 20px;
+}
+
+.manifesto-signature {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--signal);
+  font-style: italic;
+  margin-top: 32px;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+  padding: 80px 0 40px;
+  border-top: 1px solid var(--slate-border);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(4, 1fr);
+  gap: 40px;
+  margin-bottom: 60px;
+}
+
+.footer-brand {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--white);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-brand .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.footer-tagline {
+  font-size: 14px;
+  color: var(--ash);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.footer-col h5 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ash);
+  margin-bottom: 16px;
+}
+
+.footer-col a {
+  display: block;
+  font-size: 14px;
+  color: var(--slate);
+  padding: 5px 0;
+  transition: color 0.2s;
+}
+
+.footer-col a:hover { color: var(--silver); }
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24px;
+  border-top: 1px solid var(--slate-border);
+}
+
+.footer-copyright {
+  font-size: 13px;
+  color: var(--slate);
+}
+
+.footer-social {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-social a {
+  font-size: 13px;
+  color: var(--slate);
+  transition: color 0.2s;
+}
+
+.footer-social a:hover { color: var(--signal); }
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 900px) {
+  .nav-links { display: none; }
+  .mobile-toggle { display: block; }
+  
+  .value-grid,
+  .pipeline-grid,
+  .pricing-grid,
+  .metrics-grid,
+  .editions-grid,
+  .enterprise-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .explainer-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .testimonials-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  
+  .footer-bottom {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-form {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .hero-form input,
+  .hero-form button {
+    border-radius: 10px;
+    border: 1px solid var(--slate);
+  }
+  
+  .hero-form button {
+    border-color: var(--signal);
+  }
+  
+  .cta-form-inline {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .cta-form-inline input,
+  .cta-form-inline button {
+    border-radius: 10px;
+    border: 1px solid var(--slate);
+  }
+  
+  .cta-form-inline button {
+    border-color: var(--signal);
+  }
+  
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards;
+}
+
+.animate-in:nth-child(1) { animation-delay: 0s; }
+.animate-in:nth-child(2) { animation-delay: 0.1s; }
+.animate-in:nth-child(3) { animation-delay: 0.2s; }
+
+.hero-content > * {
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards;
+}
+
+.hero-content > :nth-child(1) { animation-delay: 0.1s; }
+.hero-content > :nth-child(2) { animation-delay: 0.2s; }
+.hero-content > :nth-child(3) { animation-delay: 0.35s; }
+.hero-content > :nth-child(4) { animation-delay: 0.5s; }
+.hero-content > :nth-child(5) { animation-delay: 0.55s; }
+.hero-content > :nth-child(6) { animation-delay: 0.6s; }
+</style>
+</head>
+<body>
+
+<!-- ==================== NAVBAR ==================== -->
+<nav class="navbar" id="navbar">
+  <div class="navbar-inner">
+    <a href="/" class="nav-logo">
+      <span class="dot"></span> Sinal
+    </a>
+    <ul class="nav-links">
+      <li><a href="#briefing">Briefing</a></li>
+      <li><a href="#metodologia">Metodologia</a></li>
+      <li><a href="#precos">Preços</a></li>
+      <li><a href="#empresas">Para Empresas</a></li>
+      <li><a href="#hero" class="nav-cta">Assine o Briefing →</a></li>
+    </ul>
+    <button class="mobile-toggle" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<section class="hero" id="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-label">Inteligência tech LATAM</div>
+      <h1>Inteligência <em>essencial,</em><br>não superficial.</h1>
+      <p class="hero-sub">
+        Toda segunda-feira, os dados mais relevantes sobre o ecossistema tech da América Latina — pesquisados por agentes de IA auditáveis, revisados por humanos, entregues no seu inbox.
+      </p>
+      <form class="hero-form" onsubmit="return false;">
+        <input type="email" placeholder="seu@email.com" aria-label="Seu email">
+        <button type="submit">Assine o Briefing</button>
+      </form>
+      <p class="hero-micro">
+        Grátis. Sem spam. <a href="#edicoes">Ou comece pelo último Briefing →</a>
+      </p>
+      <div class="hero-proof">
+        <div class="hero-proof-avatars">
+          <span>FC</span><span>ML</span><span>RB</span><span>AS</span><span>+</span>
+        </div>
+        <p class="hero-proof-text">
+          <strong>+2.500</strong> fundadores, CTOs e investidores já leem o Sinal
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== VALUE PROPS ==================== -->
+<section class="section section-border">
+  <div class="container">
+    <div class="value-grid">
+      <div class="value-card animate-in">
+        <div class="value-icon">⊘</div>
+        <h3>Informação verificável,<br>não opinião.</h3>
+        <p>Cada dado publicado tem fonte rastreável, score de confiança e metodologia aberta. Você sabe exatamente de onde vem cada número.</p>
+      </div>
+      <div class="value-card animate-in">
+        <div class="value-icon">◷</div>
+        <h3>Economize 5 horas<br>por semana.</h3>
+        <p>Agentes de IA vasculham dezenas de fontes em português, inglês e espanhol para entregar só o que importa. Menos ruído, mais decisão.</p>
+      </div>
+      <div class="value-card animate-in">
+        <div class="value-icon">◎</div>
+        <h3>O ecossistema inteiro,<br>a um clique.</h3>
+        <p>De São Paulo a Cidade do México, de pré-seed a Série C — startups, tendências, funding e tecnologias emergentes em toda a América Latina.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== BRIEFING EXPLAINER ==================== -->
+<section class="section section-border" id="briefing">
+  <div class="container">
+    <div class="explainer-grid">
+      <div class="explainer-text">
+        <div class="section-label">O Briefing</div>
+        <h2>O que é o<br>Briefing Sinal?</h2>
+        <p>
+          O <strong>Briefing Sinal</strong> é uma curadoria semanal de inteligência de mercado sobre o ecossistema tech da América Latina. Não é um agregador de notícias — é uma análise estruturada, com dados verificáveis e contexto que você não encontra em nenhum outro lugar.
+        </p>
+        <p>
+          Cada seção é pesquisada por agentes de IA especializados, validada por múltiplas fontes e revisada por editores humanos antes de chegar ao seu inbox.
+        </p>
+        <a href="#" class="explainer-cta">Receba o próximo Briefing →</a>
+      </div>
+      
+      <div class="nl-preview">
+        <div class="nl-preview-header">
+          <div class="nl-preview-brand"><span class="dot"></span> Sinal Semanal</div>
+          <div class="nl-preview-meta">Ed. #47 · 10 Fev 2026</div>
+        </div>
+        
+        <div class="nl-preview-block">
+          <div class="nl-agent-label" style="color:var(--sintese);">
+            <span class="dot" style="background:var(--sintese);"></span> SÍNTESE
+          </div>
+          <div class="nl-preview-title">O paradoxo do modelo gratuito: quando abundância de IA vira commodity</div>
+          <div class="nl-preview-text">A avalanche de modelos open-source não é generosidade — é estratégia de comoditização da camada de inferência.</div>
+        </div>
+        
+        <div class="nl-preview-block">
+          <div class="nl-agent-label" style="color:var(--radar);">
+            <span class="dot" style="background:var(--radar);"></span> RADAR
+          </div>
+          <div class="nl-preview-title">3 padrões emergentes desta semana</div>
+          <div class="nl-preview-text" style="font-family:var(--font-mono);font-size:13px;color:var(--silver);">
+            ↗ AI agents em compliance regulatório LATAM<br>
+            ↗ Migração de devs para Rust em infra de pagamentos<br>
+            ↘ Interesse de VCs em crypto-native fintech
+          </div>
+        </div>
+        
+        <div class="nl-preview-block">
+          <div class="nl-agent-label" style="color:var(--funding);">
+            <span class="dot" style="background:var(--funding);"></span> FUNDING
+          </div>
+          <div class="nl-data-strip">
+            <div class="nl-data-mono">
+              Serie B · Clip (MEX) · $50M · SoftBank<br>
+              Serie A · Pomelo (ARG) · $18M · Kaszek<br>
+              <span style="color:var(--ash);">+ 10 rodadas →</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="nl-preview-block">
+          <div class="nl-agent-label" style="color:var(--mercado);">
+            <span class="dot" style="background:var(--mercado);"></span> MERCADO
+          </div>
+          <div class="nl-data-strip mercado">
+            <div class="nl-data-mono">
+              Launch · Koywe 2.0 (CHL) · Crypto Rails<br>
+              Acquisition · Dock + processadora Peru<br>
+              <span style="color:var(--ash);">+ 5 movimentos →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PIPELINE ==================== -->
+<section class="section section-border" id="metodologia">
+  <div class="container">
+    <div class="section-label">Metodologia</div>
+    <h2>Inteligência de IA com<br>transparência radical.</h2>
+    <p class="section-sub">
+      Nossos agentes de IA não são caixas-pretas. Cada um tem nome, função documentada e metodologia publicada. Você sempre sabe o que foi gerado por máquina e o que foi revisado por humano.
+    </p>
+    
+    <div class="pipeline-grid">
+      <div class="pipeline-step">
+        <div class="pipeline-num">01</div>
+        <h4>Pesquisa</h4>
+        <p>Agentes coletam dados de fontes públicas e verificáveis em 3 idiomas.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">02</div>
+        <h4>Validação</h4>
+        <p>Cruzamento com múltiplas fontes. Score de qualidade A/B/C/D para cada dado.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">03</div>
+        <h4>Verificação</h4>
+        <p>Checagem de fatos, consistência numérica e temporal automatizada.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">04</div>
+        <h4>Detecção de viés</h4>
+        <p>Identificação de vieses geográficos, setoriais e de estágio.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">05</div>
+        <h4>Síntese</h4>
+        <p>Montagem editorial com voz da marca, contexto e opinião fundamentada.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">06</div>
+        <h4>Revisão humana</h4>
+        <p>Editor revisa tudo antes de qualquer publicação. Sempre.</p>
+      </div>
+    </div>
+    
+    <div class="pipeline-badge">
+      DQ: 4/5 · AC: 4/5 · Revisado por editor
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PRICING ==================== -->
+<section class="section section-border" id="precos">
+  <div class="container">
+    <div class="section-label">Preços</div>
+    <h2>Quanto custa?</h2>
+    <p class="section-sub">
+      Inteligência de mercado não deveria ser privilégio de quem paga US$50.000/ano por um terminal. O Sinal nasceu aberto.
+    </p>
+    
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-name">Briefing</div>
+        <div class="pricing-price">R$0 <span>/mês</span></div>
+        <div class="pricing-period">Grátis, para sempre.</div>
+        <ul class="pricing-features">
+          <li>Briefing semanal por email</li>
+          <li>Acesso ao arquivo de edições</li>
+          <li>Newsletter com dados e análises</li>
+          <li>Índices públicos LATAM</li>
+        </ul>
+        <a href="#" class="pricing-btn secondary">Assinar grátis</a>
+      </div>
+      
+      <div class="pricing-card featured">
+        <div class="pricing-name">Pro</div>
+        <div class="pricing-price">R$29 <span>/mês</span></div>
+        <div class="pricing-period">ou R$249/ano (economize 28%)</div>
+        <ul class="pricing-features">
+          <li>Tudo do Briefing, mais:</li>
+          <li>Deep dives mensais exclusivos</li>
+          <li>Alertas de deals e tendências</li>
+          <li>Acesso à comunidade de builders</li>
+          <li>Dados exportáveis (CSV/API)</li>
+          <li>Perfis detalhados de 500+ startups</li>
+        </ul>
+        <a href="#" class="pricing-btn primary">Começar Pro</a>
+      </div>
+      
+      <div class="pricing-card">
+        <div class="pricing-name">Founding Member</div>
+        <div class="pricing-price">R$79 <span>/ano</span></div>
+        <div class="pricing-period">Vagas limitadas.</div>
+        <ul class="pricing-features">
+          <li>Tudo do Pro, mais:</li>
+          <li>Nome na página de fundadores</li>
+          <li>Acesso antecipado a features</li>
+          <li>Convite para eventos exclusivos</li>
+          <li>Voto em prioridades do roadmap</li>
+          <li>Badge "Founding Member"</li>
+        </ul>
+        <a href="#" class="pricing-btn secondary">Seja um Founding Member →</a>
+      </div>
+    </div>
+    
+    <p class="pricing-note">
+      Os dados que importam são abertos. Sempre serão. A assinatura Pro financia a pesquisa — não tranca o acesso.
+    </p>
+  </div>
+</section>
+
+<!-- ==================== SOCIAL PROOF ==================== -->
+<section class="section section-border">
+  <div class="container">
+    <div class="section-label">Quem lê</div>
+    <h2>Quem constrói tecnologia na<br>América Latina já lê o Sinal.</h2>
+    <p class="section-sub">Veja o que dizem.</p>
+    
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-number">87%</div>
+        <div class="metric-label">dos assinantes abrem toda semana</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-number">4.8<span style="font-family:var(--font-body);font-size:20px;color:var(--ash);">/5</span></div>
+        <div class="metric-label">avaliação média dos leitores</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-number">92%</div>
+        <div class="metric-label">recomendariam a um colega</div>
+      </div>
+    </div>
+    
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <p class="testimonial-text">"Eu gastava horas por semana tentando montar um panorama do ecossistema. O Sinal faz isso em 5 minutos, com fontes que eu posso verificar."</p>
+        <p class="testimonial-author"><strong>CTO</strong> · Startup Series B, São Paulo</p>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-text">"Como investidor, preciso de dados confiáveis sobre LATAM. O Sinal é a única fonte que mostra a metodologia de tudo que publica."</p>
+        <p class="testimonial-author"><strong>Partner</strong> · VC Fund, São Paulo</p>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-text">"A transparência dos agentes de IA é o que diferencia. Sei exatamente o que é dado bruto e o que é análise."</p>
+        <p class="testimonial-author"><strong>Fundador</strong> · Startup, Florianópolis</p>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-text">"O Deep Dive sobre embedded finance me poupou duas semanas de research. E os dados estavam todos lá, verificáveis."</p>
+        <p class="testimonial-author"><strong>Head de Produto</strong> · Fintech, Recife</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== CTA BAND ==================== -->
+<section class="cta-band">
+  <div class="container">
+    <div class="cta-band-inner">
+      <div class="section-label">Receba o sinal</div>
+      <h2>Pronto para receber<br>inteligência de verdade?</h2>
+      <p class="section-sub">
+        O próximo Briefing sai na segunda-feira. Junte-se a milhares de fundadores, CTOs e investidores que começam a semana com os dados certos.
+      </p>
+      <form class="cta-form-inline" onsubmit="return false;">
+        <input type="email" placeholder="seu@email.com" aria-label="Seu email">
+        <button type="submit">Assinar →</button>
+      </form>
+      <p class="cta-micro">Sem spam. Cancelamento em 1 clique. Seus dados nunca são vendidos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== EDITIONS PREVIEW ==================== -->
+<section class="section section-border" id="edicoes">
+  <div class="container">
+    <div class="section-label">Arquivo</div>
+    <h2>Veja o Briefing com<br>seus próprios olhos.</h2>
+    <p class="section-sub">
+      Não pedimos que confie em nós. Pedimos que verifique. Aqui estão as últimas edições — com todas as fontes, metodologias e scores de confiança.
+    </p>
+    
+    <div class="editions-grid">
+      <div class="edition-card">
+        <div class="edition-strip"></div>
+        <div class="edition-body">
+          <div class="edition-meta">10 FEV 2026 · Edição #47</div>
+          <div class="edition-title">Healthtech LATAM: a vertical silenciosa que cresceu 340%</div>
+          <a href="#" class="edition-link">Ler edição →</a>
+        </div>
+      </div>
+      <div class="edition-card">
+        <div class="edition-strip" style="background:linear-gradient(90deg, var(--codigo), var(--radar));"></div>
+        <div class="edition-body">
+          <div class="edition-meta">03 FEV 2026 · Edição #46</div>
+          <div class="edition-title">US$1.2B em deals no Q4: quem captou, de quem, e por quê</div>
+          <a href="#" class="edition-link">Ler edição →</a>
+        </div>
+      </div>
+      <div class="edition-card">
+        <div class="edition-strip" style="background:linear-gradient(90deg, var(--funding), var(--mercado));"></div>
+        <div class="edition-body">
+          <div class="edition-meta">27 JAN 2026 · Edição #45</div>
+          <div class="edition-title">O mapa de calor do talento técnico na América Latina</div>
+          <a href="#" class="edition-link">Ler edição →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ENTERPRISE ==================== -->
+<section class="section section-border" id="empresas">
+  <div class="container">
+    <div class="section-label">Para empresas</div>
+    <h2>Sinal para empresas.</h2>
+    <p class="section-sub">
+      Equipes de estratégia, corporate venture e M&A usam o Sinal para tomar decisões baseadas em dados sobre o ecossistema tech da América Latina.
+    </p>
+    
+    <div class="enterprise-grid">
+      <div class="enterprise-card">
+        <h4>Relatórios setoriais sob demanda</h4>
+        <p>Deep dives personalizados sobre verticais, mercados ou tecnologias específicas. Co-branded com sua empresa.</p>
+      </div>
+      <div class="enterprise-card">
+        <h4>API de dados LATAM</h4>
+        <p>Acesso programático a perfis de startups, dados de funding, índices e tendências. Integre na sua plataforma.</p>
+      </div>
+      <div class="enterprise-card">
+        <h4>Inteligência competitiva contínua</h4>
+        <p>Monitoramento de concorrentes, movimentações e oportunidades de M&A — atualizado semanalmente.</p>
+      </div>
+    </div>
+    
+    <a href="#" class="enterprise-cta">Fale com nosso time →</a>
+  </div>
+</section>
+
+<!-- ==================== FAQ ==================== -->
+<section class="section section-border" id="faq">
+  <div class="container">
+    <div class="section-label">FAQ</div>
+    <h2>Perguntas frequentes.</h2>
+    
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-question">O que exatamente é o Sinal?</button>
+        <div class="faq-answer">
+          <p>O Sinal é um laboratório aberto de pesquisa e inteligência de mercado sobre o ecossistema tech da América Latina. Produzimos um Briefing semanal, índices públicos, deep dives e dados verificáveis — tudo pesquisado por agentes de IA auditáveis e revisado por editores humanos.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">Como vocês usam inteligência artificial?</button>
+        <div class="faq-answer">
+          <p>Nossos agentes de IA têm nomes, funções documentadas e metodologias publicadas. Eles coletam dados, cruzam fontes, checam fatos e detectam vieses. Mas nenhum conteúdo é publicado sem revisão humana. Você vê exatamente o que foi gerado por IA e o que foi editado por humanos.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">O Briefing é realmente gratuito?</button>
+        <div class="faq-answer">
+          <p>Sim. O Briefing semanal é e sempre será gratuito. Acreditamos que inteligência de mercado é infraestrutura — não produto de luxo. A assinatura Pro financia pesquisa mais profunda, não tranca o acesso aos dados essenciais.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">Como vocês ganham dinheiro?</button>
+        <div class="faq-answer">
+          <p>Três fontes: assinaturas Pro de leitores individuais, relatórios co-branded para empresas, e API de dados para plataformas corporativas. Não vendemos dados de leitores e não aceitamos conteúdo patrocinado disfarçado de editorial.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">Posso confiar nos dados?</button>
+        <div class="faq-answer">
+          <p>Cada dado publicado tem: fonte rastreável, score de qualidade (A/B/C/D), data de coleta e metodologia documentada. Dados com fonte única são marcados como "não verificados". Dados conflitantes são escalados para revisão humana. Nosso protocolo de correção é público.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">Qual a diferença entre Sinal e Distrito/LAVCA/Crunchbase?</button>
+        <div class="faq-answer">
+          <p>Distrito é focado em enterprise. LAVCA atende apenas investidores. Crunchbase é global, em inglês, e com paywall. O Sinal é aberto, focado em builders técnicos (fundadores, CTOs, devs), com dados específicos de LATAM, metodologia publicada e comunidade ativa.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">Vocês cobrem toda a América Latina?</button>
+        <div class="faq-answer">
+          <p>Começamos pelo Brasil, com cobertura ativa nas principais cidades. Nosso programa de Embaixadores Locais expande a cobertura continuamente. Expansão para mercados hispânicos está no roadmap.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">E se eu encontrar um erro?</button>
+        <div class="faq-answer">
+          <p>Reporte em sinal.co/correcoes. Publicamos todas as correções com: texto original, texto corrigido, explicação e data. Nosso log de correções é público. Erros graves geram notificação a todos os assinantes.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== MANIFESTO ==================== -->
+<section class="manifesto">
+  <div class="container">
+    <div class="section" style="padding-bottom: var(--section-pad);">
+      <div class="manifesto-inner">
+        <div class="section-label">Manifesto</div>
+        <h2>Por que construímos o Sinal.</h2>
+        <p>
+          Informação é infraestrutura — tão essencial para quem constrói tecnologia na América Latina quanto energia elétrica ou banda larga.
+        </p>
+        <p>
+          Hoje, a inteligência de mercado que fundamenta as melhores decisões está fragmentada em plataformas pagas em inglês, redes informais de investidores e intuições que poucos compartilham.
+        </p>
+        <p>
+          O ecossistema que produz 3 milhões de desenvolvedores e 40.000 startups merece sua própria infraestrutura de inteligência — transparente, auditável, contínua e acessível a qualquer fundador técnico com a ambição de construir algo que importe.
+        </p>
+        <div class="manifesto-signature">Inteligência aberta para quem constrói.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand"><span class="dot"></span> Sinal</div>
+        <p class="footer-tagline">Inteligência aberta para quem constrói.</p>
+        <p style="font-size:13px;color:var(--slate);">© 2026 Sinal. Todos os direitos reservados.</p>
+      </div>
+      
+      <div class="footer-col">
+        <h5>Produto</h5>
+        <a href="#">Briefing Semanal</a>
+        <a href="#">Índices LATAM</a>
+        <a href="#">Deep Dives</a>
+        <a href="#">API de Dados</a>
+        <a href="#">Para Empresas</a>
+      </div>
+      
+      <div class="footer-col">
+        <h5>Comunidade</h5>
+        <a href="#">Comunidade de Builders</a>
+        <a href="#">Embaixadores Locais</a>
+        <a href="#">Painel de Especialistas</a>
+        <a href="#">Contribua com Dados</a>
+      </div>
+      
+      <div class="footer-col">
+        <h5>Transparência</h5>
+        <a href="#">Metodologia</a>
+        <a href="#">Fontes de Dados</a>
+        <a href="#">Log de Correções</a>
+        <a href="#">Dashboard de Viés</a>
+        <a href="#">Changelog dos Agentes</a>
+      </div>
+      
+      <div class="footer-col">
+        <h5>Institucional</h5>
+        <a href="#">Sobre</a>
+        <a href="#">Manifesto</a>
+        <a href="#">Contato</a>
+        <a href="#">Termos</a>
+        <a href="#">Privacidade (LGPD)</a>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <p class="footer-copyright">
+        Transparência radical. Metodologia aberta. Dados verificáveis.
+      </p>
+      <div class="footer-social">
+        <a href="#">LinkedIn</a>
+        <a href="#">X</a>
+        <a href="#">GitHub</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ==================== JS ==================== -->
+<script>
+// Navbar scroll effect
+const navbar = document.getElementById('navbar');
+let lastScroll = 0;
+
+window.addEventListener('scroll', () => {
+  const currentScroll = window.pageYOffset;
+  navbar.classList.toggle('scrolled', currentScroll > 40);
+  lastScroll = currentScroll;
+});
+
+// FAQ accordion
+document.querySelectorAll('.faq-question').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.parentElement;
+    const wasOpen = item.classList.contains('open');
+    
+    // Close all
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    
+    // Toggle clicked
+    if (!wasOpen) item.classList.add('open');
+  });
+});
+
+// Intersection Observer for animations
+const observerOptions = {
+  threshold: 0.1,
+  rootMargin: '0px 0px -40px 0px'
+};
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, observerOptions);
+
+document.querySelectorAll('.value-card, .pipeline-step, .pricing-card, .metric-card, .testimonial-card, .edition-card, .enterprise-card').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  observer.observe(el);
+});
+</script>
+
+</body>
+</html>

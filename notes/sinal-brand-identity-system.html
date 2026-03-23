@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sinal — Brand Identity System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Core Palette */
+  --sinal-black: #0A0A0B;
+  --sinal-graphite: #1A1A1F;
+  --sinal-slate: #2A2A32;
+  --sinal-ash: #8A8A96;
+  --sinal-silver: #C4C4CC;
+  --sinal-bone: #F0EDE8;
+  --sinal-white: #FAFAF8;
+  
+  /* Signal Accent */
+  --sinal-signal: #E8FF59;
+  --sinal-signal-dim: #C4D94B;
+  
+  /* Agent Colors */
+  --agent-sintese: #E8FF59;
+  --agent-radar: #59FFB4;
+  --agent-codigo: #59B4FF;
+  --agent-funding: #FF8A59;
+  --agent-mercado: #C459FF;
+  
+  /* Functional */
+  --data-raw: #FF8A59;
+  --intel-editorial: #E8FF59;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--sinal-black);
+  color: var(--sinal-bone);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 400;
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--sinal-black); }
+::-webkit-scrollbar-thumb { background: var(--sinal-slate); border-radius: 2px; }
+
+/* Layout */
+.container { max-width: 1120px; margin: 0 auto; padding: 0 40px; }
+
+/* Cover */
+.cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover::before {
+  content: '';
+  position: absolute;
+  top: -200px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(232,255,89,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cover-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--sinal-ash);
+  margin-bottom: 32px;
+}
+
+.cover h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(48px, 7vw, 96px);
+  font-weight: 400;
+  line-height: 1.05;
+  color: var(--sinal-white);
+  margin-bottom: 24px;
+}
+
+.cover h1 span {
+  color: var(--sinal-signal);
+}
+
+.cover-sub {
+  font-size: 18px;
+  color: var(--sinal-ash);
+  max-width: 520px;
+  line-height: 1.7;
+  margin-bottom: 48px;
+}
+
+.cover-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--sinal-slate);
+  letter-spacing: 1px;
+}
+
+/* Section */
+.section {
+  padding: 120px 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.section-number {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--sinal-signal);
+  margin-bottom: 12px;
+}
+
+.section h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 400;
+  color: var(--sinal-white);
+  margin-bottom: 40px;
+  line-height: 1.15;
+}
+
+.section h3 {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--sinal-white);
+  margin-bottom: 16px;
+  margin-top: 48px;
+}
+
+.section h3:first-of-type {
+  margin-top: 0;
+}
+
+.section p {
+  color: var(--sinal-silver);
+  max-width: 680px;
+  margin-bottom: 16px;
+}
+
+.section p strong {
+  color: var(--sinal-white);
+  font-weight: 600;
+}
+
+/* Color Swatches */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 32px 0;
+}
+
+.color-swatch {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--sinal-graphite);
+}
+
+.color-swatch-preview {
+  height: 80px;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+}
+
+.color-swatch-info {
+  padding: 14px 16px;
+}
+
+.color-swatch-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sinal-white);
+  margin-bottom: 4px;
+}
+
+.color-swatch-hex {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--sinal-ash);
+}
+
+/* Agent Colors */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 32px 0;
+}
+
+.agent-card {
+  background: var(--sinal-graphite);
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 3px solid;
+  transition: transform 0.2s;
+}
+
+.agent-card:hover { transform: translateY(-2px); }
+
+.agent-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.agent-role {
+  font-size: 13px;
+  color: var(--sinal-ash);
+}
+
+.agent-hex {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--sinal-slate);
+  margin-top: 8px;
+}
+
+.agent-tag {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+/* Typography Showcase */
+.type-specimen {
+  background: var(--sinal-graphite);
+  border-radius: 16px;
+  padding: 40px;
+  margin: 24px 0;
+}
+
+.type-specimen-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--sinal-ash);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.type-display {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(36px, 5vw, 64px);
+  color: var(--sinal-white);
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.type-body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 16px;
+  color: var(--sinal-silver);
+  line-height: 1.7;
+}
+
+.type-mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  color: var(--sinal-signal);
+}
+
+/* Logo Concepts */
+.logo-concepts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin: 32px 0;
+}
+
+.logo-card {
+  background: var(--sinal-graphite);
+  border-radius: 16px;
+  padding: 48px 32px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--sinal-signal);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.logo-card:hover::after { opacity: 1; }
+
+.logo-symbol {
+  font-family: 'DM Serif Display', serif;
+  font-size: 48px;
+  color: var(--sinal-white);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.logo-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sinal-signal);
+  box-shadow: 0 0 12px rgba(232,255,89,0.4);
+}
+
+.logo-description {
+  font-size: 13px;
+  color: var(--sinal-ash);
+  line-height: 1.6;
+}
+
+.logo-variant {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--sinal-slate);
+  margin-bottom: 16px;
+}
+
+/* Newsletter Mock */
+.newsletter-mock {
+  background: var(--sinal-graphite);
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 32px 0;
+  max-width: 640px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.nl-header {
+  padding: 32px 32px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.nl-brand {
+  font-family: 'DM Serif Display', serif;
+  font-size: 24px;
+  color: var(--sinal-white);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.nl-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sinal-signal);
+}
+
+.nl-date {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--sinal-ash);
+  letter-spacing: 1px;
+}
+
+.nl-block {
+  padding: 24px 32px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.nl-block:last-child { border-bottom: none; }
+
+.nl-block-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nl-block-label .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.nl-block-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 20px;
+  color: var(--sinal-white);
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.nl-block-text {
+  font-size: 14px;
+  color: var(--sinal-silver);
+  line-height: 1.7;
+}
+
+.nl-data-block {
+  background: rgba(255,138,89,0.06);
+  border-left: 2px solid var(--data-raw);
+  border-radius: 0 8px 8px 0;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.nl-data-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--data-raw);
+  margin-bottom: 8px;
+}
+
+.nl-intel-block {
+  background: rgba(232,255,89,0.04);
+  border-left: 2px solid var(--intel-editorial);
+  border-radius: 0 8px 8px 0;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.nl-intel-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--intel-editorial);
+  margin-bottom: 8px;
+}
+
+/* Voice Examples */
+.voice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.voice-card {
+  background: var(--sinal-graphite);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.voice-attr {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--sinal-signal);
+  margin-bottom: 10px;
+}
+
+.voice-desc {
+  font-size: 14px;
+  color: var(--sinal-silver);
+  line-height: 1.6;
+}
+
+/* Comparison */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.compare-card {
+  background: var(--sinal-graphite);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.compare-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.compare-label.do { color: var(--agent-radar); }
+.compare-label.dont { color: var(--data-raw); }
+
+.compare-item {
+  font-size: 14px;
+  color: var(--sinal-silver);
+  margin-bottom: 8px;
+  padding-left: 16px;
+  position: relative;
+}
+
+.compare-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.do .compare-item::before { background: var(--agent-radar); }
+.dont .compare-item::before { background: var(--data-raw); }
+
+/* Opening Example */
+.opening-example {
+  background: var(--sinal-graphite);
+  border-radius: 16px;
+  padding: 40px;
+  margin: 24px 0;
+  border-left: 3px solid var(--sinal-signal);
+}
+
+.opening-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--sinal-signal);
+  margin-bottom: 20px;
+}
+
+.opening-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  color: var(--sinal-white);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.opening-body {
+  font-size: 15px;
+  color: var(--sinal-silver);
+  line-height: 1.7;
+}
+
+/* Hierarchy Spec */
+.hierarchy-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+}
+
+.hierarchy-table th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--sinal-ash);
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.hierarchy-table td {
+  font-size: 14px;
+  color: var(--sinal-silver);
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.hierarchy-table td:first-child {
+  font-weight: 600;
+  color: var(--sinal-white);
+}
+
+.hierarchy-table code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  background: rgba(232,255,89,0.08);
+  color: var(--sinal-signal);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Scalable System */
+.scale-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.scale-card {
+  background: var(--sinal-graphite);
+  border-radius: 12px;
+  padding: 28px;
+  border-top: 2px solid var(--sinal-slate);
+  transition: border-color 0.3s;
+}
+
+.scale-card:hover {
+  border-color: var(--sinal-signal);
+}
+
+.scale-phase {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--sinal-ash);
+  margin-bottom: 12px;
+}
+
+.scale-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--sinal-white);
+  margin-bottom: 12px;
+}
+
+.scale-desc {
+  font-size: 13px;
+  color: var(--sinal-ash);
+  line-height: 1.6;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232,255,89,0.2), transparent);
+  margin: 64px 0;
+}
+
+/* Ref grid */
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.ref-card {
+  background: var(--sinal-graphite);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.ref-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sinal-white);
+  margin-bottom: 6px;
+}
+
+.ref-type {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--sinal-ash);
+}
+
+/* Footer */
+.brand-footer {
+  padding: 80px 0 40px;
+  text-align: center;
+}
+
+.brand-footer p {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--sinal-slate);
+  letter-spacing: 1px;
+  max-width: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container { padding: 0 24px; }
+  .section { padding: 80px 0; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .type-specimen { padding: 24px; }
+  .opening-example { padding: 24px; }
+  .newsletter-mock { margin: 24px -24px; border-radius: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ==================== COVER ==================== -->
+  <section class="cover">
+    <div class="cover-label">Brand Identity System — v1.0</div>
+    <h1><span>Sinal</span></h1>
+    <p class="cover-sub">
+      Inteligência aberta sobre o ecossistema tech LATAM.<br>
+      Sistema completo de identidade visual, voz editorial e arquitetura de marca.
+    </p>
+    <div class="cover-meta">FEV 2026 · CONFIDENCIAL · DOCUMENTO ESTRATÉGICO</div>
+  </section>
+
+  <!-- ==================== 01. CONCEITO CENTRAL ==================== -->
+  <section class="section">
+    <div class="section-number">01 — Conceito Central</div>
+    <h2>A metáfora do sinal<br>no meio do ruído</h2>
+    
+    <p>
+      <strong>Território simbólico: Espectro de Inteligência.</strong> A Sinal opera na interseção entre dados brutos e inteligência acionável. A metáfora dominante é a de um <strong>espectro eletromagnético</strong> — onde diferentes frequências carregam diferentes tipos de informação, e a capacidade de sintonizar a frequência certa separa ruído de insight.
+    </p>
+    
+    <p>
+      Não é radar (implica vigilância passiva). Não é pulso (implica urgência). É <strong>espectro</strong> — a ideia de que existem múltiplas camadas de informação simultâneas, e que a marca funciona como um <strong>analisador de espectro</strong>, decompondo o ecossistema em sinais legíveis e acionáveis.
+    </p>
+
+    <h3>Princípios fundadores</h3>
+    <p>
+      <strong>Sinal sobre ruído.</strong> Cada decisão de design, cada palavra, cada pixel existe para aumentar a relação sinal/ruído. Se não adiciona clareza, é removido.
+    </p>
+    <p>
+      <strong>Inteligência composta.</strong> Cinco agentes, uma voz. A marca é o resultado da composição de perspectivas especializadas — não um agregador, mas um sintetizador.
+    </p>
+    <p>
+      <strong>Precisão silenciosa.</strong> A autoridade da marca não vem de volume ou hipérbole, mas da consistência e acurácia do que entrega. O design reflete isso: denso sem ser pesado, técnico sem ser frio, sofisticado sem ser decorativo.
+    </p>
+    <p>
+      <strong>LATAM-first, global-grade.</strong> A origem latino-americana é um fato, não um artifício visual. A qualidade editorial e técnica compete com qualquer publicação global de inteligência.
+    </p>
+  </section>
+
+  <!-- ==================== 02. SISTEMA VISUAL ==================== -->
+  <section class="section">
+    <div class="section-number">02 — Sistema Visual</div>
+    <h2>Paleta & Sistema de Cores</h2>
+    
+    <h3>Paleta principal — Escala de profundidade</h3>
+    <p>
+      A base é uma escala de cinzas frias com undertone levemente violeta, evitando o cinza neutro genérico. Todas as superfícies da marca vivem nesse espectro — do preto profundo ao off-white com temperatura quente.
+    </p>
+
+    <div class="color-grid">
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#0A0A0B;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Black</div>
+          <div class="color-swatch-hex">#0A0A0B · Fundo primário</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#1A1A1F;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Graphite</div>
+          <div class="color-swatch-hex">#1A1A1F · Cards e superfícies</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#2A2A32;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Slate</div>
+          <div class="color-swatch-hex">#2A2A32 · Bordas e divisores</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#8A8A96;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Ash</div>
+          <div class="color-swatch-hex">#8A8A96 · Texto secundário</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#C4C4CC;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Silver</div>
+          <div class="color-swatch-hex">#C4C4CC · Texto corpo</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#F0EDE8;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Bone</div>
+          <div class="color-swatch-hex">#F0EDE8 · Texto de destaque</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Cor de acento — O Sinal</h3>
+    <p>
+      Amarelo-limão elétrico. Não é dourado (implicaria finança tradicional), não é laranja (startup energy), não é verde (eco/fintech). É uma cor que existe no espaço entre atenção e inteligência — vibrante o suficiente para chamar o olho, fria o suficiente para não gritar.
+    </p>
+
+    <div class="color-grid">
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#E8FF59;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Signal</div>
+          <div class="color-swatch-hex">#E8FF59 · Acento primário</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-preview" style="background:#C4D94B;"></div>
+        <div class="color-swatch-info">
+          <div class="color-swatch-name">Signal Dim</div>
+          <div class="color-swatch-hex">#C4D94B · Acento em hover/ativo</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Cores dos agentes</h3>
+    <p>
+      Cada agente tem uma cor funcional, não decorativa. As cores existem para criar navegação visual dentro da newsletter e futuros produtos. Nota: SINTESE usa a mesma cor Signal porque é a voz principal da marca.
+    </p>
+
+    <div class="agent-grid">
+      <div class="agent-card" style="border-color: var(--agent-sintese);">
+        <div class="agent-name" style="color: var(--agent-sintese);">SÍNTESE</div>
+        <div class="agent-role">Curadoria editorial</div>
+        <div class="agent-hex">#E8FF59</div>
+        <div class="agent-tag" style="background: rgba(232,255,89,0.12); color: var(--agent-sintese);">inteligência</div>
+      </div>
+      <div class="agent-card" style="border-color: var(--agent-radar);">
+        <div class="agent-name" style="color: var(--agent-radar);">RADAR</div>
+        <div class="agent-role">Tendências emergentes</div>
+        <div class="agent-hex">#59FFB4</div>
+        <div class="agent-tag" style="background: rgba(89,255,180,0.12); color: var(--agent-radar);">inteligência</div>
+      </div>
+      <div class="agent-card" style="border-color: var(--agent-codigo);">
+        <div class="agent-name" style="color: var(--agent-codigo);">CÓDIGO</div>
+        <div class="agent-role">Ecossistema dev</div>
+        <div class="agent-hex">#59B4FF</div>
+        <div class="agent-tag" style="background: rgba(89,180,255,0.12); color: var(--agent-codigo);">inteligência</div>
+      </div>
+      <div class="agent-card" style="border-color: var(--agent-funding);">
+        <div class="agent-name" style="color: var(--agent-funding);">FUNDING</div>
+        <div class="agent-role">Rodadas de investimento</div>
+        <div class="agent-hex">#FF8A59</div>
+        <div class="agent-tag" style="background: rgba(255,138,89,0.12); color: var(--agent-funding);">dado bruto</div>
+      </div>
+      <div class="agent-card" style="border-color: var(--agent-mercado);">
+        <div class="agent-name" style="color: var(--agent-mercado);">MERCADO</div>
+        <div class="agent-role">Mapeamento de startups</div>
+        <div class="agent-hex">#C459FF</div>
+        <div class="agent-tag" style="background: rgba(196,89,255,0.12); color: var(--agent-mercado);">dado bruto</div>
+      </div>
+    </div>
+
+    <h3>Lógica de uso</h3>
+    <p>
+      <strong>Regra de 90/10:</strong> 90% da interface usa a escala de profundidade (preto/grafite/cinza). 10% usa cores de agente, exclusivamente para função — nunca para decoração. Cor de agente aparece em: labels de seção, bullets de identificação, bordas de bloco, e tags de classificação.
+    </p>
+    <p>
+      <strong>Separação dado vs. inteligência:</strong> Blocos de dado bruto (FUNDING, MERCADO) usam cores quentes (laranja, roxo) com fundo tinted de 6% de opacidade e borda esquerda. Blocos de inteligência editorial (SÍNTESE, RADAR, CÓDIGO) usam cores frias/neutras com tipografia mais proeminente e sem fundo tinted.
+    </p>
+  </section>
+
+  <!-- ==================== 03. TIPOGRAFIA ==================== -->
+  <section class="section">
+    <div class="section-number">03 — Tipografia</div>
+    <h2>Sistema tipográfico</h2>
+    
+    <p>
+      O sistema usa três famílias com papéis distintos. A escolha deliberada de combinar uma serif editorial com sans-serif técnica e mono de dados cria a tensão visual que define a marca: sofisticação editorial encontra precisão técnica.
+    </p>
+
+    <div class="type-specimen">
+      <div class="type-specimen-label">Display · DM Serif Display</div>
+      <div class="type-display">Inteligência acionável para quem constrói.</div>
+      <p style="color: var(--sinal-ash); font-size: 13px; margin-top: 12px; margin-bottom: 0;">
+        Uso: Headlines, títulos de seção na newsletter, nome da marca. Evoca autoridade editorial sem peso excessivo. A serif sutil nas hastes traz personalidade sem ser antiquada.
+      </p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen-label">Corpo · IBM Plex Sans</div>
+      <div class="type-body">
+        O ecossistema tech da América Latina moveu mais de $4.2B em venture capital no primeiro trimestre, uma queda de 18% que mascara uma reconfiguração estrutural: seed rounds sobem, late-stage congela, e o capital migra de fintech para infra de IA.
+      </div>
+      <p style="color: var(--sinal-ash); font-size: 13px; margin-top: 12px; margin-bottom: 0;">
+        Uso: Todo texto de leitura contínua. IBM Plex Sans oferece legibilidade excepcional em parágrafos densos, com personalidade suficiente para não parecer genérica. Peso 400 para corpo, 600 para subtítulos, 700 para emphasis.
+      </p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen-label">Dados · IBM Plex Mono</div>
+      <div class="type-mono">
+        FUNDING · Serie A · Clip (São Paulo) · $12M · Kaszek + QED<br>
+        MERCADO · Launch · Nuvio (Bogotá) · Infra/DevTools · Pre-seed
+      </div>
+      <p style="color: var(--sinal-ash); font-size: 13px; margin-top: 12px; margin-bottom: 0;">
+        Uso: Labels, dados estruturados, tags de agente, metadados, valores numéricos. Mono reforça a natureza técnica e processada da informação. Peso 400 para dados, 600 para labels.
+      </p>
+    </div>
+
+    <h3>Alternativas open-source</h3>
+    <p>
+      <strong>Display:</strong> Lora (Google Fonts) como fallback serif editorial. Playfair Display se precisar de mais contraste. Nunca usar Merriweather (mainstream demais).
+    </p>
+    <p>
+      <strong>Corpo:</strong> Source Sans 3 como alternativa. Inter apenas como último recurso e nunca abaixo de 15px. Atkinson Hyperlegible para contextos de acessibilidade expandida.
+    </p>
+    <p>
+      <strong>Dados:</strong> JetBrains Mono como alternativa premium. Source Code Pro como fallback. Nunca Fira Code (ligaduras distraem em contexto editorial).
+    </p>
+
+    <h3>Hierarquia editorial</h3>
+    <table class="hierarchy-table">
+      <thead>
+        <tr>
+          <th>Elemento</th>
+          <th>Família</th>
+          <th>Tamanho</th>
+          <th>Peso</th>
+          <th>Cor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>H1 — Título principal</td>
+          <td>DM Serif Display</td>
+          <td><code>32–48px</code></td>
+          <td>400</td>
+          <td>#FAFAF8</td>
+        </tr>
+        <tr>
+          <td>H2 — Seção</td>
+          <td>DM Serif Display</td>
+          <td><code>22–28px</code></td>
+          <td>400</td>
+          <td>#FAFAF8</td>
+        </tr>
+        <tr>
+          <td>H3 — Subtítulo</td>
+          <td>IBM Plex Sans</td>
+          <td><code>16–18px</code></td>
+          <td>600</td>
+          <td>#FAFAF8</td>
+        </tr>
+        <tr>
+          <td>Corpo</td>
+          <td>IBM Plex Sans</td>
+          <td><code>15–16px</code></td>
+          <td>400</td>
+          <td>#C4C4CC</td>
+        </tr>
+        <tr>
+          <td>Label de agente</td>
+          <td>IBM Plex Mono</td>
+          <td><code>10–11px</code></td>
+          <td>600</td>
+          <td>Cor do agente</td>
+        </tr>
+        <tr>
+          <td>Metadados</td>
+          <td>IBM Plex Mono</td>
+          <td><code>11–12px</code></td>
+          <td>400</td>
+          <td>#8A8A96</td>
+        </tr>
+        <tr>
+          <td>Dados estruturados</td>
+          <td>IBM Plex Mono</td>
+          <td><code>13–14px</code></td>
+          <td>400</td>
+          <td>#E8FF59</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ==================== 04. LOGOTIPO ==================== -->
+  <section class="section">
+    <div class="section-number">04 — Logotipo</div>
+    <h2>Conceito e variações</h2>
+
+    <p>
+      O logo evita representações literais de "sinal" (ondas, antenas, Wi-Fi). Em vez disso, trabalha com a ideia de <strong>ponto de emissão</strong> — o momento exato em que um sinal se origina. O conceito central é tipográfico: a palavra "Sinal" com um ponto luminoso que substitui o ponto do "i", representando a fonte do sinal.
+    </p>
+
+    <div class="logo-concepts">
+      <div class="logo-card">
+        <div class="logo-variant">Versão primária — Horizontal</div>
+        <div class="logo-symbol">
+          S<span style="position:relative;">i<span class="logo-pulse" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);"></span></span>nal
+        </div>
+        <div class="logo-description">
+          Wordmark com DM Serif Display. O ponto do "i" é substituído por um círculo luminoso na cor Signal (#E8FF59). O brilho sutil em volta do ponto sugere emissão sem ser explícito.
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-variant">Ícone — Marca reduzida</div>
+        <div class="logo-symbol">
+          <span style="font-size:40px;">S</span><span class="logo-pulse" style="width:10px;height:10px;margin-left:2px;margin-bottom:4px;"></span>
+        </div>
+        <div class="logo-description">
+          "S" maiúsculo em DM Serif Display acompanhado do ponto luminoso. Funciona como avatar, favicon, e marca d'água. O ponto pode pulsar em contextos animados.
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-variant">Favicon — Mínimo viável</div>
+        <div class="logo-symbol">
+          <span style="background:var(--sinal-signal);width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:22px;color:var(--sinal-black);font-weight:400;">S</span>
+          </span>
+        </div>
+        <div class="logo-description">
+          Fundo Signal com "S" em preto. Máximo contraste em 16x16. Em contextos extremamente pequenos, usar apenas o ponto luminoso como marca.
+        </div>
+      </div>
+    </div>
+
+    <h3>Regras de uso</h3>
+    <p>
+      <strong>Zona de exclusão:</strong> Mínimo de metade da altura do "S" em todos os lados. O logo nunca fica encostado em bordas ou outros elementos.
+    </p>
+    <p>
+      <strong>Fundo obrigatório:</strong> Sempre sobre fundo escuro (#0A0A0B ou #1A1A1F). Versão em fundo claro usa preto com ponto em #C4D94B (Signal Dim). Nunca inverter completamente.
+    </p>
+    <p>
+      <strong>Tamanho mínimo:</strong> Wordmark horizontal: 120px de largura. Ícone: 24px. Abaixo disso, usar apenas o favicon.
+    </p>
+  </section>
+
+  <!-- ==================== 05. NEWSLETTER ==================== -->
+  <section class="section">
+    <div class="section-number">05 — Sistema Modular de Newsletter</div>
+    <h2>Sinal Semanal — Arquitetura visual</h2>
+
+    <p>
+      A newsletter é o produto principal. Sua estrutura visual precisa resolver um problema central: <strong>separar claramente dado bruto de inteligência editorial</strong>, mantendo fluxo de leitura e densidade informacional alta.
+    </p>
+
+    <h3>Hierarquia de blocos</h3>
+    <p>
+      A ordem não é arbitrária. Abre com inteligência (alto valor), progride para análise contextual, e fecha com dados brutos (referência). O leitor pode parar a qualquer momento e já ter extraído valor proporcional ao tempo investido.
+    </p>
+
+    <div class="newsletter-mock">
+      <div class="nl-header">
+        <div class="nl-brand"><span class="nl-dot"></span> Sinal Semanal</div>
+        <div class="nl-date">Semana 08 · 17–21 FEV 2026 · Ed. 34</div>
+      </div>
+
+      <div class="nl-block">
+        <div class="nl-block-label" style="color: var(--agent-sintese);">
+          <span class="dot" style="background: var(--agent-sintese);"></span> SÍNTESE
+        </div>
+        <div class="nl-block-title">O paradoxo do modelo gratuito: quando abundância de IA vira commodity e escassez vira produto</div>
+        <div class="nl-block-text">
+          A avalanche de modelos open-source da última semana não é generosidade — é estratégia de comoditização da camada de inferência. Para quem constrói em LATAM, o sinal é claro: a vantagem competitiva está migrando de "qual modelo uso" para "que dados proprietários alimento".
+        </div>
+      </div>
+
+      <div class="nl-block">
+        <div class="nl-block-label" style="color: var(--agent-radar);">
+          <span class="dot" style="background: var(--agent-radar);"></span> RADAR
+        </div>
+        <div class="nl-block-title">3 padrões emergentes desta semana</div>
+        <div class="nl-intel-block">
+          <div class="nl-intel-label">Inteligência editorial</div>
+          <div class="nl-block-text" style="font-size:14px;">
+            ↗ Vertical AI agents em compliance regulatório LATAM — 4 startups lançaram produtos similares em 3 semanas<br>
+            ↗ Migração de devs brasileiros para Rust em infra de pagamentos — sinal fraco, mas consistente<br>
+            ↘ Interesse de VCs em crypto-native fintech — deal flow caiu 60% vs Q3 2025
+          </div>
+        </div>
+      </div>
+
+      <div class="nl-block">
+        <div class="nl-block-label" style="color: var(--agent-codigo);">
+          <span class="dot" style="background: var(--agent-codigo);"></span> CÓDIGO
+        </div>
+        <div class="nl-block-title">O ecossistema dev que ninguém está cobrindo</div>
+        <div class="nl-block-text">
+          Análise semanal de repositórios, tools e movimentos no ecossistema de desenvolvimento LATAM.
+        </div>
+      </div>
+
+      <div class="nl-block">
+        <div class="nl-block-label" style="color: var(--agent-funding);">
+          <span class="dot" style="background: var(--agent-funding);"></span> FUNDING
+        </div>
+        <div class="nl-data-block">
+          <div class="nl-data-label">Dado bruto · 12 rodadas mapeadas</div>
+          <div class="nl-block-text" style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--sinal-silver);">
+            Serie B · Clip (MEX) · $50M · SoftBank + Viking<br>
+            Serie A · Pomelo (ARG) · $18M · Kaszek<br>
+            Seed · Nuvio (COL) · $3.2M · a16z Scout + NXTP<br>
+            <span style="color:var(--sinal-ash);">+ 9 rodadas →</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nl-block">
+        <div class="nl-block-label" style="color: var(--agent-mercado);">
+          <span class="dot" style="background: var(--agent-mercado);"></span> MERCADO
+        </div>
+        <div class="nl-data-block" style="background:rgba(196,89,255,0.06);border-color:var(--agent-mercado);">
+          <div class="nl-data-label" style="color:var(--agent-mercado);">Dado bruto · 7 movimentos mapeados</div>
+          <div class="nl-block-text" style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--sinal-silver);">
+            Launch · Koywe 2.0 (CHL) · Crypto Rails · Rebrand + pivot<br>
+            Acquisition · Dock adquire processadora no Peru<br>
+            Pivot · Méliuz abandona cashback, vira banco digital<br>
+            <span style="color:var(--sinal-ash);">+ 4 movimentos →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Diferenciação visual dado bruto vs. inteligência</h3>
+    <p>
+      <strong>Inteligência editorial</strong> (SÍNTESE, RADAR, CÓDIGO): Tipografia DM Serif Display para títulos, IBM Plex Sans para corpo. Sem fundo colored. Cor do agente apenas no label. Layout editorial aberto.
+    </p>
+    <p>
+      <strong>Dado bruto</strong> (FUNDING, MERCADO): Fundo tinted na cor do agente a 6% de opacidade. Borda esquerda de 2px na cor do agente. Tipografia IBM Plex Mono para os dados. Label "DADO BRUTO" explícito. Layout compacto, tabular.
+    </p>
+  </section>
+
+  <!-- ==================== 06. TOM DE VOZ ==================== -->
+  <section class="section">
+    <div class="section-number">06 — Tom de Voz</div>
+    <h2>Como a Sinal fala</h2>
+
+    <h3>5 atributos centrais</h3>
+    <div class="voice-grid">
+      <div class="voice-card">
+        <div class="voice-attr">Precisa</div>
+        <div class="voice-desc">Cada afirmação tem fonte ou dado. Sem hedging vago. Se não tem certeza, diz "sinal fraco" ou "dado incompleto". Nunca usa "acredita-se que" ou "fontes dizem".</div>
+      </div>
+      <div class="voice-card">
+        <div class="voice-attr">Densa</div>
+        <div class="voice-desc">Cada parágrafo carrega pelo menos um insight novo. Zero sentenças de preenchimento. O leitor pode grifar qualquer frase e ela terá valor isolado.</div>
+      </div>
+      <div class="voice-card">
+        <div class="voice-attr">Opinativa</div>
+        <div class="voice-desc">Tem ponto de vista. Não é wire service. Conecta eventos a consequências, identifica padrões e chama quando algo é irrelevante. A opinião é sempre fundamentada.</div>
+      </div>
+      <div class="voice-card">
+        <div class="voice-attr">Direta</div>
+        <div class="voice-desc">Frase curta. Voz ativa. Sem jargão corporativo (não usa "ecossistema robusto" ou "solução inovadora"). Quando o texto fica técnico, é por necessidade, não por postura.</div>
+      </div>
+      <div class="voice-card">
+        <div class="voice-attr">Construída</div>
+        <div class="voice-desc">Fala para quem constrói. O vocabulário é de builder — "ship", "break", "build", "escalar", "trade-off". Nunca fala de cima pra baixo. O leitor é par.</div>
+      </div>
+    </div>
+
+    <h3>Exemplos de microcopy</h3>
+    <p>
+      <strong>CTA de inscrição:</strong> "Receba o sinal. Toda segunda-feira." (não "Inscreva-se na nossa newsletter!")
+    </p>
+    <p>
+      <strong>Label de seção:</strong> "12 rodadas mapeadas esta semana" (não "Resumo de investimentos")
+    </p>
+    <p>
+      <strong>Footer:</strong> "Sinal é gerada por 5 agentes de IA e curada por quem constrói." (não "Powered by AI")
+    </p>
+    <p>
+      <strong>Erro/vazio:</strong> "Sem sinal nesta frequência esta semana." (não "Nenhum resultado encontrado")
+    </p>
+    <p>
+      <strong>Compartilhamento:</strong> "Encaminhe o sinal." (não "Compartilhe com amigos!")
+    </p>
+
+    <h3>Exemplo de abertura — Sinal Semanal</h3>
+    <div class="opening-example">
+      <div class="opening-label">Abertura modelo · Ed. 34</div>
+      <div class="opening-text">
+        Três coisas que importam esta semana: o modelo gratuito da DeepSeek que não é gratuito, a rodada silenciosa que pode redefinir acquiring no México, e por que o melhor engenheiro de ML do Brasil acabou de sair de uma big tech para uma startup de 8 pessoas em Medellín.
+      </div>
+      <div class="opening-body">
+        A semana foi barulhenta. O ciclo de hype de modelos open-source atingiu um pico previsível, com pelo menos 4 lançamentos competindo por atenção. Filtramos o que realmente muda algo para quem está construindo na região. O resto é ruído — e ruído, por definição, não entra aqui.
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 07. DIREÇÃO ESTÉTICA ==================== -->
+  <section class="section">
+    <div class="section-number">07 — Direção Estética</div>
+    <h2>Referências e limites</h2>
+
+    <h3>Referências de estilo</h3>
+    <div class="ref-grid">
+      <div class="ref-card">
+        <div class="ref-name">The Economist</div>
+        <div class="ref-type">Autoridade editorial · Opinião fundamentada</div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-name">Bloomberg Terminal</div>
+        <div class="ref-type">Densidade de dados · Eficiência visual</div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-name">Stratechery</div>
+        <div class="ref-type">Profundidade analítica · Voz autoral</div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-name">Linear</div>
+        <div class="ref-type">Design de produto tech · Precisão crafted</div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-name">Monocle</div>
+        <div class="ref-type">Sofisticação editorial · Grid rigoroso</div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-name">Stripe Press</div>
+        <div class="ref-type">Tech com sensibilidade cultural · Tipografia</div>
+      </div>
+    </div>
+
+    <h3>O que evitar — explicitamente</h3>
+    <div class="compare-grid">
+      <div class="compare-card do">
+        <div class="compare-label do">A Sinal é</div>
+        <div class="compare-item">Dark-mode nativo, não tema invertido</div>
+        <div class="compare-item">Serif editorial em headlines (intencional)</div>
+        <div class="compare-item">Mono para dados (funcional, não estilístico)</div>
+        <div class="compare-item">Amarelo-limão como acento cirúrgico</div>
+        <div class="compare-item">Densidade que recompensa atenção</div>
+        <div class="compare-item">Espaço negativo como elemento de design</div>
+        <div class="compare-item">Silêncio visual como autoridade</div>
+      </div>
+      <div class="compare-card dont">
+        <div class="compare-label dont">A Sinal nunca é</div>
+        <div class="compare-item">Gradientes roxo/azul (estética AI genérica)</div>
+        <div class="compare-item">Ilustrações cartoon/mascote (The Neuron, Rundown)</div>
+        <div class="compare-item">Emojis em títulos ou labels</div>
+        <div class="compare-item">Neon sobre preto (estética cyberpunk)</div>
+        <div class="compare-item">Bandeiras, mapas ou símbolos LATAM óbvios</div>
+        <div class="compare-item">Stock photos de qualquer tipo</div>
+        <div class="compare-item">"AI-powered" como badge decorativo</div>
+        <div class="compare-item">Fonte Inter, Roboto ou system-ui como primária</div>
+        <div class="compare-item">Cards brancos com sombras suaves (SaaS genérico)</div>
+        <div class="compare-item">Ícones lineares coloridos (startup-style)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 08. ESCALABILIDADE ==================== -->
+  <section class="section">
+    <div class="section-number">08 — Sistema Escalável</div>
+    <h2>Da newsletter ao ecossistema</h2>
+    
+    <p>
+      A identidade foi desenhada para escalar além da newsletter. O sistema de cores por agente, a separação dado/inteligência, e a estrutura tipográfica são primitivos de design que se compõem em qualquer superfície.
+    </p>
+
+    <div class="scale-grid">
+      <div class="scale-card">
+        <div class="scale-phase">Fase 1 · Agora</div>
+        <div class="scale-title">Newsletter + Landing page</div>
+        <div class="scale-desc">Sinal Semanal como produto-âncora. Landing page com formulário de inscrição. Presença mínima: logo, cor, tipografia, tom de voz. O sistema visual inteiro cabe em um email HTML e uma página estática.</div>
+      </div>
+      <div class="scale-card">
+        <div class="scale-phase">Fase 2 · Próximos 6 meses</div>
+        <div class="scale-title">Arquivo + API de dados</div>
+        <div class="scale-desc">Arquivo searchable de todas as edições. Dashboard de dados de FUNDING e MERCADO em tempo real. As cores de agente viram filtros de navegação. O mono vira a tipografia dominante no produto de dados.</div>
+      </div>
+      <div class="scale-card">
+        <div class="scale-phase">Fase 3 · 12+ meses</div>
+        <div class="scale-title">Dashboard de inteligência</div>
+        <div class="scale-desc">Produto SaaS para VCs e founders. Cada agente vira um módulo do dashboard com sua cor. A escala de profundidade (preto → grafite → slate) cria hierarquia de painéis. Signal Yellow marca alertas e sinais novos.</div>
+      </div>
+      <div class="scale-card">
+        <div class="scale-phase">Fase 4 · Visão</div>
+        <div class="scale-title">Comunidade + Eventos</div>
+        <div class="scale-desc">Comunidade privada de builders LATAM. Eventos presenciais com identidade aplicada: crachás com cor do "papel" do membro (builder, investor, operator). A marca física mantém o mesmo dark-mode: materiais pretos com detalhes Signal.</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h3>Tokens de design para implementação</h3>
+    <p>
+      O sistema inteiro pode ser implementado com CSS custom properties. Abaixo, os tokens fundamentais que devem ser consistentes em qualquer superfície — email, web, produto, materiais impressos.
+    </p>
+
+    <div class="type-specimen" style="background:var(--sinal-black);border:1px solid var(--sinal-slate);">
+      <div class="type-specimen-label">CSS Custom Properties</div>
+<pre style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--sinal-silver);line-height:1.8;overflow-x:auto;">
+<span style="color:var(--sinal-ash);">/* Superfícies */</span>
+--sinal-black: <span style="color:var(--sinal-signal);">#0A0A0B</span>;
+--sinal-graphite: <span style="color:var(--sinal-signal);">#1A1A1F</span>;
+--sinal-slate: <span style="color:var(--sinal-signal);">#2A2A32</span>;
+
+<span style="color:var(--sinal-ash);">/* Texto */</span>
+--sinal-ash: <span style="color:var(--sinal-signal);">#8A8A96</span>;
+--sinal-silver: <span style="color:var(--sinal-signal);">#C4C4CC</span>;
+--sinal-bone: <span style="color:var(--sinal-signal);">#F0EDE8</span>;
+--sinal-white: <span style="color:var(--sinal-signal);">#FAFAF8</span>;
+
+<span style="color:var(--sinal-ash);">/* Acento */</span>
+--sinal-signal: <span style="color:var(--sinal-signal);">#E8FF59</span>;
+
+<span style="color:var(--sinal-ash);">/* Agentes */</span>
+--agent-sintese: <span style="color:var(--agent-sintese);">#E8FF59</span>;
+--agent-radar: <span style="color:var(--agent-radar);">#59FFB4</span>;
+--agent-codigo: <span style="color:var(--agent-codigo);">#59B4FF</span>;
+--agent-funding: <span style="color:var(--agent-funding);">#FF8A59</span>;
+--agent-mercado: <span style="color:var(--agent-mercado);">#C459FF</span>;
+
+<span style="color:var(--sinal-ash);">/* Tipografia */</span>
+--font-display: 'DM Serif Display', Georgia, serif;
+--font-body: 'IBM Plex Sans', system-ui, sans-serif;
+--font-data: 'IBM Plex Mono', 'Courier New', monospace;
+</pre>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <div class="brand-footer">
+    <p>SINAL · BRAND IDENTITY SYSTEM V1.0 · FEV 2026</p>
+    <p style="margin-top:8px;">Documento estratégico e confidencial</p>
+  </div>
+
+</div>
+
+</body>
+</html>
