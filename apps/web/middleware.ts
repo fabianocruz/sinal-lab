@@ -1,16 +1,14 @@
 /**
  * Next.js middleware — protects /admin/* routes.
  *
- * Uses getToken() instead of the auth() wrapper to avoid NextAuth v5's
- * default behavior of blocking all unauthenticated requests.
- * Public routes (newsletter, startups, etc.) are never gated.
+ * Uses auth() from NextAuth v5 to read the session directly,
+ * ensuring cookie name and secret are consistent with the auth config.
  */
 
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/lib/auth";
 
-export async function middleware(req: NextRequest) {
+export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Only protect /admin routes — everything else passes through
@@ -18,22 +16,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
-
   // Not authenticated → login
-  if (!token) {
+  if (!req.auth) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Authenticated but not admin → home
-  if (!token.isAdmin) {
+  const isAdmin = (req.auth.user as { isAdmin?: boolean })?.isAdmin;
+  if (!isAdmin) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: ["/admin/:path*"],
