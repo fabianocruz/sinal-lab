@@ -70,8 +70,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
 
-    GoogleProvider,
+    GoogleProvider({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+    }),
   ],
+
+  debug: process.env.NODE_ENV !== "production",
 
   pages: {
     signIn: "/login",
