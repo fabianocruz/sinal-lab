@@ -21,6 +21,16 @@ AGENT_COLORS: Dict[str, str] = {
 
 DEFAULT_AGENT_COLOR = "#FFFFFF"
 
+# Descriptive color names for image prompts — avoids AI models rendering
+# hex codes as literal text in the generated image.
+AGENT_COLOR_NAMES: Dict[str, str] = {
+    "radar": "neon mint green",
+    "funding": "warm coral orange",
+    "codigo": "electric sky blue",
+    "mercado": "vivid purple",
+    "sintese": "bright lime yellow",
+}
+
 # Fixed order for the mini color bar (bottom-right of overlay)
 MINI_BAR_COLORS: List[str] = [
     "#59FFB4",  # RADAR
@@ -77,7 +87,7 @@ ART_DIRECTOR_SYSTEM_PROMPT = (
     "You produce: an image prompt for Recraft V3 (realistic_image).\n\n"
     "RULES:\n"
     "1. Background ALWAYS dark (#0A0A0B to #1A1A1F).\n"
-    "2. Dominant accent color: {agent_color} — use it for lighting, glows, highlights.\n"
+    "2. Dominant accent color: {agent_color_name} — use it for lighting, glows, highlights.\n"
     "3. Style: photorealistic, tech magazine editorial, cinematic.\n"
     "4. Composition: leave space for overlay (badges at top, gradient at bottom).\n"
     "5. Mood: serious, data-driven, futuristic but grounded in reality.\n"
@@ -127,7 +137,7 @@ ARTICLE_ART_DIRECTION: Dict[str, str] = {
         "- If about frontend: glass facades, window displays, architectural blueprints\n"
         "- If about pricing/marketplace: bazaar stalls, trading floor, market square\n"
         "Use METAPHORICAL OBJECTS from the physical world, not literal screens/monitors. "
-        "Cinematic, dramatic lighting. Dominant color: green (#59FFB4).\n"
+        "Cinematic, dramatic lighting. Dominant color: neon mint green.\n"
     ),
     "essay": (
         "ARTICLE TYPE: Opinion essay (standalone).\n"

@@ -777,3 +777,30 @@ class TestIntelligenceHighlight:
         intel_pos = html.index("INTELLIGENCE")
         radar_pos = html.index("RADAR")
         assert intel_pos < radar_pos
+
+    def test_intelligence_appears_before_articles(self):
+        """Intelligence highlight is placed before the article list."""
+        data = parse_newsletter_markdown(MINIMAL_MARKDOWN)
+        hl = self._make_highlight()
+        html = build_newsletter_email_html(data, intelligence=hl)
+        intel_pos = html.index("INTELLIGENCE")
+        # "Zapia capta" is the first article rendered in the hero
+        article_pos = html.index("Zapia capta")
+        assert intel_pos < article_pos
+
+    def test_intelligence_renders_summary_html_escaped(self):
+        """Summary with HTML special characters is rendered safely."""
+        html = _intelligence_highlight(
+            self._make_highlight(summary="100 startups & $30B+ em capital <b>total</b>")
+        )
+        assert "<b>" not in html
+        assert "&amp;" in html
+        assert "&lt;b&gt;" in html
+
+    def test_intelligence_default_author_in_rendered_html(self):
+        """Default author 'Sinal Intelligence' appears in the rendered card."""
+        hl = IntelligenceHighlight(
+            title="Report", summary="Summary.", site_url="https://sinal.tech/r",
+        )
+        html = _intelligence_highlight(hl)
+        assert "Sinal Intelligence" in html

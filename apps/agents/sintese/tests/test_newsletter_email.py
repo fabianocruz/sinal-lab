@@ -7,7 +7,7 @@ parameters added in the latest update.
 
 import pytest
 
-from apps.agents.sintese.email_renderer import AgentCard
+from apps.agents.sintese.email_renderer import AgentCard, IntelligenceHighlight
 from apps.agents.sintese.newsletter import build_newsletter_email
 
 # ---------------------------------------------------------------------------
@@ -227,3 +227,51 @@ Semana movimentada em toda a America Latina.
 
         # A edition_url e passada mas o CTA so aparece quando ha excedente
         assert "ler edi\u00e7\u00e3o completa" not in html
+
+    def test_build_newsletter_email_passes_intelligence_through(self):
+        """build_newsletter_email() repassa intelligence para o renderer."""
+        hl = IntelligenceHighlight(
+            title="DevTools LATAM: 100 startups mapeadas",
+            summary="100 startups mapeadas, 13 categorias.",
+            site_url="https://sinal.tech/intelligence/devtools-mar-2026",
+            author="Sinal Intelligence",
+        )
+        html = build_newsletter_email(SAMPLE_MD, intelligence=hl)
+
+        assert "INTELLIGENCE" in html
+        assert "DevTools LATAM: 100 startups mapeadas" in html
+        assert "100 startups mapeadas, 13 categorias." in html
+        assert 'href="https://sinal.tech/intelligence/devtools-mar-2026"' in html
+        assert "<!DOCTYPE html>" in html
+        assert "</html>" in html
+
+    def test_build_newsletter_email_without_intelligence_no_card(self):
+        """Sem intelligence, nenhum bloco INTELLIGENCE aparece no HTML."""
+        html = build_newsletter_email(SAMPLE_MD)
+
+        assert "INTELLIGENCE" not in html
+
+    def test_build_newsletter_email_intelligence_none_explicit(self):
+        """intelligence=None explicito nao injeta card INTELLIGENCE."""
+        html = build_newsletter_email(SAMPLE_MD, intelligence=None)
+
+        assert "INTELLIGENCE" not in html
+
+    def test_build_newsletter_email_intelligence_with_agent_cards(self):
+        """intelligence e agent_cards coexistem no mesmo email."""
+        hl = IntelligenceHighlight(
+            title="Report Title",
+            summary="Report summary.",
+            site_url="https://sinal.tech/intelligence/report-slug",
+        )
+        html = build_newsletter_email(
+            SAMPLE_MD, agent_cards=[SAMPLE_CARD], intelligence=hl,
+        )
+
+        assert "INTELLIGENCE" in html
+        assert "Report Title" in html
+        assert "RADAR" in html
+        # Intelligence deve aparecer antes dos agent cards
+        intel_pos = html.index("INTELLIGENCE")
+        radar_pos = html.index("RADAR")
+        assert intel_pos < radar_pos

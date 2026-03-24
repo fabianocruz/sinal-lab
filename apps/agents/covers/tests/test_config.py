@@ -1,6 +1,7 @@
 """Tests for cover image generation configuration."""
 
 from apps.agents.covers.config import (
+    AGENT_COLOR_NAMES,
     AGENT_COLORS,
     ARTICLE_ART_DIRECTION,
     ARTICLE_BADGE_TEXT,
@@ -26,6 +27,30 @@ def test_agent_colors_are_valid_hex():
         assert len(color) == 7
 
 
+def test_agent_color_names_has_all_five_agents():
+    assert set(AGENT_COLOR_NAMES.keys()) == set(AGENT_COLORS.keys())
+
+
+def test_agent_color_names_are_descriptive_strings():
+    """Color names should be human-readable, not hex codes."""
+    for name in AGENT_COLOR_NAMES.values():
+        assert isinstance(name, str)
+        assert len(name) > 3
+        assert "#" not in name, f"Color name should not contain hex: {name}"
+
+
+def test_agent_color_names_no_hex_in_system_prompt():
+    """System prompt must use color name placeholder, not hex."""
+    assert "{agent_color_name}" in ART_DIRECTOR_SYSTEM_PROMPT
+    assert "{agent_color}" not in ART_DIRECTOR_SYSTEM_PROMPT
+
+
+def test_article_art_direction_diary_no_hex():
+    """Diary art direction should use color names, not hex codes."""
+    diary = ARTICLE_ART_DIRECTION["diary"]
+    assert "#" not in diary
+
+
 def test_mini_bar_colors_has_five_entries():
     assert len(MINI_BAR_COLORS) == 5
 
@@ -37,7 +62,7 @@ def test_image_dimensions_are_og_standard():
 
 def test_system_prompt_contains_key_directives():
     assert "dark" in ART_DIRECTOR_SYSTEM_PROMPT.lower()
-    assert "{agent_color}" in ART_DIRECTOR_SYSTEM_PROMPT
+    assert "{agent_color_name}" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "150 words" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "NEVER" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "Latin America" in ART_DIRECTOR_SYSTEM_PROMPT

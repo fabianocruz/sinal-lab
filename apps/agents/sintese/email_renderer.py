@@ -1022,8 +1022,13 @@ def build_newsletter_email_html(
         _boilerplate_open(title, preview),
         _header(data.edition, data.subtitle),
         _editorial_lead(data.subtitle, data.editorial_lead),
-        _divider(),
     ]
+
+    # Intelligence highlight (posição de destaque, logo após o lead editorial)
+    if intelligence:
+        parts.append(_intelligence_highlight(intelligence))
+
+    parts.append(_divider())
 
     # Hero: artigos do SINTESE (limitado a max_hero_articles)
     total_articles = sum(len(s.articles) for s in data.sections)
@@ -1045,11 +1050,6 @@ def build_newsletter_email_html(
         parts.append(
             _read_more_cta(edition_url, total_articles - articles_shown)
         )
-
-    # Intelligence highlight (antes dos cards de agentes)
-    if intelligence:
-        parts.append(_divider())
-        parts.append(_intelligence_highlight(intelligence))
 
     # Cards de agentes secundários
     if agent_cards:

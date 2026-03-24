@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from apps.agents.covers.config import AGENT_COLORS, ARTICLE_COLOR
+from apps.agents.covers.config import AGENT_COLOR_NAMES, AGENT_COLORS, ARTICLE_COLOR
 from apps.agents.covers.prompt_generator import (
     ArticleBriefing,
     CoverBriefing,
@@ -71,7 +71,7 @@ def test_prompt_contains_agent_color(mock_client, briefing):
     gen = CoverPromptGenerator(client=mock_client)
     gen.generate_prompt(briefing)
     call_args = mock_client.generate.call_args
-    assert AGENT_COLORS["radar"] in call_args.kwargs["user_prompt"]
+    assert AGENT_COLOR_NAMES["radar"] in call_args.kwargs["user_prompt"]
 
 
 def test_system_prompt_has_agent_color_resolved(mock_client, briefing):
@@ -79,9 +79,9 @@ def test_system_prompt_has_agent_color_resolved(mock_client, briefing):
     gen = CoverPromptGenerator(client=mock_client)
     gen.generate_prompt(briefing)
     call_args = mock_client.generate.call_args
-    # The {agent_color} placeholder should be replaced
-    assert "{agent_color}" not in call_args.kwargs["system_prompt"]
-    assert AGENT_COLORS["radar"] in call_args.kwargs["system_prompt"]
+    # The {agent_color_name} placeholder should be replaced
+    assert "{agent_color_name}" not in call_args.kwargs["system_prompt"]
+    assert AGENT_COLOR_NAMES["radar"] in call_args.kwargs["system_prompt"]
 
 
 def test_output_truncated_to_150_words(mock_client, briefing):
@@ -106,7 +106,7 @@ def test_unknown_agent_uses_default_color(mock_client):
     gen = CoverPromptGenerator(client=mock_client)
     gen.generate_prompt(briefing)
     call_args = mock_client.generate.call_args
-    assert "#FFFFFF" in call_args.kwargs["user_prompt"]
+    assert "white" in call_args.kwargs["user_prompt"]
 
 
 def test_truncate_to_max_words_short_text():
@@ -176,7 +176,7 @@ def test_article_prompt_uses_article_color(mock_client, article_briefing):
     gen = CoverPromptGenerator(client=mock_client)
     gen.generate_article_prompt(article_briefing)
     call_args = mock_client.generate.call_args
-    assert ARTICLE_COLOR in call_args.kwargs["user_prompt"]
+    assert "neon mint green" in call_args.kwargs["user_prompt"]
 
 
 def test_article_prompt_includes_art_direction(mock_client, article_briefing):

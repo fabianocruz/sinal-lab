@@ -15,6 +15,7 @@ from typing import Optional
 
 from apps.agents.base.llm import LLMClient
 from apps.agents.covers.config import (
+    AGENT_COLOR_NAMES,
     AGENT_COLORS,
     ARTICLE_ART_DIRECTION,
     ARTICLE_COLOR,
@@ -84,17 +85,17 @@ class CoverPromptGenerator:
             logger.warning("LLM client unavailable for cover prompt generation")
             return None
 
-        agent_color = AGENT_COLORS.get(briefing.agent, DEFAULT_AGENT_COLOR)
-        system_prompt = ART_DIRECTOR_SYSTEM_PROMPT.replace("{agent_color}", agent_color)
+        agent_color_name = AGENT_COLOR_NAMES.get(briefing.agent, "white")
+        system_prompt = ART_DIRECTOR_SYSTEM_PROMPT.replace("{agent_color_name}", agent_color_name)
 
         user_prompt = (
             f"Generate an image prompt for this editorial cover:\n\n"
             f"Agent: {briefing.agent.upper()}\n"
-            f"Accent color: {agent_color}\n"
+            f"Accent color: {agent_color_name}\n"
             f"Headline: {briefing.headline}\n"
             f"Lede: {briefing.lede}\n\n"
-            f"Remember: dark background, {briefing.agent.upper()} agent color "
-            f"({agent_color}) as dominant accent. Editorial magazine cover aesthetic. "
+            f"Remember: dark background, {agent_color_name} "
+            f"as dominant accent. Editorial magazine cover aesthetic. "
             f"Leave left 40% open for text overlay. No text in image."
         )
 
@@ -130,7 +131,8 @@ class CoverPromptGenerator:
             return None
 
         art_direction = ARTICLE_ART_DIRECTION.get(briefing.article_type, "")
-        system_prompt = ART_DIRECTOR_SYSTEM_PROMPT.replace("{agent_color}", ARTICLE_COLOR)
+        article_color_name = "neon mint green"
+        system_prompt = ART_DIRECTOR_SYSTEM_PROMPT.replace("{agent_color_name}", article_color_name)
 
         mood_line = f"Mood/tone: {briefing.mood}\n" if briefing.mood else ""
 
@@ -139,13 +141,13 @@ class CoverPromptGenerator:
             f"Title: {briefing.title}\n"
             f"Thesis: {briefing.thesis}\n"
             f"{mood_line}"
-            f"Accent color: {ARTICLE_COLOR}\n\n"
+            f"Accent color: {article_color_name}\n\n"
             f"{art_direction}\n"
             f"CRITICAL: The image MUST be visually unique to THIS article's specific topic. "
             f"Use a METAPHOR from the physical world that captures the thesis. "
             f"NEVER use generic 'developer at monitors' or 'code on screens' imagery. "
             f"Each article cover should look completely different from the others.\n\n"
-            f"Remember: dark background, accent color ({ARTICLE_COLOR}) as dominant. "
+            f"Remember: dark background, accent color ({article_color_name}) as dominant. "
             f"Editorial magazine cover aesthetic. No text in image."
         )
 

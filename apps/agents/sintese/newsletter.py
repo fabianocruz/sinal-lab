@@ -14,6 +14,7 @@ from typing import List, Optional
 from apps.api.services.email_template import build_brand_html
 from apps.agents.sintese.email_renderer import (
     AgentCard,
+    IntelligenceHighlight,
     build_newsletter_email_html,
     parse_newsletter_markdown,
 )
@@ -81,6 +82,7 @@ def build_newsletter_email(
     markdown_content: str,
     agent_cards: Optional[List[AgentCard]] = None,
     edition_url: Optional[str] = None,
+    intelligence: Optional[IntelligenceHighlight] = None,
 ) -> str:
     """Convert newsletter Markdown to email-safe HTML.
 
@@ -92,10 +94,12 @@ def build_newsletter_email(
         markdown_content: Markdown do SINTESE (hero da newsletter).
         agent_cards: Cards resumidos dos agentes secundários.
         edition_url: URL da edição completa no site.
+        intelligence: Destaque opcional de relatório Intelligence.
     """
     data = parse_newsletter_markdown(markdown_content)
     return build_newsletter_email_html(
         data, agent_cards=agent_cards, edition_url=edition_url,
+        intelligence=intelligence,
     )
 
 
