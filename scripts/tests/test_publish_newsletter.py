@@ -10,6 +10,8 @@ from unittest.mock import patch
 import pytest
 
 from scripts.publish_newsletter import (
+    INTELLIGENCE_REPORTS,
+    _build_intelligence_highlight,
     compose_newsletter,
     load_agent_output,
     publish_briefing_email,
@@ -535,3 +537,146 @@ class TestPublishBriefingEmail:
         html_content = mock_send.call_args[0][0]
         assert 'role="presentation"' in html_content
         assert "background-color:#0A0A0B" in html_content or "#0A0A0B" in html_content
+
+
+# ---------------------------------------------------------------------------
+# TestBuildIntelligenceHighlight
+# ---------------------------------------------------------------------------
+
+
+class TestBuildIntelligenceHighlight:
+    """Tests for _build_intelligence_highlight() registry lookup."""
+
+    # Use the first slug from the live registry so the test stays in sync
+    # with INTELLIGENCE_REPORTS without hardcoding the slug twice.
+    _VALID_SLUG = next(iter(INTELLIGENCE_REPORTS))
+    _VALID_URL = f"https://sinal.tech/intelligence/{_VALID_SLUG}"
+
+    def test_valid_url_returns_intelligence_highlight(self):
+        result = _build_intelligence_highlight(self._VALID_URL)
+
+        assert result is not None
+
+    def test_valid_url_sets_title_from_registry(self):
+        result = _build_intelligence_highlight(self._VALID_URL)
+
+        expected_title = INTELLIGENCE_REPORTS[self._VALID_SLUG]["title"]
+        assert result.title == expected_title
+
+    def test_valid_url_sets_summary_from_registry(self):
+        result = _build_intelligence_highlight(self._VALID_URL)
+
+        expected_summary = INTELLIGENCE_REPORTS[self._VALID_SLUG]["summary"]
+        assert result.summary == expected_summary
+
+    def test_valid_url_sets_site_url_verbatim(self):
+        result = _build_intelligence_highlight(self._VALID_URL)
+
+        assert result.site_url == self._VALID_URL
+
+    def test_valid_url_sets_author_from_registry(self):
+        result = _build_intelligence_highlight(self._VALID_URL)
+
+        expected_author = INTELLIGENCE_REPORTS[self._VALID_SLUG].get(
+            "author", "Sinal Intelligence"
+        )
+        assert result.author == expected_author
+
+    def test_unknown_url_returns_none(self):
+        result = _build_intelligence_highlight(
+            "https://sinal.tech/intelligence/this-slug-does-not-exist"
+        )
+
+        assert result is None
+
+    def test_unknown_slug_only_returns_none(self):
+        """Bare unknown slug (no path prefix) also returns None."""
+        result = _build_intelligence_highlight("unknown-slug-only")
+
+        assert result is None
+
+    def test_extracts_slug_from_url_with_trailing_slash(self):
+        url_with_slash = self._VALID_URL + "/"
+        result = _build_intelligence_highlight(url_with_slash)
+
+        assert result is not None
+        assert result.title == INTELLIGENCE_REPORTS[self._VALID_SLUG]["title"]
+
+    def test_extracts_slug_from_deep_url_path(self):
+        """Slug is always the last path segment regardless of prefix depth."""
+        deep_url = f"https://sinal.tech/intelligence/2026/mar/{self._VALID_SLUG}"
+        result = _build_intelligence_highlight(deep_url)
+
+        assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# TestPublishNewsletterWithIntelligence
+# ---------------------------------------------------------------------------
+
+
+class TestPublishNewsletterWithIntelligence:
+    """Tests for publish_newsletter() intelligence_url wiring."""
+
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_intelligence_url_injects_card_into_html(
+        self, mock_broadcast, tmp_output_dir: Path
+    ):
+        """When intelligence_url points to a known report, the HTML contains
+        the INTELLIGENCE card."""
+        valid_slug = next(iter(INTELLIGENCE_REPORTS))
+        intelligence_url = f"https://sinal.tech/intelligence/{valid_slug}"
+
+        publish_newsletter(
+            edition=8,
+            week=8,
+            dry_run=True,
+            project_root=tmp_output_dir,
+            intelligence_url=intelligence_url,
+        )
+
+        default_path = (
+            tmp_output_dir / "output" / "newsletters" / "sinal-semanal-8-week-8.html"
+        )
+        html = default_path.read_text(encoding="utf-8")
+        assert "INTELLIGENCE" in html
+        expected_title = INTELLIGENCE_REPORTS[valid_slug]["title"]
+        assert expected_title in html
+
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_unknown_intelligence_url_produces_no_card(
+        self, mock_broadcast, tmp_output_dir: Path
+    ):
+        """When intelligence_url slug is not in the registry, the HTML must
+        not contain an INTELLIGENCE card."""
+        publish_newsletter(
+            edition=8,
+            week=8,
+            dry_run=True,
+            project_root=tmp_output_dir,
+            intelligence_url="https://sinal.tech/intelligence/nonexistent-report-xyz",
+        )
+
+        default_path = (
+            tmp_output_dir / "output" / "newsletters" / "sinal-semanal-8-week-8.html"
+        )
+        html = default_path.read_text(encoding="utf-8")
+        assert "INTELLIGENCE" not in html
+
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_no_intelligence_url_produces_no_card(
+        self, mock_broadcast, tmp_output_dir: Path
+    ):
+        """When intelligence_url is omitted, no INTELLIGENCE card appears."""
+        publish_newsletter(
+            edition=8,
+            week=8,
+            dry_run=True,
+            project_root=tmp_output_dir,
+        )
+
+        default_path = (
+            tmp_output_dir / "output" / "newsletters" / "sinal-semanal-8-week-8.html"
+        )
+        html = default_path.read_text(encoding="utf-8")
+        assert "INTELLIGENCE" not in html

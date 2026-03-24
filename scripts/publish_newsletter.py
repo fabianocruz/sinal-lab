@@ -25,7 +25,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from apps.agents.sintese.email_renderer import AgentCard, extract_agent_summary
+from apps.agents.sintese.email_renderer import AgentCard, IntelligenceHighlight, extract_agent_summary
 from apps.agents.sintese.newsletter import (
     build_newsletter_email,
     markdown_to_html,
@@ -180,12 +180,44 @@ def _resolve_email_subject(
     return f"Sinal Semanal #{edition}"
 
 
+# Map Intelligence report URLs to their metadata.
+# Add new reports here as they are published.
+INTELLIGENCE_REPORTS: Dict[str, dict] = {
+    "devtools-market-intelligence-mar-2026": {
+        "title": "DevTools Market Intelligence: Top 100 Startups de Developer Tools",
+        "summary": "100 startups mapeadas, 13 categorias, $30B+ em capital. O maior levantamento de developer tools do ecossistema global.",
+        "author": "Sinal Intelligence",
+    },
+}
+
+
+def _build_intelligence_highlight(url: str) -> Optional[IntelligenceHighlight]:
+    """Build IntelligenceHighlight from a report URL.
+
+    Looks up report metadata from INTELLIGENCE_REPORTS registry.
+    Returns None if the URL slug is not recognized.
+    """
+    # Extract slug from URL (last path segment)
+    slug = url.rstrip("/").rsplit("/", 1)[-1]
+    meta = INTELLIGENCE_REPORTS.get(slug)
+    if not meta:
+        logger.warning("Unknown Intelligence report slug: %s", slug)
+        return None
+    return IntelligenceHighlight(
+        title=meta["title"],
+        summary=meta["summary"],
+        site_url=url,
+        author=meta.get("author", "Sinal Intelligence"),
+    )
+
+
 def publish_newsletter(
     edition: int,
     week: Optional[int] = None,
     dry_run: bool = False,
     html_path: Optional[str] = None,
     project_root: Optional[Path] = None,
+    intelligence_url: Optional[str] = None,
 ) -> None:
     """Load agent outputs, compose newsletter, and send via Resend Broadcasts.
 
@@ -195,6 +227,7 @@ def publish_newsletter(
         dry_run: If True, compose and optionally save HTML but don't send.
         html_path: Optional path to save the composed HTML.
         project_root: Override project root (used in tests).
+        intelligence_url: URL of an Intelligence report to highlight in the email.
     """
     root = project_root or PROJECT_ROOT
 
@@ -256,8 +289,16 @@ def publish_newsletter(
     sintese_fm = outputs.get("sintese", {}).get("frontmatter", {})
     subject = _resolve_email_subject(edition, sintese_fm)
 
+    # Build Intelligence highlight if URL provided
+    intelligence = None
+    if intelligence_url:
+        intelligence = _build_intelligence_highlight(intelligence_url)
+        if intelligence:
+            logger.info("Intelligence highlight: %s", intelligence.title)
+
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
+        intelligence=intelligence,
     )
 
     # Always save HTML to standard output directory
@@ -410,6 +451,10 @@ def main() -> None:
         "--dry-run", action="store_true",
         help="Compose but don't send",
     )
+    broadcast_parser.add_argument(
+        "--intelligence", type=str, default=None,
+        help="URL of an Intelligence report to highlight in the email",
+    )
 
     # briefing — DB-based structured data → Resend transactional email
     briefing_parser = subparsers.add_parser(
@@ -452,6 +497,7 @@ def main() -> None:
             week=args.week,
             dry_run=args.dry_run,
             html_path=args.html,
+            intelligence_url=args.intelligence,
         )
     elif args.command == "briefing":
         publish_briefing_email(
