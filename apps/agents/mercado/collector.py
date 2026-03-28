@@ -8,6 +8,7 @@ symbols for backward compatibility.
 """
 
 import logging
+import re
 
 import httpx
 
@@ -42,6 +43,97 @@ def collect_from_dealroom(
     # TODO: Implement when Dealroom API key is available
     logger.info("Dealroom API not yet configured, skipping %s", source.name)
     return []
+
+
+def _normalize_slug(name: str) -> str:
+    """Normalize a company name to a dedup key (slug).
+
+    Lowercases, strips whitespace, removes non-alphanumeric chars except hyphens.
+    """
+    slug = name.strip().lower()
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"[\s]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
+    return slug.strip("-")
+
+
+def _count_filled_fields(profile: CompanyProfile) -> int:
+    """Count how many optional fields are populated in a profile."""
+    count = 0
+    for field_name in ("website", "description", "sector", "city", "founded_date",
+                       "team_size", "linkedin_url", "github_url"):
+        if getattr(profile, field_name, None):
+            count += 1
+    count += len(profile.tech_stack)
+    count += len(profile.tags)
+    return count
+
+
+def dedup_profiles(profiles: list[CompanyProfile]) -> list[CompanyProfile]:
+    """Deduplicate company profiles by normalized name/slug.
+
+    When duplicates are found:
+    - Keeps the profile with the most fields populated
+    - Merges tags and tech_stack from all duplicates
+    - Fills null fields from "donor" profiles
+
+    Args:
+        profiles: List of possibly-duplicated CompanyProfile objects
+
+    Returns:
+        Deduplicated list of CompanyProfile objects
+    """
+    if not profiles:
+        return []
+
+    # Group by normalized slug key
+    groups: dict[str, list[CompanyProfile]] = {}
+    for profile in profiles:
+        key = _normalize_slug(profile.slug or profile.name)
+        if not key:
+            continue
+        groups.setdefault(key, []).append(profile)
+
+    deduped: list[CompanyProfile] = []
+    merged_count = 0
+
+    for key, group in groups.items():
+        if len(group) == 1:
+            deduped.append(group[0])
+            continue
+
+        # Pick the most complete profile as the base
+        group.sort(key=_count_filled_fields, reverse=True)
+        best = group[0]
+
+        # Merge tags and tech_stack from all duplicates
+        all_tags: set[str] = set()
+        all_tech: set[str] = set()
+        for p in group:
+            all_tags.update(p.tags)
+            all_tech.update(p.tech_stack)
+
+        best.tags = sorted(all_tags)
+        best.tech_stack = sorted(all_tech)
+
+        # Fill null fields from donor profiles
+        for p in group[1:]:
+            for field_name in ("website", "description", "sector", "city",
+                               "founded_date", "team_size", "linkedin_url",
+                               "github_url", "country"):
+                if not getattr(best, field_name, None) and getattr(p, field_name, None):
+                    setattr(best, field_name, getattr(p, field_name))
+
+        deduped.append(best)
+        merged_count += len(group) - 1
+
+    if merged_count > 0:
+        logger.info(
+            "Dedup: %d profiles → %d (merged %d duplicates)",
+            len(profiles), len(deduped), merged_count,
+        )
+
+    return deduped
 
 
 def collect_all_sources(
