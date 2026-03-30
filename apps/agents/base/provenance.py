@@ -17,7 +17,7 @@ class ProvenanceRecord:
     source_url: Optional[str]
     source_name: str
     collected_at: datetime
-    extraction_method: str  # api, scraper, rss, manual, community
+    extraction_method: str  # api, scraper, rss, manual, community, database
     confidence: float = 0.5
     collector_agent: Optional[str] = None
     collector_run_id: Optional[str] = None
@@ -25,7 +25,7 @@ class ProvenanceRecord:
     raw_value: Optional[str] = None
 
     def __post_init__(self) -> None:
-        valid_methods = {"api", "scraper", "rss", "manual", "community"}
+        valid_methods = {"api", "scraper", "rss", "manual", "community", "database"}
         if self.extraction_method not in valid_methods:
             raise ValueError(
                 f"extraction_method must be one of {valid_methods}, "

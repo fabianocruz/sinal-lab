@@ -64,6 +64,24 @@ def collect_all_sources(
             logger.debug("Skipping disabled source: %s", source.name)
             continue
 
+        if source.source_type == "database":
+            try:
+                from packages.database.session import get_session
+                from apps.agents.mercado.db_collector import collect_from_database
+
+                limit = source.params.get("limit", 500)
+                session = get_session()
+                try:
+                    db_profiles = collect_from_database(
+                        session, provenance, limit=limit
+                    )
+                    all_profiles.extend(db_profiles)
+                finally:
+                    session.close()
+            except Exception as e:
+                logger.warning("Database source failed (graceful degradation): %s", e)
+            continue
+
         if "gtrends" in source.name:
             # Google Trends data is supplementary — collected separately
             # by the agent via collect_market_trends()
