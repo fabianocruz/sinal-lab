@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import AgentContentPage, { generateAgentContentMetadata } from "@/lib/agent-content";
 
+export const revalidate = 300;
+
 interface PageProps {
   params: { slug: string };
 }
