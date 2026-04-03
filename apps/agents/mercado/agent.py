@@ -14,7 +14,7 @@ from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.base.provenance import ProvenanceTracker
 from apps.agents.mercado.classifier import classify_all_profiles
-from apps.agents.mercado.collector import CompanyProfile, collect_all_sources
+from apps.agents.mercado.collector import CompanyProfile, collect_all_sources, load_known_slugs
 from apps.agents.mercado.config import MERCADO_CONFIG
 from apps.agents.mercado.enricher import enrich_all_profiles
 from apps.agents.mercado.scorer import ScoredCompanyProfile, score_all_profiles
@@ -39,6 +39,7 @@ class MercadoAgent(BaseAgent):
         super().__init__()
         self.week_number = week_number
         self.config = MERCADO_CONFIG
+        self.dedup = True  # Set to False for ecosystem snapshot mode
         self.provenance = ProvenanceTracker()
 
         # Generate run_id
@@ -54,17 +55,29 @@ class MercadoAgent(BaseAgent):
     def collect(self) -> list[Any]:
         """Collect company profiles from all configured sources.
 
+        Loads existing slugs from the database for cross-run dedup,
+        so only genuinely new companies appear in the report.
+
         Returns:
             List of CompanyProfile objects
         """
         logger.info("Starting COLLECT phase")
 
+        # Cross-run dedup: skip companies already in the database.
+        # Disable with dedup=False for ecosystem snapshot reports.
+        if self.dedup:
+            known_slugs = load_known_slugs()
+        else:
+            known_slugs = None
+
         profiles = collect_all_sources(
             sources=self.config.data_sources,
             provenance=self.provenance,
+            known_slugs=known_slugs,
         )
 
-        logger.info("COLLECT phase complete: %d profiles collected", len(profiles))
+        dedup_msg = f" (dedup against {len(known_slugs)} known)" if known_slugs else " (no dedup)"
+        logger.info("COLLECT phase complete: %d profiles collected%s", len(profiles), dedup_msg)
         return profiles
 
     def process(self, raw_data: list[Any]) -> list[Any]:

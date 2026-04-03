@@ -83,6 +83,8 @@ def build_newsletter_email(
     agent_cards: Optional[List[AgentCard]] = None,
     edition_url: Optional[str] = None,
     intelligence: Optional[IntelligenceHighlight] = None,
+    article: Optional["ArticleHighlight"] = None,
+    max_hero_articles: int = 8,
 ) -> str:
     """Convert newsletter Markdown to email-safe HTML.
 
@@ -95,11 +97,14 @@ def build_newsletter_email(
         agent_cards: Cards resumidos dos agentes secundários.
         edition_url: URL da edição completa no site.
         intelligence: Destaque opcional de relatório Intelligence.
+        article: Destaque opcional de artigo autoral.
+        max_hero_articles: Max SINTESE articles in email hero. Default 8.
     """
     data = parse_newsletter_markdown(markdown_content)
     return build_newsletter_email_html(
         data, agent_cards=agent_cards, edition_url=edition_url,
-        intelligence=intelligence,
+        intelligence=intelligence, article=article,
+        max_hero_articles=max_hero_articles,
     )
 
 

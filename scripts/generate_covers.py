@@ -238,15 +238,19 @@ def main():
             edition=nl["edition"],
         )
 
-        result = pipeline.run(briefing, variations=1)
+        result = pipeline.run(briefing, variations=3)
 
         if result.errors:
             for err in result.errors:
                 print(f"  WARNING: {err}")
 
         if result.images:
+            # Use the first variation as the default cover
             url = result.images[0]["url"]
             update_hero_image(conn, nl["id"], url, nl["agent"])
+            # Log all variations so the user can pick a different one
+            for img in result.images:
+                print(f"  v{img['variation']}: {img['url']}")
             print(f"  OK: {url}")
             results.append({"slug": nl["slug"], "agent": nl["agent"], "url": url})
         else:

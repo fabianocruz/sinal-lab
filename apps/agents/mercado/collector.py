@@ -8,6 +8,7 @@ symbols for backward compatibility.
 """
 
 import logging
+from typing import Optional
 
 import httpx
 
@@ -24,6 +25,27 @@ from apps.agents.sources.github_orgs import (  # noqa: F401
 )
 
 logger = logging.getLogger(__name__)
+
+
+def load_known_slugs() -> frozenset:
+    """Load existing company slugs from the database for cross-run dedup.
+
+    Returns:
+        Frozenset of lowercase slug strings already in the companies table.
+        Returns empty frozenset if the database is unavailable.
+    """
+    try:
+        from packages.database.config import engine
+        from packages.database.models import Company
+        from sqlalchemy.orm import Session
+
+        with Session(engine) as s:
+            slugs = {row[0].lower() for row in s.query(Company.slug).all() if row[0]}
+        logger.info("Loaded %d known company slugs for dedup", len(slugs))
+        return frozenset(slugs)
+    except Exception as e:
+        logger.warning("Could not load known slugs (dedup disabled): %s", e)
+        return frozenset()
 
 
 def collect_from_dealroom(
@@ -47,12 +69,14 @@ def collect_from_dealroom(
 def collect_all_sources(
     sources: list[DataSourceConfig],
     provenance: ProvenanceTracker,
+    known_slugs: Optional[frozenset] = None,
 ) -> list[CompanyProfile]:
     """Collect company profiles from all configured sources.
 
     Args:
         sources: List of data source configurations
         provenance: Provenance tracker for source recording
+        known_slugs: Optional set of slugs already in DB (for cross-run dedup)
 
     Returns:
         Combined list of CompanyProfile objects from all sources
@@ -182,7 +206,7 @@ def collect_all_sources(
 
         if source.source_type == "api":
             if "github" in source.name:
-                profiles = collect_from_github(source, provenance)
+                profiles = collect_from_github(source, provenance, known_slugs=known_slugs)
             elif "dealroom" in source.name:
                 profiles = collect_from_dealroom(source, provenance)
             else:

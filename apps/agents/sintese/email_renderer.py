@@ -864,6 +864,67 @@ def _intelligence_highlight(highlight: IntelligenceHighlight) -> str:
 </tr>"""
 
 
+@dataclass
+class ArticleHighlight:
+    """Destaque de artigo autoral para inclusão no briefing semanal."""
+
+    title: str
+    summary: str
+    site_url: str
+    author: str = "Sinal"
+    cover_url: Optional[str] = None
+
+
+_COLOR_ARTICLE = "#59FFB4"
+
+
+def _article_highlight(highlight: ArticleHighlight) -> str:
+    """Renderiza card de destaque de artigo autoral no briefing."""
+    bg_rgba = _hex_to_rgba(_COLOR_ARTICLE, 0.06)
+    border_rgba = _hex_to_rgba(_COLOR_ARTICLE, 0.15)
+    cover_html = ""
+    if highlight.cover_url:
+        cover_html = f"""\
+    <a href="{_esc(highlight.site_url)}" style="text-decoration: none;">
+      <img src="{_esc(highlight.cover_url)}" alt="{_esc(highlight.title)}" width="480" style="max-width:100%; height:auto; border-radius:8px; display:block; margin-bottom:16px;" />
+    </a>"""
+    return f"""\
+<!-- ===== ARTICLE HIGHLIGHT ===== -->
+<tr>
+<td style="padding: 20px 40px;" class="mp">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:{bg_rgba}; border:1px solid {border_rgba}; border-radius:12px;">
+  <tr>
+  <td style="padding: 28px;">
+    <p style="font-family:{_FONT_MONO}; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:{_COLOR_ARTICLE}; margin:0 0 14px 0;">
+      <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:{_COLOR_ARTICLE}; vertical-align:middle; margin-right:6px;"></span>
+      <span style="vertical-align:middle;">ARTIGO \u00b7 Novo</span>
+    </p>
+    {cover_html}
+    <p style="font-family:{_FONT_SERIF}; font-size:18px; font-weight:700; color:{_COLOR_HEADING}; line-height:1.35; margin:0 0 10px 0;">
+      {_esc(highlight.title)}
+    </p>
+    <p style="font-family:{_FONT_SANS}; font-size:14px; color:{_COLOR_BODY}; line-height:1.6; margin:0 0 6px 0;">
+      {_esc(highlight.summary)}
+    </p>
+    <p style="font-family:{_FONT_MONO}; font-size:11px; color:{_COLOR_MUTED}; margin:0 0 18px 0;">
+      Por {_esc(highlight.author)}
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="background-color:{_COLOR_ARTICLE}; border-radius:8px; padding:10px 22px;">
+        <a href="{_esc(highlight.site_url)}" style="font-family:{_FONT_MONO}; font-size:13px; font-weight:700; color:{_COLOR_BG}; text-decoration:none;">
+          Ler artigo completo \u2192
+        </a>
+      </td>
+    </tr>
+    </table>
+  </td>
+  </tr>
+  </table>
+</td>
+</tr>"""
+
+
 def _share_cta() -> str:
     """Seção CTA de compartilhamento (padrão do briefing).
 
@@ -978,6 +1039,7 @@ def build_newsletter_email_html(
     max_hero_articles: int = 5,
     edition_url: Optional[str] = None,
     intelligence: Optional[IntelligenceHighlight] = None,
+    article: Optional[ArticleHighlight] = None,
 ) -> str:
     """Constrói HTML email-safe a partir dos dados da newsletter.
 
@@ -988,10 +1050,11 @@ def build_newsletter_email_html(
     1. Cabeçalho (Sinal Semanal + número da edição)
     2. Lead editorial do SINTESE
     3. Artigos hero (top N do SINTESE, com imagens clicáveis)
-    4. Intelligence highlight (se disponível)
-    5. Cards de agentes secundários (RADAR, CÓDIGO, FUNDING, MERCADO)
-    6. CTA de compartilhamento
-    7. Rodapé profissional com links
+    4. Article highlight (se disponível)
+    5. Intelligence highlight (se disponível)
+    6. Cards de agentes secundários (RADAR, CÓDIGO, FUNDING, MERCADO)
+    7. CTA de compartilhamento
+    8. Rodapé profissional com links
 
     Args:
         data: Dados estruturados da newsletter (output do parser).
@@ -999,6 +1062,7 @@ def build_newsletter_email_html(
         max_hero_articles: Máximo de artigos do SINTESE no hero. Padrão: 5.
         edition_url: URL da edição completa no site (para CTA "ler mais").
         intelligence: Destaque opcional de relatório Intelligence.
+        article: Destaque opcional de artigo autoral.
 
     Returns:
         String HTML completa pronta para envio por email.
@@ -1024,10 +1088,6 @@ def build_newsletter_email_html(
         _editorial_lead(data.subtitle, data.editorial_lead),
     ]
 
-    # Intelligence highlight (posição de destaque, logo após o lead editorial)
-    if intelligence:
-        parts.append(_intelligence_highlight(intelligence))
-
     parts.append(_divider())
 
     # Hero: artigos do SINTESE (limitado a max_hero_articles)
@@ -1050,6 +1110,14 @@ def build_newsletter_email_html(
         parts.append(
             _read_more_cta(edition_url, total_articles - articles_shown)
         )
+
+    # Article highlight (artigo autoral, antes dos agent cards)
+    if article:
+        parts.append(_article_highlight(article))
+
+    # Intelligence highlight (relatório de pesquisa)
+    if intelligence:
+        parts.append(_intelligence_highlight(intelligence))
 
     # Cards de agentes secundários
     if agent_cards:

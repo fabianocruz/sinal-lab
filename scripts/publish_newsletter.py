@@ -25,7 +25,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from apps.agents.sintese.email_renderer import AgentCard, IntelligenceHighlight, extract_agent_summary
+from apps.agents.sintese.email_renderer import AgentCard, ArticleHighlight, IntelligenceHighlight, extract_agent_summary
 from apps.agents.sintese.newsletter import (
     build_newsletter_email,
     markdown_to_html,
@@ -188,6 +188,11 @@ INTELLIGENCE_REPORTS: Dict[str, dict] = {
         "summary": "100 startups mapeadas, 13 categorias, $30B+ em capital. O maior levantamento de developer tools do ecossistema global.",
         "author": "Sinal Intelligence",
     },
+    "eu-treinei-o-claude-para-escrever-como-eu-em-duas-semanas-ele-ja-rascunhava-80-dos-meus-textos": {
+        "title": "Eu treinei o Claude para escrever como eu. Em duas semanas, ele já rascunhava 80% dos meus textos",
+        "summary": "Como um fundador técnico treinou o Claude para replicar seu estilo de escrita, os erros no caminho, e o framework que saiu do processo.",
+        "author": "Fabiano Cruz",
+    },
 }
 
 
@@ -208,6 +213,32 @@ def _build_intelligence_highlight(url: str) -> Optional[IntelligenceHighlight]:
         summary=meta["summary"],
         site_url=url,
         author=meta.get("author", "Sinal Intelligence"),
+    )
+
+
+# Registry of article highlights per edition
+ARTICLE_HIGHLIGHTS: Dict[int, dict] = {
+    52: {
+        "title": "Eu treinei o Claude para escrever como eu. Em duas semanas, ele já rascunhava 80% dos meus textos",
+        "summary": "Como um fundador técnico treinou o Claude para replicar seu estilo de escrita, os erros no caminho, e o framework que saiu do processo.",
+        "author": "Fabiano Cruz",
+        "site_url": "https://sinal.tech/artigos/eu-treinei-o-claude-para-escrever-como-eu-em-duas-semanas-ele-ja-rascunhava-80-dos-meus-textos",
+        "cover_url": "https://q1anrx64yh9vfjwf.public.blob.vercel-storage.com/covers/sintese/ed30-v1-dlbMCZN89f6qr3zjqCxwEb0b3Y5pQx-4lZvQTKwcwr5o1A2sZrJUMKQIho9Ga.png",
+    },
+}
+
+
+def _build_article_highlight(edition: int = 52) -> Optional[ArticleHighlight]:
+    """Build ArticleHighlight for the current edition."""
+    meta = ARTICLE_HIGHLIGHTS.get(edition)
+    if not meta:
+        return None
+    return ArticleHighlight(
+        title=meta["title"],
+        summary=meta["summary"],
+        site_url=meta["site_url"],
+        author=meta.get("author", "Sinal"),
+        cover_url=meta.get("cover_url"),
     )
 
 
@@ -296,9 +327,15 @@ def publish_newsletter(
         if intelligence:
             logger.info("Intelligence highlight: %s", intelligence.title)
 
+    # Build article highlight for this edition
+    article_highlight = _build_article_highlight(edition)
+    if article_highlight:
+        logger.info("Article highlight: %s", article_highlight.title)
+
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
-        intelligence=intelligence,
+        intelligence=intelligence, article=article_highlight,
+        max_hero_articles=8,
     )
 
     # Always save HTML to standard output directory
@@ -398,9 +435,17 @@ def publish_briefing_email(
     sintese_fm = outputs["sintese"].get("frontmatter", {})
     subject = _resolve_email_subject(edition, sintese_fm)
 
+    # Build highlights for this edition
+    intel_highlight = _build_intelligence_highlight(
+        "https://sinal.tech/intelligence/devtools-market-intelligence-mar-2026"
+    )
+    article_highlight = _build_article_highlight()
+
     # Convert to email-safe HTML (same template as broadcast)
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
+        intelligence=intel_highlight, article=article_highlight,
+        max_hero_articles=8,
     )
 
     # Save preview HTML

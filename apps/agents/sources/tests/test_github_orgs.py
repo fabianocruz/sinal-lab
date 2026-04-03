@@ -47,13 +47,13 @@ def mock_github_response():
                 "login": "nubank",
                 "html_url": "https://github.com/nubank",
                 "type": "Organization",
-                "description": "Functional machine learning",
+                "description": "Digital banking platform and fintech",
             },
             {
                 "login": "stone-payments",
                 "html_url": "https://github.com/stone-payments",
                 "type": "Organization",
-                "description": "Microservice gateway",
+                "description": "Payments platform for fintech",
             },
         ],
     }
@@ -302,7 +302,7 @@ class TestCollectFromGithub:
         mock_response = Mock()
         mock_response.json.return_value = {
             "total_count": 1,
-            "items": [{"login": "latam-co", "html_url": "https://github.com/latam-co", "description": ""}],
+            "items": [{"login": "latam-co", "html_url": "https://github.com/latam-co", "description": "fintech startup"}],
         }
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response

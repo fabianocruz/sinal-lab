@@ -7,39 +7,63 @@ from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, Da
 
 # GitHub Search API: Discover tech companies via org profiles
 # Free tier: 30 req/min, 5000 req/hour
+_GITHUB_URL = "https://api.github.com/search/users"
+
+# Cities grouped by tier:
+# Tier 1 (major hubs, repos:>5): SP, CDMX, Buenos Aires, Bogotá, Santiago
+# Tier 2 (secondary hubs, repos:>3): RJ, Lima, Montevideo, Medellín, Guadalajara, Monterrey
+# Tier 3 (emerging, repos:>3): BH, Curitiba, Floripa, POA, Recife, Campinas, Córdoba, Quito, San José, Panama City
+_GITHUB_CITIES: list[tuple[str, str, int]] = [
+    # Brasil — Tier 1
+    ("São Paulo", "github_sao_paulo", 5),
+    # Brasil — Tier 2
+    ("Rio de Janeiro", "github_rio", 3),
+    ("Belo Horizonte", "github_belo_horizonte", 3),
+    ("Curitiba", "github_curitiba", 3),
+    ("Porto Alegre", "github_porto_alegre", 3),
+    ("Florianópolis", "github_florianopolis", 3),
+    ("Campinas", "github_campinas", 3),
+    ("Recife", "github_recife", 3),
+    # Mexico
+    ("Mexico City", "github_mexico_city", 5),
+    ("Guadalajara", "github_guadalajara", 3),
+    ("Monterrey", "github_monterrey", 3),
+    # Argentina
+    ("Buenos Aires", "github_buenos_aires", 5),
+    ("Córdoba", "github_cordoba", 3),
+    # Colombia
+    ("Bogotá", "github_bogota", 5),
+    ("Medellín", "github_medellin", 3),
+    # Chile
+    ("Santiago", "github_santiago", 5),
+    # Peru
+    ("Lima", "github_lima", 3),
+    # Uruguay
+    ("Montevideo", "github_montevideo", 3),
+    # Ecuador
+    ("Quito", "github_quito", 3),
+    # Costa Rica
+    ("San José", "github_san_jose", 3),
+    # Panama
+    ("Panama City", "github_panama_city", 3),
+]
+
 MERCADO_SOURCES: list[DataSourceConfig] = [
     # GitHub Search — discover tech organizations by LATAM city
     # Uses /search/users endpoint with type:org filter
-    DataSourceConfig(
-        name="github_sao_paulo",
-        source_type="api",
-        url="https://api.github.com/search/users",
-        params={"q": 'location:"São Paulo" type:org repos:>5', "sort": "repositories", "per_page": 30},
-    ),
-    DataSourceConfig(
-        name="github_rio",
-        source_type="api",
-        url="https://api.github.com/search/users",
-        params={"q": 'location:"Rio de Janeiro" type:org repos:>5', "sort": "repositories", "per_page": 30},
-    ),
-    DataSourceConfig(
-        name="github_mexico_city",
-        source_type="api",
-        url="https://api.github.com/search/users",
-        params={"q": 'location:"Mexico City" type:org repos:>5', "sort": "repositories", "per_page": 30},
-    ),
-    DataSourceConfig(
-        name="github_buenos_aires",
-        source_type="api",
-        url="https://api.github.com/search/users",
-        params={"q": 'location:"Buenos Aires" type:org repos:>3', "sort": "repositories", "per_page": 30},
-    ),
-    DataSourceConfig(
-        name="github_bogota",
-        source_type="api",
-        url="https://api.github.com/search/users",
-        params={"q": 'location:"Bogotá" type:org repos:>3', "sort": "repositories", "per_page": 30},
-    ),
+    *[
+        DataSourceConfig(
+            name=source_name,
+            source_type="api",
+            url=_GITHUB_URL,
+            params={
+                "q": f'location:"{city}" type:org repos:>{min_repos}',
+                "sort": "repositories",
+                "per_page": 100,
+            },
+        )
+        for city, source_name, min_repos in _GITHUB_CITIES
+    ],
 
     # Dealroom API (freemium tier: 100 req/day)
     DataSourceConfig(

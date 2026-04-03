@@ -67,14 +67,14 @@ RECRAFT_TIMEOUT = 60.0  # seconds — image generation is slow
 # Overlay layout constants
 # ---------------------------------------------------------------------------
 
-TOP_BAR_HEIGHT = 3
-BADGE_MARGIN = 20
-BADGE_PADDING_X = 12
-BADGE_PADDING_Y = 6
-GRADIENT_HEIGHT = 180
-MINI_BAR_SEGMENT_WIDTH = 16
-MINI_BAR_HEIGHT = 3
-MINI_BAR_MARGIN = 20
+TOP_BAR_HEIGHT = 4
+BADGE_MARGIN = 24
+BADGE_PADDING_X = 16
+BADGE_PADDING_Y = 8
+GRADIENT_HEIGHT = 220
+MINI_BAR_SEGMENT_WIDTH = 20
+MINI_BAR_HEIGHT = 4
+MINI_BAR_MARGIN = 24
 
 # ---------------------------------------------------------------------------
 # Art director system prompt for image prompt generation
@@ -86,31 +86,39 @@ ART_DIRECTOR_SYSTEM_PROMPT = (
     "You receive: a headline + lede from a publication.\n"
     "You produce: an image prompt for Recraft V3 (realistic_image).\n\n"
     "RULES:\n"
-    "1. Background ALWAYS dark (#0A0A0B to #1A1A1F).\n"
-    "2. Dominant accent color: {agent_color_name} — use it for lighting, glows, highlights.\n"
-    "3. Style: photorealistic, tech magazine editorial, cinematic.\n"
-    "4. Composition: leave space for overlay (badges at top, gradient at bottom).\n"
-    "5. Mood: serious, data-driven, futuristic but grounded in reality.\n"
-    "6. NEVER include text, words, or letters in the image.\n"
-    "7. NEVER use cartoon, clipart, or generic stock photo style.\n"
-    "8. Include Latin American elements when relevant "
-    "(skylines, architecture, cultural references).\n\n"
-    "CRITICAL — CONTEXTUAL IMAGERY:\n"
-    "Each cover MUST show CONCRETE OBJECTS related to the story's industry/sector. "
-    "A reader should look at the image and immediately understand what topic it covers. "
-    "NEVER produce a generic 'futuristic tech' image that could fit any story.\n\n"
-    "Sector examples:\n"
-    "- Banking/Fintech → vaults, credit cards, payment terminals, candlestick charts\n"
-    "- Healthcare → medical devices, hospital equipment, diagnostic interfaces\n"
-    "- Logistics → automated warehouses, delivery drones, containers, truck fleets\n"
-    "- AI/ML → data centers, GPUs, server racks, metric dashboards, terminal interfaces\n"
-    "- E-commerce → shopping carts, warehouses, checkout screens\n"
-    "- Regulation → gavels, official documents, government buildings\n"
-    "- DevTools → code terminals, IDEs, network racks, switches\n"
-    "- Autonomous vehicles → cars, roads, sensors, lidar\n\n"
-    "GOLDEN RULE: if the story is about 'Nubank tests AI agents', the image shows "
-    "a futuristic banking environment with AI elements — NOT an 'abstract constellation "
-    "of connected dots'.\n\n"
+    "1. Background MUST be dark/night (#0A0A0B to #1A1A1F). NO daylight, NO sunsets, "
+    "NO bright skies. The scene is ALWAYS at night or in a dark interior.\n"
+    "2. Dominant accent color: {agent_color_name} — use it for neon glows, rim lighting, "
+    "reflections, LED indicators, holographic elements. The accent should POP against the dark.\n"
+    "3. Style: photorealistic, cinematic, shallow depth of field (f/1.4-2.8). "
+    "Think Blade Runner 2049 meets Bloomberg Businessweek cover photography.\n"
+    "4. Composition: subject fills 60-80% of frame. Use CLOSE-UP or MEDIUM shots, "
+    "NOT wide establishing shots. Leave top 10% and bottom 20% slightly darker for overlays.\n"
+    "5. Lighting: dramatic, volumetric. Strong key light from one side. "
+    "Use {agent_color_name} as rim light or environmental neon. "
+    "Visible light rays, lens flare, or bokeh encouraged.\n"
+    "6. NEVER include text, words, letters, numbers, or UI elements in the image.\n"
+    "7. NEVER use cartoon, clipart, stock photo, or corporate office aesthetics.\n"
+    "8. When relevant, include Latin American visual cues (Sao Paulo skyline at night, "
+    "tropical vegetation with neon, brutalist LATAM architecture).\n\n"
+    "CRITICAL — SPECIFICITY OVER GENERALITY:\n"
+    "Each cover MUST show ONE hero object or scene that is SPECIFIC to the story. "
+    "Pick the single most striking visual element from the headline. "
+    "Photograph it like a magazine cover: up close, dramatic, beautiful.\n\n"
+    "GOOD examples:\n"
+    "- 'AI chip startup raises $400M' → extreme close-up of a glowing AI chip on a dark "
+    "circuit board, {agent_color_name} traces on the silicon, shallow DOF\n"
+    "- 'Data centers in space' → orbital station with server modules floating against "
+    "Earth's dark side, {agent_color_name} status lights blinking\n"
+    "- 'Fintech raises Series A' → close-up of a sleek payment terminal with "
+    "{agent_color_name} LED indicators, dark marble counter, city lights reflected\n"
+    "- 'LATAM startup ecosystem' → aerial night view of Sao Paulo's Faria Lima district "
+    "with {agent_color_name} data visualization overlaid on the skyline\n\n"
+    "BAD examples (NEVER do this):\n"
+    "- Generic open-plan office with monitors\n"
+    "- Conference room with charts on table\n"
+    "- Wide shot of server room corridor\n"
+    "- Any scene that could be a stock photo\n\n"
     "OUTPUT: Only the image prompt in English, maximum 150 words.\n"
     "Format: 1820x1024 horizontal composition."
 )

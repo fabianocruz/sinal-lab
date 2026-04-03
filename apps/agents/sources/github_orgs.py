@@ -131,6 +131,22 @@ _NONPROFIT_PATTERNS = [
 
 _PERSONAL_PATTERNS = [
     "-eti", "consulting", "consultoria",
+    "freelanc", "autonomo",
+]
+
+_AGENCY_PATTERNS = [
+    "agencia", "agency", "digital-agency",
+    "wordpress", "webdesign", "web-design",
+    "studio-", "-studio",
+]
+
+_JUNIOR_ENTERPRISE_PATTERNS = [
+    "junior", "empresa-junior", "ej-", "-ej",
+    "atletic", "bateria", "centro-academico",
+]
+
+_RELIGIOUS_COMMUNITY_PATTERNS = [
+    "igreja", "church", "templo", "parish",
 ]
 
 _KNOWN_LARGE_COMPANIES_PATTERNS = [
@@ -155,6 +171,9 @@ _NON_STARTUP_PATTERNS = tuple(
     + _ACADEMIC_PATTERNS
     + _NONPROFIT_PATTERNS
     + _PERSONAL_PATTERNS
+    + _AGENCY_PATTERNS
+    + _JUNIOR_ENTERPRISE_PATTERNS
+    + _RELIGIOUS_COMMUNITY_PATTERNS
     + _KNOWN_LARGE_COMPANIES_PATTERNS
     + _ARCHIVE_PATTERNS
 )
@@ -289,7 +308,8 @@ def _resolve_location(query: str) -> tuple:
 def collect_from_github(
     source: DataSourceConfig,
     provenance: ProvenanceTracker,
-    min_startup_score: float = 0.3,
+    min_startup_score: float = 0.4,
+    known_slugs: Optional[frozenset] = None,
 ) -> list[CompanyProfile]:
     """Collect organization profiles from GitHub Search API.
 
@@ -355,6 +375,11 @@ def collect_from_github(
                 description = org.get("description") or ""
 
                 if not org_login:
+                    continue
+
+                # Skip orgs already in the database
+                if known_slugs and org_login.lower() in known_slugs:
+                    filtered_count += 1
                     continue
 
                 score = score_startup_likelihood(org_login, description)

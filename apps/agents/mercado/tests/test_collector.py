@@ -23,13 +23,13 @@ def mock_github_response():
                 "login": "nubank",
                 "html_url": "https://github.com/nubank",
                 "type": "Organization",
-                "description": "Functional machine learning",
+                "description": "Digital banking platform and fintech",
             },
             {
                 "login": "stone-payments",
                 "html_url": "https://github.com/stone-payments",
                 "type": "Organization",
-                "description": "Microservice gateway",
+                "description": "Payments platform for fintech",
             },
         ],
     }
@@ -309,7 +309,7 @@ def test_collect_from_github_filters_non_startups(mock_get, github_source, prove
                 "login": "nubank",
                 "html_url": "https://github.com/nubank",
                 "type": "Organization",
-                "description": "Functional machine learning",
+                "description": "Digital banking platform and fintech",
             },
             {
                 "login": "prefeiturasp",

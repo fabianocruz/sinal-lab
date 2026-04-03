@@ -131,7 +131,7 @@ class BrandOverlay:
         For articles: shows "● ARTIGO" without DQ score.
         For briefings: shows "● AGENT  DQ X/5".
         """
-        font = _get_font(14)
+        font = _get_font(16)
         if self._config.is_article:
             badge_text = f"\u25cf {self._config.agent.upper()}"
         else:
@@ -159,7 +159,7 @@ class BrandOverlay:
 
     def _draw_logo(self, draw: ImageDraw.ImageDraw, width: int) -> None:
         """Draw Sinal· text logo at top-right."""
-        font = _get_font(16)
+        font = _get_font(18)
         logo_text = "Sinal\u00b7"
 
         bbox = font.getbbox(logo_text)
@@ -181,19 +181,24 @@ class BrandOverlay:
         )
 
     def _draw_gradient(self, draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
-        """Draw bottom gradient fade for legibility."""
+        """Draw bottom gradient fade for legibility.
+
+        Uses an ease-in curve (quadratic) for a more natural fade that stays
+        subtle at the top and gets opaque quickly near the bottom edge.
+        """
         start_y = height - GRADIENT_HEIGHT
         for i in range(GRADIENT_HEIGHT):
-            alpha = int(180 * (i / GRADIENT_HEIGHT))
+            t = i / GRADIENT_HEIGHT
+            alpha = int(210 * (t * t))  # quadratic ease-in, max 210/255
             draw.line([(0, start_y + i), (width, start_y + i)], fill=(0, 0, 0, alpha))
 
     def _draw_url(self, draw: ImageDraw.ImageDraw, height: int) -> None:
         """Draw sinal.tech URL at bottom-left."""
-        font = _get_font(12)
+        font = _get_font(14)
         draw.text(
-            (BADGE_MARGIN, height - BADGE_MARGIN - 14),
+            (BADGE_MARGIN, height - BADGE_MARGIN - 16),
             "sinal.tech",
-            fill=(255, 255, 255, 200),
+            fill=(255, 255, 255, 220),
             font=font,
         )
 
