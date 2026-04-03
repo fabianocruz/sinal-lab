@@ -95,6 +95,16 @@ AGENTS = {
         "output_dir": "apps/agents/index/output",
         "filename_pattern": "index-week-{period}.md",
     },
+    "social_signals": {
+        "module": "apps.agents.social_signals.main",
+        "description": "Social Signal Intelligence for AI, Fintech, and Banking",
+        "class_module": "apps.agents.social_signals.agent",
+        "class_name": "SocialSignalsAgent",
+        "period_arg": "week",
+        "slug_pattern": "social-signals-week-{period}",
+        "output_dir": "apps/agents/social_signals/output",
+        "filename_pattern": "social-signals-week-{period}.md",
+    },
 }
 
 
@@ -259,13 +269,14 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Available agents:
-  sintese   Newsletter synthesis from RSS/Atom feeds
-  radar     Emerging trend detection
-  codigo    Developer ecosystem signals
-  funding   Investment tracking (VC announcements, funding rounds)
-  mercado   LATAM startup mapping and ecosystem intelligence
-  index     LATAM Startup Index (comprehensive registry from bulk sources)
-  all       Run all agents sequentially
+  sintese          Newsletter synthesis from RSS/Atom feeds
+  radar            Emerging trend detection
+  codigo           Developer ecosystem signals
+  funding          Investment tracking (VC announcements, funding rounds)
+  mercado          LATAM startup mapping and ecosystem intelligence
+  index            LATAM Startup Index (comprehensive registry from bulk sources)
+  social_signals   Social Signal Intelligence for AI, Fintech, and Banking
+  all              Run all agents sequentially
         """,
     )
     parser.add_argument(
