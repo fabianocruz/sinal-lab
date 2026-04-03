@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 class LLMConfig:
     """Configuration for the LLM client."""
 
-    model: str = "claude-sonnet-4-5-20250929"
+    model: str = "claude-opus-4-6-20250918"
     max_tokens: int = 1024
     temperature: float = 0.7
     api_key_env: str = "ANTHROPIC_API_KEY"

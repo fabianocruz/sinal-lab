@@ -6,6 +6,7 @@
 
 import type { Company } from "@/lib/company";
 import type { ContentApiItem } from "@/lib/newsletter";
+import type { Signal, SignalCluster, WeeklyPulse, SignalStats } from "@/lib/signal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -290,6 +291,92 @@ export async function fetchLatestIntelligence(): Promise<ContentApiItem | null> 
     return data.items?.[0] ?? null;
   } catch {
     return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Signals
+// ---------------------------------------------------------------------------
+
+export async function fetchSignalStats(): Promise<SignalStats> {
+  try {
+    const response = await fetch(`${API_BASE}/api/signals/stats`, {
+      next: { revalidate: 300 },
+    });
+    if (!response.ok)
+      return { total_signals: 0, total_clusters: 0, total_voices: 0, platforms: {}, themes: {} };
+    return response.json();
+  } catch {
+    return { total_signals: 0, total_clusters: 0, total_voices: 0, platforms: {}, themes: {} };
+  }
+}
+
+export async function fetchSignalClusters(params?: {
+  theme?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<SignalCluster>> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.theme) searchParams.set("theme", params.theme);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+
+    const qs = searchParams.toString();
+    const url = `${API_BASE}/api/signals/clusters${qs ? `?${qs}` : ""}`;
+    const response = await fetch(url, { next: { revalidate: 300 } });
+    if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
+    return response.json();
+  } catch {
+    return { items: [], total: 0, limit: 20, offset: 0 };
+  }
+}
+
+export async function fetchSignalClusterBySlug(slug: string): Promise<SignalCluster | null> {
+  try {
+    const encoded = encodeURIComponent(slug);
+    const response = await fetch(`${API_BASE}/api/signals/clusters/${encoded}`, {
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchLatestPulse(): Promise<WeeklyPulse | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/signals/pulse/latest`, {
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchSignals(params?: {
+  platform?: string;
+  theme?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<Signal>> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.platform) searchParams.set("platform", params.platform);
+    if (params?.theme) searchParams.set("theme", params.theme);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+
+    const qs = searchParams.toString();
+    const url = `${API_BASE}/api/signals${qs ? `?${qs}` : ""}`;
+    const response = await fetch(url, { next: { revalidate: 300 } });
+    if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
+    return response.json();
+  } catch {
+    return { items: [], total: 0, limit: 20, offset: 0 };
   }
 }
 
