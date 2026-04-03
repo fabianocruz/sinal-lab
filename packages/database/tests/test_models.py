@@ -65,7 +65,7 @@ class TestBase:
 
     def test_table_count(self, engine):
         inspector = inspect(engine)
-        assert len(inspector.get_table_names()) == 13
+        assert len(inspector.get_table_names()) == 17
 
 
 class TestCompany:

@@ -11,9 +11,13 @@ from packages.database.models.ecosystem import Ecosystem
 from packages.database.models.evidence_item import EvidenceItemDB
 from packages.database.models.funding_round import FundingRound
 from packages.database.models.investor import Investor
+from packages.database.models.monitored_account import MonitoredAccount
 from packages.database.models.session import SessionDB
+from packages.database.models.signal_cluster import SignalCluster
+from packages.database.models.social_signal import SocialSignal
 from packages.database.models.user import User
 from packages.database.models.verification_token import VerificationToken
+from packages.database.models.weekly_pulse import WeeklyPulse
 
 __all__ = [
     "Base",
@@ -27,7 +31,11 @@ __all__ = [
     "EvidenceItemDB",
     "FundingRound",
     "Investor",
+    "MonitoredAccount",
     "SessionDB",
+    "SignalCluster",
+    "SocialSignal",
     "User",
     "VerificationToken",
+    "WeeklyPulse",
 ]
