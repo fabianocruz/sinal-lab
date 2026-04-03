@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense } from "react";
 import Link from "next/link";
-import WaitlistForm from "./WaitlistForm";
+import { useSession } from "next-auth/react";
 
 const AVATARS = ["FC", "ML", "RB", "AS", "+"];
 
 export default function Hero() {
+  const { status: authStatus } = useSession();
+
   return (
     <section id="hero" className="relative flex min-h-dvh items-center overflow-hidden">
       {/* Background glows */}
@@ -49,21 +50,40 @@ export default function Hero() {
             no seu inbox.
           </p>
 
-          {/* Waitlist form */}
-          <Suspense>
-            <WaitlistForm className="mb-4 max-w-[480px]" />
-          </Suspense>
+          {/* CTA */}
+          {authStatus === "authenticated" ? (
+            <div className="mb-12 flex items-center gap-3 rounded-xl border border-[rgba(232,255,89,0.2)] bg-[rgba(232,255,89,0.06)] px-5 py-4 max-w-[480px]">
+              <span className="text-signal">✓</span>
+              <p className="font-mono text-[14px] text-signal">
+                Você já recebe o Briefing.{" "}
+                <Link href="/newsletter" className="underline underline-offset-2 hover:opacity-80">
+                  Ver últimas edições →
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/cadastro"
+                className="inline-flex items-center justify-center rounded-[10px] border border-signal bg-signal px-7 py-4 font-body text-[15px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim"
+              >
+                Assine grátis
+              </Link>
+              <Link
+                href="#edicoes"
+                className="inline-flex items-center justify-center rounded-[10px] border border-[rgba(255,255,255,0.12)] px-7 py-4 font-body text-[15px] font-semibold text-ash transition-colors hover:border-[rgba(255,255,255,0.25)] hover:text-sinal-white"
+              >
+                Ver último Briefing →
+              </Link>
+            </div>
+          )}
 
           {/* Micro copy */}
-          <p className="mb-12 text-[13px] text-sinal-slate">
-            Grátis. Sem spam.{" "}
-            <Link
-              href="#edicoes"
-              className="text-ash underline underline-offset-2 hover:text-sinal-white"
-            >
-              Ou comece pelo último Briefing →
-            </Link>
-          </p>
+          {authStatus !== "authenticated" && (
+            <p className="mb-12 text-[13px] text-sinal-slate">
+              Grátis para sempre. Sem spam. Cancelamento em 1 clique.
+            </p>
+          )}
 
           {/* Social proof */}
           <div className="flex items-center gap-4 border-t border-[rgba(255,255,255,0.06)] pt-8">

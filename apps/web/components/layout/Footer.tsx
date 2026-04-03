@@ -5,29 +5,18 @@ const FOOTER_COLUMNS = [
     title: "Produto",
     links: [
       { label: "Briefing Semanal", href: "/newsletter" },
-      { label: "Índices LATAM", href: "#" },
-      { label: "Deep Dives", href: "#" },
+      { label: "Mapa de Startups", href: "/startups" },
+      { label: "Intelligence", href: "/intelligence" },
+      { label: "Artigos", href: "/artigos" },
       { label: "API de Dados", href: "/developers" },
-      { label: "Para Empresas", href: "/#empresas" },
-    ],
-  },
-  {
-    title: "Comunidade",
-    links: [
-      { label: "Comunidade de Builders", href: "#" },
-      { label: "Embaixadores Locais", href: "#" },
-      { label: "Painel de Especialistas", href: "#" },
-      { label: "Contribua com Dados", href: "#" },
     ],
   },
   {
     title: "Transparência",
     links: [
       { label: "Metodologia", href: "/#metodologia" },
-      { label: "Fontes de Dados", href: "#" },
-      { label: "Log de Correções", href: "#" },
-      { label: "Dashboard de Viés", href: "#" },
-      { label: "Changelog dos Agentes", href: "#" },
+      { label: "Fontes de Dados", href: "/fontes" },
+      { label: "Changelog dos Agentes", href: "/changelog" },
     ],
   },
   {
@@ -47,7 +36,7 @@ export default function Footer() {
     <footer className="border-t border-[rgba(255,255,255,0.04)] bg-sinal-black">
       <div className="mx-auto max-w-container px-6 py-16 md:px-10">
         {/* Grid */}
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
           {/* Brand column */}
           <div>
             <Link href="/" className="mb-4 flex items-center gap-1.5">

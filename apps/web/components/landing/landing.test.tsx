@@ -52,14 +52,12 @@ describe("Hero", () => {
 
   it("renders the link to last briefing", () => {
     render(<Hero />);
-    expect(
-      screen.getByRole("link", { name: /Ou comece pelo último Briefing/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ver último Briefing/i })).toBeInTheDocument();
   });
 
-  it('renders micro copy with "Grátis. Sem spam."', () => {
+  it('renders micro copy with "Grátis para sempre. Sem spam."', () => {
     render(<Hero />);
-    expect(screen.getByText(/Grátis. Sem spam./i)).toBeInTheDocument();
+    expect(screen.getByText(/Grátis para sempre. Sem spam./i)).toBeInTheDocument();
   });
 });
 

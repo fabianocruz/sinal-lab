@@ -7,9 +7,10 @@ import { useSession } from "next-auth/react";
 import UserMenu from "./UserMenu";
 
 const NAV_LINKS = [
-  { href: "/#briefing", label: "Briefing" },
-  { href: "/#metodologia", label: "Metodologia" },
+  { href: "/newsletter", label: "Briefing" },
   { href: "/startups", label: "Mapa" },
+  { href: "/artigos", label: "Artigos" },
+  { href: "/intelligence", label: "Intelligence" },
 ];
 
 /**
@@ -116,24 +117,6 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/newsletter"
-            className="font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
-          >
-            Arquivo
-          </Link>
-          <Link
-            href="/artigos"
-            className="font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
-          >
-            Artigos
-          </Link>
-          <Link
-            href="/intelligence"
-            className="font-mono text-[13px] text-ash transition-colors hover:text-sinal-white"
-          >
-            Intelligence
-          </Link>
         </div>
 
         {/* Desktop: auth state + CTA */}
@@ -166,27 +149,6 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/newsletter"
-              onClick={() => setMobileOpen(false)}
-              className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
-            >
-              Arquivo
-            </Link>
-            <Link
-              href="/artigos"
-              onClick={() => setMobileOpen(false)}
-              className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
-            >
-              Artigos
-            </Link>
-            <Link
-              href="/intelligence"
-              onClick={() => setMobileOpen(false)}
-              className="block rounded-lg px-4 py-3 font-mono text-[14px] text-ash transition-colors hover:bg-sinal-graphite hover:text-sinal-white"
-            >
-              Intelligence
-            </Link>
             <NavbarAuthState mobile />
             <NavbarCTA mobile onClick={() => setMobileOpen(false)} />
           </div>

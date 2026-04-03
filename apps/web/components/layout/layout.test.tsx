@@ -51,32 +51,24 @@ describe("Navbar", () => {
       expect(screen.getByRole("link", { name: "Briefing" })).toBeInTheDocument();
     });
 
-    it("test_navbar_renders_metodologia_link", () => {
-      render(<Navbar />);
-      expect(screen.getByRole("link", { name: "Metodologia" })).toBeInTheDocument();
-    });
-
-    it("test_navbar_renders_precos_link", () => {
-      render(<Navbar />);
-      expect(screen.getByRole("link", { name: "Preços" })).toBeInTheDocument();
-    });
-
     it("test_navbar_renders_mapa_link", () => {
       render(<Navbar />);
       expect(screen.getByRole("link", { name: "Mapa" })).toBeInTheDocument();
     });
 
-    it("test_navbar_renders_arquivo_link", () => {
+    it("test_navbar_renders_artigos_link", () => {
       render(<Navbar />);
-      // Multiple "Arquivo" links exist (desktop + mobile after toggle), but
-      // before toggle only the desktop one is in the DOM.
-      const arquivoLinks = screen.getAllByRole("link", { name: "Arquivo" });
-      expect(arquivoLinks.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByRole("link", { name: "Artigos" })).toBeInTheDocument();
+    });
+
+    it("test_navbar_renders_intelligence_link", () => {
+      render(<Navbar />);
+      expect(screen.getByRole("link", { name: "Intelligence" })).toBeInTheDocument();
     });
 
     it("test_navbar_briefing_link_href_is_correct", () => {
       render(<Navbar />);
-      expect(screen.getByRole("link", { name: "Briefing" })).toHaveAttribute("href", "/#briefing");
+      expect(screen.getByRole("link", { name: "Briefing" })).toHaveAttribute("href", "/newsletter");
     });
   });
 
@@ -161,10 +153,9 @@ describe("Navbar", () => {
 
       // Every nav link should now have two instances (desktop + mobile)
       expect(screen.getAllByRole("link", { name: "Briefing" })).toHaveLength(2);
-      expect(screen.getAllByRole("link", { name: "Metodologia" })).toHaveLength(2);
-      expect(screen.getAllByRole("link", { name: "Preços" })).toHaveLength(2);
       expect(screen.getAllByRole("link", { name: "Mapa" })).toHaveLength(2);
-      expect(screen.getAllByRole("link", { name: "Arquivo" })).toHaveLength(2);
+      expect(screen.getAllByRole("link", { name: "Artigos" })).toHaveLength(2);
+      expect(screen.getAllByRole("link", { name: "Intelligence" })).toHaveLength(2);
     });
 
     it("test_navbar_mobile_menu_shows_cta_button", () => {
@@ -261,11 +252,6 @@ describe("Footer", () => {
       expect(screen.getByText("Produto")).toBeInTheDocument();
     });
 
-    it("test_footer_renders_comunidade_column_heading", () => {
-      render(<Footer />);
-      expect(screen.getByText("Comunidade")).toBeInTheDocument();
-    });
-
     it("test_footer_renders_transparencia_column_heading", () => {
       render(<Footer />);
       expect(screen.getByText("Transparência")).toBeInTheDocument();
@@ -301,9 +287,9 @@ describe("Footer", () => {
       expect(screen.getByRole("link", { name: "Sobre" })).toBeInTheDocument();
     });
 
-    it("test_footer_renders_para_empresas_link", () => {
+    it("test_footer_renders_fontes_de_dados_link", () => {
       render(<Footer />);
-      expect(screen.getByRole("link", { name: "Para Empresas" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Fontes de Dados" })).toBeInTheDocument();
     });
   });
 

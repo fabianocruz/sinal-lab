@@ -110,45 +110,49 @@ export default function CompanyCard({ company }: CompanyCardProps) {
           </div>
         )}
 
-        {/* Bottom stats bar */}
-        <div className="mt-auto flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] pt-3">
-          {/* Stage */}
-          <div className="flex flex-col items-start">
-            <span
-              className="font-mono text-[13px] font-semibold leading-none"
-              style={{ color: accentColor }}
-            >
-              {company.funding_stage ?? company.sector ?? "—"}
-            </span>
-            <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
-              {company.funding_stage ? "Stage" : "Setor"}
-            </span>
+        {/* Bottom stats bar — only rendered when at least one stat is available */}
+        {(company.funding_stage || company.sector || funding || company.team_size != null) && (
+          <div className="mt-auto flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] pt-3">
+            {/* Stage or Sector */}
+            {(company.funding_stage || company.sector) && (
+              <div className="flex flex-col items-start">
+                <span
+                  className="font-mono text-[13px] font-semibold leading-none"
+                  style={{ color: accentColor }}
+                >
+                  {company.funding_stage ?? company.sector}
+                </span>
+                <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
+                  {company.funding_stage ? "Stage" : "Setor"}
+                </span>
+              </div>
+            )}
+
+            {/* Funding */}
+            {funding && (
+              <div className="flex flex-col items-start">
+                <span className="font-mono text-[13px] font-semibold leading-none text-sinal-white">
+                  {funding}
+                </span>
+                <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
+                  Funding
+                </span>
+              </div>
+            )}
+
+            {/* Team size */}
+            {company.team_size != null && (
+              <div className="flex flex-col items-start">
+                <span className="font-mono text-[13px] font-semibold leading-none text-silver">
+                  {company.team_size}
+                </span>
+                <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
+                  Equipe
+                </span>
+              </div>
+            )}
           </div>
-
-          {/* Funding */}
-          {funding && (
-            <div className="flex flex-col items-start">
-              <span className="font-mono text-[13px] font-semibold leading-none text-sinal-white">
-                {funding}
-              </span>
-              <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
-                Funding
-              </span>
-            </div>
-          )}
-
-          {/* Team size */}
-          {company.team_size != null && (
-            <div className="flex flex-col items-start">
-              <span className="font-mono text-[13px] font-semibold leading-none text-silver">
-                {company.team_size}
-              </span>
-              <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
-                Equipe
-              </span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </Link>
   );

@@ -120,15 +120,15 @@ describe("GatedOverlay", () => {
   it("test_gatedoverlay_render_shows_continue_lendo_heading", () => {
     render(<GatedOverlay />);
 
-    expect(screen.getByRole("heading", { name: "Continue lendo" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Leia a análise completa" })).toBeInTheDocument();
   });
 
-  it("test_gatedoverlay_render_shows_description_text", () => {
+  it("test_gatedoverlay_render_shows_value_props", () => {
     render(<GatedOverlay />);
 
-    expect(
-      screen.getByText("Crie sua conta gratuita para acessar todas as edições do Sinal."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Acesso completo a todas as edições")).toBeInTheDocument();
+    expect(screen.getByText("5 relatórios semanais por agente de IA")).toBeInTheDocument();
+    expect(screen.getByText("Newsletter no email toda semana")).toBeInTheDocument();
   });
 
   it("test_gatedoverlay_render_shows_criar_conta_link_to_cadastro_with_callback", () => {
@@ -266,7 +266,7 @@ describe("NewsletterContent — unauthenticated", () => {
     render(<NewsletterContent newsletter={mockNewsletter} />);
 
     // GatedOverlay's heading is the most reliable sentinel for its presence
-    expect(screen.getByRole("heading", { name: "Continue lendo" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Leia a análise completa" })).toBeInTheDocument();
   });
 
   it("test_newslettercontent_unauth_render_does_not_show_footer_note", () => {
@@ -317,7 +317,7 @@ describe("NewsletterContent — unauthenticated", () => {
     // Single-paragraph body: all content is preview, no gate needed
     render(<NewsletterContent newsletter={mockNewsletterShortBody} />);
 
-    expect(screen.queryByRole("heading", { name: "Continue lendo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Leia a análise completa" })).not.toBeInTheDocument();
   });
 });
 
@@ -342,7 +342,7 @@ describe("NewsletterContent — authenticated", () => {
   it("test_newslettercontent_auth_render_does_not_show_gated_overlay", () => {
     render(<NewsletterContent newsletter={mockNewsletter} />);
 
-    expect(screen.queryByRole("heading", { name: "Continue lendo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Leia a análise completa" })).not.toBeInTheDocument();
   });
 
   it("test_newslettercontent_auth_render_shows_footer_note", () => {
@@ -471,7 +471,7 @@ describe("NewsletterContent — edge cases", () => {
     // The second paragraph is gated (behind GatedOverlay), so it is not in the DOM.
     expect(screen.queryByText("Real para B.")).not.toBeInTheDocument();
     // GatedOverlay is present, confirming there ARE remaining paragraphs after filtering.
-    expect(screen.getByRole("heading", { name: "Continue lendo" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Leia a análise completa" })).toBeInTheDocument();
   });
 
   it("test_newslettercontent_short_body_unauth_does_not_render_criar_conta_link", () => {

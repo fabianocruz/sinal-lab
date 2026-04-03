@@ -39,20 +39,30 @@ export default function FilterPills() {
     <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por agente">
       {FILTER_OPTIONS.map((option) => {
         const isActive = active === option.key;
+        // For "todos" pill when active, fall back to white
+        const activeColor = option.color ?? "#FFFFFF";
         return (
           <button
             key={option.key}
             onClick={() => handleSelect(option.key)}
             aria-pressed={isActive}
-            className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 font-mono text-[11px] uppercase tracking-[1px] transition-all duration-200 ${
+            className="flex items-center gap-[6px] rounded-lg border px-[14px] py-[9px] font-mono text-[12px] uppercase tracking-[1px] transition-all duration-200 hover:text-sinal-white"
+            style={
               isActive
-                ? "border-signal bg-[rgba(232,255,89,0.06)] text-signal"
-                : "border-[rgba(255,255,255,0.06)] text-ash hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white"
-            }`}
+                ? {
+                    borderColor: activeColor,
+                    backgroundColor: `${activeColor}14`,
+                    color: activeColor,
+                  }
+                : {
+                    borderColor: "rgba(255,255,255,0.06)",
+                    color: "#7A7A8A",
+                  }
+            }
           >
             {option.color && (
               <span
-                className="inline-block h-[5px] w-[5px] rounded-full"
+                className="inline-block h-[6px] w-[6px] shrink-0 rounded-full"
                 style={{ backgroundColor: option.color }}
                 aria-hidden="true"
               />

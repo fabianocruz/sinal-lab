@@ -41,7 +41,7 @@ const FAQ_ITEMS = [
   {
     question: "E se eu encontrar um erro?",
     answer:
-      "Reporte em sinal.co/correcoes. Publicamos todas as correções com: texto original, texto corrigido, explicação e data. Nosso log de correções é público. Erros graves geram notificação a todos os assinantes.",
+      "Reporte em sinal.tech/correcoes. Publicamos todas as correções com: texto original, texto corrigido, explicação e data. Nosso log de correções é público. Erros graves geram notificação a todos os assinantes.",
   },
 ];
 

@@ -4,15 +4,12 @@ import Footer from "@/components/layout/Footer";
 import Hero from "@/components/landing/Hero";
 import ValueProposition from "@/components/landing/ValueProposition";
 import BriefingExplainer from "@/components/landing/BriefingExplainer";
-import HowItWorks from "@/components/landing/HowItWorks";
-import Pricing from "@/components/landing/Pricing";
-import SocialProof from "@/components/landing/SocialProof";
-import CTASection from "@/components/landing/CTASection";
 import EditionsPreviews from "@/components/landing/EditionsPreviews";
 import MapaHighlight from "@/components/landing/MapaHighlight";
-import ForCompanies from "@/components/landing/ForCompanies";
+import HowItWorks from "@/components/landing/HowItWorks";
+import Pricing from "@/components/landing/Pricing";
+import CTASection from "@/components/landing/CTASection";
 import FAQ from "@/components/landing/FAQ";
-import Manifesto from "@/components/landing/Manifesto";
 import { homepageJsonLd } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
@@ -36,15 +33,12 @@ export default function HomePage() {
         <Hero />
         <ValueProposition />
         <BriefingExplainer />
-        <HowItWorks />
-        <Pricing />
-        <SocialProof />
-        <CTASection />
         <EditionsPreviews />
         <MapaHighlight />
-        <ForCompanies />
+        <HowItWorks />
+        <Pricing />
+        <CTASection />
         <FAQ />
-        <Manifesto />
       </main>
       <Footer />
       <script
