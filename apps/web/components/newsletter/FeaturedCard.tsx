@@ -18,8 +18,6 @@ export default function FeaturedCard({ newsletter }: FeaturedCardProps) {
     mercado: "rgba(196,89,255,0.15)",
   };
 
-  const agentColor = AGENT_HEX[newsletter.agent];
-
   return (
     <Link
       href={`/newsletter/${newsletter.slug}`}

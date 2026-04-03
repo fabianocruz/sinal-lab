@@ -10,8 +10,6 @@ export default function ArchiveCard({ newsletter }: ArchiveCardProps) {
   const persona = AGENT_PERSONAS[newsletter.agent];
   const agentInitial = newsletter.agentLabel.charAt(0);
 
-  const agentColor = AGENT_HEX[newsletter.agent];
-
   return (
     <Link
       href={`/newsletter/${newsletter.slug}`}
