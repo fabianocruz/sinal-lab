@@ -12,8 +12,13 @@ import TemasPanel from "@/components/signals/TemasPanel";
 import MemoPanel from "@/components/signals/MemoPanel";
 import PersonaSelector from "@/components/signals/PersonaSelector";
 import type { SignalsTab } from "@/components/signals/TabNav";
-import type { Persona } from "@/components/signals/PersonaSelector";
-import { PERSONA_LABELS, resolvePersona } from "@/components/signals/PersonaSelector";
+// Persona helpers inlined — PersonaSelector is "use client", can't import runtime values in Server Component
+type Persona = "all" | "cto" | "vc" | "founder";
+const PERSONA_LABELS: Record<Persona, string> = { all: "Todos", cto: "CTO / Tech Lead", vc: "Investidor / VC", founder: "Fundador / CEO" };
+function resolvePersona(v: string | undefined): Persona {
+  if (v === "cto" || v === "vc" || v === "founder") return v;
+  return "all";
+}
 import {
   fetchSignalStats,
   fetchSignalClusters,
