@@ -199,6 +199,51 @@ SOCIAL_SIGNAL_SOURCES = [
         source_type="rss",
         url="https://www.deeplearning.ai/the-batch/feed/",
     ),
+    DataSourceConfig(
+        name="stratechery",
+        source_type="rss",
+        url="https://stratechery.com/feed/",
+    ),
+    DataSourceConfig(
+        name="the_information",
+        source_type="rss",
+        url="https://www.theinformation.com/feed",
+    ),
+    DataSourceConfig(
+        name="a16z_blog",
+        source_type="rss",
+        url="https://a16z.com/feed/",
+    ),
+    DataSourceConfig(
+        name="sequoia_blog",
+        source_type="rss",
+        url="https://www.sequoiacap.com/feed/",
+    ),
+    DataSourceConfig(
+        name="fintech_blueprint",
+        source_type="rss",
+        url="https://lex.substack.com/feed",
+    ),
+
+    # --- Web scraper sources (newsletter archives without RSS) ---
+    DataSourceConfig(
+        name="newcomer_archive",
+        source_type="scraper",
+        url="https://www.newcomer.co/archive",
+        params={"max_items": 10, "fetch_content": True},
+    ),
+    DataSourceConfig(
+        name="the_generalist_archive",
+        source_type="scraper",
+        url="https://www.generalist.com/archive",
+        params={"max_items": 10, "fetch_content": True},
+    ),
+    DataSourceConfig(
+        name="pragmatic_engineer_archive",
+        source_type="scraper",
+        url="https://newsletter.pragmaticengineer.com/archive",
+        params={"max_items": 10, "fetch_content": False},
+    ),
 ]
 
 # ---------------------------------------------------------------------------

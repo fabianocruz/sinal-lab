@@ -1,6 +1,11 @@
 """Shared Bluesky AT Protocol source for agent collectors.
 
-Fetches posts from the Bluesky public search API (AT Protocol).
+Fetches posts from the Bluesky public API (AT Protocol).
+Tries multiple endpoints for resilience:
+1. Public search API (app.bsky.feed.searchPosts)
+2. Curated feed generator (app.bsky.feed.getFeed)
+3. Disabled gracefully if all endpoints fail
+
 No authentication required -- uses the public API endpoint.
 
 Usage:
@@ -25,6 +30,12 @@ BLUESKY_API_BASE = "https://public.api.bsky.app"
 BLUESKY_SEARCH_ENDPOINT = (
     f"{BLUESKY_API_BASE}/xrpc/app.bsky.feed.searchPosts"
 )
+
+# Curated feed URIs for fallback when search is unavailable.
+# These are well-known Bluesky feed generator URIs for tech/startup content.
+BLUESKY_TECH_FEEDS = [
+    "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot",
+]
 
 
 @dataclass
@@ -99,10 +110,10 @@ def _extract_media_urls(
     because the view object contains resolved CDN URLs ready for display.
 
     Supported embed types:
-    - ``app.bsky.embed.images#view`` — first image thumbnail
-    - ``app.bsky.embed.external#view`` — external link thumbnail
-    - ``app.bsky.embed.video#view`` — video thumbnail + HLS playlist
-    - ``app.bsky.embed.recordWithMedia#view`` — unwraps inner media embed
+    - ``app.bsky.embed.images#view`` -- first image thumbnail
+    - ``app.bsky.embed.external#view`` -- external link thumbnail
+    - ``app.bsky.embed.video#view`` -- video thumbnail + HLS playlist
+    - ``app.bsky.embed.recordWithMedia#view`` -- unwraps inner media embed
 
     Returns:
         (image_url, video_url) tuple. Either or both may be None.
@@ -113,7 +124,7 @@ def _extract_media_urls(
 
     embed_type = embed.get("$type", "")
 
-    # recordWithMedia wraps another media embed — unwrap it
+    # recordWithMedia wraps another media embed -- unwrap it
     if embed_type == "app.bsky.embed.recordWithMedia#view":
         embed = embed.get("media", {})
         embed_type = embed.get("$type", "")
@@ -210,6 +221,131 @@ def parse_bluesky_post(
     )
 
 
+def _parse_feed_post(
+    feed_item: Dict[str, Any],
+    source_name: str,
+) -> Optional[BlueskyPost]:
+    """Parse a post from a getFeed response item.
+
+    getFeed wraps posts in {"post": {...}} objects, unlike searchPosts
+    which returns posts directly.
+
+    Args:
+        feed_item: A single item from the getFeed "feed" array.
+        source_name: Name of the data source for provenance tracking.
+
+    Returns:
+        Parsed BlueskyPost, or None if the item cannot be parsed.
+    """
+    post_data = feed_item.get("post")
+    if not post_data:
+        return None
+    return parse_bluesky_post(post_data, source_name)
+
+
+def _try_search_endpoint(
+    client: httpx.Client,
+    query: str,
+    limit: int,
+    source_name: str,
+) -> Optional[List[BlueskyPost]]:
+    """Attempt to fetch posts via the public search endpoint.
+
+    Returns None if the endpoint returns a non-success status (e.g., 403),
+    signalling the caller to try an alternative. Returns an empty list if
+    the request succeeds but yields no results.
+
+    Args:
+        client: Configured httpx.Client.
+        query: Search query string.
+        limit: Maximum results.
+        source_name: Source name for provenance.
+
+    Returns:
+        List of BlueskyPost on success, None on endpoint failure.
+    """
+    try:
+        response = client.get(
+            BLUESKY_SEARCH_ENDPOINT,
+            params={"q": query, "limit": limit},
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code if e.response is not None else 0
+        logger.warning(
+            "Bluesky search endpoint returned %d for %s: %s",
+            status, source_name, e,
+        )
+        return None
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("Bluesky search network error for %s: %s", source_name, e)
+        return None
+
+    data = response.json()
+    raw_posts = data.get("posts", [])
+
+    posts: List[BlueskyPost] = []
+    for raw_post in raw_posts:
+        parsed = parse_bluesky_post(raw_post, source_name)
+        if parsed is not None:
+            posts.append(parsed)
+
+    return posts
+
+
+def _try_feed_endpoint(
+    client: httpx.Client,
+    limit: int,
+    source_name: str,
+) -> Optional[List[BlueskyPost]]:
+    """Attempt to fetch posts via curated feed generators as a fallback.
+
+    Iterates over BLUESKY_TECH_FEEDS and returns results from the first
+    feed that succeeds. This provides content even when the search
+    endpoint is unavailable (403).
+
+    Args:
+        client: Configured httpx.Client.
+        limit: Maximum results.
+        source_name: Source name for provenance.
+
+    Returns:
+        List of BlueskyPost on success, None if all feeds fail.
+    """
+    feed_endpoint = f"{BLUESKY_API_BASE}/xrpc/app.bsky.feed.getFeed"
+
+    for feed_uri in BLUESKY_TECH_FEEDS:
+        try:
+            response = client.get(
+                feed_endpoint,
+                params={"feed": feed_uri, "limit": limit},
+            )
+            response.raise_for_status()
+        except (httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.warning(
+                "Bluesky feed %s failed for %s: %s", feed_uri, source_name, e,
+            )
+            continue
+
+        data = response.json()
+        feed_items = data.get("feed", [])
+
+        posts: List[BlueskyPost] = []
+        for item in feed_items:
+            parsed = _parse_feed_post(item, source_name)
+            if parsed is not None:
+                posts.append(parsed)
+
+        if posts:
+            logger.info(
+                "Bluesky fallback feed returned %d posts for %s (feed=%s)",
+                len(posts), source_name, feed_uri,
+            )
+            return posts
+
+    return None
+
+
 def fetch_bluesky_search(
     source: DataSourceConfig,
     client: httpx.Client,
@@ -217,6 +353,11 @@ def fetch_bluesky_search(
     limit: int = 25,
 ) -> List[BlueskyPost]:
     """Fetch Bluesky posts matching a search query via the AT Protocol API.
+
+    Tries the public search endpoint first. If it returns 403 or another
+    HTTP error, falls back to curated feed generators. If all endpoints
+    fail, returns an empty list and logs a warning (does not break the
+    pipeline).
 
     Args:
         source: DataSourceConfig for provenance/naming.
@@ -233,27 +374,28 @@ def fetch_bluesky_search(
         )
         return []
 
-    try:
-        response = client.get(
-            BLUESKY_SEARCH_ENDPOINT,
-            params={"q": query, "limit": limit},
+    # Strategy 1: Public search endpoint
+    posts = _try_search_endpoint(client, query, limit, source.name)
+    if posts is not None:
+        logger.info(
+            "Fetched %d posts from Bluesky search for %s (query=%r)",
+            len(posts), source.name, query,
         )
-        response.raise_for_status()
-    except (httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning("Bluesky API error for %s: %s", source.name, e)
-        return []
+        return posts
 
-    data = response.json()
-    raw_posts = data.get("posts", [])
-
-    posts: List[BlueskyPost] = []
-    for raw_post in raw_posts:
-        parsed = parse_bluesky_post(raw_post, source.name)
-        if parsed is not None:
-            posts.append(parsed)
-
+    # Strategy 2: Curated feed generators (when search returns 403)
     logger.info(
-        "Fetched %d posts from Bluesky for %s (query=%r)",
-        len(posts), source.name, query,
+        "Bluesky search unavailable for %s, trying feed generators", source.name,
     )
-    return posts
+    feed_posts = _try_feed_endpoint(client, limit, source.name)
+    if feed_posts is not None:
+        return feed_posts
+
+    # All strategies exhausted
+    logger.warning(
+        "Bluesky: all endpoints failed for %s. "
+        "Search API may require authentication or is temporarily unavailable. "
+        "Skipping Bluesky collection for this run.",
+        source.name,
+    )
+    return []

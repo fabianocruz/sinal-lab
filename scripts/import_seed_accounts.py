@@ -477,13 +477,13 @@ def upsert_accounts(conn: Any, accounts: List[AccountRow]) -> Dict[str, int]:
                 INSERT INTO monitored_accounts (
                     id, platform, handle, display_name,
                     account_type, sector_tags, authority_score,
-                    profile_url, is_active, metadata_,
+                    profile_url, is_active, metadata,
                     created_at, updated_at
                 ) VALUES (
                     :id, :platform, :handle, :display_name,
                     :account_type, CAST(:sector_tags AS json),
                     :authority_score, :profile_url, true,
-                    CAST(:metadata_ AS json),
+                    CAST(:metadata AS json),
                     now(), now()
                 )
             """),
@@ -496,7 +496,7 @@ def upsert_accounts(conn: Any, accounts: List[AccountRow]) -> Dict[str, int]:
                 "sector_tags": json.dumps(acct.sector_tags),
                 "authority_score": acct.authority_score,
                 "profile_url": acct.profile_url,
-                "metadata_": json.dumps(acct.metadata_),
+                "metadata": json.dumps(acct.metadata_),
             },
         )
 

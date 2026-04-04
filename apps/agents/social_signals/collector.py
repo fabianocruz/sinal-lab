@@ -1,6 +1,7 @@
 """Multi-source collector for the Social Signals Intelligence agent.
 
-Fetches posts from Twitter/X, Reddit, Bluesky, and RSS newsletter feeds.
+Fetches posts from Twitter/X, Reddit, Bluesky, RSS newsletter feeds,
+monitored account timelines, and web-scraped newsletter archives.
 Each platform source is normalized into SocialPost for unified processing.
 
 Platform-specific collectors handle authentication, pagination, and error
@@ -9,7 +10,9 @@ by content_hash before returning.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
+
+from sqlalchemy.orm import Session
 
 from apps.agents.base.config import DataSourceConfig
 from apps.agents.base.provenance import ProvenanceTracker
@@ -169,6 +172,39 @@ def normalize_rss_item(item: "RSSItem") -> SocialPost:
         source_name=item.source_name,
         metrics={},
         content_hash=item.content_hash,
+    )
+
+
+def normalize_web_scraped_article(article: dict) -> SocialPost:
+    """Convert a web-scraped article dict to a unified SocialPost.
+
+    Articles from scrape_newsletter_archive() are dicts with keys:
+    title, url, published_at, summary, source_name, content_hash.
+
+    Args:
+        article: Dict from scrape_newsletter_archive().
+
+    Returns:
+        SocialPost with platform="web".
+    """
+    text = article.get("title", "")
+    summary = article.get("summary")
+    if summary:
+        text = f"{text}\n\n{summary[:500]}"
+
+    return SocialPost(
+        text=text,
+        url=article.get("url", ""),
+        platform="web",
+        author_handle="",
+        author_display_name="",
+        author_followers=0,
+        published_at=article.get("published_at"),
+        external_url=None,
+        image_url=None,
+        source_name=article.get("source_name", ""),
+        metrics={},
+        content_hash=article.get("content_hash", ""),
     )
 
 
@@ -382,6 +418,54 @@ def collect_from_rss(
     return posts
 
 
+def collect_from_web_scraper(
+    sources: List[DataSourceConfig],
+    provenance: ProvenanceTracker,
+    client: "httpx.Client",
+    agent_name: str = "social_signals",
+    run_id: str = "",
+) -> List[SocialPost]:
+    """Collect articles from web-scraped newsletter archive pages.
+
+    Uses the shared web scraper to fetch archive listings and extract
+    article entries. Each article is normalized to SocialPost with
+    platform="web".
+
+    Args:
+        sources: Web scraper DataSourceConfig items (source_type="scraper").
+        provenance: Provenance tracker for recording source attribution.
+        client: Shared httpx.Client for HTTP requests.
+        agent_name: Agent name for provenance tracking.
+        run_id: Current run ID for provenance tracking.
+
+    Returns:
+        List of normalized SocialPost items from web-scraped archives.
+    """
+    from apps.agents.sources.web_scraper import scrape_newsletter_archive
+
+    posts: List[SocialPost] = []
+
+    for source in sources:
+        if not source.enabled:
+            continue
+
+        articles = scrape_newsletter_archive(source, client)
+
+        for article in articles:
+            posts.append(normalize_web_scraped_article(article))
+            provenance.track(
+                source_url=article.get("url"),
+                source_name=source.name,
+                extraction_method="scraper",
+                confidence=0.4,  # Lower confidence: scraped content
+                collector_agent=agent_name,
+                collector_run_id=run_id,
+            )
+
+    logger.info("Web scraper: collected %d articles from %d sources", len(posts), len(sources))
+    return posts
+
+
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
@@ -392,6 +476,7 @@ def collect_all(
     provenance: ProvenanceTracker,
     agent_name: str = "social_signals",
     run_id: str = "",
+    db_session: Optional[Session] = None,
 ) -> List[SocialPost]:
     """Orchestrate collection from all platform sources and deduplicate.
 
@@ -399,11 +484,16 @@ def collect_all(
     based on source name and type, then deduplicates the combined results
     by content_hash (first-seen wins).
 
+    When a db_session is provided, also collects from monitored account
+    timelines stored in the database.
+
     Args:
         sources: All DataSourceConfig items from SOCIAL_SIGNALS_CONFIG.
         provenance: Provenance tracker for the current run.
         agent_name: Agent name for provenance records.
         run_id: Current run ID for provenance records.
+        db_session: Optional SQLAlchemy session for monitored account
+            collection. If None, account collection is skipped.
 
     Returns:
         Deduplicated list of SocialPost across all platforms.
@@ -412,6 +502,7 @@ def collect_all(
     reddit_sources = [s for s in sources if "reddit" in s.name]
     bluesky_sources = [s for s in sources if "bluesky" in s.name]
     rss_sources = [s for s in sources if s.source_type == "rss"]
+    scraper_sources = [s for s in sources if s.source_type == "scraper"]
 
     all_posts: List[SocialPost] = []
 
@@ -436,12 +527,32 @@ def collect_all(
                 rss_sources, provenance, client, agent_name, run_id,
             ))
 
+        if scraper_sources:
+            all_posts.extend(collect_from_web_scraper(
+                scraper_sources, provenance, client, agent_name, run_id,
+            ))
+
+        # Monitored account timelines (requires database session)
+        if db_session is not None:
+            try:
+                from apps.agents.social_signals.account_collector import (
+                    collect_from_monitored_accounts,
+                )
+                account_posts = collect_from_monitored_accounts(
+                    db_session, provenance, client, agent_name, run_id,
+                )
+                all_posts.extend(account_posts)
+            except Exception as e:
+                logger.warning(
+                    "Monitored account collection failed (non-fatal): %s", e,
+                )
+
     unique_posts = deduplicate_by_hash(all_posts, hash_fn=lambda p: p.content_hash)
 
     enabled_count = len([s for s in sources if s.enabled])
     logger.info(
         "Social Signals collected %d unique posts from %d enabled sources "
-        "(before dedup: %d)",
+        "(before dedup: %d, includes monitored accounts)",
         len(unique_posts),
         enabled_count,
         len(all_posts),
