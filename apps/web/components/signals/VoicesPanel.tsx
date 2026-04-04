@@ -143,7 +143,7 @@ function PlatformFilter({
   onChange,
 }: {
   activePlatform: string;
-  onChange: (_platform: string) => void;
+  onChange: (value: string) => void; // eslint-disable-line no-unused-vars
 }) {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por plataforma">
