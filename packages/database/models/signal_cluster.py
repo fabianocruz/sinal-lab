@@ -55,6 +55,11 @@ class SignalCluster(UUIDMixin, TimestampMixin, Base):
     related_companies: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
     # [{slug, name}]
 
+    # Embeddings
+    centroid_embedding_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    # JSON array of floats (1536 dimensions). Centroid of all signal embeddings in cluster.
+    # The centroid_vector column (pgvector) is managed via raw SQL, not mapped here.
+
     # Temporal bucketing
     week_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -21,12 +22,73 @@ from apps.agents.social_signals.models import (
 
 logger = logging.getLogger(__name__)
 
+# Cache for pgvector availability (avoids repeated queries)
+_pgvector_checked: Optional[bool] = None
+
+
+def _is_pgvector_available(session: Session) -> bool:
+    """Check if pgvector extension and vector columns exist.
+
+    Caches result for process lifetime.
+    """
+    global _pgvector_checked
+    if _pgvector_checked is not None:
+        return _pgvector_checked
+
+    try:
+        from apps.agents.social_signals.similarity import check_pgvector_available
+        _pgvector_checked = check_pgvector_available(session)
+    except Exception:
+        _pgvector_checked = False
+
+    return _pgvector_checked
+
+
+def _update_pgvector_column(
+    session: Session,
+    record_id: str,
+    embedding: List[float],
+    table_name: str,
+) -> None:
+    """Update the pgvector column for a record using raw SQL.
+
+    No-op if pgvector is not available. Errors are logged but do not
+    propagate (graceful degradation).
+
+    Args:
+        session: SQLAlchemy session.
+        record_id: UUID string of the record.
+        embedding: Embedding vector (1536 floats).
+        table_name: "social_signals" or "signal_clusters".
+    """
+    if not _is_pgvector_available(session):
+        return
+
+    column_name = "embedding_vector" if table_name == "social_signals" else "centroid_vector"
+    embedding_str = "[" + ",".join(str(f) for f in embedding) + "]"
+
+    try:
+        session.execute(
+            text(
+                f"UPDATE {table_name} SET {column_name} = :vec "
+                f"WHERE id = :rid::uuid"
+            ),
+            {"vec": embedding_str, "rid": record_id},
+        )
+    except Exception:
+        logger.warning(
+            "Failed to update pgvector column %s.%s for %s",
+            table_name, column_name, record_id,
+            exc_info=True,
+        )
+
 
 def _upsert_social_signal(
     session: Session,
     signal: ProcessedSignal,
     cluster_db_id: Optional[str] = None,
     agent_run_id: str = "",
+    embedding: Optional[List[float]] = None,
 ) -> str:
     """Upsert a single SocialSignal record by content_hash.
 
@@ -35,6 +97,7 @@ def _upsert_social_signal(
         signal: ProcessedSignal from pipeline.
         cluster_db_id: UUID string of the parent SignalCluster.
         agent_run_id: Current agent run ID.
+        embedding: Optional embedding vector (1536 floats) to persist.
 
     Returns:
         "inserted" or "updated"
@@ -68,6 +131,12 @@ def _upsert_social_signal(
         if entities_json:
             flag_modified(existing, "entities")
 
+        # Update embedding if provided (new or improved)
+        if embedding:
+            existing.embedding_json = embedding
+            flag_modified(existing, "embedding_json")
+            _update_pgvector_column(session, str(existing.id), embedding, "social_signals")
+
         return "updated"
 
     record = SocialSignal(
@@ -86,10 +155,17 @@ def _upsert_social_signal(
         entities=entities_json,
         sentiment=signal.sentiment,
         authority_score=signal.authority_score,
+        embedding_json=embedding,
         cluster_id=cluster_db_id,
         agent_run_id=agent_run_id,
     )
     session.add(record)
+
+    # Set pgvector column if available (needs the record to exist first)
+    if embedding:
+        session.flush()
+        _update_pgvector_column(session, str(record.id), embedding, "social_signals")
+
     return "inserted"
 
 
@@ -129,6 +205,9 @@ def _upsert_signal_cluster(
     top_posts = cluster.top_posts[:10] if cluster.top_posts else []
     related_companies = cluster.related_companies[:10] if cluster.related_companies else []
 
+    # Get centroid embedding if computed during pipeline
+    centroid_embedding: Optional[List[float]] = getattr(cluster, "_centroid_embedding", None)
+
     if existing:
         existing.name = cluster.name
         existing.theme = cluster.theme
@@ -150,6 +229,11 @@ def _upsert_signal_cluster(
         flag_modified(existing, "top_posts")
         flag_modified(existing, "related_companies")
 
+        if centroid_embedding:
+            existing.centroid_embedding_json = centroid_embedding
+            flag_modified(existing, "centroid_embedding_json")
+            _update_pgvector_column(session, str(existing.id), centroid_embedding, "signal_clusters")
+
         return str(existing.id)
 
     cluster_id = uuid4()
@@ -169,11 +253,17 @@ def _upsert_signal_cluster(
         top_voices=top_voices,
         top_posts=top_posts,
         related_companies=related_companies,
+        centroid_embedding_json=centroid_embedding,
         week_number=week_number,
         year=year,
         agent_run_id=agent_run_id,
     )
     session.add(record)
+
+    if centroid_embedding:
+        session.flush()
+        _update_pgvector_column(session, str(cluster_id), centroid_embedding, "signal_clusters")
+
     return str(cluster_id)
 
 
@@ -306,6 +396,13 @@ def persist_social_signals(
     week_number: int = getattr(agent, "week_number", 1)
     run_id: str = getattr(agent, "run_id", "")
 
+    # Get embeddings from the last pipeline run
+    try:
+        from apps.agents.social_signals.pipeline import get_last_signal_embeddings
+        signal_embeddings = get_last_signal_embeddings()
+    except ImportError:
+        signal_embeddings = {}
+
     now = datetime.now(timezone.utc)
     year = now.year
 
@@ -336,8 +433,10 @@ def persist_social_signals(
         cluster_slug = signal_hash_to_cluster.get(signal.content_hash)
         cluster_db_id = cluster_db_ids.get(cluster_slug) if cluster_slug else None
 
+        embedding = signal_embeddings.get(signal.content_hash)
         result = _upsert_social_signal(
-            session, signal, cluster_db_id=cluster_db_id, agent_run_id=run_id,
+            session, signal, cluster_db_id=cluster_db_id,
+            agent_run_id=run_id, embedding=embedding,
         )
         if result == "inserted":
             stats["signals_inserted"] += 1

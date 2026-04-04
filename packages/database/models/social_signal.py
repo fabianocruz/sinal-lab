@@ -53,6 +53,12 @@ class SocialSignal(UUIDMixin, TimestampMixin, Base):
     signal_dimensions: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     # {volume, velocity, authority_concentration, ...}
 
+    # Embeddings
+    embedding_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    # JSON array of floats (1536 dimensions). Always populated when embeddings are generated.
+    # The embedding_vector column (pgvector) is managed via raw SQL in migrations and
+    # similarity.py — not mapped in SQLAlchemy to avoid requiring the pgvector package.
+
     # Clustering
     cluster_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     # UUID as string — references signal_clusters.id
