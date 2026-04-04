@@ -20,7 +20,12 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from apps.agents.base.llm import LLMClient
 from apps.agents.social_signals.classifier import classify_post, classify_posts_batch
-from apps.agents.social_signals.clusterer import cluster_signals
+from apps.agents.social_signals.clusterer import (
+    cluster_signals,
+    cluster_signals_with_embeddings,
+    compute_cluster_centroid,
+)
+from apps.agents.social_signals.embeddings import generate_embeddings
 from apps.agents.social_signals.models import (
     ProcessedSignal,
     SignalClusterResult,
@@ -35,6 +40,18 @@ from apps.agents.social_signals.scorer import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Module-level storage for embeddings generated during the last pipeline run.
+# The db_writer reads this to persist embeddings alongside signal records.
+_last_signal_embeddings: Dict[str, List[float]] = {}
+
+
+def get_last_signal_embeddings() -> Dict[str, List[float]]:
+    """Return embeddings from the last pipeline run.
+
+    Used by db_writer to persist embedding_json on SocialSignal records.
+    """
+    return dict(_last_signal_embeddings)
 
 
 def _build_previous_period_data(
@@ -89,14 +106,17 @@ def run_pipeline(
     distance_threshold: float = 0.7,
     min_cluster_size: int = 2,
     top_n_for_llm: int = 20,
+    force_tfidf_embeddings: bool = False,
+    skip_embeddings: bool = False,
 ) -> Tuple[List[SignalClusterResult], List[ProcessedSignal]]:
     """Execute the full social signals processing pipeline.
 
     Steps:
         1. Batch-classify all posts (keyword-first, LLM for top N only)
         2. Filter out posts with no theme assigned
+        2.5. Generate embeddings for themed signals
         3. Compute cross-platform propagation scores
-        4. Cluster related signals using TF-IDF or theme-based fallback
+        4. Cluster related signals (embedding-based or TF-IDF fallback)
         5. Score each cluster's 8 dimensions (with historical context)
         6. Determine narrative lifecycle stage per cluster
         7. Extract top voices and top posts per cluster
@@ -115,6 +135,10 @@ def run_pipeline(
         distance_threshold: Clustering distance threshold (passed to clusterer).
         min_cluster_size: Minimum signals per cluster (passed to clusterer).
         top_n_for_llm: Number of top posts to enrich with LLM (default 20).
+        force_tfidf_embeddings: If True, use TF-IDF for embeddings instead
+            of OpenAI. Useful for testing or cost control.
+        skip_embeddings: If True, skip embedding generation entirely and
+            use classic TF-IDF clustering. Useful for quick runs.
 
     Returns:
         Tuple of:
@@ -143,33 +167,67 @@ def run_pipeline(
         logger.warning("No signals matched any theme, returning empty clusters")
         return [], all_signals
 
+    # Step 2.5: Generate embeddings for themed signals
+    signal_embeddings: Dict[str, List[float]] = {}
+    if not skip_embeddings:
+        logger.info("Step 2.5/9: Generating embeddings for %d signals...", len(themed_signals))
+        try:
+            signal_embeddings = generate_embeddings(
+                themed_signals, force_tfidf=force_tfidf_embeddings,
+            )
+            logger.info(
+                "Generated %d embeddings (%.0f%% coverage)",
+                len(signal_embeddings),
+                (len(signal_embeddings) / len(themed_signals) * 100) if themed_signals else 0,
+            )
+        except Exception:
+            logger.exception("Embedding generation failed, continuing without embeddings")
+            signal_embeddings = {}
+    else:
+        logger.info("Step 2.5/9: Skipping embedding generation (skip_embeddings=True)")
+
     # Step 3: Compute cross-platform propagation scores
-    logger.info("Step 3/8: Computing cross-platform propagation scores...")
+    logger.info("Step 3/9: Computing cross-platform propagation scores...")
     propagation_scores = enrich_signals_with_propagation(themed_signals)
 
-    # Step 4: Cluster related signals
-    logger.info("Step 4/8: Clustering %d signals...", len(themed_signals))
-    clusters = cluster_signals(
-        themed_signals,
-        llm_client=llm_client,
-        distance_threshold=distance_threshold,
-        min_cluster_size=min_cluster_size,
-    )
+    # Step 4: Cluster related signals (embedding-based when available)
+    if signal_embeddings and not skip_embeddings:
+        logger.info("Step 4/9: Embedding-clustering %d signals...", len(themed_signals))
+        # Use lower distance threshold for embeddings (more semantically precise)
+        emb_threshold = min(distance_threshold, 0.5)
+        clusters = cluster_signals_with_embeddings(
+            themed_signals,
+            signal_embeddings,
+            llm_client=llm_client,
+            distance_threshold=emb_threshold,
+            min_cluster_size=min_cluster_size,
+        )
+    else:
+        logger.info("Step 4/9: TF-IDF clustering %d signals...", len(themed_signals))
+        clusters = cluster_signals(
+            themed_signals,
+            llm_client=llm_client,
+            distance_threshold=distance_threshold,
+            min_cluster_size=min_cluster_size,
+        )
 
     # Build previous-period lookups from historical_context or previous_clusters
+    has_historical_data = False
     if historical_context:
         prev_counts = historical_context.get("theme_counts", {})
         prev_sentiments = historical_context.get("theme_sentiments", {})
         known_authors = historical_context.get("known_authors", set())
         hist_weeks_active = historical_context.get("weeks_active", {})
+        has_historical_data = bool(prev_counts)
     else:
         prev_counts, prev_sentiments, known_authors = _build_previous_period_data(
             previous_clusters,
         )
         hist_weeks_active = {}
+        has_historical_data = bool(prev_counts)
 
-    # Steps 5-8: Score, stage, and enrich each cluster
-    logger.info("Step 5-8/8: Scoring and enriching %d clusters...", len(clusters))
+    # Steps 5-9: Score, stage, enrich, and compute centroids
+    logger.info("Step 5-9/9: Scoring and enriching %d clusters...", len(clusters))
     for cluster in clusters:
         theme = cluster.theme or "other"
 
@@ -201,7 +259,9 @@ def run_pipeline(
         if not hist_weeks_active and theme in prev_counts:
             weeks_active = 2
         cluster.narrative_stage = determine_narrative_stage(
-            cluster.dimensions, weeks_active=weeks_active,
+            cluster.dimensions,
+            weeks_active=weeks_active,
+            has_historical_data=has_historical_data,
         )
 
         # Step 7: Extract top voices and posts
@@ -225,6 +285,17 @@ def run_pipeline(
         # Set description from top post text
         if cluster.top_posts:
             cluster.description = cluster.top_posts[0].get("text", "")[:200]
+
+        # Step 9: Compute centroid embedding for the cluster
+        if signal_embeddings:
+            centroid = compute_cluster_centroid(cluster.signals, signal_embeddings)
+            if centroid:
+                # Attach centroid to cluster for db_writer to persist
+                cluster._centroid_embedding = centroid  # type: ignore[attr-defined]
+
+    # Attach signal embeddings to pipeline output for db_writer
+    _last_signal_embeddings.clear()
+    _last_signal_embeddings.update(signal_embeddings)
 
     # Sort clusters by composite score descending
     clusters.sort(key=lambda c: c.composite_score, reverse=True)

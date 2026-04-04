@@ -603,3 +603,111 @@ def test_latest_pulse_empty_database(client, db_session):
     response = client.get("/api/signals/pulse")
 
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Voices — recent_signals enrichment
+# ---------------------------------------------------------------------------
+
+
+def test_voices_include_recent_signals_by_handle(client, sample_voices, sample_signals):
+    """Test voices return recent_signals when author_handle matches."""
+    response = client.get("/api/signals/voices")
+    data = response.json()
+
+    # founder1 voice matches founder1 signal by handle
+    founder_voice = next(v for v in data["items"] if v["handle"] == "founder1")
+    assert len(founder_voice["recent_signals"]) > 0
+    assert founder_voice["recent_signals"][0]["platform"] == "twitter"
+
+
+def test_voices_include_recent_signals_by_sector_tags(client, db_session, sample_signals):
+    """Test voices without handle match fall back to sector_tags matching."""
+    # Create a voice with sector_tags but no matching author_handle in signals
+    account = MonitoredAccount(
+        id=uuid.uuid4(),
+        platform="crunchbase",
+        handle="sam-altman",  # Does NOT match any signal author_handle
+        display_name="Sam Altman",
+        account_type="founder",
+        sector_tags=["ai"],  # Should match signals with theme="AI"
+        authority_score=0.95,
+        is_active=True,
+        created_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(account)
+    db_session.commit()
+
+    response = client.get("/api/signals/voices?platform=crunchbase")
+    data = response.json()
+
+    assert data["total"] == 1
+    voice = data["items"][0]
+    assert voice["handle"] == "sam-altman"
+    # Should have recent signals matched by sector_tags -> theme "AI"
+    assert len(voice["recent_signals"]) > 0
+    assert any("AI" in (sig.get("text") or "") for sig in voice["recent_signals"])
+
+
+def test_voices_recent_signals_empty_when_no_match(client, db_session):
+    """Test voices with no matching signals return empty recent_signals."""
+    account = MonitoredAccount(
+        id=uuid.uuid4(),
+        platform="twitter",
+        handle="no-signals-user",
+        display_name="Nobody",
+        account_type="founder",
+        sector_tags=["quantum_computing"],  # No signals match this
+        authority_score=0.5,
+        is_active=True,
+        created_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(account)
+    db_session.commit()
+
+    response = client.get("/api/signals/voices?platform=twitter")
+    data = response.json()
+
+    nobody_voice = next(v for v in data["items"] if v["handle"] == "no-signals-user")
+    assert nobody_voice["recent_signals"] == []
+
+
+def test_voices_recent_signals_limited_to_three(client, db_session):
+    """Test that at most 3 recent signals are returned per voice."""
+    # Create 5 signals with the same author
+    for i in range(5):
+        sig = SocialSignal(
+            id=uuid.uuid4(),
+            platform="twitter",
+            post_url=f"https://twitter.com/prolific/status/{i}",
+            author_handle="prolific-author",
+            text=f"Signal number {i}",
+            content_hash=f"hash_prolific_{i}",
+            published_at=datetime(2026, 3, 20, i, 0, 0, tzinfo=timezone.utc),
+            collected_at=datetime(2026, 3, 20, i, 0, 0, tzinfo=timezone.utc),
+            theme="AI",
+            created_at=datetime(2026, 3, 20, i, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 3, 20, i, 0, 0, tzinfo=timezone.utc),
+        )
+        db_session.add(sig)
+
+    account = MonitoredAccount(
+        id=uuid.uuid4(),
+        platform="twitter",
+        handle="prolific-author",
+        display_name="Prolific",
+        authority_score=0.9,
+        is_active=True,
+        created_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(account)
+    db_session.commit()
+
+    response = client.get("/api/signals/voices?platform=twitter")
+    data = response.json()
+
+    prolific = next(v for v in data["items"] if v["handle"] == "prolific-author")
+    assert len(prolific["recent_signals"]) == 3

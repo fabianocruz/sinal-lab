@@ -17,7 +17,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
@@ -110,6 +110,19 @@ class WeeklyPulseResponse(BaseModel):
         from_attributes = True
 
 
+class RecentSignalBrief(BaseModel):
+    """Compact signal summary attached to a voice card."""
+
+    platform: str
+    text: Optional[str] = None
+    post_url: str
+    published_at: Optional[datetime] = None
+    metrics: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
+
+
 class MonitoredAccountResponse(BaseModel):
     """Monitored account response schema (list view)."""
 
@@ -126,6 +139,7 @@ class MonitoredAccountResponse(BaseModel):
     is_active: bool = True
     last_fetched_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    recent_signals: List[RecentSignalBrief] = []
 
     class Config:
         from_attributes = True
@@ -278,7 +292,18 @@ def list_voices(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """List monitored accounts (voices) with optional filtering and pagination."""
+    """List monitored accounts (voices) with recent signals.
+
+    Each voice is enriched with up to 3 recent signals. Matching strategy:
+        1. Exact author_handle match (same handle on both sides)
+        2. Sector-tag fallback: find signals whose theme matches any of
+           the voice's sector_tags (e.g. voice with tags ["fintech", "ai"]
+           matches signals with theme "AI" or "Fintech")
+
+    This solves the handle mismatch problem where monitored accounts come
+    from Crunchbase (handle="sam-altman") but signals come from Twitter
+    (author_handle="sama").
+    """
     query = db.query(MonitoredAccount)
 
     if platform:
@@ -295,12 +320,77 @@ def list_voices(
         .limit(limit)
         .all()
     )
+
+    # Enrich each voice with recent signals
+    items: List[MonitoredAccountResponse] = []
+    for account in accounts:
+        voice_data = MonitoredAccountResponse.model_validate(account)
+        recent_signals = _find_recent_signals_for_voice(db, account)
+        voice_data.recent_signals = [
+            RecentSignalBrief(
+                platform=sig.platform,
+                text=(sig.text or "")[:200],
+                post_url=sig.post_url,
+                published_at=sig.published_at,
+                metrics=sig.metrics,
+            )
+            for sig in recent_signals
+        ]
+        items.append(voice_data)
+
     return {
-        "items": [MonitoredAccountResponse.model_validate(a) for a in accounts],
+        "items": items,
         "total": total,
         "limit": limit,
         "offset": offset,
     }
+
+
+def _find_recent_signals_for_voice(
+    db: Session,
+    account: MonitoredAccount,
+    signal_limit: int = 3,
+) -> list:
+    """Find recent signals relevant to a monitored account.
+
+    Strategy:
+        1. Exact author_handle match
+        2. Sector-tag fallback (theme ILIKE any tag)
+
+    Args:
+        db: Database session.
+        account: The monitored account to match against.
+        signal_limit: Max signals to return per voice.
+
+    Returns:
+        List of SocialSignal records (may be empty).
+    """
+    # Strategy 1: exact handle match
+    by_handle = (
+        db.query(SocialSignal)
+        .filter(SocialSignal.author_handle == account.handle)
+        .order_by(desc(SocialSignal.published_at))
+        .limit(signal_limit)
+        .all()
+    )
+    if by_handle:
+        return by_handle
+
+    # Strategy 2: match by sector_tags -> signal theme
+    if not account.sector_tags:
+        return []
+
+    tag_conditions = [
+        SocialSignal.theme.ilike(f"%{tag}%")
+        for tag in account.sector_tags
+    ]
+    return (
+        db.query(SocialSignal)
+        .filter(or_(*tag_conditions))
+        .order_by(desc(SocialSignal.published_at))
+        .limit(signal_limit)
+        .all()
+    )
 
 
 @router.get("/stats", response_model=SignalStatsResponse)

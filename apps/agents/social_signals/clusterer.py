@@ -159,21 +159,60 @@ def _cluster_by_theme(
 # ---------------------------------------------------------------------------
 
 
+
+# Portuguese fallback labels for common theme/sub_theme combinations.
+# Used when the LLM is unavailable to ensure cluster names are always
+# displayed in Portuguese on the dashboard.
+_PORTUGUESE_LABELS: Dict[str, str] = {
+    "AI": "Inteligencia Artificial",
+    "AI: AI agents": "Agentes de IA",
+    "AI: LLM infrastructure": "Infraestrutura de LLMs",
+    "AI: AI safety and governance": "Seguranca e Governanca de IA",
+    "AI: Open source AI": "IA Open Source",
+    "AI: AI in healthcare": "IA em Saude",
+    "AI: AI developer tools": "Ferramentas de IA para Devs",
+    "AI: Multimodal AI": "IA Multimodal",
+    "AI: Edge AI and on-device": "IA on-device e Edge",
+    "Fintech": "Fintech e Pagamentos",
+    "Fintech: Payments infrastructure": "Infraestrutura de Pagamentos",
+    "Fintech: Embedded finance": "Financas Embutidas",
+    "Fintech: Lending and credit": "Credito e Emprestimos",
+    "Fintech: Neobanks": "Neobancos",
+    "Fintech: Crypto and DeFi": "Cripto e DeFi",
+    "Fintech: Insurtech": "Insurtech",
+    "Fintech: Wealthtech": "Wealthtech e Investimentos",
+    "Fintech: Cross-border payments": "Pagamentos Internacionais",
+    "Fintech: Open banking": "Open Banking",
+    "Fintech: BaaS": "Banking as a Service",
+    "AI in Banking": "IA em Banking e Servicos Financeiros",
+    "AI in Banking: AI agents for compliance": "Agentes de IA para Compliance",
+    "AI in Banking: KYC automation": "Automacao de KYC",
+    "AI in Banking: Underwriting copilots": "Copilots de Underwriting",
+    "AI in Banking: Fraud detection AI": "IA para Deteccao de Fraude",
+    "AI in Banking: AML monitoring": "Monitoramento AML",
+    "AI in Banking: Core banking modernization": "Modernizacao de Core Banking",
+    "AI in Banking: Model risk governance": "Governanca de Risco de Modelo",
+    "AI in Banking: GenAI compliance": "GenAI e Compliance",
+    "AI in Banking: Voice AI in collections": "IA de Voz em Cobranca",
+}
+
+
 def label_cluster(
     signals: List[ProcessedSignal],
     llm_client: Optional[LLMClient] = None,
 ) -> str:
     """Generate a descriptive name for a cluster of signals.
 
-    Uses LLM when available for high-quality labels. Falls back to
-    extracting the most common theme + sub_theme combination.
+    Uses LLM when available for high-quality labels (forced Portuguese).
+    Falls back to Portuguese label map, then to the most common
+    theme + sub_theme combination.
 
     Args:
         signals: Signals in this cluster.
         llm_client: Optional LLM client for generating labels.
 
     Returns:
-        Human-readable cluster name string.
+        Human-readable cluster name string in Portuguese.
     """
     if llm_client and llm_client.is_available and len(signals) >= 2:
         sample_texts = [s.post.text[:150] for s in signals[:5]]
@@ -181,12 +220,16 @@ def label_cluster(
             "Given these related social media posts, generate a short "
             "(3-7 words) descriptive label for their shared topic.\n\n"
             "Posts:\n" + "\n---\n".join(sample_texts) + "\n\n"
+            "IMPORTANT: Reply in Brazilian Portuguese only.\n"
             "Reply with ONLY the label, no quotes or explanation."
         )
 
         result = llm_client.generate(
             user_prompt=prompt,
-            system_prompt="You are a topic labeler. Reply with a short descriptive label only.",
+            system_prompt=(
+                "You are a topic labeler for a Brazilian tech intelligence platform. "
+                "Reply in Brazilian Portuguese only. Reply with a short descriptive label only."
+            ),
             max_tokens=30,
             temperature=0.3,
         )
@@ -194,7 +237,7 @@ def label_cluster(
         if result and result.strip():
             return result.strip()
 
-    # Fallback: use most common theme/sub_theme
+    # Fallback: use most common theme/sub_theme with Portuguese labels
     theme_counts: Dict[str, int] = defaultdict(int)
     for s in signals:
         key = s.theme or "General"
@@ -203,9 +246,10 @@ def label_cluster(
         theme_counts[key] += 1
 
     if theme_counts:
-        return max(theme_counts, key=theme_counts.get)  # type: ignore[arg-type]
+        best_key = max(theme_counts, key=theme_counts.get)  # type: ignore[arg-type]
+        return _PORTUGUESE_LABELS.get(best_key, best_key)
 
-    return "Uncategorized Signals"
+    return "Sinais Diversos"
 
 
 def slugify_cluster_name(name: str) -> str:
@@ -322,10 +366,9 @@ def cluster_signals(
 
     # Merge small clusters into catch-all
     if small_cluster_signals:
-        name = "Other Signals"
         results.append(SignalClusterResult(
-            name=name,
-            slug="other-signals",
+            name="Outros Sinais",
+            slug="outros-sinais",
             theme="",
             sub_theme="",
             signals=small_cluster_signals,
@@ -339,6 +382,280 @@ def cluster_signals(
         len(signals),
         len(results),
         min_cluster_size,
+    )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Embedding-based clustering
+# ---------------------------------------------------------------------------
+
+
+def _compute_cosine_distance_matrix(embeddings: List[List[float]]) -> List[List[float]]:
+    """Compute pairwise cosine distance matrix from embedding vectors.
+
+    Args:
+        embeddings: List of embedding vectors (each same length).
+
+    Returns:
+        NxN distance matrix where distance = 1 - cosine_similarity.
+    """
+    import math
+
+    n = len(embeddings)
+    # Pre-compute norms
+    norms = []
+    for vec in embeddings:
+        norm = math.sqrt(sum(x * x for x in vec))
+        norms.append(norm if norm > 0 else 1e-10)
+
+    matrix = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(i + 1, n):
+            dot = sum(a * b for a, b in zip(embeddings[i], embeddings[j]))
+            sim = dot / (norms[i] * norms[j])
+            dist = max(0.0, 1.0 - sim)
+            matrix[i][j] = dist
+            matrix[j][i] = dist
+
+    return matrix
+
+
+def _cluster_with_embeddings(
+    signals: List[ProcessedSignal],
+    embeddings: Dict[str, List[float]],
+    distance_threshold: float = 0.5,
+) -> Dict[int, List[ProcessedSignal]]:
+    """Cluster signals using precomputed embeddings + agglomerative clustering.
+
+    Uses cosine distance computed from embedding vectors instead of TF-IDF.
+    This produces higher-quality clusters because the embeddings capture
+    semantic meaning beyond bag-of-words.
+
+    Args:
+        signals: Classified signals to cluster.
+        embeddings: Dict mapping content_hash -> embedding vector.
+        distance_threshold: Maximum distance for merging clusters.
+            Lower than TF-IDF default (0.5 vs 0.7) because embedding
+            distances are more semantically meaningful.
+
+    Returns:
+        Dict mapping cluster_id -> list of ProcessedSignals.
+    """
+    if not _SKLEARN_AVAILABLE:
+        logger.warning("sklearn not available, cannot cluster with embeddings")
+        return {}
+
+    # Filter to signals that have embeddings
+    indexed_signals = []
+    embedding_list = []
+    for s in signals:
+        emb = embeddings.get(s.content_hash)
+        if emb:
+            indexed_signals.append(s)
+            embedding_list.append(emb)
+
+    if len(indexed_signals) < 2:
+        return {}
+
+    # Compute cosine distance matrix from embeddings
+    distance_matrix_raw = _compute_cosine_distance_matrix(embedding_list)
+
+    # Convert to numpy for sklearn
+    import numpy as np
+    distance_matrix = np.array(distance_matrix_raw)
+    distance_matrix[distance_matrix < 0] = 0.0
+
+    clustering = AgglomerativeClustering(
+        n_clusters=None,
+        distance_threshold=distance_threshold,
+        metric="precomputed",
+        linkage="average",
+    )
+    labels = clustering.fit_predict(distance_matrix)
+
+    clusters: Dict[int, List[ProcessedSignal]] = defaultdict(list)
+    for idx, label in enumerate(labels):
+        clusters[int(label)].append(indexed_signals[idx])
+
+    return clusters
+
+
+def compute_cluster_centroid(
+    signals: List[ProcessedSignal],
+    embeddings: Dict[str, List[float]],
+) -> Optional[List[float]]:
+    """Compute the centroid embedding for a cluster of signals.
+
+    The centroid is the element-wise mean of all signal embeddings
+    in the cluster. Used for cluster-level similarity search.
+
+    Args:
+        signals: Signals in the cluster.
+        embeddings: Dict mapping content_hash -> embedding vector.
+
+    Returns:
+        Centroid vector (same dimensions as input embeddings),
+        or None if no signals have embeddings.
+    """
+    vectors = [
+        embeddings[s.content_hash]
+        for s in signals
+        if s.content_hash in embeddings
+    ]
+
+    if not vectors:
+        return None
+
+    dim = len(vectors[0])
+    centroid = [0.0] * dim
+
+    for vec in vectors:
+        for i, val in enumerate(vec):
+            centroid[i] += val
+
+    n = len(vectors)
+    centroid = [x / n for x in centroid]
+
+    return centroid
+
+
+def cluster_signals_with_embeddings(
+    signals: List[ProcessedSignal],
+    embeddings: Dict[str, List[float]],
+    llm_client: Optional[LLMClient] = None,
+    distance_threshold: float = 0.5,
+    min_cluster_size: int = 2,
+) -> List[SignalClusterResult]:
+    """Cluster signals using embedding vectors for higher-quality grouping.
+
+    Same interface as cluster_signals() but uses precomputed embeddings
+    instead of TF-IDF. Falls back to cluster_signals() if embedding
+    clustering fails or produces no results.
+
+    Args:
+        signals: Classified ProcessedSignals to cluster.
+        embeddings: Dict mapping content_hash -> embedding vector.
+        llm_client: Optional LLM client for cluster labeling.
+        distance_threshold: Distance threshold for agglomerative clustering.
+        min_cluster_size: Minimum signals per cluster.
+
+    Returns:
+        List of SignalClusterResult sorted by signal count descending.
+    """
+    if not signals:
+        return []
+
+    if not embeddings:
+        logger.info("No embeddings available, falling back to TF-IDF clustering")
+        return cluster_signals(
+            signals, llm_client, distance_threshold=0.7,
+            min_cluster_size=min_cluster_size,
+        )
+
+    # Check that enough signals have embeddings
+    signals_with_embeddings = [s for s in signals if s.content_hash in embeddings]
+    coverage = len(signals_with_embeddings) / len(signals)
+
+    if coverage < 0.5:
+        logger.warning(
+            "Only %.0f%% of signals have embeddings, falling back to TF-IDF",
+            coverage * 100,
+        )
+        return cluster_signals(
+            signals, llm_client, distance_threshold=0.7,
+            min_cluster_size=min_cluster_size,
+        )
+
+    # Try embedding-based clustering
+    try:
+        raw_clusters = _cluster_with_embeddings(
+            signals, embeddings, distance_threshold,
+        )
+    except Exception:
+        logger.exception("Embedding clustering failed, falling back to TF-IDF")
+        return cluster_signals(
+            signals, llm_client, distance_threshold=0.7,
+            min_cluster_size=min_cluster_size,
+        )
+
+    if not raw_clusters:
+        logger.info("Embedding clustering produced no results, falling back to TF-IDF")
+        return cluster_signals(
+            signals, llm_client, distance_threshold=0.7,
+            min_cluster_size=min_cluster_size,
+        )
+
+    # Build SignalClusterResult objects (same logic as cluster_signals)
+    grouped: Dict[str, List[ProcessedSignal]] = {
+        str(k): v for k, v in raw_clusters.items()
+    }
+
+    # Add signals without embeddings to a separate group
+    embedded_hashes = set()
+    for cluster_signals_list in grouped.values():
+        for s in cluster_signals_list:
+            embedded_hashes.add(s.content_hash)
+
+    orphan_signals = [s for s in signals if s.content_hash not in embedded_hashes]
+    if orphan_signals:
+        # Group orphans by theme as fallback
+        for s in orphan_signals:
+            key = f"orphan_{s.theme or 'other'}"
+            if key not in grouped:
+                grouped[key] = []
+            grouped[key].append(s)
+
+    results: List[SignalClusterResult] = []
+    small_cluster_signals: List[ProcessedSignal] = []
+
+    for _key, cluster_signals_list in grouped.items():
+        if len(cluster_signals_list) < min_cluster_size:
+            small_cluster_signals.extend(cluster_signals_list)
+            continue
+
+        name = label_cluster(cluster_signals_list, llm_client)
+
+        # Determine dominant theme/sub_theme
+        theme_counts: Dict[str, int] = defaultdict(int)
+        sub_counts: Dict[str, int] = defaultdict(int)
+        for s in cluster_signals_list:
+            if s.theme:
+                theme_counts[s.theme] += 1
+            if s.sub_theme:
+                sub_counts[s.sub_theme] += 1
+
+        dominant_theme = max(theme_counts, key=theme_counts.get) if theme_counts else ""  # type: ignore[arg-type]
+        dominant_sub = max(sub_counts, key=sub_counts.get) if sub_counts else ""  # type: ignore[arg-type]
+
+        results.append(SignalClusterResult(
+            name=name,
+            slug=slugify_cluster_name(name),
+            theme=dominant_theme,
+            sub_theme=dominant_sub,
+            signals=cluster_signals_list,
+        ))
+
+    # Merge small clusters into catch-all
+    if small_cluster_signals:
+        results.append(SignalClusterResult(
+            name="Outros Sinais",
+            slug="outros-sinais",
+            theme="",
+            sub_theme="",
+            signals=small_cluster_signals,
+        ))
+
+    # Sort by signal count descending
+    results.sort(key=lambda c: c.signal_count, reverse=True)
+
+    logger.info(
+        "Embedding-clustered %d signals into %d clusters (min_size=%d, coverage=%.0f%%)",
+        len(signals),
+        len(results),
+        min_cluster_size,
+        coverage * 100,
     )
 
     return results

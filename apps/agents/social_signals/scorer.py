@@ -79,12 +79,21 @@ def classify_signal_type(dimensions: SignalDimensions) -> str:
 def determine_narrative_stage(
     dimensions: SignalDimensions,
     weeks_active: int = 1,
+    has_historical_data: bool = True,
 ) -> str:
     """Determine the narrative lifecycle stage.
+
+    When historical data is available, uses velocity-based logic.
+    On first run (no historical data), falls back to composite_score
+    thresholds so that high-scoring clusters can appear as "accelerating"
+    instead of everything defaulting to "emerging".
 
     Args:
         dimensions: Computed signal dimensions.
         weeks_active: How many weeks this cluster has been detected.
+        has_historical_data: Whether previous-period data was available
+            for velocity computation. When False, uses score-based
+            thresholds instead of velocity.
 
     Returns:
         One of: "emerging", "accelerating", "peaking", "declining"
@@ -92,6 +101,20 @@ def determine_narrative_stage(
     velocity = dimensions.velocity
     volume = dimensions.volume
 
+    if not has_historical_data:
+        # First run: no velocity data is meaningful (all velocities are
+        # the neutral 0.5 default). Use composite_score thresholds instead.
+        composite = dimensions.composite_score(DIMENSION_WEIGHTS)
+        if composite > 0.4:
+            return "accelerating"
+        elif composite > 0.3:
+            return "emerging"
+        elif composite > 0.2:
+            return "weak_signal"
+        else:
+            return "declining"
+
+    # Velocity-based logic when historical data is available
     if weeks_active <= 2 and velocity > 0.3:
         return "emerging"
     elif velocity > 0.5:

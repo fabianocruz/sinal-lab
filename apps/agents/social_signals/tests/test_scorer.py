@@ -262,6 +262,54 @@ class TestDetermineNarrativeStage:
         dims = SignalDimensions(velocity=0.1, volume=0.8)
         assert determine_narrative_stage(dims, weeks_active=8) == "peaking"
 
+    # --- First-run (no historical data) score-based fallback ---
+
+    def test_first_run_high_score_is_accelerating(self):
+        """On first run, clusters with composite > 0.4 should be accelerating."""
+        dims = SignalDimensions(
+            volume=0.5, velocity=0.5, authority_concentration=0.6,
+            cross_platform_propagation=0.5, sentiment_shift=0.3,
+            new_entrants=0.5, narrative_maturity=0.4, commercial_signals=0.3,
+        )
+        result = determine_narrative_stage(dims, weeks_active=1, has_historical_data=False)
+        assert result == "accelerating"
+
+    def test_first_run_medium_score_is_emerging(self):
+        """On first run, clusters with composite 0.3-0.4 should be emerging."""
+        dims = SignalDimensions(
+            volume=0.3, velocity=0.5, authority_concentration=0.4,
+            cross_platform_propagation=0.3, sentiment_shift=0.2,
+            new_entrants=0.5, narrative_maturity=0.3, commercial_signals=0.2,
+        )
+        result = determine_narrative_stage(dims, weeks_active=1, has_historical_data=False)
+        assert result == "emerging"
+
+    def test_first_run_low_score_is_weak_signal(self):
+        """On first run, clusters with composite 0.2-0.3 should be weak_signal."""
+        dims = SignalDimensions(
+            volume=0.1, velocity=0.5, authority_concentration=0.1,
+            cross_platform_propagation=0.2, sentiment_shift=0.0,
+            new_entrants=0.5, narrative_maturity=0.1, commercial_signals=0.0,
+        )
+        result = determine_narrative_stage(dims, weeks_active=1, has_historical_data=False)
+        assert result == "weak_signal"
+
+    def test_first_run_very_low_score_is_declining(self):
+        """On first run, clusters with composite <= 0.2 should be declining."""
+        dims = SignalDimensions(
+            volume=0.05, velocity=0.5, authority_concentration=0.0,
+            cross_platform_propagation=0.2, sentiment_shift=0.0,
+            new_entrants=0.0, narrative_maturity=0.0, commercial_signals=0.0,
+        )
+        result = determine_narrative_stage(dims, weeks_active=1, has_historical_data=False)
+        assert result == "declining"
+
+    def test_with_historical_data_uses_velocity_logic(self):
+        """When has_historical_data=True, uses velocity-based logic (default)."""
+        dims = SignalDimensions(velocity=0.6, volume=0.5)
+        # has_historical_data=True is default, should use velocity logic
+        assert determine_narrative_stage(dims, weeks_active=5, has_historical_data=True) == "accelerating"
+
 
 class TestExtractTopVoices:
     def test_empty(self):
