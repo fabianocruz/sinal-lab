@@ -17,6 +17,7 @@ import {
   fetchLatestPulse,
   fetchVoices,
   fetchSignalEntities,
+  fetchCompanies,
 } from "@/lib/api";
 
 export const revalidate = 300;
@@ -61,6 +62,7 @@ export default async function SignalsPage({
     entitiesData,
     bankingSignalsData,
     startupsSignalsData,
+    companiesData,
   ] = await Promise.all([
     // Pulse and Banking tabs need clusters
     activeTab === "pulse" || activeTab === "banking"
@@ -96,6 +98,11 @@ export default async function SignalsPage({
     // Startups tab — signals as fallback for entity extraction
     activeTab === "startups"
       ? fetchSignals({ limit: 100 })
+      : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
+
+    // Startups tab — known companies for accurate entity matching
+    activeTab === "startups"
+      ? fetchCompanies({ limit: 100 })
       : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
   ]);
 
@@ -160,6 +167,7 @@ export default async function SignalsPage({
               entities={entitiesData.items}
               total={entitiesData.total}
               fallbackSignals={startupsSignalsData.items}
+              knownCompanies={companiesData.items}
             />
           )}
 

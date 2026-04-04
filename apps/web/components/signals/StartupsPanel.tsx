@@ -1,10 +1,12 @@
 import Link from "next/link";
 import type { SignalEntity, Signal } from "@/lib/signal";
+import type { Company } from "@/lib/company";
 
 interface StartupsPanelProps {
   entities: SignalEntity[];
   total: number;
   fallbackSignals?: Signal[];
+  knownCompanies?: Company[];
 }
 
 function sentimentColor(sentiment: number): string {
@@ -72,6 +74,53 @@ function EntityRow({ entity, rank }: { entity: SignalEntity; rank: number }) {
   return <div>{inner}</div>;
 }
 
+// Match known companies from the DB against signal text. Much more accurate
+// than regex NER because we search for exact company names we already know.
+function matchCompaniesAgainstSignals(companies: Company[], signals: Signal[]): SignalEntity[] {
+  if (companies.length === 0 || signals.length === 0) return [];
+
+  const results: Array<{
+    company: Company;
+    count: number;
+    sentimentSum: number;
+    theme: string;
+  }> = [];
+
+  for (const company of companies) {
+    const nameLower = company.name.toLowerCase();
+    // Skip very short names (3 chars or fewer) to avoid false positives
+    if (nameLower.length <= 3) continue;
+
+    let count = 0;
+    let sentimentSum = 0;
+    let lastTheme = "";
+
+    for (const signal of signals) {
+      const textLower = signal.text.toLowerCase();
+      if (textLower.includes(nameLower)) {
+        count++;
+        sentimentSum += signal.sentiment ?? 0;
+        if (signal.theme) lastTheme = signal.theme;
+      }
+    }
+
+    if (count > 0) {
+      results.push({ company, count, sentimentSum, theme: lastTheme });
+    }
+  }
+
+  return results
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 30)
+    .map((r) => ({
+      name: r.company.name,
+      slug: r.company.slug,
+      theme: r.theme || r.company.sector || "",
+      mention_count: r.count,
+      sentiment: r.count > 0 ? r.sentimentSum / r.count : 0,
+    }));
+}
+
 // Derive rough entity list from signals when the /entities endpoint returns nothing.
 // Looks for capitalized consecutive words (2-3 tokens) that repeat across signals.
 function deriveEntitiesFromSignals(signals: Signal[]): SignalEntity[] {
@@ -118,9 +167,17 @@ export default function StartupsPanel({
   entities,
   total,
   fallbackSignals = [],
+  knownCompanies = [],
 }: StartupsPanelProps) {
+  // Priority: 1) /entities API, 2) DB company matching, 3) regex NER fallback
+  const companyMatches = matchCompaniesAgainstSignals(knownCompanies, fallbackSignals);
+
   const displayEntities =
-    entities.length > 0 ? entities : deriveEntitiesFromSignals(fallbackSignals);
+    entities.length > 0
+      ? entities
+      : companyMatches.length > 0
+        ? companyMatches
+        : deriveEntitiesFromSignals(fallbackSignals);
   const displayTotal = entities.length > 0 ? total : displayEntities.length;
   const isFallback = entities.length === 0 && displayEntities.length > 0;
 
