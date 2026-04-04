@@ -79,7 +79,7 @@ function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
   });
 }
 
-export default function PulsePanel({ pulse, clusters, stats }: PulsePanelProps) {
+export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
   const accelerating = pulse?.accelerating_themes ?? [];
   const emerging = pulse?.emerging_signals ?? [];
 
