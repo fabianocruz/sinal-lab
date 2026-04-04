@@ -532,6 +532,24 @@ def collect_all(
                 scraper_sources, provenance, client, agent_name, run_id,
             ))
 
+        # Polymarket: prediction market signals
+        try:
+            from apps.agents.sources.polymarket import collect_polymarket_signals
+            pm_markets = collect_polymarket_signals(provenance, limit=15)
+            for m in pm_markets:
+                pct = f"{m.outcome_yes*100:.0f}%"
+                all_posts.append(SocialPost(
+                    text=f"[Polymarket {pct} YES] {m.title}. {m.description[:200]}",
+                    url=m.url,
+                    platform="polymarket",
+                    source_name="polymarket",
+                    metrics={"volume_usd": m.volume_usd, "liquidity_usd": m.liquidity_usd, "outcome_yes": m.outcome_yes},
+                    content_hash=m.content_hash,
+                ))
+            logger.info("Polymarket: collected %d prediction markets", len(pm_markets))
+        except Exception as e:
+            logger.warning("Polymarket collection failed (non-fatal): %s", e)
+
         # sc-research: social media research via CLI tool
         try:
             from apps.agents.sources.sc_research import collect_from_sc_research, is_available as sc_available
