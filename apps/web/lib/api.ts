@@ -354,7 +354,7 @@ export async function fetchSignalClusterBySlug(slug: string): Promise<SignalClus
 
 export async function fetchLatestPulse(): Promise<WeeklyPulse | null> {
   try {
-    const response = await fetch(`${API_BASE}/api/signals/pulse/latest`, {
+    const response = await fetch(`${API_BASE}/api/signals/pulse`, {
       next: { revalidate: 300 },
     });
     if (!response.ok) return null;
