@@ -266,16 +266,16 @@ describe("SocialProof", () => {
 
   it("renders all three metrics", () => {
     render(<SocialProof />);
-    expect(screen.getByText("87%")).toBeInTheDocument();
-    expect(screen.getByText("4.8")).toBeInTheDocument();
-    expect(screen.getByText("92%")).toBeInTheDocument();
+    expect(screen.getByText("52")).toBeInTheDocument();
+    expect(screen.getByText("150+")).toBeInTheDocument();
+    expect(screen.getByText("4.000+")).toBeInTheDocument();
   });
 
   it("renders metric labels", () => {
     render(<SocialProof />);
-    expect(screen.getByText(/dos assinantes abrem toda semana/i)).toBeInTheDocument();
-    expect(screen.getByText(/avaliação média dos leitores/i)).toBeInTheDocument();
-    expect(screen.getByText(/recomendariam a um colega/i)).toBeInTheDocument();
+    expect(screen.getByText(/edições publicadas/i)).toBeInTheDocument();
+    expect(screen.getByText(/fontes monitoradas por semana/i)).toBeInTheDocument();
+    expect(screen.getByText(/empresas mapeadas em 17 países/i)).toBeInTheDocument();
   });
 
   it("renders testimonial authors", () => {

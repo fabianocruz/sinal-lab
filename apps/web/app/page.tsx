@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Hero from "@/components/landing/Hero";
+import SocialProof from "@/components/landing/SocialProof";
 import ValueProposition from "@/components/landing/ValueProposition";
 import BriefingExplainer from "@/components/landing/BriefingExplainer";
 import EditionsPreviews from "@/components/landing/EditionsPreviews";
 import MapaHighlight from "@/components/landing/MapaHighlight";
+import IntelligenceHighlight from "@/components/landing/IntelligenceHighlight";
 import HowItWorks from "@/components/landing/HowItWorks";
 import Pricing from "@/components/landing/Pricing";
-import CTASection from "@/components/landing/CTASection";
+import Manifesto from "@/components/landing/Manifesto";
 import FAQ from "@/components/landing/FAQ";
 import { homepageJsonLd } from "@/lib/jsonld";
 
@@ -31,13 +33,15 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
+        <SocialProof />
         <ValueProposition />
         <BriefingExplainer />
         <EditionsPreviews />
         <MapaHighlight />
+        <IntelligenceHighlight />
         <HowItWorks />
         <Pricing />
-        <CTASection />
+        <Manifesto />
         <FAQ />
       </main>
       <Footer />
