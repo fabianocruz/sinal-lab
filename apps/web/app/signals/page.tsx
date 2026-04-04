@@ -54,33 +54,39 @@ export default async function SignalsPage({
   const [stats, pulse] = await Promise.all([fetchSignalStats(), fetchLatestPulse()]);
 
   // Fetch data for the active tab only to keep page fast
-  const [clustersData, voicesData, entitiesData, bankingSignalsData] = await Promise.all([
-    // Pulse and Banking tabs need clusters
-    activeTab === "pulse" || activeTab === "banking"
-      ? fetchSignalClusters({
-          theme: activeTab === "banking" ? "AI in Banking" : undefined,
-          limit: activeTab === "banking" ? 10 : 20,
-        })
-      : Promise.resolve({ items: [], total: 0, limit: 20, offset: 0 }),
+  const [clustersData, voicesData, voicesSignalsData, entitiesData, bankingSignalsData] =
+    await Promise.all([
+      // Pulse and Banking tabs need clusters
+      activeTab === "pulse" || activeTab === "banking"
+        ? fetchSignalClusters({
+            theme: activeTab === "banking" ? "AI in Banking" : undefined,
+            limit: activeTab === "banking" ? 10 : 20,
+          })
+        : Promise.resolve({ items: [], total: 0, limit: 20, offset: 0 }),
 
-    // Voices tab
-    activeTab === "voices"
-      ? fetchVoices({
-          account_type: voiceType === "all" ? undefined : voiceType,
-          limit: 24,
-        })
-      : Promise.resolve({ items: [], total: 0, limit: 24, offset: 0 }),
+      // Voices tab — accounts
+      activeTab === "voices"
+        ? fetchVoices({
+            account_type: voiceType === "all" ? undefined : voiceType,
+            limit: 50,
+          })
+        : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
 
-    // Startups tab
-    activeTab === "startups"
-      ? fetchSignalEntities({ limit: 30 })
-      : Promise.resolve({ items: [], total: 0, limit: 30, offset: 0 }),
+      // Voices tab — recent signals to join with voices
+      activeTab === "voices"
+        ? fetchSignals({ limit: 100 })
+        : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
 
-    // Banking tab — signals
-    activeTab === "banking"
-      ? fetchSignals({ theme: "AI in Banking", limit: 9 })
-      : Promise.resolve({ items: [], total: 0, limit: 9, offset: 0 }),
-  ]);
+      // Startups tab
+      activeTab === "startups"
+        ? fetchSignalEntities({ limit: 30 })
+        : Promise.resolve({ items: [], total: 0, limit: 30, offset: 0 }),
+
+      // Banking tab — signals
+      activeTab === "banking"
+        ? fetchSignals({ theme: "AI in Banking", limit: 9 })
+        : Promise.resolve({ items: [], total: 0, limit: 9, offset: 0 }),
+    ]);
 
   // For pulse tab we need all clusters (not banking-filtered)
   const pulseClusters = activeTab === "pulse" ? clustersData.items : [];
@@ -132,6 +138,7 @@ export default async function SignalsPage({
           {activeTab === "voices" && (
             <VoicesPanel
               voices={voicesData.items}
+              recentSignals={voicesSignalsData.items}
               total={voicesData.total}
               activeType={voiceType}
             />

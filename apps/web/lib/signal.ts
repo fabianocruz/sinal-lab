@@ -89,14 +89,27 @@ export const PLATFORM_LABELS: Record<string, string> = {
 // Monitored voice (account) tracked by RADAR agent
 export interface Voice {
   id: string;
-  handle: string;
-  display_name: string;
   platform: string;
-  account_type: string; // founder, vc, executive, thought_leader, company
+  handle: string;
+  display_name: string | null;
+  account_type: string | null; // founder, vc, executive, thought_leader, company
   authority_score: number;
-  recent_signal_count: number;
-  last_active: string | null;
-  bio?: string;
+  follower_count: number | null;
+  bio: string | null;
+  profile_url: string | null;
+  sector_tags: string[] | null;
+  is_active: boolean;
+  last_fetched_at: string | null;
+  metadata_: Record<string, unknown> | null;
+  // Fields joined from signals on the frontend
+  recent_signal_count?: number;
+  recent_signals?: Array<{
+    text: string;
+    url: string;
+    platform: string;
+    published_at: string;
+    metrics: Record<string, number>;
+  }>;
 }
 
 // Voice account type labels in Portuguese

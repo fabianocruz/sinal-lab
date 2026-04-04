@@ -1,14 +1,37 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Voice } from "@/lib/signal";
+import type { Voice, Signal } from "@/lib/signal";
 import { PLATFORM_COLORS, PLATFORM_LABELS, VOICE_TYPE_LABELS } from "@/lib/signal";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface RecentSignal {
+  text: string;
+  url: string;
+  platform: string;
+  published_at: string;
+  metrics: Record<string, number>;
+}
+
+interface EnrichedVoice extends Voice {
+  recent_signals: RecentSignal[];
+  recent_signal_count: number;
+}
 
 interface VoicesPanelProps {
   voices: Voice[];
+  recentSignals: Signal[];
   total: number;
   activeType: string;
 }
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const TYPE_OPTIONS = [
   { key: "all", label: "Todos" },
@@ -18,6 +41,63 @@ const TYPE_OPTIONS = [
   { key: "thought_leader", label: VOICE_TYPE_LABELS.thought_leader },
   { key: "company", label: VOICE_TYPE_LABELS.company },
 ];
+
+const PLATFORM_OPTIONS = [
+  { key: "all", label: "Todas" },
+  { key: "twitter", label: "Twitter/X" },
+  { key: "linkedin", label: "LinkedIn" },
+  { key: "bluesky", label: "Bluesky" },
+  { key: "reddit", label: "Reddit" },
+];
+
+// Colors keyed by account_type for avatar backgrounds
+const TYPE_COLORS: Record<string, string> = {
+  founder: "#59FFB4",
+  vc: "#E8FF59",
+  executive: "#FF8A59",
+  thought_leader: "#B59FFF",
+  company: "#59D4FF",
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getAvatarColor(voice: Voice): string {
+  return TYPE_COLORS[voice.account_type ?? ""] ?? "#4A4A56";
+}
+
+function buildBio(voice: Voice): string | null {
+  if (voice.bio) return voice.bio;
+  const meta = voice.metadata_ as Record<string, string> | null;
+  if (!meta) return null;
+  const parts: string[] = [];
+  if (meta["Primary Job Title"]) parts.push(meta["Primary Job Title"]);
+  if (meta["Organization"]) parts.push(meta["Organization"]);
+  return parts.length > 0 ? parts.join(" at ") : null;
+}
+
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max).trimEnd() + "...";
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 function TypeFilter({ activeType }: { activeType: string }) {
   const router = useRouter();
@@ -58,70 +138,182 @@ function TypeFilter({ activeType }: { activeType: string }) {
   );
 }
 
-function VoiceCard({ voice }: { voice: Voice }) {
-  const platformColor = PLATFORM_COLORS[voice.platform] ?? "#4A4A56";
-  const platformLabel = PLATFORM_LABELS[voice.platform] ?? voice.platform;
-  const initial = (voice.display_name || voice.handle).charAt(0).toUpperCase();
-  const authorityPct = Math.round(voice.authority_score * 100);
+function PlatformFilter({
+  activePlatform,
+  onChange,
+}: {
+  activePlatform: string;
+  onChange: (p: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por plataforma">
+      {PLATFORM_OPTIONS.map((opt) => {
+        const color = PLATFORM_COLORS[opt.key] ?? "#E8FF59";
+        const isActive = activePlatform === opt.key;
+        return (
+          <button
+            key={opt.key}
+            onClick={() => onChange(opt.key)}
+            aria-pressed={isActive}
+            className={[
+              "rounded-lg border px-3 py-2 font-mono text-[11px] uppercase tracking-[0.8px] transition-all duration-200",
+              isActive
+                ? "border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.05)] text-sinal-white"
+                : "border-[rgba(255,255,255,0.06)] text-ash hover:text-silver",
+            ].join(" ")}
+            style={isActive ? { borderColor: `${color}40`, color } : {}}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
-  const lastActive = voice.last_active
-    ? new Date(voice.last_active).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-      })
-    : null;
+function SignalPost({ post }: { post: RecentSignal }) {
+  const totalEngagement =
+    (post.metrics.likes ?? 0) + (post.metrics.reposts ?? 0) + (post.metrics.replies ?? 0);
 
   return (
-    <article className="flex flex-col rounded-xl border border-sinal-slate bg-sinal-graphite p-4 transition-all duration-300 hover:border-[rgba(255,255,255,0.10)]">
-      {/* Platform accent */}
+    <a
+      href={post.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block rounded-lg border border-[rgba(255,255,255,0.04)] bg-[rgba(255,255,255,0.02)] p-3 transition-all duration-200 hover:border-[rgba(255,255,255,0.10)] hover:bg-[rgba(255,255,255,0.04)]"
+    >
+      <p className="mb-2 text-[12px] leading-[1.5] text-ash group-hover:text-silver transition-colors">
+        {truncate(post.text, 120)}
+      </p>
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[10px] text-[#4A4A56]">
+          {formatDate(post.published_at)}
+        </span>
+        {totalEngagement > 0 && (
+          <span className="font-mono text-[10px] text-[#4A4A56]">
+            {formatNumber(totalEngagement)} engajamentos
+          </span>
+        )}
+      </div>
+    </a>
+  );
+}
+
+function VoiceCard({ voice }: { voice: EnrichedVoice }) {
+  const platformColor = PLATFORM_COLORS[voice.platform] ?? "#4A4A56";
+  const platformLabel = PLATFORM_LABELS[voice.platform] ?? voice.platform;
+  const avatarColor = getAvatarColor(voice);
+  const displayName = voice.display_name || voice.handle;
+  const initial = displayName.charAt(0).toUpperCase();
+  const authorityPct = Math.round(voice.authority_score * 100);
+  const bio = buildBio(voice);
+  const accountTypeLabel = voice.account_type
+    ? (VOICE_TYPE_LABELS[voice.account_type] ?? voice.account_type)
+    : null;
+  const recentPosts = voice.recent_signals.slice(0, 2);
+
+  return (
+    <article className="flex flex-col rounded-xl border border-sinal-slate bg-sinal-graphite transition-all duration-300 hover:border-[rgba(255,255,255,0.10)]">
+      {/* Platform accent bar */}
       <div
-        className="mb-4 h-[2px] w-full rounded-full opacity-30"
+        className="h-[2px] w-full rounded-t-xl opacity-30"
         style={{ background: `linear-gradient(90deg, ${platformColor}, transparent)` }}
         aria-hidden="true"
       />
 
-      {/* Header */}
-      <div className="mb-4 flex items-start gap-3">
-        {/* Avatar */}
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-mono text-[14px] font-semibold"
-          style={{ backgroundColor: `${platformColor}18`, color: platformColor }}
-          aria-hidden="true"
-        >
-          {initial}
+      <div className="flex flex-col p-4">
+        {/* Header row */}
+        <div className="mb-3 flex items-start gap-3">
+          {/* Avatar */}
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-mono text-[14px] font-semibold"
+            style={{ backgroundColor: `${avatarColor}18`, color: avatarColor }}
+            aria-hidden="true"
+          >
+            {initial}
+          </div>
+
+          {/* Name + handle */}
+          <div className="min-w-0 flex-1">
+            {voice.profile_url ? (
+              <a
+                href={voice.profile_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-1"
+              >
+                <span className="truncate font-mono text-[13px] font-semibold text-sinal-white transition-colors group-hover:text-signal">
+                  {displayName}
+                </span>
+                <svg
+                  className="h-3 w-3 shrink-0 text-[#4A4A56] transition-colors group-hover:text-signal"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2.5 9.5L9.5 2.5M9.5 2.5H5.5M9.5 2.5V6.5"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </a>
+            ) : (
+              <p className="truncate font-mono text-[13px] font-semibold text-sinal-white">
+                {displayName}
+              </p>
+            )}
+            <p className="font-mono text-[11px] text-ash">@{voice.handle}</p>
+          </div>
+
+          {/* Platform badge */}
+          <span
+            className="shrink-0 rounded px-1.5 py-[2px] font-mono text-[9px] font-semibold uppercase tracking-[0.8px]"
+            style={{ color: platformColor, backgroundColor: `${platformColor}14` }}
+          >
+            {platformLabel}
+          </span>
         </div>
 
-        {/* Name + handle + platform */}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-[13px] font-semibold text-sinal-white">
-            {voice.display_name || voice.handle}
-          </p>
-          <p className="font-mono text-[11px] text-ash">@{voice.handle}</p>
+        {/* Bio */}
+        {bio && <p className="mb-3 line-clamp-2 text-[12px] leading-[1.5] text-ash">{bio}</p>}
+
+        {/* Badges row */}
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {accountTypeLabel && (
+            <span
+              className="rounded px-2 py-[3px] font-mono text-[10px] font-semibold uppercase tracking-[0.6px]"
+              style={{ color: avatarColor, backgroundColor: `${avatarColor}14` }}
+            >
+              {accountTypeLabel}
+            </span>
+          )}
+          {voice.sector_tags?.slice(0, 2).map((tag) => (
+            <span
+              key={tag}
+              className="rounded border border-[rgba(255,255,255,0.06)] px-2 py-[3px] font-mono text-[10px] text-[#4A4A56]"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
 
-        {/* Platform badge */}
-        <span
-          className="shrink-0 rounded px-1.5 py-[2px] font-mono text-[9px] font-semibold uppercase tracking-[0.8px]"
-          style={{ color: platformColor, backgroundColor: `${platformColor}14` }}
-        >
-          {platformLabel}
-        </span>
-      </div>
-
-      {/* Bio */}
-      {voice.bio && (
-        <p className="mb-4 line-clamp-2 text-[12px] leading-[1.5] text-ash">{voice.bio}</p>
-      )}
-
-      {/* Stats */}
-      <div className="mt-auto space-y-2.5 border-t border-[rgba(255,255,255,0.06)] pt-3">
-        {/* Authority score bar */}
-        <div>
+        {/* Authority score */}
+        <div className="mb-4">
           <div className="mb-1 flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-[0.8px] text-[#4A4A56]">
               Autoridade
             </span>
-            <span className="font-mono text-[11px] text-signal">{authorityPct}</span>
+            <div className="flex items-center gap-2">
+              {voice.follower_count != null && (
+                <span className="font-mono text-[10px] text-[#4A4A56]">
+                  {formatNumber(voice.follower_count)} seguidores
+                </span>
+              )}
+              <span className="font-mono text-[11px] text-signal">{authorityPct}</span>
+            </div>
           </div>
           <div className="h-[2px] w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
             <div
@@ -131,21 +323,94 @@ function VoiceCard({ voice }: { voice: Voice }) {
           </div>
         </div>
 
-        {/* Bottom row */}
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] text-ash">
-            <span className="text-sinal-white">{voice.recent_signal_count}</span> sinais recentes
-          </span>
-          {lastActive && (
-            <span className="font-mono text-[10px] text-[#4A4A56]">Ativo {lastActive}</span>
-          )}
-        </div>
+        {/* Recent posts */}
+        {recentPosts.length > 0 ? (
+          <div className="space-y-2">
+            <p className="font-mono text-[10px] uppercase tracking-[0.8px] text-[#4A4A56]">
+              Posts recentes
+            </p>
+            {recentPosts.map((post, i) => (
+              <SignalPost key={i} post={post} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-auto border-t border-[rgba(255,255,255,0.06)] pt-3">
+            <span className="font-mono text-[11px] text-ash">
+              <span className="text-sinal-white">{voice.recent_signal_count}</span> sinais recentes
+            </span>
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
-export default function VoicesPanel({ voices, total, activeType }: VoicesPanelProps) {
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+export default function VoicesPanel({
+  voices,
+  recentSignals,
+  total,
+  activeType,
+}: VoicesPanelProps) {
+  const [search, setSearch] = useState("");
+  const [activePlatform, setActivePlatform] = useState("all");
+
+  // Build a lookup: handle -> signals[], sorted by published_at desc
+  const signalsByHandle = useMemo(() => {
+    const map = new Map<string, Signal[]>();
+    for (const signal of recentSignals) {
+      if (!signal.author_handle) continue;
+      const handle = signal.author_handle.toLowerCase();
+      if (!map.has(handle)) map.set(handle, []);
+      map.get(handle)!.push(signal);
+    }
+    // Sort each bucket by date descending
+    for (const [, sigs] of map) {
+      sigs.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
+    }
+    return map;
+  }, [recentSignals]);
+
+  // Enrich voices with their recent signals
+  const enrichedVoices = useMemo((): EnrichedVoice[] => {
+    return voices.map((voice) => {
+      const handle = voice.handle.toLowerCase();
+      const matched = signalsByHandle.get(handle) ?? [];
+      const recent_signals: RecentSignal[] = matched.map((s) => ({
+        text: s.text,
+        url: s.post_url,
+        platform: s.platform,
+        published_at: s.published_at,
+        metrics: s.metrics as Record<string, number>,
+      }));
+      return {
+        ...voice,
+        recent_signals,
+        recent_signal_count: recent_signals.length,
+      };
+    });
+  }, [voices, signalsByHandle]);
+
+  // Apply client-side search + platform filter
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return enrichedVoices.filter((v) => {
+      if (activePlatform !== "all" && v.platform !== activePlatform) return false;
+      if (q) {
+        const name = (v.display_name ?? "").toLowerCase();
+        const handle = v.handle.toLowerCase();
+        const bio = (v.bio ?? "").toLowerCase();
+        if (!name.includes(q) && !handle.includes(q) && !bio.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [enrichedVoices, activePlatform, search]);
+
+  const isEmpty = voices.length === 0;
+
   return (
     <div id="panel-voices" role="tabpanel" aria-label="Top Voices" className="space-y-6">
       {/* Header */}
@@ -161,22 +426,84 @@ export default function VoicesPanel({ voices, total, activeType }: VoicesPanelPr
         </span>
       </div>
 
-      {/* Type filter */}
-      <TypeFilter activeType={activeType} />
+      {/* Filters */}
+      <div className="space-y-3">
+        {/* Search box */}
+        <div className="relative max-w-sm">
+          <svg
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A4A56]"
+            viewBox="0 0 16 16"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.2" />
+            <path
+              d="M10.5 10.5L13.5 13.5"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            type="search"
+            placeholder="Buscar por nome ou handle..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-[rgba(255,255,255,0.06)] bg-sinal-graphite py-2 pl-9 pr-4 font-mono text-[12px] text-sinal-white placeholder-[#4A4A56] outline-none transition-colors focus:border-[rgba(255,255,255,0.15)]"
+            aria-label="Buscar vozes"
+          />
+        </div>
 
-      {/* Grid */}
-      {voices.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {voices.map((voice) => (
-            <VoiceCard key={voice.id} voice={voice} />
-          ))}
+        {/* Type filter + platform filter */}
+        <div className="flex flex-wrap gap-4">
+          <TypeFilter activeType={activeType} />
+          <div className="h-auto w-px bg-[rgba(255,255,255,0.06)]" aria-hidden="true" />
+          <PlatformFilter activePlatform={activePlatform} onChange={setActivePlatform} />
+        </div>
+      </div>
+
+      {/* Results count when filtering */}
+      {(search || activePlatform !== "all") && !isEmpty && (
+        <p className="font-mono text-[12px] text-[#4A4A56]">
+          {filtered.length} resultado{filtered.length !== 1 ? "s" : ""} encontrado
+          {filtered.length !== 1 ? "s" : ""}
+        </p>
+      )}
+
+      {/* Grid or empty states */}
+      {isEmpty ? (
+        <div className="py-20 text-center">
+          <div
+            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(255,255,255,0.04)]"
+            aria-hidden="true"
+          >
+            <svg className="h-6 w-6 text-[#4A4A56]" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
+              <path
+                d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+          <p className="mb-1 text-[15px] text-ash">Nenhuma voz monitorada ainda.</p>
+          <p className="text-[13px] text-[#4A4A56]">
+            Os agentes estao coletando dados de 2.000+ investidores e fundadores.
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-16 text-center">
+          <p className="mb-1 text-[15px] text-ash">Nenhuma voz encontrada para esta busca.</p>
+          <p className="text-[13px] text-[#4A4A56]">
+            Tente outro termo ou remova os filtros ativos.
+          </p>
         </div>
       ) : (
-        <div className="py-16 text-center">
-          <p className="mb-1 text-[15px] text-ash">Nenhuma voz encontrada</p>
-          <p className="text-[13px] text-[#4A4A56]">
-            Tente selecionar outra categoria ou aguarde a proxima coleta.
-          </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((voice) => (
+            <VoiceCard key={voice.id} voice={voice} />
+          ))}
         </div>
       )}
     </div>
