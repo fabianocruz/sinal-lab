@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-export type SignalsTab = "pulse" | "voices" | "startups" | "banking" | "memo";
+export type SignalsTab = "pulse" | "voices" | "empresas" | "temas" | "memo";
 
 interface Tab {
   key: SignalsTab;
@@ -13,8 +13,8 @@ interface Tab {
 const TABS: Tab[] = [
   { key: "pulse", label: "Pulse Geral", icon: "◎" },
   { key: "voices", label: "Top Voices", icon: "◈" },
-  { key: "startups", label: "Startups", icon: "◇" },
-  { key: "banking", label: "Banking", icon: "◆" },
+  { key: "empresas", label: "Empresas", icon: "◇" },
+  { key: "temas", label: "Temas", icon: "◆" },
   { key: "memo", label: "Memo Semanal", icon: "◉" },
 ];
 
