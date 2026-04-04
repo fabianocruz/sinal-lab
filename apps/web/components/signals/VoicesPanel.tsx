@@ -143,7 +143,7 @@ function PlatformFilter({
   onChange,
 }: {
   activePlatform: string;
-  onChange: (platform: string) => void;
+  onChange: (_platform: string) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por plataforma">
