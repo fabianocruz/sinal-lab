@@ -55,9 +55,6 @@ export default function SocialProof() {
             >
               <div className="mb-2 font-display text-[clamp(36px,5vw,52px)] text-sinal-white">
                 {metric.number}
-                {metric.suffix && (
-                  <span className="font-body text-[20px] text-ash">{metric.suffix}</span>
-                )}
               </div>
               <div className="text-[14px] text-ash">{metric.label}</div>
             </div>
