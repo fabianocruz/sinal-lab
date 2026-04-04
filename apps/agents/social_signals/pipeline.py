@@ -26,6 +26,7 @@ from apps.agents.social_signals.clusterer import (
     compute_cluster_centroid,
 )
 from apps.agents.social_signals.embeddings import generate_embeddings
+from apps.agents.social_signals.first_mover import detect_first_movers
 from apps.agents.social_signals.models import (
     ProcessedSignal,
     SignalClusterResult,
@@ -50,6 +51,9 @@ _last_signal_embeddings: Dict[str, List[float]] = {}
 # The agent reads this to include in output metadata and trigger alerts.
 _last_narrative_shifts: List[Dict[str, Any]] = []
 
+# Module-level storage for first mover data detected during the last pipeline run.
+_last_first_movers: Dict[str, Any] = {}
+
 
 def get_last_signal_embeddings() -> Dict[str, List[float]]:
     """Return embeddings from the last pipeline run.
@@ -66,6 +70,15 @@ def get_last_narrative_shifts() -> List[Dict[str, Any]]:
     to trigger alerts for significant narrative changes.
     """
     return list(_last_narrative_shifts)
+
+
+def get_last_first_movers() -> Dict[str, Any]:
+    """Return first mover data from the last pipeline run.
+
+    Used by the agent to include first mover analysis in output
+    metadata for the 'Who Started It' section.
+    """
+    return dict(_last_first_movers)
 
 
 def _build_previous_period_data(
@@ -322,6 +335,13 @@ def run_pipeline(
     _last_narrative_shifts.extend(shifts)
     if shifts:
         logger.info("Narrative shifts detected: %d", len(shifts))
+
+    # Detect first movers per cluster
+    _last_first_movers.clear()
+    first_movers = detect_first_movers(themed_signals, clusters)
+    _last_first_movers.update(first_movers)
+    if first_movers:
+        logger.info("First mover detection: %d clusters with timing data", len(first_movers))
 
     # Sort clusters by composite score descending
     clusters.sort(key=lambda c: c.composite_score, reverse=True)

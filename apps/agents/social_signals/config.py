@@ -257,6 +257,27 @@ SOCIAL_SIGNAL_SOURCES = [
         url="https://lex.substack.com/feed",
     ),
 
+    # --- Hacker News (reused from RADAR agent) ---
+    DataSourceConfig(
+        name="hn_best_signals",
+        source_type="rss",
+        url="https://hnrss.org/best",
+        params={"points": 50},
+    ),
+    DataSourceConfig(
+        name="hn_show_signals",
+        source_type="rss",
+        url="https://hnrss.org/show",
+    ),
+
+    # --- GitHub Trending (reused from CODIGO/RADAR agents) ---
+    DataSourceConfig(
+        name="github_trending_signals",
+        source_type="api",
+        url="https://api.github.com/search/repositories",
+        params={"sort": "stars", "order": "desc", "window": "weekly"},
+    ),
+
     # --- Web scraper sources (newsletter archives without RSS) ---
     DataSourceConfig(
         name="newcomer_archive",
