@@ -13,6 +13,12 @@ export interface Signal {
   authority_score: number;
 }
 
+export interface SignalClusterFirstMover {
+  handle: string;
+  name?: string;
+  posted_at?: string; // ISO string
+}
+
 export interface SignalCluster {
   id: string;
   name: string;
@@ -28,6 +34,8 @@ export interface SignalCluster {
   top_posts: Array<{ url: string; text: string; author: string; platform: string }>;
   week_number: number;
   year: number;
+  // Optional enrichment — populated by RADAR agent when available
+  first_mover?: SignalClusterFirstMover;
 }
 
 export interface WeeklyPulse {

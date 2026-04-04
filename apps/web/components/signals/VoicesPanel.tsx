@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Voice, Signal } from "@/lib/signal";
 import { PLATFORM_COLORS, PLATFORM_LABELS, VOICE_TYPE_LABELS } from "@/lib/signal";
+import type { Persona } from "@/components/signals/PersonaSelector";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,6 +28,38 @@ interface VoicesPanelProps {
   recentSignals: Signal[];
   total: number;
   activeType: string;
+  persona?: Persona;
+}
+
+// ---------------------------------------------------------------------------
+// Persona-based sort priority
+// ---------------------------------------------------------------------------
+
+// Returns a priority weight: lower = float to top (stable sort keeps relative order)
+function personaSortWeight(accountType: string | null, persona: Persona): number {
+  if (persona === "all") return 0;
+  const type = accountType ?? "";
+
+  if (persona === "vc") {
+    if (type === "vc" || type === "angel") return 0;
+    if (type === "executive") return 1;
+    return 2;
+  }
+
+  if (persona === "cto") {
+    if (type === "executive") return 0;
+    if (type === "founder") return 1;
+    if (type === "thought_leader") return 2;
+    return 3;
+  }
+
+  if (persona === "founder") {
+    if (type === "founder") return 0;
+    if (type === "executive") return 1;
+    return 2;
+  }
+
+  return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -374,6 +407,7 @@ export default function VoicesPanel({
   recentSignals,
   total,
   activeType,
+  persona = "all",
 }: VoicesPanelProps) {
   const [search, setSearch] = useState("");
   const [activePlatform, setActivePlatform] = useState("all");
@@ -481,10 +515,10 @@ export default function VoicesPanel({
     });
   }, [voices, signalsByHandle, signalsByTheme, recentSignals]);
 
-  // Apply client-side search + platform filter
+  // Apply client-side search + platform filter, then reorder by persona priority
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return enrichedVoices.filter((v) => {
+    const result = enrichedVoices.filter((v) => {
       if (activePlatform !== "all" && v.platform !== activePlatform) return false;
       if (q) {
         const name = (v.display_name ?? "").toLowerCase();
@@ -494,7 +528,19 @@ export default function VoicesPanel({
       }
       return true;
     });
-  }, [enrichedVoices, activePlatform, search]);
+
+    // Persona reordering: float preferred account types to the top.
+    // Stable sort — voices with equal weight keep their original order.
+    if (persona !== "all") {
+      result.sort(
+        (a, b) =>
+          personaSortWeight(a.account_type, persona) -
+          personaSortWeight(b.account_type, persona),
+      );
+    }
+
+    return result;
+  }, [enrichedVoices, activePlatform, search, persona]);
 
   const totalPages = Math.ceil(filtered.length / VOICES_PER_PAGE);
   const safePage = Math.min(page, Math.max(1, totalPages));

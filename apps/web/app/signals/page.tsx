@@ -10,7 +10,10 @@ import VoicesPanel from "@/components/signals/VoicesPanel";
 import EmpresasPanel from "@/components/signals/EmpresasPanel";
 import TemasPanel from "@/components/signals/TemasPanel";
 import MemoPanel from "@/components/signals/MemoPanel";
+import PersonaSelector from "@/components/signals/PersonaSelector";
 import type { SignalsTab } from "@/components/signals/TabNav";
+import type { Persona } from "@/components/signals/PersonaSelector";
+import { PERSONA_LABELS, resolvePersona } from "@/components/signals/PersonaSelector";
 import {
   fetchSignalStats,
   fetchSignalClusters,
@@ -55,10 +58,12 @@ export default async function SignalsPage({
   searchParams: {
     tab?: string;
     type?: string; // voices panel filter
+    persona?: string; // persona selector
   };
 }) {
   const activeTab: SignalsTab = resolveTab(searchParams.tab);
   const voiceType = searchParams.type ?? "all";
+  const activePersona: Persona = resolvePersona(searchParams.persona);
 
   // Always fetch stats (used in header) and pulse (used in pulse + memo panels)
   const [stats, pulse] = await Promise.all([fetchSignalStats(), fetchLatestPulse()]);
@@ -133,6 +138,22 @@ export default async function SignalsPage({
           </div>
         </div>
 
+        {/* Persona selector + optional active banner */}
+        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pb-4">
+          <Suspense fallback={null}>
+            <PersonaSelector activePersona={activePersona} />
+          </Suspense>
+          {activePersona !== "all" && (
+            <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-[rgba(232,255,89,0.15)] bg-[rgba(232,255,89,0.04)] px-4 py-2.5">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-signal" aria-hidden="true" />
+              <p className="text-[12px] text-silver">
+                Mostrando sinais relevantes para{" "}
+                <span className="font-semibold text-signal">{PERSONA_LABELS[activePersona]}</span>
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Tab navigation — Client Component */}
         <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)]">
           <div className="border-b border-sinal-slate">
@@ -154,6 +175,7 @@ export default async function SignalsPage({
               recentSignals={voicesSignalsData.items}
               total={voicesData.total}
               activeType={voiceType}
+              persona={activePersona}
             />
           )}
 
