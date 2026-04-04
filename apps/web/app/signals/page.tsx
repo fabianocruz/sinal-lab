@@ -3,11 +3,12 @@ import { Suspense } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import StatsBar from "@/components/signals/StatsBar";
+import ExportButton from "@/components/signals/ExportButton";
 import TabNav from "@/components/signals/TabNav";
 import PulsePanel from "@/components/signals/PulsePanel";
 import VoicesPanel from "@/components/signals/VoicesPanel";
-import StartupsPanel from "@/components/signals/StartupsPanel";
-import BankingPanel from "@/components/signals/BankingPanel";
+import EmpresasPanel from "@/components/signals/EmpresasPanel";
+import TemasPanel from "@/components/signals/TemasPanel";
 import MemoPanel from "@/components/signals/MemoPanel";
 import type { SignalsTab } from "@/components/signals/TabNav";
 import {
@@ -16,7 +17,6 @@ import {
   fetchSignals,
   fetchLatestPulse,
   fetchVoices,
-  fetchSignalEntities,
   fetchCompanies,
 } from "@/lib/api";
 
@@ -34,10 +34,19 @@ export const metadata: Metadata = {
   },
 };
 
-const VALID_TABS: SignalsTab[] = ["pulse", "voices", "startups", "banking", "memo"];
+const VALID_TABS: SignalsTab[] = ["pulse", "voices", "empresas", "temas", "memo"];
 
-function isValidTab(value: string | undefined): value is SignalsTab {
-  return VALID_TABS.includes(value as SignalsTab);
+// Legacy tab keys from old URLs — redirect to their replacements
+const TAB_ALIASES: Record<string, SignalsTab> = {
+  startups: "empresas",
+  banking: "temas",
+};
+
+function resolveTab(value: string | undefined): SignalsTab {
+  if (!value) return "pulse";
+  if (TAB_ALIASES[value]) return TAB_ALIASES[value];
+  if (VALID_TABS.includes(value as SignalsTab)) return value as SignalsTab;
+  return "pulse";
 }
 
 export default async function SignalsPage({
@@ -48,69 +57,52 @@ export default async function SignalsPage({
     type?: string; // voices panel filter
   };
 }) {
-  const activeTab: SignalsTab = isValidTab(searchParams.tab) ? searchParams.tab : "pulse";
+  const activeTab: SignalsTab = resolveTab(searchParams.tab);
   const voiceType = searchParams.type ?? "all";
 
   // Always fetch stats (used in header) and pulse (used in pulse + memo panels)
   const [stats, pulse] = await Promise.all([fetchSignalStats(), fetchLatestPulse()]);
 
   // Fetch data for the active tab only to keep page fast
-  const [
-    clustersData,
-    voicesData,
-    voicesSignalsData,
-    entitiesData,
-    bankingSignalsData,
-    startupsSignalsData,
-    companiesData,
-  ] = await Promise.all([
-    // Pulse and Banking tabs need clusters
-    activeTab === "pulse" || activeTab === "banking"
-      ? fetchSignalClusters({
-          theme: activeTab === "banking" ? "AI in Banking" : undefined,
-          limit: activeTab === "banking" ? 10 : 20,
-        })
-      : Promise.resolve({ items: [], total: 0, limit: 20, offset: 0 }),
+  const [clustersData, voicesData, voicesSignalsData, temasSignalsData, companiesData] =
+    await Promise.all([
+      // Pulse and Temas tabs need clusters
+      activeTab === "pulse" || activeTab === "temas"
+        ? fetchSignalClusters({ limit: 20 })
+        : Promise.resolve({ items: [], total: 0, limit: 20, offset: 0 }),
 
-    // Voices tab — accounts
-    activeTab === "voices"
-      ? fetchVoices({
-          account_type: voiceType === "all" ? undefined : voiceType,
-          limit: 50,
-        })
-      : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
+      // Voices tab — accounts
+      activeTab === "voices"
+        ? fetchVoices({
+            account_type: voiceType === "all" ? undefined : voiceType,
+            limit: 50,
+          })
+        : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
 
-    // Voices tab — recent signals to join with voices
-    activeTab === "voices"
-      ? fetchSignals({ limit: 100 })
-      : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
+      // Voices tab — recent signals to join with voices
+      activeTab === "voices"
+        ? fetchSignals({ limit: 100 })
+        : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
 
-    // Startups tab — dedicated entities endpoint
-    activeTab === "startups"
-      ? fetchSignalEntities({ limit: 30 })
-      : Promise.resolve({ items: [], total: 0, limit: 30, offset: 0 }),
+      // Temas tab — all signals (TemasPanel filters client-side by theme)
+      activeTab === "temas"
+        ? fetchSignals({ limit: 50 })
+        : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
 
-    // Banking tab — signals
-    activeTab === "banking"
-      ? fetchSignals({ theme: "AI in Banking", limit: 9 })
-      : Promise.resolve({ items: [], total: 0, limit: 9, offset: 0 }),
+      // Empresas tab — known companies + signals for matching
+      activeTab === "empresas"
+        ? fetchCompanies({ limit: 200 })
+        : Promise.resolve({ items: [], total: 0, limit: 200, offset: 0 }),
+    ]);
 
-    // Startups tab — signals as fallback for entity extraction
-    activeTab === "startups"
-      ? fetchSignals({ limit: 100 })
-      : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
+  // Empresas tab also needs signals to match against
+  const empresasSignalsData =
+    activeTab === "empresas"
+      ? await fetchSignals({ limit: 200 })
+      : { items: [], total: 0, limit: 200, offset: 0 };
 
-    // Startups tab — known companies for accurate entity matching
-    activeTab === "startups"
-      ? fetchCompanies({ limit: 100 })
-      : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
-  ]);
-
-  // For pulse tab we need all clusters (not banking-filtered)
   const pulseClusters = activeTab === "pulse" ? clustersData.items : [];
-
-  // For banking tab the clustersData IS already banking-filtered
-  const bankingClusters = activeTab === "banking" ? clustersData.items : [];
+  const temasClusters = activeTab === "temas" ? clustersData.items : [];
 
   return (
     <>
@@ -133,8 +125,11 @@ export default async function SignalsPage({
               </p>
             </div>
 
-            {/* Stats box */}
-            <StatsBar stats={stats} />
+            {/* Stats box + export */}
+            <div className="flex flex-wrap items-end gap-3">
+              <StatsBar stats={stats} />
+              <ExportButton />
+            </div>
           </div>
         </div>
 
@@ -162,21 +157,12 @@ export default async function SignalsPage({
             />
           )}
 
-          {activeTab === "startups" && (
-            <StartupsPanel
-              entities={entitiesData.items}
-              total={entitiesData.total}
-              fallbackSignals={startupsSignalsData.items}
-              knownCompanies={companiesData.items}
-            />
+          {activeTab === "empresas" && (
+            <EmpresasPanel companies={companiesData.items} signals={empresasSignalsData.items} />
           )}
 
-          {activeTab === "banking" && (
-            <BankingPanel
-              bankingSignals={bankingSignalsData.items}
-              bankingClusters={bankingClusters}
-              totalSignals={bankingSignalsData.total}
-            />
+          {activeTab === "temas" && (
+            <TemasPanel clusters={temasClusters} signals={temasSignalsData.items} />
           )}
 
           {activeTab === "memo" && <MemoPanel pulse={pulse} />}

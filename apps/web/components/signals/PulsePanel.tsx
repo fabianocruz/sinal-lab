@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import type { WeeklyPulse, SignalCluster, SignalStats } from "@/lib/signal";
 import { STAGE_COLORS, STAGE_LABELS } from "@/lib/signal";
 import Link from "next/link";
 import PlatformHeatmap from "@/components/signals/PlatformHeatmap";
 import type { PlatformHeatmapRow } from "@/components/signals/PlatformHeatmap";
+import ClusterCard from "@/components/signals/ClusterCard";
 
 // ---------------------------------------------------------------------------
 // Theme filter constants
@@ -17,6 +18,8 @@ const THEME_OPTIONS = [
   { key: "Fintech", label: "Fintech" },
   { key: "AI in Banking", label: "AI in Banking" },
 ];
+
+const WATCHLIST_KEY = "sinal_watchlist";
 
 interface PulsePanelProps {
   pulse: WeeklyPulse | null;
@@ -93,8 +96,54 @@ function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Watchlist helpers
+// ---------------------------------------------------------------------------
+
+function readWatchlist(): Set<string> {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeWatchlist(slugs: Set<string>): void {
+  try {
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...slugs]));
+  } catch {
+    // localStorage may be unavailable (private mode, storage quota, etc.)
+  }
+}
+
 export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
   const [activeTheme, setActiveTheme] = useState("all");
+  // Start with empty set; populate after mount to avoid SSR/hydration mismatch
+  const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hydrate from localStorage after mount
+  useEffect(() => {
+    setWatchlist(readWatchlist());
+    setHydrated(true);
+  }, []);
+
+  const handleWatch = useCallback((slug: string) => {
+    setWatchlist((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      writeWatchlist(next);
+      return next;
+    });
+  }, []);
 
   const accelerating = pulse?.accelerating_themes ?? [];
   const emerging = pulse?.emerging_signals ?? [];
@@ -110,6 +159,12 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
     .sort((a, b) => b.signal_count - a.signal_count)
     .slice(0, 5);
 
+  // Clusters currently in watchlist
+  const watchedClusters = useMemo(
+    () => clusters.filter((c) => watchlist.has(c.slug)),
+    [clusters, watchlist],
+  );
+
   return (
     <div id="panel-pulse" role="tabpanel" aria-label="Pulse Geral" className="space-y-6">
       {/* Week badge */}
@@ -119,6 +174,60 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
           <span className="font-mono text-[11px] uppercase tracking-[1.5px] text-signal">
             Semana {pulse.week_number}/{pulse.year}
           </span>
+        </div>
+      )}
+
+      {/* Temas Monitorados — watchlist section */}
+      {hydrated && (
+        <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div>
+              <h3 className="mb-1 font-mono text-[10px] uppercase tracking-[1.5px] text-ash">
+                Temas Monitorados
+              </h3>
+              <p className="text-[12px] text-[#4A4A56]">Clusters que voce esta acompanhando</p>
+            </div>
+            {watchedClusters.length > 0 && (
+              <span className="rounded-full bg-[rgba(232,255,89,0.10)] px-2.5 py-[3px] font-mono text-[11px] text-signal">
+                {watchedClusters.length}
+              </span>
+            )}
+          </div>
+
+          {watchedClusters.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {watchedClusters.map((cluster) => (
+                <ClusterCard
+                  key={cluster.id}
+                  cluster={cluster}
+                  isWatched={true}
+                  onWatch={handleWatch}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1}
+                stroke="currentColor"
+                className="mb-3 h-8 w-8 text-[#4A4A56]"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+                />
+              </svg>
+              <p className="mb-1 text-[14px] text-ash">Nenhum tema monitorado</p>
+              <p className="text-[12px] text-[#4A4A56]">
+                Clique no marcador nos cards abaixo para acompanhar um tema
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -201,6 +310,33 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
           )}
         </div>
       </div>
+
+      {/* Cluster card grid — all filtered clusters with watchlist toggles */}
+      {filteredClusters.length > 0 && (
+        <div>
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div>
+              <h3 className="mb-1 font-mono text-[10px] uppercase tracking-[1.5px] text-ash">
+                Clusters de Tendencias
+              </h3>
+              <p className="text-[12px] text-[#4A4A56]">
+                {filteredClusters.length} cluster{filteredClusters.length !== 1 ? "s" : ""}{" "}
+                detectado{filteredClusters.length !== 1 ? "s" : ""} esta semana
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredClusters.map((cluster) => (
+              <ClusterCard
+                key={cluster.id}
+                cluster={cluster}
+                isWatched={watchlist.has(cluster.slug)}
+                onWatch={handleWatch}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Dominant narratives */}
       <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
