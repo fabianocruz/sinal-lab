@@ -20,6 +20,7 @@ from apps.agents.base.confidence import ConfidenceScore, compute_confidence
 from apps.agents.base.config import AgentCategory, DataSourceConfig
 from apps.agents.base.llm import LLMClient
 from apps.agents.base.output import AgentOutput
+from apps.agents.social_signals.alerts import check_signal_alerts, send_alert_email
 from apps.agents.social_signals.collector import collect_all
 from apps.agents.social_signals.config import SOCIAL_SIGNALS_CONFIG
 from apps.agents.social_signals.historical import (
@@ -31,7 +32,8 @@ from apps.agents.social_signals.models import (
     SignalClusterResult,
     SocialPost,
 )
-from apps.agents.social_signals.pipeline import run_pipeline
+from apps.agents.social_signals.narrative_shift import detect_narrative_shifts, summarize_shifts
+from apps.agents.social_signals.pipeline import get_last_narrative_shifts, run_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -56,15 +58,17 @@ class SocialSignalsAgent(BaseAgent):
     # Enable async collection by default (falls back to sync on failure)
     use_async = True
 
-    def __init__(self, week_number: int = 1) -> None:
+    def __init__(self, week_number: int = 1, persist: bool = False) -> None:
         super().__init__()
         self.config = SOCIAL_SIGNALS_CONFIG
         self.week_number = week_number
+        self.persist = persist
         self._llm_client = LLMClient()
 
         # Pipeline state (populated during process())
         self._clusters: List[SignalClusterResult] = []
         self._all_signals: List[ProcessedSignal] = []
+        self._narrative_shifts: List[dict] = []
 
         # Historical context (loaded from DB when session is available)
         self._historical_context: Optional[Dict[str, Any]] = None
@@ -73,6 +77,10 @@ class SocialSignalsAgent(BaseAgent):
         # Timing info for async vs sync comparison
         self._collect_method: str = ""
         self._collect_elapsed: float = 0.0
+
+        # Alert configuration
+        self.alert_threshold: float = 0.4
+        self.alert_recipient: Optional[str] = None
 
     def collect(self) -> List[Any]:
         """Fetch posts from all configured social media sources.
@@ -348,6 +356,29 @@ class SocialSignalsAgent(BaseAgent):
         # Build structured metadata for API and email rendering
         source_urls = self.provenance.get_source_urls()[:30]
         metadata = self._build_metadata(clusters)
+
+        # Narrative shifts: include in metadata
+        self._narrative_shifts = get_last_narrative_shifts()
+        if self._narrative_shifts:
+            metadata["narrative_shifts"] = self._narrative_shifts
+            shift_summary = summarize_shifts(self._narrative_shifts)
+            body_sections.insert(-1, f"\n## Mudancas Narrativas\n\n{shift_summary}\n")
+            body_md = "\n".join(body_sections)
+
+        # Alerts: check and send if persist mode is enabled
+        alerts = check_signal_alerts(clusters, threshold=self.alert_threshold)
+        if alerts:
+            metadata["alerts"] = alerts
+            logger.info(
+                "Signal alerts triggered: %d cluster(s) above threshold %.2f",
+                len(alerts),
+                self.alert_threshold,
+            )
+            if self.persist:
+                try:
+                    send_alert_email(alerts, recipient=self.alert_recipient)
+                except Exception as exc:
+                    logger.warning("Alert email send failed (non-fatal): %s", exc)
 
         return AgentOutput(
             title=editorial_title,

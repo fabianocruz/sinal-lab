@@ -182,6 +182,24 @@ def _collect_sc_research_sync(
     return posts
 
 
+def _collect_youtube_sync(
+    provenance: ProvenanceTracker,
+) -> List[SocialPost]:
+    """Sync wrapper: collect from YouTube via Monid."""
+    from apps.agents.social_signals.collector import collect_from_youtube
+
+    return collect_from_youtube(provenance)
+
+
+def _collect_tiktok_sync(
+    provenance: ProvenanceTracker,
+) -> List[SocialPost]:
+    """Sync wrapper: collect from TikTok via Monid discover."""
+    from apps.agents.social_signals.collector import collect_from_tiktok
+
+    return collect_from_tiktok(provenance)
+
+
 def _collect_accounts_sync(
     db_session: Session,
     provenance: ProvenanceTracker,
@@ -287,6 +305,18 @@ async def async_collect_all(
     tasks.append((
         "sc_research",
         asyncio.to_thread(_collect_sc_research_sync, provenance),
+    ))
+
+    # YouTube via Monid (always attempted, skips if no API key)
+    tasks.append((
+        "youtube",
+        asyncio.to_thread(_collect_youtube_sync, provenance),
+    ))
+
+    # TikTok via Monid discover (always attempted, skips if no endpoint)
+    tasks.append((
+        "tiktok",
+        asyncio.to_thread(_collect_tiktok_sync, provenance),
     ))
 
     # Monitored accounts (only if DB session available)

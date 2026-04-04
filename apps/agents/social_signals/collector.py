@@ -175,6 +175,48 @@ def normalize_rss_item(item: "RSSItem") -> SocialPost:
     )
 
 
+def normalize_youtube_item(item: dict) -> SocialPost:
+    """Convert a YouTube comment/video dict from Monid to a unified SocialPost.
+
+    Monid YouTube scrapers return dicts with varying keys depending on
+    the specific Apify actor. We handle the common field names.
+
+    Args:
+        item: Dict from fetch_youtube_comments().
+
+    Returns:
+        SocialPost with platform="youtube".
+    """
+    # Build text from available fields
+    text_parts = []
+    if item.get("videoTitle"):
+        text_parts.append(item["videoTitle"])
+    if item.get("text") or item.get("comment"):
+        text_parts.append((item.get("text") or item.get("comment", ""))[:500])
+    if item.get("description"):
+        text_parts.append(item["description"][:300])
+
+    text = "\n\n".join(text_parts) if text_parts else ""
+
+    url = item.get("videoUrl") or item.get("url") or ""
+    author = item.get("author") or item.get("channelName") or ""
+
+    return SocialPost(
+        text=text,
+        url=url,
+        platform="youtube",
+        author_handle=author,
+        author_display_name=author,
+        author_followers=item.get("subscriberCount", 0) or 0,
+        source_name="monid_youtube",
+        metrics={
+            "likes": item.get("likes", 0) or 0,
+            "views": item.get("viewCount", 0) or item.get("views", 0) or 0,
+            "comments": item.get("commentCount", 0) or item.get("replyCount", 0) or 0,
+        },
+    )
+
+
 def normalize_web_scraped_article(article: dict) -> SocialPost:
     """Convert a web-scraped article dict to a unified SocialPost.
 
@@ -466,6 +508,147 @@ def collect_from_web_scraper(
     return posts
 
 
+def collect_from_youtube(
+    provenance: ProvenanceTracker,
+    queries: Optional[List[str]] = None,
+    max_per_query: int = 25,
+) -> List[SocialPost]:
+    """Collect YouTube video comments/metadata via Monid API.
+
+    Only runs when MONID_API_KEY is set. Uses the YouTube comment scraper
+    Apify endpoint to fetch video metadata and comments for the given queries.
+
+    Args:
+        provenance: Provenance tracker for recording source attribution.
+        queries: Search queries. Defaults to AI/fintech/banking queries.
+        max_per_query: Max results per query.
+
+    Returns:
+        List of normalized SocialPost items from YouTube.
+    """
+    try:
+        from apps.agents.sources.monid import is_available, fetch_youtube_comments
+        if not is_available():
+            logger.debug("MONID_API_KEY not set, skipping YouTube collection")
+            return []
+
+        if queries is None:
+            queries = [
+                "AI agents fintech",
+                "banking technology LATAM",
+            ]
+
+        all_posts: List[SocialPost] = []
+        for query in queries:
+            items = fetch_youtube_comments(query, max_results=max_per_query, provenance=provenance)
+            for item in items:
+                post = normalize_youtube_item(item)
+                if post.text and post.url:
+                    all_posts.append(post)
+
+        logger.info("YouTube/Monid: collected %d posts from %d queries", len(all_posts), len(queries))
+        return all_posts
+    except Exception as e:
+        logger.warning("YouTube/Monid collection failed (non-fatal): %s", e)
+        return []
+
+
+def collect_from_tiktok(
+    provenance: ProvenanceTracker,
+    queries: Optional[List[str]] = None,
+    max_per_query: int = 25,
+) -> List[SocialPost]:
+    """Collect TikTok videos via Monid API (discovered endpoint).
+
+    Only runs when MONID_API_KEY is set and a suitable TikTok endpoint
+    is discovered. If no endpoint exists, logs and returns empty.
+
+    Args:
+        provenance: Provenance tracker for recording source attribution.
+        queries: Search queries for TikTok discovery.
+        max_per_query: Max results per query.
+
+    Returns:
+        List of normalized SocialPost items from TikTok. Empty list if
+        no TikTok scraper is available.
+    """
+    try:
+        from apps.agents.sources.monid import is_available, discover, run_endpoint
+        if not is_available():
+            logger.debug("MONID_API_KEY not set, skipping TikTok collection")
+            return []
+
+        # Discover available TikTok endpoints
+        endpoints = discover("tiktok scraper fintech", limit=3)
+        if not endpoints:
+            logger.info("No TikTok scraper endpoints found via Monid discover")
+            return []
+
+        # Use the first available endpoint
+        ep = endpoints[0]
+        provider = ep.get("provider", "apify")
+        endpoint_path = ep.get("endpoint", "")
+        if not endpoint_path:
+            logger.warning("TikTok endpoint discovered but no path: %s", ep)
+            return []
+
+        logger.info("TikTok: using discovered endpoint %s/%s", provider, endpoint_path)
+
+        if queries is None:
+            queries = [
+                "AI fintech banking",
+                "startup technology LATAM",
+            ]
+
+        all_posts: List[SocialPost] = []
+        for query in queries:
+            result = run_endpoint(
+                provider=provider,
+                endpoint=endpoint_path,
+                input_data={"searchTerms": [query], "maxResults": max_per_query},
+            )
+            if not result:
+                continue
+
+            items = result.get("output", result.get("items", result.get("data", [])))
+            if not isinstance(items, list):
+                continue
+
+            for item in items:
+                text = item.get("text") or item.get("description") or item.get("title") or ""
+                url = item.get("webVideoUrl") or item.get("url") or ""
+                if not text or not url:
+                    continue
+
+                post = SocialPost(
+                    text=text[:500],
+                    url=url,
+                    platform="tiktok",
+                    author_handle=item.get("authorMeta", {}).get("name", "") if isinstance(item.get("authorMeta"), dict) else str(item.get("author", "")),
+                    author_display_name=item.get("authorMeta", {}).get("nickName", "") if isinstance(item.get("authorMeta"), dict) else "",
+                    source_name="monid_tiktok",
+                    metrics={
+                        "likes": item.get("diggCount", 0) or item.get("likes", 0) or 0,
+                        "views": item.get("playCount", 0) or item.get("views", 0) or 0,
+                        "shares": item.get("shareCount", 0) or item.get("shares", 0) or 0,
+                        "comments": item.get("commentCount", 0) or item.get("comments", 0) or 0,
+                    },
+                )
+                all_posts.append(post)
+                if provenance:
+                    provenance.track(
+                        source_url=url,
+                        source_name="monid_tiktok",
+                        extraction_method="api",
+                    )
+
+        logger.info("TikTok/Monid: collected %d posts from %d queries", len(all_posts), len(queries))
+        return all_posts
+    except Exception as e:
+        logger.warning("TikTok/Monid collection failed (non-fatal): %s", e)
+        return []
+
+
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
@@ -538,6 +721,20 @@ def collect_all(
             all_posts.extend(linkedin_posts)
         except Exception as e:
             logger.warning("LinkedIn/Monid collection failed (non-fatal): %s", e)
+
+        # YouTube via Monid (paid, cost-aware)
+        try:
+            youtube_posts = collect_from_youtube(provenance)
+            all_posts.extend(youtube_posts)
+        except Exception as e:
+            logger.warning("YouTube/Monid collection failed (non-fatal): %s", e)
+
+        # TikTok via Monid discover (paid, only if endpoint found)
+        try:
+            tiktok_posts = collect_from_tiktok(provenance)
+            all_posts.extend(tiktok_posts)
+        except Exception as e:
+            logger.warning("TikTok/Monid collection failed (non-fatal): %s", e)
 
         # Polymarket: prediction market signals
         try:

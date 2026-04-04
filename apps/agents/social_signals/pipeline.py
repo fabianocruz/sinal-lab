@@ -31,6 +31,7 @@ from apps.agents.social_signals.models import (
     SignalClusterResult,
     SocialPost,
 )
+from apps.agents.social_signals.narrative_shift import detect_narrative_shifts
 from apps.agents.social_signals.propagation import enrich_signals_with_propagation
 from apps.agents.social_signals.scorer import (
     compute_cluster_dimensions,
@@ -45,6 +46,10 @@ logger = logging.getLogger(__name__)
 # The db_writer reads this to persist embeddings alongside signal records.
 _last_signal_embeddings: Dict[str, List[float]] = {}
 
+# Module-level storage for narrative shifts detected during the last pipeline run.
+# The agent reads this to include in output metadata and trigger alerts.
+_last_narrative_shifts: List[Dict[str, Any]] = []
+
 
 def get_last_signal_embeddings() -> Dict[str, List[float]]:
     """Return embeddings from the last pipeline run.
@@ -52,6 +57,15 @@ def get_last_signal_embeddings() -> Dict[str, List[float]]:
     Used by db_writer to persist embedding_json on SocialSignal records.
     """
     return dict(_last_signal_embeddings)
+
+
+def get_last_narrative_shifts() -> List[Dict[str, Any]]:
+    """Return narrative shifts from the last pipeline run.
+
+    Used by the agent to include shift data in output metadata and
+    to trigger alerts for significant narrative changes.
+    """
+    return list(_last_narrative_shifts)
 
 
 def _build_previous_period_data(
@@ -296,6 +310,18 @@ def run_pipeline(
     # Attach signal embeddings to pipeline output for db_writer
     _last_signal_embeddings.clear()
     _last_signal_embeddings.update(signal_embeddings)
+
+    # Detect narrative shifts (compare current vs previous clusters)
+    _last_narrative_shifts.clear()
+    prev_for_shifts = previous_clusters or []
+    if not prev_for_shifts and historical_context:
+        # historical_context doesn't carry full cluster objects, so shifts
+        # are only computed when previous_clusters is provided directly
+        pass
+    shifts = detect_narrative_shifts(clusters, prev_for_shifts)
+    _last_narrative_shifts.extend(shifts)
+    if shifts:
+        logger.info("Narrative shifts detected: %d", len(shifts))
 
     # Sort clusters by composite score descending
     clusters.sort(key=lambda c: c.composite_score, reverse=True)

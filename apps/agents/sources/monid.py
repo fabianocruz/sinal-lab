@@ -197,6 +197,52 @@ def fetch_tweets(
     return []
 
 
+def fetch_youtube_comments(
+    query: str,
+    max_results: int = 25,
+    provenance: Optional[ProvenanceTracker] = None,
+) -> List[Dict]:
+    """Fetch YouTube video comments/transcripts via Monid Apify scraper.
+
+    Cost: varies by scraper (~$0.01-0.02 per result).
+
+    Args:
+        query: YouTube search query
+        max_results: Max results to return
+        provenance: Optional provenance tracker
+
+    Returns:
+        List of result dicts with video/comment data.
+    """
+    result = run_endpoint(
+        provider="apify",
+        endpoint="/bernardo/youtube-comment-scraper",
+        input_data={
+            "searchTerms": [query],
+            "maxResults": max_results,
+        },
+    )
+
+    if not result:
+        return []
+
+    items = result.get("output", result.get("items", result.get("data", [])))
+    if isinstance(items, list):
+        if provenance:
+            for item in items:
+                url = item.get("videoUrl") or item.get("url") or ""
+                if url:
+                    provenance.track(
+                        source_url=url,
+                        source_name="monid_youtube",
+                        extraction_method="api",
+                    )
+        logger.info("Monid: fetched %d YouTube results for '%s'", len(items), query)
+        return items
+
+    return []
+
+
 def fetch_linkedin_posts(
     query: str,
     max_results: int = 25,
