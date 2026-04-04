@@ -52,6 +52,8 @@ export interface NewsletterMetadata {
   }>;
   item_count?: number;
   total_sources?: number;
+  download_url?: string;
+  download_label?: string;
 }
 
 export interface Newsletter {
