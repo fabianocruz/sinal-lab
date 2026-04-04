@@ -71,6 +71,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
   { id: "empresas", label: "Empresas" },
   { id: "conteudo", label: "Conteúdo" },
   { id: "agentes", label: "Agentes" },
+  { id: "sinais", label: "Sinais" },
   { id: "investimentos", label: "Investimentos" },
   { id: "paginacao", label: "Paginação" },
   { id: "erros", label: "Erros" },
@@ -696,10 +697,415 @@ data.items.forEach(deal =>
 };
 
 // ---------------------------------------------------------------------------
+// Signals API
+// ---------------------------------------------------------------------------
+
+const SIGNAL_FIELDS: ApiField[] = [
+  { name: "id", type: "UUID", description: "Identificador único" },
+  { name: "platform", type: "string", description: "Plataforma (twitter, reddit, bluesky, rss)" },
+  { name: "post_url", type: "string", description: "URL do post original" },
+  { name: "author_handle", type: "string", description: "Handle do autor" },
+  { name: "author_display_name", type: "string", description: "Nome de exibição do autor" },
+  { name: "text", type: "string", description: "Texto do post" },
+  { name: "published_at", type: "datetime", description: "Data de publicação" },
+  { name: "metrics", type: "object", description: "Engajamento: likes, replies, reposts" },
+  { name: "theme", type: "string", description: "Tema principal (AI, Fintech, AI in Banking)" },
+  { name: "sub_theme", type: "string?", description: "Sub-tema" },
+  { name: "sentiment", type: "float", description: "Sentimento: -1 (negativo) a 1 (positivo)" },
+  { name: "authority_score", type: "float", description: "Score de autoridade do autor (0-1)" },
+];
+
+const CLUSTER_FIELDS: ApiField[] = [
+  { name: "id", type: "UUID", description: "Identificador único" },
+  { name: "name", type: "string", description: "Nome do cluster de tendencia" },
+  { name: "slug", type: "string", description: "Slug URL-friendly" },
+  { name: "theme", type: "string", description: "Tema principal" },
+  { name: "sub_theme", type: "string?", description: "Sub-tema" },
+  { name: "description", type: "string", description: "Descricao do cluster" },
+  { name: "signal_count", type: "int", description: "Numero de sinais no cluster" },
+  { name: "composite_score", type: "float", description: "Score composto (0-1)" },
+  {
+    name: "narrative_stage",
+    type: "string",
+    description: "Estagio narrativo: emerging, accelerating, peaking, declining",
+  },
+  {
+    name: "top_voices",
+    type: "object[]",
+    description: "Principais vozes: handle, name, authority",
+  },
+  { name: "top_posts", type: "object[]", description: "Posts mais relevantes" },
+  { name: "week_number", type: "int", description: "Semana do ano" },
+  { name: "year", type: "int", description: "Ano" },
+  {
+    name: "first_mover",
+    type: "object?",
+    description: "Quem postou primeiro: handle, name, posted_at",
+  },
+];
+
+const VOICE_FIELDS: ApiField[] = [
+  { name: "id", type: "UUID", description: "Identificador único" },
+  { name: "platform", type: "string", description: "Plataforma monitorada" },
+  { name: "handle", type: "string", description: "Handle da conta" },
+  { name: "display_name", type: "string?", description: "Nome de exibicao" },
+  {
+    name: "account_type",
+    type: "string?",
+    description: "Tipo: founder, vc, executive, thought_leader, company",
+  },
+  { name: "authority_score", type: "float", description: "Score de autoridade (0-1)" },
+  { name: "follower_count", type: "int?", description: "Numero de seguidores" },
+  { name: "bio", type: "string?", description: "Biografia" },
+  { name: "profile_url", type: "string?", description: "URL do perfil" },
+  { name: "sector_tags", type: "string[]?", description: "Tags de setor" },
+  { name: "is_active", type: "boolean", description: "Conta ativa no monitoramento" },
+];
+
+const PULSE_FIELDS: ApiField[] = [
+  { name: "id", type: "UUID", description: "Identificador único" },
+  { name: "week_number", type: "int", description: "Semana do ano" },
+  { name: "year", type: "int", description: "Ano" },
+  { name: "slug", type: "string", description: "Slug URL-friendly (ex: pulse-2026-w08)" },
+  {
+    name: "accelerating_themes",
+    type: "object[]?",
+    description: "Temas acelerando: name, score, delta",
+  },
+  {
+    name: "emerging_signals",
+    type: "object[]?",
+    description: "Sinais emergentes: name, score, platforms",
+  },
+  { name: "top_posts", type: "object[]?", description: "Posts mais relevantes da semana" },
+  { name: "top_voices", type: "object[]?", description: "Vozes mais ativas da semana" },
+  { name: "status", type: "string", description: "Status: draft, published" },
+];
+
+const SIGNAL_STATS_FIELDS: ApiField[] = [
+  { name: "total_signals", type: "int", description: "Total de sinais coletados" },
+  { name: "total_clusters", type: "int", description: "Total de clusters ativos" },
+  { name: "total_voices", type: "int", description: "Total de vozes monitoradas" },
+  {
+    name: "platforms",
+    type: "object",
+    description: "Contagem por plataforma: { twitter: N, ... }",
+  },
+  { name: "themes", type: "object", description: "Contagem por tema: { AI: N, Fintech: N, ... }" },
+];
+
+const signalsApi: ApiGroup = {
+  id: "sinais",
+  name: "Sinais",
+  label: "API DE SINAIS",
+  description:
+    "Social signals coletados pelo agente RADAR — posts, clusters de tendencias, vozes influentes e o pulse semanal.",
+  color: "#B59FFF",
+  fieldCount: "12 campos por sinal",
+  endpoints: [
+    {
+      method: "GET",
+      path: "/api/signals",
+      description: "Lista sinais coletados com filtros opcionais e paginacao.",
+      params: [
+        {
+          name: "platform",
+          type: "string",
+          required: false,
+          description: "Filtra por plataforma (twitter, reddit, bluesky, rss)",
+        },
+        {
+          name: "theme",
+          type: "string",
+          required: false,
+          description: "Filtra por tema (AI, Fintech, AI in Banking)",
+        },
+        ...PAGINATION_PARAMS,
+      ],
+      responseFields: SIGNAL_FIELDS,
+      examples: {
+        curl: `curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "${BASE}/api/signals?theme=AI&limit=5"`,
+        python: `import requests
+
+resp = requests.get(
+    "${BASE}/api/signals",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+    params={"theme": "AI", "limit": 5},
+)
+data = resp.json()
+for signal in data["items"]:
+    print(signal["author_handle"], "-", signal["text"][:80])`,
+        javascript: `const resp = await fetch(
+  "${BASE}/api/signals?theme=AI&limit=5",
+  { headers: { Authorization: "Bearer YOUR_API_KEY" } }
+);
+const data = await resp.json();
+data.items.forEach(s =>
+  console.log(s.author_handle, "-", s.text.slice(0, 80))
+);`,
+      },
+      exampleResponse: `{
+  "items": [
+    {
+      "id": "a1b2c3d4-...",
+      "platform": "twitter",
+      "author_handle": "karpathy",
+      "text": "The most important AI trend right now is...",
+      "published_at": "2026-02-23T09:15:00Z",
+      "metrics": { "likes": 4200, "reposts": 980, "replies": 210 },
+      "theme": "AI",
+      "sentiment": 0.72,
+      "authority_score": 0.94
+    }
+  ],
+  "total": 12483,
+  "limit": 5,
+  "offset": 0
+}`,
+    },
+    {
+      method: "GET",
+      path: "/api/signals/clusters",
+      description: "Lista clusters de tendencias detectados pelo agente RADAR.",
+      params: [
+        {
+          name: "theme",
+          type: "string",
+          required: false,
+          description: "Filtra por tema",
+        },
+        ...PAGINATION_PARAMS,
+      ],
+      responseFields: CLUSTER_FIELDS,
+      examples: {
+        curl: `curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "${BASE}/api/signals/clusters?theme=Fintech&limit=5"`,
+        python: `import requests
+
+resp = requests.get(
+    "${BASE}/api/signals/clusters",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+    params={"theme": "Fintech", "limit": 5},
+)
+for cluster in resp.json()["items"]:
+    print(cluster["name"], f"({cluster['narrative_stage']})")`,
+        javascript: `const resp = await fetch(
+  "${BASE}/api/signals/clusters?theme=Fintech&limit=5",
+  { headers: { Authorization: "Bearer YOUR_API_KEY" } }
+);
+const data = await resp.json();
+data.items.forEach(c =>
+  console.log(c.name, \`(\${c.narrative_stage})\`)
+);`,
+      },
+      exampleResponse: `{
+  "items": [
+    {
+      "id": "b2c3d4e5-...",
+      "name": "Open Finance no Brasil",
+      "slug": "open-finance-brasil",
+      "theme": "Fintech",
+      "narrative_stage": "accelerating",
+      "signal_count": 284,
+      "composite_score": 0.78,
+      "week_number": 8,
+      "year": 2026
+    }
+  ],
+  "total": 47,
+  "limit": 5,
+  "offset": 0
+}`,
+    },
+    {
+      method: "GET",
+      path: "/api/signals/clusters/{slug}",
+      description: "Retorna o detalhe completo de um cluster pelo slug.",
+      params: [{ name: "slug", type: "string", required: true, description: "Slug do cluster" }],
+      responseFields: CLUSTER_FIELDS,
+      examples: {
+        curl: `curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "${BASE}/api/signals/clusters/open-finance-brasil"`,
+        python: `import requests
+
+resp = requests.get(
+    "${BASE}/api/signals/clusters/open-finance-brasil",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+)
+cluster = resp.json()
+print(cluster["name"], "-", cluster["description"][:100])`,
+        javascript: `const resp = await fetch(
+  "${BASE}/api/signals/clusters/open-finance-brasil",
+  { headers: { Authorization: "Bearer YOUR_API_KEY" } }
+);
+const cluster = await resp.json();
+console.log(cluster.name, "-", cluster.description.slice(0, 100));`,
+      },
+      exampleResponse: `{
+  "id": "b2c3d4e5-...",
+  "name": "Open Finance no Brasil",
+  "slug": "open-finance-brasil",
+  "theme": "Fintech",
+  "sub_theme": "Regulatorio",
+  "description": "Discussoes sobre regulamentacao e adocao de open finance...",
+  "signal_count": 284,
+  "composite_score": 0.78,
+  "narrative_stage": "accelerating",
+  "top_voices": [{ "handle": "bcboficial", "name": "BCB", "authority": 0.91 }],
+  "top_posts": [{ "url": "https://...", "text": "...", "author": "bcboficial", "platform": "twitter" }],
+  "week_number": 8,
+  "year": 2026,
+  "first_mover": { "handle": "fintech_br", "name": "Fintech BR", "posted_at": "2026-02-20T07:30:00Z" }
+}`,
+    },
+    {
+      method: "GET",
+      path: "/api/signals/pulse",
+      description: "Retorna o pulse semanal mais recente publicado.",
+      params: [],
+      responseFields: PULSE_FIELDS,
+      examples: {
+        curl: `curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "${BASE}/api/signals/pulse"`,
+        python: `import requests
+
+resp = requests.get(
+    "${BASE}/api/signals/pulse",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+)
+pulse = resp.json()
+print(f"Semana {pulse['week_number']}/{pulse['year']}")
+for theme in pulse.get("accelerating_themes", [])[:3]:
+    print(f"  {theme['name']}: {theme['score']:.2f}")`,
+        javascript: `const resp = await fetch(
+  "${BASE}/api/signals/pulse",
+  { headers: { Authorization: "Bearer YOUR_API_KEY" } }
+);
+const pulse = await resp.json();
+console.log(\`Semana \${pulse.week_number}/\${pulse.year}\`);
+pulse.accelerating_themes?.slice(0, 3).forEach(t =>
+  console.log(\`  \${t.name}: \${t.score.toFixed(2)}\`)
+);`,
+      },
+      exampleResponse: `{
+  "id": "c3d4e5f6-...",
+  "week_number": 8,
+  "year": 2026,
+  "slug": "pulse-2026-w08",
+  "accelerating_themes": [
+    { "name": "LLM Inference Costs", "score": 0.91, "delta": 0.18 },
+    { "name": "Open Finance", "score": 0.78, "delta": 0.12 }
+  ],
+  "emerging_signals": [
+    { "name": "AI Agents em Producao", "score": 0.63, "platforms": ["twitter", "reddit"] }
+  ],
+  "status": "published"
+}`,
+    },
+    {
+      method: "GET",
+      path: "/api/signals/voices",
+      description: "Lista contas monitoradas pelo agente RADAR, ordenadas por autoridade.",
+      params: [
+        {
+          name: "account_type",
+          type: "string",
+          required: false,
+          description: "Filtra por tipo: founder, vc, executive, thought_leader, company",
+        },
+        ...PAGINATION_PARAMS,
+      ],
+      responseFields: VOICE_FIELDS,
+      examples: {
+        curl: `curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "${BASE}/api/signals/voices?account_type=vc&limit=5"`,
+        python: `import requests
+
+resp = requests.get(
+    "${BASE}/api/signals/voices",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+    params={"account_type": "vc", "limit": 5},
+)
+for voice in resp.json()["items"]:
+    print(f"@{voice['handle']} ({voice['account_type']}) - {voice['authority_score']:.2f}")`,
+        javascript: `const resp = await fetch(
+  "${BASE}/api/signals/voices?account_type=vc&limit=5",
+  { headers: { Authorization: "Bearer YOUR_API_KEY" } }
+);
+const data = await resp.json();
+data.items.forEach(v =>
+  console.log(\`@\${v.handle} (\${v.account_type}) - \${v.authority_score.toFixed(2)}\`)
+);`,
+      },
+      exampleResponse: `{
+  "items": [
+    {
+      "id": "d4e5f6a7-...",
+      "platform": "twitter",
+      "handle": "sequoia",
+      "display_name": "Sequoia Capital",
+      "account_type": "vc",
+      "authority_score": 0.96,
+      "follower_count": 850000,
+      "sector_tags": ["fintech", "ai", "saas"],
+      "is_active": true
+    }
+  ],
+  "total": 312,
+  "limit": 5,
+  "offset": 0
+}`,
+    },
+    {
+      method: "GET",
+      path: "/api/signals/stats",
+      description: "Retorna estatisticas agregadas do sistema de sinais.",
+      params: [],
+      responseFields: SIGNAL_STATS_FIELDS,
+      examples: {
+        curl: `curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "${BASE}/api/signals/stats"`,
+        python: `import requests
+
+resp = requests.get(
+    "${BASE}/api/signals/stats",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+)
+stats = resp.json()
+print(f"{stats['total_signals']:,} sinais, {stats['total_clusters']} clusters")`,
+        javascript: `const resp = await fetch(
+  "${BASE}/api/signals/stats",
+  { headers: { Authorization: "Bearer YOUR_API_KEY" } }
+);
+const stats = await resp.json();
+console.log(\`\${stats.total_signals.toLocaleString()} sinais, \${stats.total_clusters} clusters\`);`,
+      },
+      exampleResponse: `{
+  "total_signals": 12483,
+  "total_clusters": 47,
+  "total_voices": 312,
+  "platforms": {
+    "twitter": 7840,
+    "reddit": 2910,
+    "bluesky": 1200,
+    "rss": 533
+  },
+  "themes": {
+    "AI": 6200,
+    "Fintech": 4100,
+    "AI in Banking": 2183
+  }
+}`,
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // All API groups
 // ---------------------------------------------------------------------------
 
-export const API_GROUPS: ApiGroup[] = [companiesApi, contentApi, agentsApi, fundingApi];
+export const API_GROUPS: ApiGroup[] = [companiesApi, contentApi, agentsApi, signalsApi, fundingApi];
 
 // ---------------------------------------------------------------------------
 // Error codes documentation
