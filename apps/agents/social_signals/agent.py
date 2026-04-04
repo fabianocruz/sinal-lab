@@ -11,7 +11,7 @@ decisions downstream.
 """
 
 import logging
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
@@ -20,6 +20,10 @@ from apps.agents.base.llm import LLMClient
 from apps.agents.base.output import AgentOutput
 from apps.agents.social_signals.collector import collect_all
 from apps.agents.social_signals.config import SOCIAL_SIGNALS_CONFIG
+from apps.agents.social_signals.historical import (
+    build_historical_context,
+    load_previous_clusters,
+)
 from apps.agents.social_signals.models import (
     ProcessedSignal,
     SignalClusterResult,
@@ -38,7 +42,7 @@ class SocialSignalsAgent(BaseAgent):
 
     Lifecycle:
         collect() -> fetch from Twitter, Reddit, Bluesky, RSS
-        process() -> classify, cluster, score signals
+        process() -> classify (batch), cluster, score signals (with historical context)
         score()   -> compute aggregate confidence
         output()  -> generate Weekly Pulse Markdown report
     """
@@ -56,6 +60,10 @@ class SocialSignalsAgent(BaseAgent):
         # Pipeline state (populated during process())
         self._clusters: List[SignalClusterResult] = []
         self._all_signals: List[ProcessedSignal] = []
+
+        # Historical context (loaded from DB when session is available)
+        self._historical_context: Optional[Dict[str, Any]] = None
+        self._db_session: Optional[Any] = None
 
     def collect(self) -> List[Any]:
         """Fetch posts from all configured social media sources.
@@ -80,12 +88,54 @@ class SocialSignalsAgent(BaseAgent):
         )
         return posts
 
+    def set_db_session(self, session: Any) -> None:
+        """Set DB session for historical context loading.
+
+        Called by the orchestrator or CLI before process() to enable
+        historical velocity/sentiment comparisons.
+
+        Args:
+            session: SQLAlchemy session instance.
+        """
+        self._db_session = session
+
+    def _load_historical_context(self) -> Optional[Dict[str, Any]]:
+        """Load historical context from DB if session is available.
+
+        Returns:
+            Historical context dict, or None if DB is unavailable.
+        """
+        if self._db_session is None:
+            logger.info("No DB session, skipping historical context (first run?)")
+            return None
+
+        try:
+            previous_clusters = load_previous_clusters(
+                session=self._db_session,
+                weeks_back=4,
+            )
+            if not previous_clusters:
+                logger.info("No previous clusters found in DB")
+                return None
+
+            context = build_historical_context(previous_clusters)
+            logger.info(
+                "Loaded historical context: %d themes, %d known authors",
+                len(context.get("theme_counts", {})),
+                len(context.get("known_authors", set())),
+            )
+            return context
+
+        except Exception as exc:
+            logger.warning("Failed to load historical context: %s", exc)
+            return None
+
     def process(self, raw_data: List[Any]) -> List[Any]:
         """Classify, cluster, and score all collected signals.
 
-        Runs the full pipeline: classify -> filter -> cluster -> score ->
-        extract top voices/posts. Stores results in _clusters and
-        _all_signals for use by score() and output().
+        Runs the full pipeline with batch classification (keyword-first,
+        LLM for top 20 only) and historical context for velocity/sentiment
+        dimensions.
 
         Args:
             raw_data: List of SocialPost from collect().
@@ -95,10 +145,15 @@ class SocialSignalsAgent(BaseAgent):
         """
         posts: List[SocialPost] = raw_data
 
+        # Load historical context for velocity and sentiment baselines
+        if self._historical_context is None:
+            self._historical_context = self._load_historical_context()
+
         self._clusters, self._all_signals = run_pipeline(
             posts=posts,
             llm_client=self._llm_client,
-            previous_clusters=None,  # TODO: load previous week from DB
+            historical_context=self._historical_context,
+            top_n_for_llm=20,
         )
 
         logger.info(

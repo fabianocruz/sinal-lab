@@ -190,10 +190,18 @@ def _index_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
         logging.getLogger("run_agents").info("Persisted INDEX companies: %s", stats)
 
 
+def _social_signals_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
+    """Persist social signal clusters, individual signals, and weekly pulse."""
+    from apps.agents.social_signals.db_writer import persist_social_signals
+
+    persist_social_signals(agent, agent_output, session)
+
+
 DOMAIN_PERSIST_FNS: Dict[str, Callable[..., None]] = {
     "funding": _funding_domain_persist,
     "mercado": _mercado_domain_persist,
     "index": _index_domain_persist,
+    "social_signals": _social_signals_domain_persist,
 }
 
 

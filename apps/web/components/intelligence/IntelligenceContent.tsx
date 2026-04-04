@@ -75,6 +75,32 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
             <p className="text-[12px] text-ash">Market Intelligence</p>
           </div>
         </div>
+        {/* Download button */}
+        {item.metadata_?.download_url && (
+          <a
+            href={item.metadata_.download_url}
+            download
+            className="mt-6 inline-flex items-center gap-2 rounded-lg border border-[rgba(89,180,255,0.2)] bg-[rgba(89,180,255,0.06)] px-5 py-3 font-mono text-[13px] font-semibold transition-colors hover:bg-[rgba(89,180,255,0.12)]"
+            style={{ color: ACCENT_COLOR }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M8 1v10m0 0L4.5 7.5M8 11l3.5-3.5M2 13h12"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {item.metadata_.download_label || "Download dados (Excel)"}
+          </a>
+        )}
       </header>
 
       {/* Full content — no gating for intelligence reports */}

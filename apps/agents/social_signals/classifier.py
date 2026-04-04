@@ -3,11 +3,17 @@
 Classifies social posts into the thematic taxonomy (AI, Fintech, AI in Banking)
 and extracts named entities (companies, people, products, technologies).
 
-Uses LLMClient for high-quality classification with keyword-based fallback
-when the LLM is unavailable.
+The batch classifier (classify_posts_batch) is the primary entry point:
+it uses fast keyword-only classification for all posts, then enriches
+only the top N posts (by engagement/authority) with LLM-powered entity
+extraction and sentiment analysis. This avoids 274+ LLM calls per run.
+
+Individual LLM functions (classify_theme, extract_entities, compute_sentiment)
+are preserved for cases where per-post LLM processing is explicitly needed.
 """
 
 import logging
+import math
 import re
 from typing import Dict, List, Optional, Tuple
 
@@ -259,7 +265,10 @@ def classify_post(
     """Fully classify a social post into a ProcessedSignal.
 
     Runs theme classification, entity extraction, sentiment analysis,
-    and commercial signal detection.
+    and commercial signal detection. Uses LLM for all steps when available.
+
+    NOTE: For batch processing, prefer classify_posts_batch() which uses
+    keyword-only classification for all posts and LLM only for the top N.
 
     Args:
         post: Raw SocialPost from collector.
@@ -273,11 +282,7 @@ def classify_post(
     sentiment = compute_sentiment(post.text, llm_client)
     commercial = is_commercial(post.text)
 
-    # Authority score based on follower count (log scale, 0-1)
-    import math
-    authority = 0.0
-    if post.author_followers > 0:
-        authority = min(1.0, math.log10(max(1, post.author_followers)) / 7.0)
+    authority = _compute_authority(post)
 
     return ProcessedSignal(
         post=post,
@@ -288,3 +293,130 @@ def classify_post(
         authority_score=authority,
         is_commercial=commercial,
     )
+
+
+def _compute_authority(post: SocialPost) -> float:
+    """Compute authority score based on follower count (log scale, 0-1).
+
+    Args:
+        post: Raw SocialPost.
+
+    Returns:
+        Float 0-1 authority score. 10M followers = 1.0.
+    """
+    if post.author_followers > 0:
+        return min(1.0, math.log10(max(1, post.author_followers)) / 7.0)
+    return 0.0
+
+
+def _compute_engagement_rank(post: SocialPost) -> float:
+    """Compute a single engagement number for ranking posts.
+
+    Combines likes, replies (2x weight), reposts (3x weight), and score.
+    Used to select the top N posts for LLM enrichment.
+
+    Args:
+        post: Raw SocialPost with metrics dict.
+
+    Returns:
+        Float engagement score (not normalized).
+    """
+    metrics = post.metrics or {}
+    return (
+        metrics.get("likes", 0)
+        + metrics.get("replies", 0) * 2
+        + metrics.get("reposts", 0) * 3
+        + metrics.get("score", 0)
+        + metrics.get("comments", 0) * 2
+    )
+
+
+def classify_posts_batch(
+    posts: List[SocialPost],
+    llm_client: Optional[LLMClient] = None,
+    top_n_for_llm: int = 20,
+) -> List[ProcessedSignal]:
+    """Efficiently classify a batch of posts using keyword-first strategy.
+
+    Strategy:
+        1. ALL posts: keyword-only theme classification (fast, no LLM)
+        2. ALL posts: regex entity extraction + keyword commercial detection
+        3. TOP N posts (by engagement + authority): LLM entity extraction
+        4. TOP N posts: LLM sentiment analysis
+
+    This reduces LLM calls from N (all posts) to at most 2*top_n_for_llm
+    (entity extraction + sentiment for the most important posts only).
+
+    Args:
+        posts: Raw SocialPost items from collector.
+        llm_client: Optional LLM client for enriching top posts.
+        top_n_for_llm: Number of top posts to enrich with LLM (default 20).
+
+    Returns:
+        List of ProcessedSignal with all classifications populated.
+    """
+    if not posts:
+        return []
+
+    # Step 1: Keyword-only classification for ALL posts (fast)
+    signals: List[ProcessedSignal] = []
+    for post in posts:
+        theme, sub_theme = _classify_with_keywords(post.text)
+        entities = _extract_with_regex(post.text)
+        commercial = is_commercial(post.text)
+        authority = _compute_authority(post)
+
+        signal = ProcessedSignal(
+            post=post,
+            theme=theme,
+            sub_theme=sub_theme,
+            entities=entities,
+            sentiment=0.0,  # Neutral default, enriched for top N below
+            authority_score=authority,
+            is_commercial=commercial,
+        )
+        signals.append(signal)
+
+    logger.info(
+        "Batch classified %d posts with keywords (%d themed)",
+        len(signals),
+        sum(1 for s in signals if s.theme),
+    )
+
+    # Step 2: Identify top N posts for LLM enrichment
+    if not llm_client or not llm_client.is_available or top_n_for_llm <= 0:
+        return signals
+
+    # Rank by engagement + authority to find the most important posts
+    ranked = sorted(
+        enumerate(signals),
+        key=lambda idx_sig: (
+            _compute_engagement_rank(idx_sig[1].post)
+            + idx_sig[1].authority_score * 1000
+        ),
+        reverse=True,
+    )
+
+    top_indices = set(idx for idx, _ in ranked[:top_n_for_llm])
+
+    # Step 3: Enrich top N with LLM entity extraction and sentiment
+    enriched_count = 0
+    for idx in top_indices:
+        signal = signals[idx]
+
+        # LLM entity extraction (replaces regex entities if successful)
+        llm_entities = _extract_with_llm(signal.post.text, llm_client)
+        if llm_entities:
+            signal.entities = llm_entities
+
+        # LLM sentiment analysis (replaces 0.0 default)
+        signal.sentiment = compute_sentiment(signal.post.text, llm_client)
+
+        enriched_count += 1
+
+    logger.info(
+        "LLM-enriched top %d posts (entity extraction + sentiment)",
+        enriched_count,
+    )
+
+    return signals
