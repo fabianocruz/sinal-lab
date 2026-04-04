@@ -155,6 +155,38 @@ SOCIAL_SIGNAL_SOURCES = [
         params={"subreddit": "CryptoCurrency", "sort": "hot", "limit": 25},
     ),
 
+    # --- Reddit RSS (fallback, no auth required) ---
+    DataSourceConfig(
+        name="reddit_rss_fintech",
+        source_type="rss",
+        url="https://www.reddit.com/r/fintech/hot.rss",
+    ),
+    DataSourceConfig(
+        name="reddit_rss_machinelearning",
+        source_type="rss",
+        url="https://www.reddit.com/r/MachineLearning/hot.rss",
+    ),
+    DataSourceConfig(
+        name="reddit_rss_banking",
+        source_type="rss",
+        url="https://www.reddit.com/r/banking/hot.rss",
+    ),
+    DataSourceConfig(
+        name="reddit_rss_cryptocurrency",
+        source_type="rss",
+        url="https://www.reddit.com/r/CryptoCurrency/hot.rss",
+    ),
+    DataSourceConfig(
+        name="reddit_rss_artificial",
+        source_type="rss",
+        url="https://www.reddit.com/r/artificial/hot.rss",
+    ),
+    DataSourceConfig(
+        name="reddit_rss_startups",
+        source_type="rss",
+        url="https://www.reddit.com/r/startups/hot.rss",
+    ),
+
     # --- Bluesky ---
     DataSourceConfig(
         name="bluesky_ai_fintech",
