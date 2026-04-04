@@ -6,7 +6,14 @@
 
 import type { Company } from "@/lib/company";
 import type { ContentApiItem } from "@/lib/newsletter";
-import type { Signal, SignalCluster, WeeklyPulse, SignalStats } from "@/lib/signal";
+import type {
+  Signal,
+  SignalCluster,
+  WeeklyPulse,
+  SignalStats,
+  Voice,
+  SignalEntity,
+} from "@/lib/signal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -372,6 +379,46 @@ export async function fetchSignals(params?: {
 
     const qs = searchParams.toString();
     const url = `${API_BASE}/api/signals${qs ? `?${qs}` : ""}`;
+    const response = await fetch(url, { next: { revalidate: 300 } });
+    if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
+    return response.json();
+  } catch {
+    return { items: [], total: 0, limit: 20, offset: 0 };
+  }
+}
+
+export async function fetchVoices(params?: {
+  account_type?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<Voice>> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.account_type) searchParams.set("account_type", params.account_type);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+
+    const qs = searchParams.toString();
+    const url = `${API_BASE}/api/signals/voices${qs ? `?${qs}` : ""}`;
+    const response = await fetch(url, { next: { revalidate: 300 } });
+    if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
+    return response.json();
+  } catch {
+    return { items: [], total: 0, limit: 20, offset: 0 };
+  }
+}
+
+export async function fetchSignalEntities(params?: {
+  theme?: string;
+  limit?: number;
+}): Promise<PaginatedResponse<SignalEntity>> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.theme) searchParams.set("theme", params.theme);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+
+    const qs = searchParams.toString();
+    const url = `${API_BASE}/api/signals/entities${qs ? `?${qs}` : ""}`;
     const response = await fetch(url, { next: { revalidate: 300 } });
     if (!response.ok) return { items: [], total: 0, limit: 20, offset: 0 };
     return response.json();

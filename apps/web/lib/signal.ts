@@ -85,3 +85,34 @@ export const PLATFORM_LABELS: Record<string, string> = {
   linkedin: "LinkedIn",
   rss: "RSS",
 };
+
+// Monitored voice (account) tracked by RADAR agent
+export interface Voice {
+  id: string;
+  handle: string;
+  display_name: string;
+  platform: string;
+  account_type: string; // founder, vc, executive, thought_leader, company
+  authority_score: number;
+  recent_signal_count: number;
+  last_active: string | null;
+  bio?: string;
+}
+
+// Voice account type labels in Portuguese
+export const VOICE_TYPE_LABELS: Record<string, string> = {
+  founder: "Founders",
+  vc: "VCs",
+  executive: "Executivos",
+  thought_leader: "Liderancas",
+  company: "Empresas",
+};
+
+// Entity extracted from signals (company mention)
+export interface SignalEntity {
+  name: string;
+  slug: string | null; // slug in our DB if known
+  theme: string;
+  mention_count: number;
+  sentiment: number; // avg -1 to 1
+}
