@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SignalCard from "@/components/signals/SignalCard";
+import DimensionRadar from "@/components/signals/DimensionRadar";
 import { fetchSignalClusterBySlug, fetchSignals } from "@/lib/api";
 import { STAGE_COLORS, STAGE_LABELS, PLATFORM_COLORS } from "@/lib/signal";
 
@@ -105,30 +106,13 @@ export default async function ClusterDetailPage({ params }: ClusterDetailPagePro
                 />
               </div>
 
-              {/* Dimension breakdown */}
+              {/* Dimension radar chart */}
               {dimensionEntries.length > 0 && (
-                <div className="space-y-3">
-                  <p className="font-mono text-[10px] uppercase tracking-[1px] text-[#4A4A56]">
+                <div>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[1px] text-[#4A4A56]">
                     Dimensoes
                   </p>
-                  {dimensionEntries.map(([key, value]) => (
-                    <div key={key}>
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="font-mono text-[12px] capitalize text-silver">
-                          {key.replace(/_/g, " ")}
-                        </span>
-                        <span className="font-mono text-[12px] text-ash">
-                          {Math.round(Number(value) * 100)}
-                        </span>
-                      </div>
-                      <div className="h-[3px] w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-                        <div
-                          className="h-full rounded-full bg-signal"
-                          style={{ width: `${Math.round(Number(value) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                  <DimensionRadar dimensions={cluster.dimensions} accentColor={stageColor} />
                 </div>
               )}
             </div>

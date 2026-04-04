@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Signal, SignalCluster } from "@/lib/signal";
 import { STAGE_COLORS, STAGE_LABELS } from "@/lib/signal";
 import SignalCard from "@/components/signals/SignalCard";
+import ScoreBar from "@/components/signals/ScoreBar";
 
 interface BankingPanelProps {
   bankingSignals: Signal[];
@@ -34,7 +35,6 @@ function SubtopicMaturity({ clusters }: { clusters: SignalCluster[] }) {
       {clusters.map((cluster) => {
         const stageColor = STAGE_COLORS[cluster.narrative_stage] ?? "#8A8A96";
         const stageLabel = STAGE_LABELS[cluster.narrative_stage] ?? cluster.narrative_stage;
-        const pct = Math.round(cluster.composite_score * 100);
 
         return (
           <Link
@@ -42,7 +42,7 @@ function SubtopicMaturity({ clusters }: { clusters: SignalCluster[] }) {
             href={`/signals/cluster/${cluster.slug}`}
             className="block rounded-xl border border-sinal-slate bg-[rgba(255,255,255,0.02)] px-5 py-4 transition-all hover:border-[rgba(255,255,255,0.10)] hover:bg-[rgba(255,255,255,0.04)]"
           >
-            <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="mb-3 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-[13px] font-semibold text-sinal-white">
                   {cluster.name}
@@ -51,26 +51,16 @@ function SubtopicMaturity({ clusters }: { clusters: SignalCluster[] }) {
                   <p className="font-mono text-[11px] text-ash">{cluster.sub_theme}</p>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span
-                  className="rounded px-2 py-[3px] font-mono text-[9px] uppercase tracking-[0.8px]"
-                  style={{ color: stageColor, backgroundColor: `${stageColor}14` }}
-                >
-                  {stageLabel}
-                </span>
-                <span className="font-mono text-[12px]" style={{ color: stageColor }}>
-                  {pct}
-                </span>
-              </div>
+              <span
+                className="mt-0.5 shrink-0 rounded px-2 py-[3px] font-mono text-[9px] uppercase tracking-[0.8px]"
+                style={{ color: stageColor, backgroundColor: `${stageColor}14` }}
+              >
+                {stageLabel}
+              </span>
             </div>
 
-            {/* Maturity bar */}
-            <div className="h-[3px] w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${pct}%`, backgroundColor: stageColor }}
-              />
-            </div>
+            {/* Maturity bar via ScoreBar */}
+            <ScoreBar score={cluster.composite_score} color={stageColor} />
 
             {/* Signal count + top voices */}
             <div className="mt-2.5 flex items-center justify-between">

@@ -1,6 +1,8 @@
 import type { WeeklyPulse, SignalCluster, SignalStats } from "@/lib/signal";
-import { STAGE_COLORS, STAGE_LABELS, PLATFORM_LABELS } from "@/lib/signal";
+import { STAGE_COLORS, STAGE_LABELS } from "@/lib/signal";
 import Link from "next/link";
+import PlatformHeatmap from "@/components/signals/PlatformHeatmap";
+import type { PlatformHeatmapRow } from "@/components/signals/PlatformHeatmap";
 
 interface PulsePanelProps {
   pulse: WeeklyPulse | null;
@@ -59,81 +61,22 @@ function ThemeRow({
   );
 }
 
-function PlatformHeatmap({ clusters, stats }: { clusters: SignalCluster[]; stats: SignalStats }) {
-  const platforms = Object.keys(stats.platforms).filter((p) => stats.platforms[p] > 0);
-  // Use top 5 clusters by signal count for the heatmap rows
-  const topClusters = clusters.slice(0, 5);
-
-  if (platforms.length === 0 || topClusters.length === 0) {
-    return (
-      <EmptyState
-        message="Sem dados de plataforma"
-        sub="O heatmap aparece apos coleta de sinais."
-      />
-    );
-  }
-
-  // Max signal count for normalization
-  const maxSignals = Math.max(...topClusters.map((c) => c.signal_count), 1);
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[400px] text-left">
-        <thead>
-          <tr>
-            <th className="pb-2 pr-4 font-mono text-[10px] uppercase tracking-[1px] text-[#4A4A56] w-[160px]">
-              Tema
-            </th>
-            {platforms.slice(0, 5).map((p) => (
-              <th
-                key={p}
-                className="pb-2 px-2 font-mono text-[10px] uppercase tracking-[1px] text-[#4A4A56] text-center"
-              >
-                {PLATFORM_LABELS[p] ?? p}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {topClusters.map((cluster) => {
-            const intensity = cluster.signal_count / maxSignals;
-            return (
-              <tr key={cluster.id}>
-                <td className="py-1.5 pr-4">
-                  <Link
-                    href={`/signals/cluster/${cluster.slug}`}
-                    className="font-mono text-[12px] text-silver hover:text-sinal-white transition-colors truncate block max-w-[150px]"
-                  >
-                    {cluster.name}
-                  </Link>
-                </td>
-                {platforms.slice(0, 5).map((p) => {
-                  // Use cluster top_posts to count per platform
-                  const count = cluster.top_posts.filter((post) => post.platform === p).length;
-                  const cellIntensity = count > 0 ? 0.3 + intensity * 0.5 : 0;
-                  return (
-                    <td key={p} className="py-1.5 px-2 text-center">
-                      <div
-                        className="mx-auto h-6 w-6 rounded flex items-center justify-center"
-                        style={{
-                          backgroundColor: `rgba(232,255,89,${cellIntensity})`,
-                        }}
-                        title={`${count} posts`}
-                      >
-                        {count > 0 && (
-                          <span className="font-mono text-[10px] text-sinal-white">{count}</span>
-                        )}
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
+// Derive PlatformHeatmapRow data from clusters + their top_posts
+function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
+  return clusters.slice(0, 5).map((cluster) => {
+    const counts: Record<string, number> = { twitter: 0, reddit: 0, bluesky: 0, rss: 0 };
+    cluster.top_posts.forEach((post) => {
+      const p = post.platform.toLowerCase();
+      if (p in counts) counts[p]++;
+    });
+    return {
+      theme: cluster.name,
+      twitter: counts.twitter,
+      reddit: counts.reddit,
+      bluesky: counts.bluesky,
+      rss: counts.rss,
+    };
+  });
 }
 
 export default function PulsePanel({ pulse, clusters, stats }: PulsePanelProps) {
@@ -258,7 +201,14 @@ export default function PulsePanel({ pulse, clusters, stats }: PulsePanelProps) 
           Heatmap por Plataforma
         </h3>
         <p className="mb-4 text-[12px] text-[#4A4A56]">Volume de sinais por tema e plataforma</p>
-        <PlatformHeatmap clusters={dominant} stats={stats} />
+        {dominant.length > 0 ? (
+          <PlatformHeatmap data={buildHeatmapData(dominant)} />
+        ) : (
+          <EmptyState
+            message="Sem dados de plataforma"
+            sub="O heatmap aparece apos coleta de sinais."
+          />
+        )}
       </div>
     </div>
   );
