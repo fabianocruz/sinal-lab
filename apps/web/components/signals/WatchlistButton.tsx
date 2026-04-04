@@ -1,8 +1,11 @@
 "use client";
 
+import React from "react";
+
 interface WatchlistButtonProps {
   slug: string;
   isWatched: boolean;
+  // eslint-disable-next-line no-unused-vars
   onToggle: (slug: string) => void;
 }
 

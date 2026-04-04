@@ -4,10 +4,12 @@ import Link from "next/link";
 import type { SignalCluster } from "@/lib/signal";
 import { STAGE_COLORS, STAGE_LABELS, PLATFORM_COLORS } from "@/lib/signal";
 import WatchlistButton from "@/components/signals/WatchlistButton";
+import FirstMoverCard from "@/components/signals/FirstMoverCard";
 
 interface ClusterCardProps {
   cluster: SignalCluster;
   isWatched?: boolean;
+  // eslint-disable-next-line no-unused-vars
   onWatch?: (slug: string) => void;
 }
 
@@ -85,8 +87,13 @@ export default function ClusterCard({ cluster, isWatched = false, onWatch }: Clu
             </p>
           )}
 
+          {/* First mover — only when data is available */}
+          {cluster.first_mover && (
+            <FirstMoverCard firstMover={cluster.first_mover} clusterName={cluster.name} />
+          )}
+
           {/* Composite score bar */}
-          <div className="mb-4">{scoreBar(cluster.composite_score)}</div>
+          <div className="mb-4 mt-4">{scoreBar(cluster.composite_score)}</div>
 
           {/* Bottom stats */}
           <div className="mt-auto flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] pt-3">
