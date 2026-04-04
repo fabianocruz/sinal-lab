@@ -532,6 +532,33 @@ def collect_all(
                 scraper_sources, provenance, client, agent_name, run_id,
             ))
 
+        # sc-research: social media research via CLI tool
+        try:
+            from apps.agents.sources.sc_research import collect_from_sc_research, is_available as sc_available
+            if sc_available():
+                sc_queries = [
+                    "AI agents fintech banking",
+                    "LLM startup LATAM venture capital",
+                    "neobank payments infrastructure",
+                ]
+                sc_results = collect_from_sc_research(sc_queries, provenance, max_per_query=15)
+                for r in sc_results:
+                    all_posts.append(SocialPost(
+                        text=r.text,
+                        url=r.url,
+                        platform=r.platform,
+                        author_handle=r.author,
+                        published_at=None,
+                        source_name=f"sc_research_{r.platform}",
+                        metrics=r.metrics,
+                        content_hash=r.content_hash,
+                    ))
+                logger.info("sc-research: collected %d posts", len(sc_results))
+            else:
+                logger.debug("sc-research not installed, skipping")
+        except Exception as e:
+            logger.warning("sc-research collection failed (non-fatal): %s", e)
+
         # Monitored account timelines (requires database session)
         if db_session is not None:
             try:
