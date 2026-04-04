@@ -10,12 +10,14 @@ without editorial filtering. The editorial pipeline handles publication
 decisions downstream.
 """
 
+import asyncio
 import logging
+import time
 from typing import Any, Dict, List, Optional
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
-from apps.agents.base.config import AgentCategory
+from apps.agents.base.config import AgentCategory, DataSourceConfig
 from apps.agents.base.llm import LLMClient
 from apps.agents.base.output import AgentOutput
 from apps.agents.social_signals.collector import collect_all
@@ -51,6 +53,9 @@ class SocialSignalsAgent(BaseAgent):
     agent_category = AgentCategory.DATA.value
     version = SOCIAL_SIGNALS_CONFIG.version
 
+    # Enable async collection by default (falls back to sync on failure)
+    use_async = True
+
     def __init__(self, week_number: int = 1) -> None:
         super().__init__()
         self.config = SOCIAL_SIGNALS_CONFIG
@@ -65,28 +70,91 @@ class SocialSignalsAgent(BaseAgent):
         self._historical_context: Optional[Dict[str, Any]] = None
         self._db_session: Optional[Any] = None
 
+        # Timing info for async vs sync comparison
+        self._collect_method: str = ""
+        self._collect_elapsed: float = 0.0
+
     def collect(self) -> List[Any]:
         """Fetch posts from all configured social media sources.
 
-        Routes each DataSourceConfig to the appropriate platform collector
-        (Twitter, Reddit, Bluesky, RSS) and returns deduplicated SocialPost
-        items.
+        When use_async is True (default), runs all platform collectors in
+        parallel via asyncio.to_thread(). Falls back to sequential sync
+        collection if async fails.
 
         Returns:
             List of SocialPost items, deduplicated by content_hash.
         """
         sources = self.config.get_enabled_sources()
         logger.info(
-            "Social Signals collecting from %d enabled sources", len(sources),
+            "Social Signals collecting from %d enabled sources (async=%s)",
+            len(sources),
+            self.use_async,
         )
+
+        start = time.monotonic()
+
+        if self.use_async:
+            posts = self._collect_async(sources)
+            if posts is not None:
+                self._collect_method = "async"
+                self._collect_elapsed = time.monotonic() - start
+                logger.info(
+                    "Async collection completed: %d posts in %.2fs",
+                    len(posts),
+                    self._collect_elapsed,
+                )
+                return posts
+            # Async failed, fall through to sync
+            logger.warning("Async collection failed, falling back to sync")
 
         posts = collect_all(
             sources=sources,
             provenance=self.provenance,
             agent_name=self.agent_name,
             run_id=self.run_id,
+            db_session=self._db_session,
+        )
+        self._collect_method = "sync"
+        self._collect_elapsed = time.monotonic() - start
+        logger.info(
+            "Sync collection completed: %d posts in %.2fs",
+            len(posts),
+            self._collect_elapsed,
         )
         return posts
+
+    def _collect_async(
+        self, sources: List[DataSourceConfig],
+    ) -> Optional[List[SocialPost]]:
+        """Attempt async parallel collection. Returns None on failure.
+
+        Uses asyncio.run() to execute the async collector. If we are already
+        inside an event loop (e.g., Jupyter, nested async), this will fail
+        gracefully and return None so the caller can fall back to sync.
+
+        Args:
+            sources: Enabled data source configs.
+
+        Returns:
+            List of SocialPost on success, None on failure.
+        """
+        try:
+            from apps.agents.social_signals.async_collector import async_collect_all
+
+            return asyncio.run(async_collect_all(
+                sources=sources,
+                provenance=self.provenance,
+                agent_name=self.agent_name,
+                run_id=self.run_id,
+                db_session=self._db_session,
+            ))
+        except RuntimeError as exc:
+            # "cannot be called from a running event loop"
+            logger.warning("Cannot start async event loop: %s", exc)
+            return None
+        except Exception as exc:
+            logger.warning("Async collection raised unexpected error: %s", exc)
+            return None
 
     def set_db_session(self, session: Any) -> None:
         """Set DB session for historical context loading.
