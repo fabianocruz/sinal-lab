@@ -35,12 +35,12 @@ export interface WeeklyPulse {
   week_number: number;
   year: number;
   slug: string;
-  accelerating_themes: Array<{ name: string; score: number; delta: number }>;
-  emerging_signals: Array<{ name: string; score: number; platforms: string[] }>;
-  top_posts: Array<{ url: string; text: string; author: string; metrics: object }>;
-  top_voices: Array<{ handle: string; name: string; signal_count: number }>;
-  startups_to_watch: Array<{ slug: string; name: string; reason: string }>;
-  sector_implications: Array<{ sector: string; implication: string }>;
+  accelerating_themes?: Array<{ name: string; score: number; delta: number }>;
+  emerging_signals?: Array<{ name: string; score: number; platforms: string[] }>;
+  top_posts?: Array<{ url: string; text: string; author: string; metrics: object }>;
+  top_voices?: Array<{ handle: string; name: string; signal_count: number }>;
+  startups_to_watch?: Array<{ slug: string; name: string; reason: string }>;
+  sector_implications?: Array<{ sector: string; implication: string }>;
   status: string;
 }
 

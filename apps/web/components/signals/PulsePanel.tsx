@@ -1,8 +1,22 @@
+"use client";
+
+import { useState, useMemo } from "react";
 import type { WeeklyPulse, SignalCluster, SignalStats } from "@/lib/signal";
 import { STAGE_COLORS, STAGE_LABELS } from "@/lib/signal";
 import Link from "next/link";
 import PlatformHeatmap from "@/components/signals/PlatformHeatmap";
 import type { PlatformHeatmapRow } from "@/components/signals/PlatformHeatmap";
+
+// ---------------------------------------------------------------------------
+// Theme filter constants
+// ---------------------------------------------------------------------------
+
+const THEME_OPTIONS = [
+  { key: "all", label: "Todos" },
+  { key: "AI", label: "AI" },
+  { key: "Fintech", label: "Fintech" },
+  { key: "AI in Banking", label: "AI in Banking" },
+];
 
 interface PulsePanelProps {
   pulse: WeeklyPulse | null;
@@ -80,11 +94,21 @@ function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
 }
 
 export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
+  const [activeTheme, setActiveTheme] = useState("all");
+
   const accelerating = pulse?.accelerating_themes ?? [];
   const emerging = pulse?.emerging_signals ?? [];
 
-  // Dominant narratives: clusters sorted by signal_count
-  const dominant = [...clusters].sort((a, b) => b.signal_count - a.signal_count).slice(0, 5);
+  // Filter clusters by selected theme, then sort by signal_count
+  const filteredClusters = useMemo(() => {
+    if (activeTheme === "all") return clusters;
+    return clusters.filter((c) => c.theme?.toLowerCase() === activeTheme.toLowerCase());
+  }, [clusters, activeTheme]);
+
+  // Dominant narratives: filtered clusters sorted by signal_count
+  const dominant = [...filteredClusters]
+    .sort((a, b) => b.signal_count - a.signal_count)
+    .slice(0, 5);
 
   return (
     <div id="panel-pulse" role="tabpanel" aria-label="Pulse Geral" className="space-y-6">
@@ -97,6 +121,28 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
           </span>
         </div>
       )}
+
+      {/* Theme filter pills */}
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por tema">
+        {THEME_OPTIONS.map((opt) => {
+          const isActive = activeTheme === opt.key;
+          return (
+            <button
+              key={opt.key}
+              onClick={() => setActiveTheme(opt.key)}
+              aria-pressed={isActive}
+              className={[
+                "rounded-lg border px-3 py-2 font-mono text-[11px] uppercase tracking-[0.8px] transition-all duration-200",
+                isActive
+                  ? "border-signal bg-[rgba(232,255,89,0.08)] text-signal"
+                  : "border-[rgba(255,255,255,0.06)] text-ash hover:text-silver",
+              ].join(" ")}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Two-column: accelerating + emerging */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

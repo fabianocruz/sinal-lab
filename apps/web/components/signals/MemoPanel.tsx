@@ -42,7 +42,14 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
     );
   }
 
-  const shareText = `Sinal Semanal — Semana ${pulse.week_number}/${pulse.year}\n\nTemas acelerando: ${pulse.accelerating_themes
+  const acceleratingThemes = pulse.accelerating_themes ?? [];
+  const emergingSignals = pulse.emerging_signals ?? [];
+  const topPosts = pulse.top_posts ?? [];
+  const topVoices = pulse.top_voices ?? [];
+  const startupsToWatch = pulse.startups_to_watch ?? [];
+  const sectorImplications = pulse.sector_implications ?? [];
+
+  const shareText = `Sinal Semanal — Semana ${pulse.week_number}/${pulse.year}\n\nTemas acelerando: ${acceleratingThemes
     .slice(0, 3)
     .map((t) => t.name)
     .join(", ")}\n\nsinal.tech/signals`;
@@ -74,10 +81,10 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Accelerating themes */}
         <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-          <SectionHeader label="5 Tendencias" count={pulse.accelerating_themes.length} />
-          {pulse.accelerating_themes.length > 0 ? (
+          <SectionHeader label="5 Tendencias" count={acceleratingThemes.length} />
+          {acceleratingThemes.length > 0 ? (
             <ol className="space-y-3">
-              {pulse.accelerating_themes.slice(0, 5).map((theme, i) => (
+              {acceleratingThemes.slice(0, 5).map((theme, i) => (
                 <li key={theme.name} className="flex items-start gap-3">
                   <span className="mt-px shrink-0 font-mono text-[11px] text-[#4A4A56]">
                     {String(i + 1).padStart(2, "0")}
@@ -100,10 +107,10 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
 
         {/* Emerging signals */}
         <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-          <SectionHeader label="5 Sinais" count={pulse.emerging_signals.length} />
-          {pulse.emerging_signals.length > 0 ? (
+          <SectionHeader label="5 Sinais" count={emergingSignals.length} />
+          {emergingSignals.length > 0 ? (
             <ol className="space-y-3">
-              {pulse.emerging_signals.slice(0, 5).map((signal, i) => (
+              {emergingSignals.slice(0, 5).map((signal, i) => (
                 <li key={signal.name} className="flex items-start gap-3">
                   <span className="mt-px shrink-0 font-mono text-[11px] text-[#4A4A56]">
                     {String(i + 1).padStart(2, "0")}
@@ -137,11 +144,11 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
       </div>
 
       {/* Top posts */}
-      {pulse.top_posts.length > 0 && (
+      {topPosts.length > 0 && (
         <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-          <SectionHeader label="Top 10 Posts" count={Math.min(pulse.top_posts.length, 10)} />
+          <SectionHeader label="Top 10 Posts" count={Math.min(topPosts.length, 10)} />
           <div className="space-y-3">
-            {pulse.top_posts.slice(0, 10).map((post, i) => (
+            {topPosts.slice(0, 10).map((post, i) => (
               <div
                 key={i}
                 className="rounded-lg border border-[rgba(255,255,255,0.04)] bg-[rgba(255,255,255,0.02)] px-4 py-3"
@@ -170,11 +177,11 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
       {/* Top voices + startups grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Top voices */}
-        {pulse.top_voices.length > 0 && (
+        {topVoices.length > 0 && (
           <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-            <SectionHeader label="Top 10 Voices" count={Math.min(pulse.top_voices.length, 10)} />
+            <SectionHeader label="Top 10 Voices" count={Math.min(topVoices.length, 10)} />
             <ol className="space-y-2.5">
-              {pulse.top_voices.slice(0, 10).map((voice, i) => (
+              {topVoices.slice(0, 10).map((voice, i) => (
                 <li key={voice.handle} className="flex items-center gap-3">
                   <span className="w-5 shrink-0 text-right font-mono text-[11px] text-[#4A4A56]">
                     {i + 1}
@@ -196,14 +203,11 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
 
         {/* Startups to watch + implications */}
         <div className="space-y-4">
-          {pulse.startups_to_watch.length > 0 && (
+          {startupsToWatch.length > 0 && (
             <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-              <SectionHeader
-                label="3 Startups para Acompanhar"
-                count={pulse.startups_to_watch.length}
-              />
+              <SectionHeader label="3 Startups para Acompanhar" count={startupsToWatch.length} />
               <ol className="space-y-3">
-                {pulse.startups_to_watch.slice(0, 3).map((startup, i) => (
+                {startupsToWatch.slice(0, 3).map((startup, i) => (
                   <li key={startup.slug || startup.name} className="flex items-start gap-3">
                     <span className="mt-px shrink-0 font-mono text-[11px] text-[#4A4A56]">
                       {i + 1}
@@ -233,11 +237,11 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
             </div>
           )}
 
-          {pulse.sector_implications.length > 0 && (
+          {sectorImplications.length > 0 && (
             <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-              <SectionHeader label="3 Implicacoes" count={pulse.sector_implications.length} />
+              <SectionHeader label="3 Implicacoes" count={sectorImplications.length} />
               <ol className="space-y-3">
-                {pulse.sector_implications.slice(0, 3).map((item, i) => (
+                {sectorImplications.slice(0, 3).map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <span className="mt-px shrink-0 font-mono text-[11px] text-[#4A4A56]">
                       {i + 1}

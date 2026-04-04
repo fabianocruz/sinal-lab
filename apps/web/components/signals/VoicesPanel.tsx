@@ -349,6 +349,8 @@ function VoiceCard({ voice }: { voice: EnrichedVoice }) {
 // Main component
 // ---------------------------------------------------------------------------
 
+const VOICES_PER_PAGE = 24;
+
 export default function VoicesPanel({
   voices,
   recentSignals,
@@ -357,8 +359,22 @@ export default function VoicesPanel({
 }: VoicesPanelProps) {
   const [search, setSearch] = useState("");
   const [activePlatform, setActivePlatform] = useState("all");
+  const [page, setPage] = useState(1);
 
-  // Build a lookup: handle -> signals[], sorted by published_at desc
+  // Reset to first page whenever filters change
+  function handleSearch(value: string) {
+    setSearch(value);
+    setPage(1);
+  }
+  function handlePlatformChange(value: string) {
+    setActivePlatform(value);
+    setPage(1);
+  }
+
+  // Build lookup structures from recentSignals
+  // Primary key: author_handle (exact match)
+  // Secondary: author_display_name (case-insensitive containment)
+  // Tertiary: theme-based (signal.theme matches voice.sector_tags)
   const signalsByHandle = useMemo(() => {
     const map = new Map<string, Signal[]>();
     for (const signal of recentSignals) {
@@ -367,19 +383,63 @@ export default function VoicesPanel({
       if (!map.has(handle)) map.set(handle, []);
       map.get(handle)!.push(signal);
     }
-    // Sort each bucket by date descending
     for (const [, sigs] of map) {
       sigs.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
     }
     return map;
   }, [recentSignals]);
 
-  // Enrich voices with their recent signals
+  const signalsByTheme = useMemo(() => {
+    const map = new Map<string, Signal[]>();
+    for (const signal of recentSignals) {
+      if (!signal.theme) continue;
+      const theme = signal.theme.toLowerCase();
+      if (!map.has(theme)) map.set(theme, []);
+      map.get(theme)!.push(signal);
+    }
+    for (const [, sigs] of map) {
+      sigs.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
+    }
+    return map;
+  }, [recentSignals]);
+
+  // Enrich voices with their recent signals using multi-strategy matching
   const enrichedVoices = useMemo((): EnrichedVoice[] => {
     return voices.map((voice) => {
+      // Strategy 1: exact handle match
       const handle = voice.handle.toLowerCase();
-      const matched = signalsByHandle.get(handle) ?? [];
-      const recent_signals: RecentSignal[] = matched.map((s) => ({
+      const byHandle = signalsByHandle.get(handle) ?? [];
+
+      // Strategy 2: display name containment (case-insensitive)
+      const displayNameLower = (voice.display_name ?? "").toLowerCase();
+      const byDisplayName =
+        displayNameLower.length > 2
+          ? recentSignals.filter(
+              (s) =>
+                s.author_display_name?.toLowerCase().includes(displayNameLower) &&
+                !byHandle.includes(s),
+            )
+          : [];
+
+      // Strategy 3: theme-based match — signals in this voice's sector areas
+      const byTheme: Signal[] = [];
+      if (byHandle.length === 0 && byDisplayName.length === 0) {
+        const tags = (voice.sector_tags ?? []).map((t) => t.toLowerCase());
+        for (const tag of tags) {
+          const themeSignals = signalsByTheme.get(tag) ?? [];
+          for (const s of themeSignals) {
+            if (!byTheme.includes(s)) byTheme.push(s);
+          }
+        }
+        byTheme.sort(
+          (a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime(),
+        );
+      }
+
+      const matched =
+        byHandle.length > 0 ? byHandle : byDisplayName.length > 0 ? byDisplayName : byTheme;
+
+      const recent_signals: RecentSignal[] = matched.slice(0, 5).map((s) => ({
         text: s.text,
         url: s.post_url,
         platform: s.platform,
@@ -392,7 +452,7 @@ export default function VoicesPanel({
         recent_signal_count: recent_signals.length,
       };
     });
-  }, [voices, signalsByHandle]);
+  }, [voices, signalsByHandle, signalsByTheme, recentSignals]);
 
   // Apply client-side search + platform filter
   const filtered = useMemo(() => {
@@ -408,6 +468,13 @@ export default function VoicesPanel({
       return true;
     });
   }, [enrichedVoices, activePlatform, search]);
+
+  const totalPages = Math.ceil(filtered.length / VOICES_PER_PAGE);
+  const safePage = Math.min(page, Math.max(1, totalPages));
+  const paginatedVoices = filtered.slice(
+    (safePage - 1) * VOICES_PER_PAGE,
+    safePage * VOICES_PER_PAGE,
+  );
 
   const isEmpty = voices.length === 0;
 
@@ -448,7 +515,7 @@ export default function VoicesPanel({
             type="search"
             placeholder="Buscar por nome ou handle..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="w-full rounded-lg border border-[rgba(255,255,255,0.06)] bg-sinal-graphite py-2 pl-9 pr-4 font-mono text-[12px] text-sinal-white placeholder-[#4A4A56] outline-none transition-colors focus:border-[rgba(255,255,255,0.15)]"
             aria-label="Buscar vozes"
           />
@@ -458,7 +525,7 @@ export default function VoicesPanel({
         <div className="flex flex-wrap gap-4">
           <TypeFilter activeType={activeType} />
           <div className="h-auto w-px bg-[rgba(255,255,255,0.06)]" aria-hidden="true" />
-          <PlatformFilter activePlatform={activePlatform} onChange={setActivePlatform} />
+          <PlatformFilter activePlatform={activePlatform} onChange={handlePlatformChange} />
         </div>
       </div>
 
@@ -500,11 +567,38 @@ export default function VoicesPanel({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((voice) => (
-            <VoiceCard key={voice.id} voice={voice} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {paginatedVoices.map((voice) => (
+              <VoiceCard key={voice.id} voice={voice} />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] pt-6">
+              <span className="font-mono text-[11px] text-[#4A4A56]">
+                Pagina {safePage} de {totalPages} &mdash; {filtered.length} vozes
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="rounded-lg border border-[rgba(255,255,255,0.06)] px-4 py-2 font-mono text-[12px] text-ash transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  &larr; Anterior
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="rounded-lg border border-[rgba(255,255,255,0.06)] px-4 py-2 font-mono text-[12px] text-ash transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-sinal-white disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  Proxima &rarr;
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,9 +1,10 @@
 import Link from "next/link";
-import type { SignalEntity } from "@/lib/signal";
+import type { SignalEntity, Signal } from "@/lib/signal";
 
 interface StartupsPanelProps {
   entities: SignalEntity[];
   total: number;
+  fallbackSignals?: Signal[];
 }
 
 function sentimentColor(sentiment: number): string {
@@ -71,7 +72,58 @@ function EntityRow({ entity, rank }: { entity: SignalEntity; rank: number }) {
   return <div>{inner}</div>;
 }
 
-export default function StartupsPanel({ entities, total }: StartupsPanelProps) {
+// Derive rough entity list from signals when the /entities endpoint returns nothing.
+// Looks for capitalized consecutive words (2-3 tokens) that repeat across signals.
+function deriveEntitiesFromSignals(signals: Signal[]): SignalEntity[] {
+  const counts = new Map<string, { count: number; sentimentSum: number; theme: string }>();
+
+  for (const signal of signals) {
+    // Extract sequences of 2-3 capitalized words (naive NER)
+    const matches = signal.text.match(/(?:[A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2})/g) ?? [];
+    // Also check if signal has an `entities` field (sometimes the API sends it inline)
+    const inlineEntities: Array<{ name: string; type: string }> =
+      (signal as unknown as { entities?: Array<{ name: string; type: string }> }).entities ?? [];
+
+    const names = [
+      ...matches,
+      ...inlineEntities.filter((e) => e.type === "company").map((e) => e.name),
+    ];
+
+    for (const name of names) {
+      if (name.length < 4 || name.length > 50) continue;
+      const existing = counts.get(name);
+      if (existing) {
+        existing.count++;
+        existing.sentimentSum += signal.sentiment ?? 0;
+      } else {
+        counts.set(name, { count: 1, sentimentSum: signal.sentiment ?? 0, theme: signal.theme });
+      }
+    }
+  }
+
+  return Array.from(counts.entries())
+    .filter(([, v]) => v.count >= 2) // only names that appear in 2+ signals
+    .sort(([, a], [, b]) => b.count - a.count)
+    .slice(0, 30)
+    .map(([name, v]) => ({
+      name,
+      slug: null,
+      theme: v.theme,
+      mention_count: v.count,
+      sentiment: v.sentimentSum / v.count,
+    }));
+}
+
+export default function StartupsPanel({
+  entities,
+  total,
+  fallbackSignals = [],
+}: StartupsPanelProps) {
+  const displayEntities =
+    entities.length > 0 ? entities : deriveEntitiesFromSignals(fallbackSignals);
+  const displayTotal = entities.length > 0 ? total : displayEntities.length;
+  const isFallback = entities.length === 0 && displayEntities.length > 0;
+
   return (
     <div id="panel-startups" role="tabpanel" aria-label="Startup Landscape" className="space-y-6">
       {/* Header */}
@@ -81,10 +133,15 @@ export default function StartupsPanel({ entities, total }: StartupsPanelProps) {
           <p className="text-[13px] text-ash">
             Empresas mais mencionadas em sinais, extraidas automaticamente.
           </p>
+          {isFallback && (
+            <p className="mt-1 font-mono text-[11px] text-[#4A4A56]">
+              Extraidas dos textos dos sinais. Atualizado semanalmente pelo agente RADAR.
+            </p>
+          )}
         </div>
-        {total > 0 && (
+        {displayTotal > 0 && (
           <span className="font-mono text-[12px] text-[#4A4A56]">
-            {total.toLocaleString("pt-BR")} empresas detectadas
+            {displayTotal.toLocaleString("pt-BR")} empresas detectadas
           </span>
         )}
       </div>
@@ -109,17 +166,17 @@ export default function StartupsPanel({ entities, total }: StartupsPanelProps) {
       </div>
 
       {/* List */}
-      {entities.length > 0 ? (
+      {displayEntities.length > 0 ? (
         <div className="space-y-2">
-          {entities.map((entity, i) => (
+          {displayEntities.map((entity, i) => (
             <EntityRow key={entity.name} entity={entity} rank={i + 1} />
           ))}
         </div>
       ) : (
         <div className="py-16 text-center">
-          <p className="mb-1 text-[15px] text-ash">Nenhuma empresa detectada</p>
+          <p className="mb-1 text-[15px] text-ash">Nenhuma empresa detectada ainda.</p>
           <p className="text-[13px] text-[#4A4A56]">
-            Entidades sao extraidas dos sinais coletados pelo agente RADAR.
+            Entidades sao extraidas dos sinais coletados pelo agente RADAR. Atualizado semanalmente.
           </p>
         </div>
       )}
