@@ -532,6 +532,13 @@ def collect_all(
                 scraper_sources, provenance, client, agent_name, run_id,
             ))
 
+        # LinkedIn via Monid (paid, cost-aware)
+        try:
+            linkedin_posts = collect_from_monid_linkedin(provenance)
+            all_posts.extend(linkedin_posts)
+        except Exception as e:
+            logger.warning("LinkedIn/Monid collection failed (non-fatal): %s", e)
+
         # Polymarket: prediction market signals
         try:
             from apps.agents.sources.polymarket import collect_polymarket_signals
@@ -604,3 +611,50 @@ def collect_all(
     )
 
     return unique_posts
+
+
+def collect_from_monid_linkedin(
+    provenance: ProvenanceTracker,
+    queries: Optional[List[str]] = None,
+    max_per_query: int = 10,
+) -> List[SocialPost]:
+    """Collect LinkedIn posts via Monid API (paid, ~$0.018/post).
+
+    Only runs when MONID_API_KEY is set. Cost-aware: small batches.
+    """
+    try:
+        from apps.agents.sources.monid import is_available, fetch_linkedin_posts
+        if not is_available():
+            return []
+
+        if queries is None:
+            queries = [
+                "AI agents fintech banking",
+                "startup LATAM venture capital",
+            ]
+
+        all_posts: List[SocialPost] = []
+        for query in queries:
+            items = fetch_linkedin_posts(query, max_results=max_per_query, provenance=provenance)
+            for item in items:
+                post = SocialPost(
+                    text=item.get("text") or item.get("content") or "",
+                    url=item.get("url") or item.get("postUrl") or "",
+                    platform="linkedin",
+                    author_handle=item.get("author", {}).get("handle", "") if isinstance(item.get("author"), dict) else str(item.get("author", "")),
+                    author_display_name=item.get("author", {}).get("name", "") if isinstance(item.get("author"), dict) else "",
+                    source_name="monid_linkedin",
+                    metrics={
+                        "likes": item.get("likes", 0),
+                        "comments": item.get("comments", 0),
+                        "shares": item.get("shares", 0),
+                    },
+                )
+                if post.text and post.url:
+                    all_posts.append(post)
+
+        logger.info("Monid LinkedIn: collected %d posts from %d queries", len(all_posts), len(queries))
+        return all_posts
+    except Exception as e:
+        logger.warning("Monid LinkedIn collection failed (non-fatal): %s", e)
+        return []
