@@ -37,7 +37,10 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
       <div className="flex items-start gap-8">
         {/* TOC sidebar — desktop only. self-stretch gives the aside enough height
             for the inner sticky nav to have a scrolling context to work within. */}
-        <aside className="hidden self-stretch lg:block">
+        <aside
+          className="hidden lg:block"
+          style={{ alignSelf: "start", position: "sticky" as const, top: "100px" }}
+        >
           <TableOfContents content={body} />
         </aside>
 
