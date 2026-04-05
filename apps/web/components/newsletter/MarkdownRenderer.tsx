@@ -16,17 +16,19 @@ export default function MarkdownRenderer({
   const components: Components = {
     h2: ({ children }) => (
       <h2
-        className="mt-10 mb-4 border-l-2 pl-4 font-display text-[22px] leading-[1.3] text-bone"
+        className="mt-10 mb-4 border-l-[3px] pl-4 font-display text-[24px] font-bold leading-[1.3] text-sinal-white"
         style={{ borderColor: agentColor }}
       >
         {children}
       </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="mt-8 mb-3 font-display text-[18px] leading-[1.3] text-bone">{children}</h3>
+      <h3 className="mt-8 mb-3 font-display text-[20px] font-semibold leading-[1.3] text-sinal-white">
+        {children}
+      </h3>
     ),
     h4: ({ children }) => (
-      <h4 className="mt-6 mb-2 font-display text-[16px] leading-[1.4] text-bone">{children}</h4>
+      <h4 className="mt-6 mb-2 font-display text-[17px] leading-[1.4] text-bone">{children}</h4>
     ),
     p: ({ node, children }) => {
       // Standalone images are wrapped in <p> by react-markdown — unwrap to avoid
@@ -35,7 +37,7 @@ export default function MarkdownRenderer({
         (child) => "tagName" in child && child.tagName === "img",
       );
       if (hasImage) return <>{children}</>;
-      return <p className="mb-6 text-[16px] leading-[1.8] text-silver last:mb-0">{children}</p>;
+      return <p className="mb-6 text-[17px] leading-[1.8] text-silver last:mb-0">{children}</p>;
     },
     a: ({ href, children }) => (
       <a
@@ -57,9 +59,13 @@ export default function MarkdownRenderer({
         {children}
       </blockquote>
     ),
-    ul: ({ children }) => <ul className="mb-6 list-disc pl-6 text-silver">{children}</ul>,
-    ol: ({ children }) => <ol className="mb-6 list-decimal pl-6 text-silver">{children}</ol>,
-    li: ({ children }) => <li className="mb-2 leading-[1.7]">{children}</li>,
+    ul: ({ children }) => (
+      <ul className="mb-6 list-disc pl-6 text-[17px] text-silver">{children}</ul>
+    ),
+    ol: ({ children }) => (
+      <ol className="mb-6 list-decimal pl-6 text-[17px] text-silver">{children}</ol>
+    ),
+    li: ({ children }) => <li className="mb-2 leading-[1.8]">{children}</li>,
     code: ({ className, children }) => {
       const isBlock = className?.includes("language-");
       if (isBlock) {

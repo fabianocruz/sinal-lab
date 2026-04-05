@@ -39,7 +39,7 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
       <header className="mb-10 border-b border-[rgba(255,255,255,0.06)] pb-10">
         <div className="mb-4 flex items-center gap-3">
           <span
-            className="rounded-[5px] px-[10px] py-[5px] font-mono text-[9px] font-semibold uppercase tracking-[1.5px]"
+            className="rounded-[5px] px-[10px] py-[5px] font-mono text-[11px] font-semibold uppercase tracking-[1.5px]"
             style={{
               backgroundColor: "rgba(89,180,255,0.06)",
               color: ACCENT_COLOR,
@@ -48,7 +48,7 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
             Intelligence
           </span>
           {dateStr && (
-            <span className="font-mono text-[11px] tracking-[0.5px] text-ash">{dateStr}</span>
+            <span className="font-mono text-[12px] tracking-[0.5px] text-ash">{dateStr}</span>
           )}
         </div>
 
@@ -57,23 +57,23 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
         </h1>
 
         {item.subtitle && (
-          <p className="mt-4 text-[16px] leading-relaxed text-silver">{item.subtitle}</p>
+          <p className="mt-4 text-[18px] leading-relaxed text-silver">{item.subtitle}</p>
         )}
 
         {/* Author info */}
         <div className="mt-6 flex items-center gap-3">
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-semibold"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[12px] font-semibold"
             style={{ backgroundColor: "rgba(89,180,255,0.15)", color: ACCENT_COLOR }}
             aria-hidden="true"
           >
             {(item.author_name ?? "Sinal Intelligence").charAt(0)}&middot;
           </div>
           <div>
-            <p className="text-[13px] font-semibold text-bone">
+            <p className="text-[14px] font-semibold text-bone">
               {item.author_name ?? "Sinal Intelligence"}
             </p>
-            <p className="text-[12px] text-ash">Market Intelligence</p>
+            <p className="text-[13px] text-ash">Market Intelligence</p>
           </div>
         </div>
         {/* Download button — gated behind auth */}

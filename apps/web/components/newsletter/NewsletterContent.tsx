@@ -58,7 +58,7 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
         <div className="mb-4 flex flex-wrap items-center gap-3">
           {/* Agent dot + name */}
           <div
-            className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[1.5px]"
+            className="flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[1.5px]"
             style={{ color: agentColor }}
           >
             <span
@@ -72,13 +72,13 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
           <span className="text-[rgba(255,255,255,0.12)]">/</span>
 
           {/* Edition + date */}
-          <span className="font-mono text-[11px] tracking-[0.5px] text-ash">
+          <span className="font-mono text-[12px] tracking-[0.5px] text-ash">
             Edi&ccedil;&atilde;o #{newsletter.edition} &middot; {newsletter.date}
           </span>
 
           {/* DQ badge */}
           {newsletter.dqScore && (
-            <span className="rounded-[5px] bg-[rgba(232,255,89,0.06)] px-2 py-1 font-mono text-[10px] text-signal">
+            <span className="rounded-[5px] bg-[rgba(232,255,89,0.06)] px-2 py-1 font-mono text-[11px] text-signal">
               DQ: {newsletter.dqScore}
             </span>
           )}
@@ -93,20 +93,20 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
         </h1>
 
         {/* Subtitle */}
-        <p className="mt-4 text-[16px] leading-relaxed text-silver">{newsletter.subtitle}</p>
+        <p className="mt-4 text-[18px] leading-relaxed text-silver">{newsletter.subtitle}</p>
 
         {/* Agent info */}
         <div className="mt-6 flex items-center gap-3">
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-semibold"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[12px] font-semibold"
             style={{ backgroundColor: agentBgAlpha, color: agentColor }}
             aria-hidden="true"
           >
             {newsletter.agentLabel.charAt(0)}&middot;
           </div>
           <div>
-            <p className="text-[13px] font-semibold text-bone">{persona.name}</p>
-            <p className="text-[12px] text-ash">{persona.role}</p>
+            <p className="text-[14px] font-semibold text-bone">{persona.name}</p>
+            <p className="text-[13px] text-ash">{persona.role}</p>
           </div>
         </div>
       </header>

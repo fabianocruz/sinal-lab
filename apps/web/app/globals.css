@@ -2,6 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .prose-sinal {
+    font-size: 17px;
+    line-height: 1.8;
+    color: #d8d8e0;
+  }
+
+  .prose-sinal h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fafaf8;
+    margin-top: 2.5em;
+    margin-bottom: 0.8em;
+    border-left: 3px solid currentColor;
+    padding-left: 12px;
+  }
+
+  .prose-sinal h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fafaf8;
+    margin-top: 2em;
+    margin-bottom: 0.6em;
+  }
+
+  .prose-sinal p {
+    margin-bottom: 1.5em;
+  }
+
+  .prose-sinal a {
+    color: #e8ff59;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .prose-sinal blockquote {
+    border-left: 3px solid #2a2a32;
+    padding-left: 1.2em;
+    color: #9a9aa8;
+    font-style: italic;
+  }
+
+  .prose-sinal strong {
+    color: #fafaf8;
+    font-weight: 600;
+  }
+
+  .prose-sinal ul,
+  .prose-sinal ol {
+    padding-left: 1.5em;
+    margin-bottom: 1.5em;
+  }
+
+  .prose-sinal li {
+    margin-bottom: 0.5em;
+  }
+
+  .prose-sinal code {
+    background: #1a1a1f;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #e8ff59;
+  }
+
+  .prose-sinal pre {
+    background: #1a1a1f;
+    border: 1px solid #2a2a32;
+    border-radius: 8px;
+    padding: 1.2em;
+    overflow-x: auto;
+    margin-bottom: 1.5em;
+  }
+
+  .prose-sinal pre code {
+    background: transparent;
+    padding: 0;
+    color: #d8d8e0;
+  }
+
+  .prose-sinal img {
+    border-radius: 8px;
+    margin: 1.5em 0;
+  }
+}
+
 @layer base {
   ::selection {
     background-color: #E8FF59;
