@@ -201,15 +201,33 @@ def _parse_llm_response(
     """
     cleaned = strip_code_fences(raw_response)
 
+    # Try parsing as JSON array first, then JSON lines, then extract array from text
+    items_data = None
     try:
         items_data = json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        logger.error("Failed to parse LLM curation response: %s", e)
+    except json.JSONDecodeError:
+        # Try JSON lines (one object per line)
+        try:
+            items_data = [json.loads(line) for line in cleaned.strip().split("\n") if line.strip().startswith("{")]
+        except json.JSONDecodeError:
+            pass
+
+    if items_data is None:
+        # Try to extract JSON array from mixed text
+        import re
+        array_match = re.search(r'\[[\s\S]*\]', cleaned)
+        if array_match:
+            try:
+                items_data = json.loads(array_match.group())
+            except json.JSONDecodeError:
+                pass
+
+    if items_data is None:
+        logger.error("Failed to parse LLM curation response from any format")
         return []
 
     if not isinstance(items_data, list):
-        logger.error("LLM response is not a JSON array")
-        return []
+        items_data = [items_data]
 
     # Build lookup for source signal metadata
     signal_lookup: Dict[str, Dict[str, Any]] = {
