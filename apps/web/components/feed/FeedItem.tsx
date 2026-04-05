@@ -1,4 +1,18 @@
-import type { Signal } from "@/lib/signal";
+import type { CuratedFeedItem } from "@/lib/signal";
+
+// ---------------------------------------------------------------------------
+// Category config
+// ---------------------------------------------------------------------------
+
+const CATEGORY_COLORS: Record<string, string> = {
+  AI: "#59FFB4",
+  Fintech: "#E8FF59",
+  Banking: "#59B4FF",
+  Crypto: "#FF8A59",
+  Startups: "#C459FF",
+};
+
+const FALLBACK_CATEGORY_COLOR = "#9A9AA8";
 
 // ---------------------------------------------------------------------------
 // Platform config
@@ -6,36 +20,23 @@ import type { Signal } from "@/lib/signal";
 
 interface PlatformConfig {
   icon: string;
-  color: string;
   label: string;
 }
 
 const PLATFORM_CONFIG: Record<string, PlatformConfig> = {
-  twitter: { icon: "𝕏", color: "#1DA1F2", label: "Twitter/X" },
-  reddit: { icon: "⬡", color: "#FF4500", label: "Reddit" },
-  bluesky: { icon: "🦋", color: "#0085FF", label: "Bluesky" },
-  youtube: { icon: "▶", color: "#FF0000", label: "YouTube" },
-  linkedin: { icon: "in", color: "#0A66C2", label: "LinkedIn" },
-  polymarket: { icon: "◆", color: "#4ADE80", label: "Polymarket" },
-  rss: { icon: "◉", color: "#EE802F", label: "Newsletter" },
-  web: { icon: "◎", color: "#9A9AA8", label: "Web" },
-  hackernews: { icon: "Y", color: "#FF6600", label: "Hacker News" },
-  tiktok: { icon: "♪", color: "#00F2EA", label: "TikTok" },
+  twitter: { icon: "𝕏", label: "Twitter/X" },
+  reddit: { icon: "⬡", label: "Reddit" },
+  bluesky: { icon: "◈", label: "Bluesky" },
+  youtube: { icon: "▶", label: "YouTube" },
+  linkedin: { icon: "in", label: "LinkedIn" },
+  polymarket: { icon: "◆", label: "Polymarket" },
+  rss: { icon: "◉", label: "Newsletter" },
+  web: { icon: "◎", label: "Web" },
+  hackernews: { icon: "Y", label: "Hacker News" },
+  tiktok: { icon: "♪", label: "TikTok" },
 };
 
-const FALLBACK_PLATFORM: PlatformConfig = { icon: "◎", color: "#9A9AA8", label: "Web" };
-
-/**
- * Returns a human-readable label for the signal's source.
- * Prefers source_name (e.g. "fintech_brain_food" → "Fintech Brain Food") over
- * the generic platform label when a more specific name is available.
- */
-function sourceDisplayLabel(signal: Signal, config: PlatformConfig): string {
-  if (signal.source_name) {
-    return signal.source_name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-  return config.label;
-}
+const FALLBACK_PLATFORM: PlatformConfig = { icon: "◎", label: "Web" };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,134 +67,109 @@ export function formatMetric(n: number | undefined): string {
 // ---------------------------------------------------------------------------
 
 interface FeedItemProps {
-  signal: Signal;
+  item: CuratedFeedItem;
 }
 
-export default function FeedItem({ signal }: FeedItemProps) {
-  const platform = PLATFORM_CONFIG[signal.platform] ?? FALLBACK_PLATFORM;
-  const displayLabel = sourceDisplayLabel(signal, platform);
-  const initial = (signal.author_display_name || signal.author_handle || "?")
-    .charAt(0)
-    .toUpperCase();
+export default function FeedItem({ item }: FeedItemProps) {
+  const platformCfg = PLATFORM_CONFIG[item.platform] ?? FALLBACK_PLATFORM;
+  const categoryColor = CATEGORY_COLORS[item.category] ?? FALLBACK_CATEGORY_COLOR;
 
-  const hasMetrics =
-    (signal.metrics?.likes ?? 0) > 0 ||
-    (signal.metrics?.replies ?? 0) > 0 ||
-    (signal.metrics?.reposts ?? 0) > 0;
+  const hasThumbnail = Boolean(item.thumbnail_url);
+  const hasYouTubeEmbed = item.video_embed?.platform === "youtube";
+  const hasLikes = (item.metrics?.likes ?? 0) > 0;
 
   return (
     <article
-      className="border-b border-[rgba(255,255,255,0.05)] py-6 pl-4 transition-colors hover:bg-[rgba(255,255,255,0.01)]"
-      style={{ borderLeft: `3px solid ${platform.color}` }}
-      aria-label={`Post de ${signal.author_display_name || signal.author_handle} em ${displayLabel}`}
+      className="border-b border-[rgba(255,255,255,0.04)] py-6 transition-colors hover:bg-[rgba(255,255,255,0.01)]"
+      aria-label={`${item.editorial_headline} — ${item.author_display_name || item.author_handle}`}
     >
-      {/* Platform + time header */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          {/* Platform badge */}
-          <span
-            className="rounded px-1.5 py-[2px] font-mono text-[9px] font-semibold uppercase tracking-[1px]"
-            style={{ color: platform.color, backgroundColor: `${platform.color}18` }}
-          >
-            {platform.icon} {displayLabel}
-          </span>
-
-          {/* Theme badge */}
-          {signal.theme && (
-            <span className="rounded bg-[rgba(255,255,255,0.05)] px-2 py-[2px] font-mono text-[9px] uppercase tracking-[1px] text-ash">
-              {signal.theme}
-            </span>
-          )}
-
-          {/* Sub-theme badge */}
-          {signal.sub_theme && signal.sub_theme !== signal.theme && (
-            <span className="hidden rounded bg-[rgba(255,255,255,0.03)] px-2 py-[2px] font-mono text-[9px] uppercase tracking-[1px] text-[#4A4A56] sm:inline">
-              {signal.sub_theme}
-            </span>
-          )}
-        </div>
-
-        <time
-          dateTime={signal.published_at}
-          className="shrink-0 font-mono text-[11px] text-[#4A4A56]"
-        >
-          {relativeTime(signal.published_at)}
-        </time>
-      </div>
-
-      {/* Author row */}
-      <div className="mb-3 flex items-center gap-2.5">
-        {/* Avatar initial */}
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-mono text-[13px] font-semibold"
-          style={{
-            backgroundColor: `${platform.color}18`,
-            color: platform.color,
-          }}
-          aria-hidden="true"
-        >
-          {initial}
-        </div>
-
-        {/* Name + handle */}
-        <div className="min-w-0">
-          <span className="text-[14px] font-semibold text-sinal-white">
-            {signal.author_display_name || signal.author_handle}
-          </span>
-          {signal.author_handle && (
-            <span className="ml-2 font-mono text-[12px] text-ash">@{signal.author_handle}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Post text — full, preserved whitespace */}
-      <p className="mb-4 whitespace-pre-line text-[15px] leading-[1.7] text-silver">
-        {signal.text}
-      </p>
-
-      {/* Footer: metrics + link */}
-      <div className="flex flex-wrap items-center gap-4">
-        {hasMetrics && (
-          <div className="flex items-center gap-4">
-            {(signal.metrics?.likes ?? 0) > 0 && (
-              <span className="font-mono text-[11px] text-ash">
-                <span className="mr-1" aria-hidden="true">
-                  ♡
-                </span>
-                <span className="text-silver">{formatMetric(signal.metrics.likes)}</span>
-              </span>
-            )}
-            {(signal.metrics?.replies ?? 0) > 0 && (
-              <span className="font-mono text-[11px] text-ash">
-                <span className="mr-1" aria-hidden="true">
-                  ↩
-                </span>
-                <span className="text-silver">{formatMetric(signal.metrics.replies)}</span>
-              </span>
-            )}
-            {(signal.metrics?.reposts ?? 0) > 0 && (
-              <span className="font-mono text-[11px] text-ash">
-                <span className="mr-1" aria-hidden="true">
-                  ↻
-                </span>
-                <span className="text-silver">{formatMetric(signal.metrics.reposts)}</span>
-              </span>
-            )}
-          </div>
-        )}
-
-        {signal.post_url && (
+      <div className="flex gap-4">
+        {/* Thumbnail — left side, only when available */}
+        {hasThumbnail && (
           <a
-            href={signal.post_url}
+            href={item.original_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto font-mono text-[11px] text-ash transition-colors hover:text-sinal-white"
-            aria-label={`Ver post original de ${signal.author_handle} em ${displayLabel}`}
+            className="shrink-0"
+            tabIndex={-1}
+            aria-hidden="true"
           >
-            Ver original &rarr;
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.thumbnail_url!}
+              alt=""
+              className="h-24 w-40 rounded-lg object-cover"
+              loading="lazy"
+            />
           </a>
         )}
+
+        <div className="min-w-0 flex-1">
+          {/* Category + platform + time */}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span
+              className="font-mono text-[11px] uppercase tracking-wider"
+              style={{ color: categoryColor }}
+            >
+              {item.category}
+            </span>
+            <span className="font-mono text-[10px] text-ash">
+              {platformCfg.icon} {platformCfg.label} &middot;{" "}
+              <time dateTime={item.curated_at}>{relativeTime(item.curated_at)}</time>
+            </span>
+          </div>
+
+          {/* Editorial headline */}
+          <h3 className="mb-1 font-display text-[18px] leading-[1.3] text-sinal-white">
+            <a
+              href={item.original_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-signal"
+            >
+              {item.editorial_headline}
+            </a>
+          </h3>
+
+          {/* Editorial context */}
+          {item.editorial_context && (
+            <p className="mb-2 text-[14px] leading-[1.6] text-silver">{item.editorial_context}</p>
+          )}
+
+          {/* Author + metrics row */}
+          <div className="flex flex-wrap items-center gap-3 text-[12px] text-ash">
+            {(item.author_display_name || item.author_handle) && (
+              <span>{item.author_display_name || `@${item.author_handle}`}</span>
+            )}
+            {hasLikes && (
+              <span aria-label={`${item.metrics!.likes} likes`}>
+                &#9825; {formatMetric(item.metrics!.likes)}
+              </span>
+            )}
+            <a
+              href={item.original_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto font-mono text-[11px] transition-colors hover:text-sinal-white"
+            >
+              Ver original &rarr;
+            </a>
+          </div>
+        </div>
       </div>
+
+      {/* YouTube embed — rendered below the card row */}
+      {hasYouTubeEmbed && (
+        <div className="mt-4 aspect-video overflow-hidden rounded-lg">
+          <iframe
+            src={item.video_embed!.embed_url}
+            title={item.editorial_headline}
+            className="h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )}
     </article>
   );
 }

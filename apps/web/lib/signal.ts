@@ -130,7 +130,38 @@ export const VOICE_TYPE_LABELS: Record<string, string> = {
   company: "Empresas",
 };
 
+// ---------------------------------------------------------------------------
+// Curated Feed Item — produced by the Feed Curator Agent
+// ---------------------------------------------------------------------------
+
+export interface VideoEmbed {
+  platform: string;
+  embed_url: string;
+  thumbnail: string | null;
+}
+
+export interface CuratedFeedItem {
+  id: string;
+  editorial_headline: string;
+  editorial_context: string | null;
+  original_text: string;
+  original_url: string;
+  platform: string;
+  author_handle: string;
+  author_display_name: string;
+  thumbnail_url: string | null;
+  video_embed: VideoEmbed | null;
+  theme: string;
+  category: string;
+  relevance_score: number;
+  metrics: Record<string, number> | null;
+  curated_at: string;
+}
+
+// ---------------------------------------------------------------------------
 // Entity extracted from signals (company mention)
+// ---------------------------------------------------------------------------
+
 export interface SignalEntity {
   name: string;
   slug: string | null; // slug in our DB if known

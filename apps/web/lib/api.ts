@@ -13,6 +13,7 @@ import type {
   SignalStats,
   Voice,
   SignalEntity,
+  CuratedFeedItem,
 } from "@/lib/signal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -385,6 +386,62 @@ export async function fetchSignals(params?: {
   } catch {
     return { items: [], total: 0, limit: 20, offset: 0 };
   }
+}
+
+/**
+ * Fetches curated feed items from the Feed Curator Agent endpoint.
+ *
+ * Falls back to raw signals re-shaped as CuratedFeedItems when the curated
+ * endpoint is unavailable (404, network error, or empty result).
+ *
+ * Returns { items, total, limit, offset, isCurated } where isCurated
+ * indicates whether the response came from the real curated endpoint.
+ */
+export async function fetchCuratedFeed(params?: {
+  limit?: number;
+  offset?: number;
+  theme?: string;
+}): Promise<PaginatedResponse<CuratedFeedItem> & { isCurated: boolean }> {
+  const searchParams = new URLSearchParams();
+  if (params?.theme) searchParams.set("theme", params.theme);
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.offset) searchParams.set("offset", String(params.offset));
+  const qs = searchParams.toString();
+
+  try {
+    const url = `${API_BASE}/api/signals/feed${qs ? `?${qs}` : ""}`;
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (response.ok) {
+      const data: PaginatedResponse<CuratedFeedItem> = await response.json();
+      if (data.items.length > 0) {
+        return { ...data, isCurated: true };
+      }
+    }
+  } catch {
+    // Fall through to raw-signal fallback
+  }
+
+  // Fallback: fetch raw signals and re-shape them into CuratedFeedItems
+  const raw = await fetchSignals(params);
+  const items: CuratedFeedItem[] = raw.items.map((s) => ({
+    id: s.id,
+    editorial_headline: s.text.slice(0, 120).trimEnd() + (s.text.length > 120 ? "..." : ""),
+    editorial_context: null,
+    original_text: s.text,
+    original_url: s.post_url,
+    platform: s.platform,
+    author_handle: s.author_handle,
+    author_display_name: s.author_display_name,
+    thumbnail_url: null,
+    video_embed: null,
+    theme: s.theme,
+    category: s.sub_theme || s.theme,
+    relevance_score: s.authority_score,
+    metrics: s.metrics as Record<string, number> | null,
+    curated_at: s.published_at,
+  }));
+
+  return { items, total: raw.total, limit: raw.limit, offset: raw.offset, isCurated: false };
 }
 
 export async function fetchVoices(params?: {
