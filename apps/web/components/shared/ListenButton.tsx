@@ -10,6 +10,9 @@ interface ListenButtonProps {
 const SPEED_OPTIONS = [1, 1.25, 1.5, 2] as const;
 type Speed = (typeof SPEED_OPTIONS)[number];
 
+// Characters sent to ElevenLabs — matches the server-side MAX_CHARS cap.
+const PREVIEW_CHARS = 5000;
+
 function stripMarkdown(text: string): string {
   return text
     .replace(/#{1,6}\s/g, "")
@@ -24,115 +27,183 @@ function stripMarkdown(text: string): string {
     .trim();
 }
 
+// --- Web Speech API fallback -------------------------------------------
+
+function speakWithWebSpeech(cleanText: string, speed: Speed, onEnd: () => void): void {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(cleanText.slice(0, 10000));
+  utterance.lang = "pt-BR";
+  utterance.rate = speed;
+  const voices = window.speechSynthesis.getVoices();
+  const ptVoice =
+    voices.find((v) => v.lang === "pt-BR") ?? voices.find((v) => v.lang.startsWith("pt")) ?? null;
+  if (ptVoice) utterance.voice = ptVoice;
+  utterance.onend = onEnd;
+  utterance.onerror = onEnd;
+  window.speechSynthesis.speak(utterance);
+}
+
+// -----------------------------------------------------------------------
+
 export default function ListenButton({ text, estimatedMinutes }: ListenButtonProps) {
   const [mounted, setMounted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Cached object URL so we only call ElevenLabs once per component lifetime.
+  const audioUrlRef = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Track whether we fell back to Web Speech so we manage it correctly.
+  const usingFallbackRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
     return () => {
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      audioRef.current?.pause();
+      audioRef.current = null;
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
       }
+      window.speechSynthesis?.cancel();
     };
   }, []);
 
-  const handlePlay = useCallback(() => {
-    if (!window.speechSynthesis) return;
+  // Fetch audio from ElevenLabs (or return cached URL).
+  const resolveAudioUrl = useCallback(async (): Promise<string | null> => {
+    if (audioUrlRef.current) return audioUrlRef.current;
 
-    if (isPaused) {
-      window.speechSynthesis.resume();
+    setIsLoading(true);
+    try {
+      const cleanText = stripMarkdown(text);
+      const response = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: cleanText.slice(0, PREVIEW_CHARS) }),
+      });
+
+      if (!response.ok) return null; // Caller will fall back to Web Speech
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      audioUrlRef.current = url;
+      return url;
+    } catch {
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [text]);
+
+  const handlePlay = useCallback(async () => {
+    // --- Resume paused ElevenLabs audio ---
+    if (isPaused && audioRef.current && !usingFallbackRef.current) {
+      audioRef.current.play();
       setIsPaused(false);
       setIsPlaying(true);
       return;
     }
 
-    const cleanText = stripMarkdown(text);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = "pt-BR";
-    utterance.rate = speed;
-    utterance.pitch = 1.0;
-
-    const voices = window.speechSynthesis.getVoices();
-    const ptBrVoice = voices.find((v) => v.lang === "pt-BR");
-    const ptVoice = voices.find((v) => v.lang.startsWith("pt"));
-    utterance.voice = ptBrVoice ?? ptVoice ?? voices[0] ?? null;
-
-    utterance.onend = () => {
-      setIsPlaying(false);
+    // --- Resume paused Web Speech ---
+    if (isPaused && usingFallbackRef.current) {
+      window.speechSynthesis?.resume();
       setIsPaused(false);
-    };
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setIsPaused(false);
-    };
+      setIsPlaying(true);
+      return;
+    }
 
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-    setIsPlaying(true);
-  }, [text, isPaused, speed]);
+    // --- Start fresh ---
+    const url = await resolveAudioUrl();
+
+    if (url) {
+      usingFallbackRef.current = false;
+      const audio = new Audio(url);
+      audio.playbackRate = speed;
+      audio.onended = () => {
+        setIsPlaying(false);
+        setIsPaused(false);
+      };
+      audio.onerror = () => {
+        setIsPlaying(false);
+        setIsPaused(false);
+        // Audio element failed mid-play — fall back to Web Speech.
+        usingFallbackRef.current = true;
+        speakWithWebSpeech(stripMarkdown(text), speed, () => {
+          setIsPlaying(false);
+          setIsPaused(false);
+        });
+      };
+      audioRef.current = audio;
+      audio.play();
+      setIsPlaying(true);
+    } else {
+      // ElevenLabs unavailable — use Web Speech.
+      usingFallbackRef.current = true;
+      speakWithWebSpeech(stripMarkdown(text), speed, () => {
+        setIsPlaying(false);
+        setIsPaused(false);
+      });
+      setIsPlaying(true);
+    }
+  }, [isPaused, resolveAudioUrl, speed, text]);
 
   const handlePause = useCallback(() => {
-    window.speechSynthesis.pause();
-    setIsPaused(true);
+    if (usingFallbackRef.current) {
+      window.speechSynthesis?.pause();
+    } else {
+      audioRef.current?.pause();
+    }
     setIsPlaying(false);
+    setIsPaused(true);
   }, []);
 
   const handleStop = useCallback(() => {
-    window.speechSynthesis.cancel();
+    if (usingFallbackRef.current) {
+      window.speechSynthesis?.cancel();
+    } else if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     setIsPlaying(false);
     setIsPaused(false);
   }, []);
 
   const handleSpeedChange = useCallback(() => {
-    const currentIdx = SPEED_OPTIONS.indexOf(speed);
-    const nextIdx = (currentIdx + 1) % SPEED_OPTIONS.length;
-    const newSpeed = SPEED_OPTIONS[nextIdx];
-    setSpeed(newSpeed);
+    const nextSpeed = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(speed) + 1) % SPEED_OPTIONS.length];
+    setSpeed(nextSpeed);
 
-    // If currently playing, restart with new speed
-    if (isPlaying || isPaused) {
-      window.speechSynthesis.cancel();
+    // Apply immediately to a live ElevenLabs audio element — no regeneration needed.
+    if (audioRef.current && !usingFallbackRef.current) {
+      audioRef.current.playbackRate = nextSpeed;
+    }
+
+    // Web Speech doesn't support live rate changes; restart if active.
+    if (usingFallbackRef.current && (isPlaying || isPaused)) {
+      window.speechSynthesis?.cancel();
       setIsPlaying(false);
       setIsPaused(false);
-      // Small delay to allow cancel to complete
+      // Small delay lets the browser complete the cancel before speaking again.
       setTimeout(() => {
-        const cleanText = stripMarkdown(text);
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = "pt-BR";
-        utterance.rate = newSpeed;
-        utterance.pitch = 1.0;
-
-        const voices = window.speechSynthesis.getVoices();
-        const ptBrVoice = voices.find((v) => v.lang === "pt-BR");
-        const ptVoice = voices.find((v) => v.lang.startsWith("pt"));
-        utterance.voice = ptBrVoice ?? ptVoice ?? voices[0] ?? null;
-
-        utterance.onend = () => {
+        speakWithWebSpeech(stripMarkdown(text), nextSpeed, () => {
           setIsPlaying(false);
           setIsPaused(false);
-        };
-        utterance.onerror = () => {
-          setIsPlaying(false);
-          setIsPaused(false);
-        };
-
-        utteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
+        });
         setIsPlaying(true);
       }, 100);
     }
   }, [speed, isPlaying, isPaused, text]);
 
   if (!mounted) return null;
-  if (typeof window === "undefined" || !window.speechSynthesis) return null;
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const minutes = estimatedMinutes ?? Math.ceil(wordCount / 150);
-  const adjustedMinutes = Math.ceil(minutes / speed);
+  const fullMinutes = estimatedMinutes ?? Math.ceil(wordCount / 150);
+  // Preview is capped at the first ~4 min worth of the article.
+  const previewMinutes = Math.min(fullMinutes, 4);
+  const adjustedMinutes = Math.ceil(previewMinutes / speed);
+  const isPreview = fullMinutes > 4;
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-[rgba(255,255,255,0.06)] bg-sinal-graphite px-4 py-2.5">
@@ -151,12 +222,27 @@ export default function ListenButton({ text, estimatedMinutes }: ListenButtonPro
       ) : (
         <button
           onClick={handlePlay}
-          className="text-signal transition-colors hover:text-signal-dim"
-          aria-label="Ouvir"
+          disabled={isLoading}
+          className="text-signal transition-colors hover:text-signal-dim disabled:opacity-50"
+          aria-label={isPaused ? "Continuar" : "Ouvir"}
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M6 4l10 6-10 6V4z" />
-          </svg>
+          {isLoading ? (
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              className="animate-spin"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="10" cy="10" r="7" strokeDasharray="30" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6 4l10 6-10 6V4z" />
+            </svg>
+          )}
         </button>
       )}
 
@@ -173,11 +259,20 @@ export default function ListenButton({ text, estimatedMinutes }: ListenButtonPro
         </button>
       )}
 
-      {/* Status + duration */}
+      {/* Status label */}
       <span className="font-mono text-[12px] text-ash">
-        {isPlaying ? "Ouvindo..." : isPaused ? "Pausado" : "Ouvir"}
+        {isLoading ? "Gerando..." : isPlaying ? "Ouvindo..." : isPaused ? "Pausado" : "Ouvir"}
       </span>
-      <span className="font-mono text-[11px] text-[#4A4A56]">{adjustedMinutes} min</span>
+
+      {/* Duration + preview label */}
+      <span className="font-mono text-[11px] text-[#4A4A56]">
+        {isPreview ? `~${adjustedMinutes} min` : `${adjustedMinutes} min`}
+      </span>
+      {isPreview && !isPlaying && !isPaused && !isLoading && (
+        <span className="font-mono text-[10px] text-[#4A4A56]">
+          (primeiros {previewMinutes} min)
+        </span>
+      )}
 
       {/* Speed control */}
       <button
@@ -189,14 +284,17 @@ export default function ListenButton({ text, estimatedMinutes }: ListenButtonPro
         {speed}x
       </button>
 
-      {/* Wave animation */}
+      {/* Wave animation while playing */}
       {isPlaying && (
         <div className="ml-1 flex items-end gap-[2px]" aria-hidden="true">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
               className="w-[2px] animate-pulse rounded-full bg-signal"
-              style={{ height: `${10 + i * 3}px`, animationDelay: `${i * 0.15}s` }}
+              style={{
+                height: `${10 + i * 3}px`,
+                animationDelay: `${i * 0.15}s`,
+              }}
             />
           ))}
         </div>
