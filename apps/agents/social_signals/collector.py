@@ -24,6 +24,31 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Polymarket relevance filter — only keep markets related to our themes
+# ---------------------------------------------------------------------------
+
+POLYMARKET_KEYWORDS: list[str] = [
+    "ai", "artificial intelligence", "machine learning", "llm", "gpt",
+    "crypto", "bitcoin", "ethereum", "solana", "stablecoin", "defi",
+    "fintech", "banking", "payments", "neobank",
+    "startup", "ipo", "funding", "venture", "regulation",
+    "fed", "interest rate", "inflation", "central bank",
+    "tech", "software", "saas", "cloud",
+    "semiconductor", "chip", "nvidia", "openai", "anthropic",
+]
+
+
+def _is_relevant_polymarket(title: str, description: str) -> bool:
+    """Return True if a Polymarket market matches our topic keywords.
+
+    We search both title and description (lowercased) for any keyword.
+    This filters out sports, entertainment, politics-only markets, etc.
+    """
+    text_lower = (title + " " + description).lower()
+    return any(kw in text_lower for kw in POLYMARKET_KEYWORDS)
+
+
+# ---------------------------------------------------------------------------
 # Normalizers: platform-specific -> SocialPost
 # ---------------------------------------------------------------------------
 
@@ -736,11 +761,14 @@ def collect_all(
         except Exception as e:
             logger.warning("TikTok/Monid collection failed (non-fatal): %s", e)
 
-        # Polymarket: prediction market signals
+        # Polymarket: prediction market signals (filtered to relevant topics)
         try:
             from apps.agents.sources.polymarket import collect_polymarket_signals
-            pm_markets = collect_polymarket_signals(provenance, limit=15)
+            pm_markets = collect_polymarket_signals(provenance, limit=30)
+            pm_added = 0
             for m in pm_markets:
+                if not _is_relevant_polymarket(m.title, m.description):
+                    continue
                 pct = f"{m.outcome_yes*100:.0f}%"
                 all_posts.append(SocialPost(
                     text=f"[Polymarket {pct} YES] {m.title}. {m.description[:200]}",
@@ -750,7 +778,11 @@ def collect_all(
                     metrics={"volume_usd": m.volume_usd, "liquidity_usd": m.liquidity_usd, "outcome_yes": m.outcome_yes},
                     content_hash=m.content_hash,
                 ))
-            logger.info("Polymarket: collected %d prediction markets", len(pm_markets))
+                pm_added += 1
+            logger.info(
+                "Polymarket: %d relevant markets out of %d fetched",
+                pm_added, len(pm_markets),
+            )
         except Exception as e:
             logger.warning("Polymarket collection failed (non-fatal): %s", e)
 
