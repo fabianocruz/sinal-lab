@@ -27,7 +27,9 @@ function aggregateDimensions(clusters: SignalCluster[]): Record<string, number> 
   const counts: Record<string, number> = {};
 
   for (const cluster of clusters) {
-    for (const [key, value] of Object.entries(cluster.dimensions)) {
+    // Guard: dimensions may be null/undefined if the API returns an incomplete record
+    const dims = cluster.dimensions ?? {};
+    for (const [key, value] of Object.entries(dims)) {
       sums[key] = (sums[key] ?? 0) + value;
       counts[key] = (counts[key] ?? 0) + 1;
     }

@@ -35,8 +35,9 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
       </Link>
 
       <div className="flex items-start gap-8">
-        {/* TOC sidebar — desktop only, rendered inside the flex container */}
-        <aside className="hidden lg:block">
+        {/* TOC sidebar — desktop only. self-stretch gives the aside enough height
+            for the inner sticky nav to have a scrolling context to work within. */}
+        <aside className="hidden self-stretch lg:block">
           <TableOfContents content={body} />
         </aside>
 
@@ -92,11 +93,6 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
               </div>
             </div>
 
-            {/* Listen button */}
-            <div className="mt-6">
-              <ListenButton text={body} />
-            </div>
-
             {/* Download button — gated behind auth */}
             {item.metadata_?.download_url && (
               <DownloadButton
@@ -105,6 +101,11 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
               />
             )}
           </header>
+
+          {/* Sticky listen bar — stays visible while scrolling through the article */}
+          <div className="sticky top-[72px] z-10 -mx-6 border-b border-[rgba(255,255,255,0.04)] bg-sinal-black/90 px-6 py-3 backdrop-blur-sm md:-mx-10 md:px-10">
+            <ListenButton text={body} />
+          </div>
 
           {/* Full content — no gating for intelligence reports */}
           <div className="prose-sinal">

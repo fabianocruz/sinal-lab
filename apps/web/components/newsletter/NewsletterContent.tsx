@@ -110,12 +110,12 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
             <p className="text-[13px] text-ash">{persona.role}</p>
           </div>
         </div>
-
-        {/* Listen button */}
-        <div className="mt-6">
-          <ListenButton text={newsletter.body} estimatedMinutes={metadata?.reading_time_minutes} />
-        </div>
       </header>
+
+      {/* Sticky listen bar — stays visible while scrolling through the article */}
+      <div className="sticky top-[72px] z-10 -mx-6 border-b border-[rgba(255,255,255,0.04)] bg-sinal-black/90 px-6 py-3 backdrop-blur-sm md:-mx-10 md:px-10">
+        <ListenButton text={newsletter.body} estimatedMinutes={metadata?.reading_time_minutes} />
+      </div>
 
       {/* Hero image */}
       <HeroImage hero_image={metadata?.hero_image} agentColor={agentColor} />

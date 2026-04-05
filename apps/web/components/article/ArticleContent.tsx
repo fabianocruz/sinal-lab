@@ -81,12 +81,12 @@ export default function ArticleContent({ item }: ArticleContentProps) {
             <p className="text-[12px] text-ash">{item.author_name ? "Autor" : "Redacao"}</p>
           </div>
         </div>
-
-        {/* Listen button */}
-        <div className="mt-6">
-          <ListenButton text={body} />
-        </div>
       </header>
+
+      {/* Sticky listen bar — stays visible while scrolling through the article */}
+      <div className="sticky top-[72px] z-10 -mx-6 border-b border-[rgba(255,255,255,0.04)] bg-sinal-black/90 px-6 py-3 backdrop-blur-sm md:-mx-10 md:px-10">
+        <ListenButton text={body} />
+      </div>
 
       {/* Preview content — always visible */}
       <div className="prose-sinal">

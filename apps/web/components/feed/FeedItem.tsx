@@ -12,15 +12,30 @@ interface PlatformConfig {
 
 const PLATFORM_CONFIG: Record<string, PlatformConfig> = {
   twitter: { icon: "𝕏", color: "#1DA1F2", label: "Twitter/X" },
-  reddit: { icon: "R", color: "#FF4500", label: "Reddit" },
-  bluesky: { icon: "B", color: "#0085FF", label: "Bluesky" },
-  youtube: { icon: "Y", color: "#FF0000", label: "YouTube" },
+  reddit: { icon: "⬡", color: "#FF4500", label: "Reddit" },
+  bluesky: { icon: "🦋", color: "#0085FF", label: "Bluesky" },
+  youtube: { icon: "▶", color: "#FF0000", label: "YouTube" },
   linkedin: { icon: "in", color: "#0A66C2", label: "LinkedIn" },
-  polymarket: { icon: "P", color: "#4ADE80", label: "Polymarket" },
-  rss: { icon: "R", color: "#EE802F", label: "Newsletter" },
+  polymarket: { icon: "◆", color: "#4ADE80", label: "Polymarket" },
+  rss: { icon: "◉", color: "#EE802F", label: "Newsletter" },
+  web: { icon: "◎", color: "#9A9AA8", label: "Web" },
+  hackernews: { icon: "Y", color: "#FF6600", label: "Hacker News" },
+  tiktok: { icon: "♪", color: "#00F2EA", label: "TikTok" },
 };
 
-const FALLBACK_PLATFORM: PlatformConfig = { icon: "?", color: "#9A9AA8", label: "Fonte" };
+const FALLBACK_PLATFORM: PlatformConfig = { icon: "◎", color: "#9A9AA8", label: "Web" };
+
+/**
+ * Returns a human-readable label for the signal's source.
+ * Prefers source_name (e.g. "fintech_brain_food" → "Fintech Brain Food") over
+ * the generic platform label when a more specific name is available.
+ */
+function sourceDisplayLabel(signal: Signal, config: PlatformConfig): string {
+  if (signal.source_name) {
+    return signal.source_name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return config.label;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,6 +71,7 @@ interface FeedItemProps {
 
 export default function FeedItem({ signal }: FeedItemProps) {
   const platform = PLATFORM_CONFIG[signal.platform] ?? FALLBACK_PLATFORM;
+  const displayLabel = sourceDisplayLabel(signal, platform);
   const initial = (signal.author_display_name || signal.author_handle || "?")
     .charAt(0)
     .toUpperCase();
@@ -69,7 +85,7 @@ export default function FeedItem({ signal }: FeedItemProps) {
     <article
       className="border-b border-[rgba(255,255,255,0.05)] py-6 pl-4 transition-colors hover:bg-[rgba(255,255,255,0.01)]"
       style={{ borderLeft: `3px solid ${platform.color}` }}
-      aria-label={`Post de ${signal.author_display_name || signal.author_handle} em ${platform.label}`}
+      aria-label={`Post de ${signal.author_display_name || signal.author_handle} em ${displayLabel}`}
     >
       {/* Platform + time header */}
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -79,7 +95,7 @@ export default function FeedItem({ signal }: FeedItemProps) {
             className="rounded px-1.5 py-[2px] font-mono text-[9px] font-semibold uppercase tracking-[1px]"
             style={{ color: platform.color, backgroundColor: `${platform.color}18` }}
           >
-            {platform.icon} {platform.label}
+            {platform.icon} {displayLabel}
           </span>
 
           {/* Theme badge */}
@@ -172,7 +188,7 @@ export default function FeedItem({ signal }: FeedItemProps) {
             target="_blank"
             rel="noopener noreferrer"
             className="ml-auto font-mono text-[11px] text-ash transition-colors hover:text-sinal-white"
-            aria-label={`Ver post original de ${signal.author_handle} em ${platform.label}`}
+            aria-label={`Ver post original de ${signal.author_handle} em ${displayLabel}`}
           >
             Ver original &rarr;
           </a>

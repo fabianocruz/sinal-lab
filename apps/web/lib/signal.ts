@@ -1,6 +1,7 @@
 export interface Signal {
   id: string;
   platform: string;
+  source_name?: string; // e.g. "fintech_brain_food" — more specific than platform
   post_url: string;
   author_handle: string;
   author_display_name: string;
