@@ -11,7 +11,7 @@ const SPEED_OPTIONS = [1, 1.25, 1.5, 2] as const;
 type Speed = (typeof SPEED_OPTIONS)[number];
 
 // Characters sent to ElevenLabs — matches the server-side MAX_CHARS cap.
-const PREVIEW_CHARS = 5000;
+const PREVIEW_CHARS = 3000;
 
 function stripMarkdown(text: string): string {
   return text
@@ -200,8 +200,8 @@ export default function ListenButton({ text, estimatedMinutes }: ListenButtonPro
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const fullMinutes = estimatedMinutes ?? Math.ceil(wordCount / 150);
-  // Preview is capped at the first ~4 min worth of the article.
-  const previewMinutes = Math.min(fullMinutes, 4);
+  // Preview is capped at the first ~2 min worth of the article.
+  const previewMinutes = Math.min(fullMinutes, 2);
   const adjustedMinutes = Math.ceil(previewMinutes / speed);
   const isPreview = fullMinutes > 4;
 

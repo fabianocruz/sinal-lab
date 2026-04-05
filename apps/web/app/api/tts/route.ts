@@ -16,8 +16,9 @@ const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 // Swap VOICE_ID to test other voices; the model handles pt-BR without accent issues.
 const VOICE_ID = "pFZP5JQG7iQjIQuC4Bku";
 
-// Hard cap to control spend: 5000 chars ≈ 3-4 min of audio at normal reading pace.
-const MAX_CHARS = 5000;
+// Hard cap to control spend: 3000 chars ≈ 2 min of audio at normal reading pace.
+// Reduced from 5000 to ensure generation completes within Vercel's function timeout.
+const MAX_CHARS = 3000;
 
 export async function POST(request: NextRequest) {
   if (!ELEVENLABS_API_KEY) {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         text: truncated,
-        model_id: "eleven_multilingual_v2",
+        model_id: "eleven_flash_v2_5",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,

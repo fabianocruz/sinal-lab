@@ -105,8 +105,8 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
             )}
           </header>
 
-          {/* Sticky listen bar — stays visible while scrolling through the article */}
-          <div className="sticky top-[72px] z-10 -mx-6 border-b border-[rgba(255,255,255,0.04)] bg-sinal-black/90 px-6 py-3 backdrop-blur-sm md:-mx-10 md:px-10">
+          {/* Listen bar — inline, not sticky */}
+          <div className="mb-6 mt-2">
             <ListenButton text={body} />
           </div>
 
