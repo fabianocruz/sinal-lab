@@ -6,6 +6,7 @@ import MarkdownRenderer from "@/components/newsletter/MarkdownRenderer";
 import HeroImage from "@/components/newsletter/HeroImage";
 import SourcesList from "@/components/newsletter/SourcesList";
 import GatedOverlay from "@/components/newsletter/GatedOverlay";
+import ListenButton from "@/components/shared/ListenButton";
 import type { ContentApiItem } from "@/lib/newsletter";
 
 interface ArticleContentProps {
@@ -79,6 +80,11 @@ export default function ArticleContent({ item }: ArticleContentProps) {
             </p>
             <p className="text-[12px] text-ash">{item.author_name ? "Autor" : "Redacao"}</p>
           </div>
+        </div>
+
+        {/* Listen button */}
+        <div className="mt-6">
+          <ListenButton text={body} />
         </div>
       </header>
 
