@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/artigos", label: "Artigos" },
   { href: "/intelligence", label: "Intelligence" },
   { href: "/signals", label: "Sinais" },
+  { href: "/feed", label: "Feed" },
 ];
 
 /**

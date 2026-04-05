@@ -67,6 +67,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${BASE_URL}/feed`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.8,
+    },
   ];
 
   const newsletterPages: MetadataRoute.Sitemap = FALLBACK_NEWSLETTERS.map((n: Newsletter) => ({

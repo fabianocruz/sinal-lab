@@ -8,6 +8,9 @@ vi.mock("@/lib/api", async (importOriginal) => {
     ...actual,
     fetchCompanies: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
     fetchArticles: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
+    fetchIntelligenceReports: vi
+      .fn()
+      .mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
   };
 });
 
@@ -26,16 +29,17 @@ describe("sitemap", () => {
     expect(Array.isArray(result)).toBe(true);
   });
 
-  it("test_sitemap_contains_10_static_pages", async () => {
+  it("test_sitemap_contains_12_static_pages", async () => {
     const { default: sitemap } = await import("./sitemap");
     const result = await sitemap();
     const staticUrls = result.filter(
       (entry) =>
         !entry.url.includes("/newsletter/") &&
         !entry.url.includes("/startup/") &&
-        !entry.url.includes("/artigos/"),
+        !entry.url.includes("/artigos/") &&
+        !entry.url.includes("/intelligence/"),
     );
-    expect(staticUrls).toHaveLength(10);
+    expect(staticUrls).toHaveLength(12);
   });
 
   it("test_sitemap_contains_all_newsletter_slugs", async () => {
@@ -45,11 +49,11 @@ describe("sitemap", () => {
     expect(newsletterUrls).toHaveLength(FALLBACK_NEWSLETTERS.length);
   });
 
-  it("test_sitemap_total_is_10_plus_newsletters", async () => {
+  it("test_sitemap_total_is_12_plus_newsletters", async () => {
     const { default: sitemap } = await import("./sitemap");
     const result = await sitemap();
-    // 10 static pages + newsletter pages (no company/article pages since fetch is mocked empty)
-    expect(result).toHaveLength(10 + FALLBACK_NEWSLETTERS.length);
+    // 12 static pages + newsletter pages (no company/article/intelligence pages since fetch is mocked empty)
+    expect(result).toHaveLength(12 + FALLBACK_NEWSLETTERS.length);
   });
 
   it("test_sitemap_homepage_has_priority_1", async () => {
