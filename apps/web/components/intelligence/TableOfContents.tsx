@@ -61,6 +61,7 @@ function DesktopToc({
 }: {
   items: TocItem[];
   activeId: string;
+  // eslint-disable-next-line no-unused-vars
   onLinkClick: (id: string) => void;
 }) {
   return (
@@ -119,6 +120,7 @@ function MobileToc({
 }: {
   items: TocItem[];
   activeId: string;
+  // eslint-disable-next-line no-unused-vars
   onLinkClick: (id: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
