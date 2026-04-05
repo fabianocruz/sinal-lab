@@ -17,6 +17,14 @@ const REPORTS = [
     stats: { companies: "100", segments: "13", investors: "$30B+" },
     accent: "#59B4FF",
   },
+  {
+    title: "Embedded Finance: Deep Market Intelligence 2026",
+    description:
+      "Panorama global de embedded finance: pagamentos, BaaS, lending, insurance. AI transformando infraestrutura financeira. Oportunidades LATAM.",
+    slug: "embedded-finance-deep-research-2026",
+    stats: { companies: "50+", segments: "8", investors: "$7T" },
+    accent: "#FF8A59",
+  },
 ];
 
 export default function IntelligenceHighlight() {
