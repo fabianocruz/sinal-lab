@@ -11,6 +11,7 @@ import HeroImage from "@/components/newsletter/HeroImage";
 import VideoEmbed from "@/components/newsletter/VideoEmbed";
 import CalloutBox from "@/components/newsletter/CalloutBox";
 import ReadingTime from "@/components/newsletter/ReadingTime";
+import ListenButton from "@/components/shared/ListenButton";
 
 interface NewsletterContentProps {
   newsletter: Newsletter;
@@ -108,6 +109,11 @@ export default function NewsletterContent({ newsletter }: NewsletterContentProps
             <p className="text-[14px] font-semibold text-bone">{persona.name}</p>
             <p className="text-[13px] text-ash">{persona.role}</p>
           </div>
+        </div>
+
+        {/* Listen button */}
+        <div className="mt-6">
+          <ListenButton text={newsletter.body} estimatedMinutes={metadata?.reading_time_minutes} />
         </div>
       </header>
 

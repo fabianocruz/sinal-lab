@@ -7,6 +7,16 @@
     font-size: 17px;
     line-height: 1.8;
     color: #d8d8e0;
+    background-color: #141418;
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    margin-top: 1.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .prose-sinal {
+      padding: 1.5rem 1rem;
+    }
   }
 
   .prose-sinal h2 {

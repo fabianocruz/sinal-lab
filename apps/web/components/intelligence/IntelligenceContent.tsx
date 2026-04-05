@@ -4,6 +4,7 @@ import HeroImage from "@/components/newsletter/HeroImage";
 import SourcesList from "@/components/newsletter/SourcesList";
 import DownloadButton from "@/components/intelligence/DownloadButton";
 import TableOfContents from "@/components/intelligence/TableOfContents";
+import ListenButton from "@/components/shared/ListenButton";
 import type { ContentApiItem } from "@/lib/newsletter";
 
 interface IntelligenceContentProps {
@@ -89,6 +90,11 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
                 </p>
                 <p className="text-[13px] text-ash">Market Intelligence</p>
               </div>
+            </div>
+
+            {/* Listen button */}
+            <div className="mt-6">
+              <ListenButton text={body} />
             </div>
 
             {/* Download button — gated behind auth */}
