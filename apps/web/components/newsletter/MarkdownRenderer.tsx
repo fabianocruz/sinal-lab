@@ -4,6 +4,25 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
+function slugifyHeader(text: string): string {
+  return String(text)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip diacritics
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
+function extractText(children: React.ReactNode): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) return children.map(extractText).join("");
+  if (typeof children === "object" && children !== null && "props" in (children as object)) {
+    return extractText((children as React.ReactElement).props.children);
+  }
+  return "";
+}
+
 interface MarkdownRendererProps {
   content: string;
   agentColor?: string;
@@ -14,19 +33,30 @@ export default function MarkdownRenderer({
   agentColor = "#E8FF59",
 }: MarkdownRendererProps) {
   const components: Components = {
-    h2: ({ children }) => (
-      <h2
-        className="mt-10 mb-4 border-l-[3px] pl-4 font-display text-[24px] font-bold leading-[1.3] text-sinal-white"
-        style={{ borderColor: agentColor }}
-      >
-        {children}
-      </h2>
-    ),
-    h3: ({ children }) => (
-      <h3 className="mt-8 mb-3 font-display text-[20px] font-semibold leading-[1.3] text-sinal-white">
-        {children}
-      </h3>
-    ),
+    h2: ({ children }) => {
+      const id = slugifyHeader(extractText(children));
+      return (
+        <h2
+          id={id}
+          className="mt-10 mb-4 border-l-[3px] pl-4 font-display text-[24px] font-bold leading-[1.3] text-sinal-white"
+          style={{ borderColor: agentColor, scrollMarginTop: "80px" }}
+        >
+          {children}
+        </h2>
+      );
+    },
+    h3: ({ children }) => {
+      const id = slugifyHeader(extractText(children));
+      return (
+        <h3
+          id={id}
+          className="mt-8 mb-3 font-display text-[20px] font-semibold leading-[1.3] text-sinal-white"
+          style={{ scrollMarginTop: "80px" }}
+        >
+          {children}
+        </h3>
+      );
+    },
     h4: ({ children }) => (
       <h4 className="mt-6 mb-2 font-display text-[17px] leading-[1.4] text-bone">{children}</h4>
     ),
