@@ -6,6 +6,7 @@ from packages.database.models.agent_run import AgentRun
 from packages.database.models.company import Company
 from packages.database.models.company_external_id import CompanyExternalId
 from packages.database.models.content_piece import ContentPiece
+from packages.database.models.curated_feed_item import CuratedFeedItem
 from packages.database.models.data_provenance import DataProvenance
 from packages.database.models.ecosystem import Ecosystem
 from packages.database.models.evidence_item import EvidenceItemDB
@@ -26,6 +27,7 @@ __all__ = [
     "Company",
     "CompanyExternalId",
     "ContentPiece",
+    "CuratedFeedItem",
     "DataProvenance",
     "Ecosystem",
     "EvidenceItemDB",

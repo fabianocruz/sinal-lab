@@ -105,6 +105,16 @@ AGENTS = {
         "output_dir": "apps/agents/social_signals/output",
         "filename_pattern": "social-signals-week-{period}.md",
     },
+    "feed_curator": {
+        "module": "apps.agents.feed_curator.main",
+        "description": "Feed Curator — AI editorial curation of social signals (Ana Torres)",
+        "class_module": "apps.agents.feed_curator.agent",
+        "class_name": "FeedCuratorAgent",
+        "period_arg": None,
+        "slug_pattern": "feed-curated",
+        "output_dir": "apps/agents/feed_curator/output",
+        "filename_pattern": "feed-curated.md",
+    },
 }
 
 
@@ -197,11 +207,19 @@ def _social_signals_domain_persist(agent: Any, agent_output: Any, session: Any) 
     persist_social_signals(agent, agent_output, session)
 
 
+def _feed_curator_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
+    """Persist curated feed items."""
+    from apps.agents.feed_curator.db_writer import persist_curated_feed
+
+    persist_curated_feed(agent, agent_output, session)
+
+
 DOMAIN_PERSIST_FNS: Dict[str, Callable[..., None]] = {
     "funding": _funding_domain_persist,
     "mercado": _mercado_domain_persist,
     "index": _index_domain_persist,
     "social_signals": _social_signals_domain_persist,
+    "feed_curator": _feed_curator_domain_persist,
 }
 
 
@@ -235,10 +253,14 @@ def orchestrate_single_agent(
         from apps.agents.base.orchestrator import orchestrate_agent_run
 
         agent_class = _load_agent_class(name)
-        period_kwarg = f"{cfg['period_arg']}_number"
-        agent = agent_class(**{period_kwarg: period_value})
 
-        slug = cfg["slug_pattern"].format(period=period_value)
+        if cfg["period_arg"] is not None:
+            period_kwarg = f"{cfg['period_arg']}_number"
+            agent = agent_class(**{period_kwarg: period_value})
+            slug = cfg["slug_pattern"].format(period=period_value)
+        else:
+            agent = agent_class()
+            slug = cfg["slug_pattern"]
         domain_fn = DOMAIN_PERSIST_FNS.get(name)
 
         logger.info(
@@ -284,6 +306,7 @@ Available agents:
   mercado          LATAM startup mapping and ecosystem intelligence
   index            LATAM Startup Index (comprehensive registry from bulk sources)
   social_signals   Social Signal Intelligence for AI, Fintech, and Banking
+  feed_curator     Feed Curator — AI editorial curation of social signals
   all              Run all agents sequentially
         """,
     )
@@ -358,7 +381,12 @@ Available agents:
         try:
             for name in agents_to_run:
                 cfg = AGENTS[name]
-                period_value = args.edition if cfg["period_arg"] == "edition" else week_val
+                if cfg["period_arg"] == "edition":
+                    period_value = args.edition
+                elif cfg["period_arg"] is not None:
+                    period_value = week_val
+                else:
+                    period_value = 0  # No period concept (e.g. feed_curator)
 
                 code = orchestrate_single_agent(
                     name,

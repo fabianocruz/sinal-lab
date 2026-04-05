@@ -21,6 +21,7 @@ from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
+from packages.database.models.curated_feed_item import CuratedFeedItem
 from packages.database.models.monitored_account import MonitoredAccount
 from packages.database.models.signal_cluster import SignalCluster
 from packages.database.models.social_signal import SocialSignal
@@ -140,6 +141,30 @@ class MonitoredAccountResponse(BaseModel):
     last_fetched_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     recent_signals: List[RecentSignalBrief] = []
+
+    class Config:
+        from_attributes = True
+
+
+class CuratedFeedItemResponse(BaseModel):
+    """Curated feed item response schema."""
+
+    id: UUID
+    content_hash: str
+    editorial_headline: str
+    editorial_context: Optional[str] = None
+    relevance_score: int = 0
+    category: str
+    source_platform: Optional[str] = None
+    source_url: Optional[str] = None
+    source_author: Optional[str] = None
+    source_text: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    embed_type: Optional[str] = None
+    embed_url: Optional[str] = None
+    curated_at: Optional[datetime] = None
+    agent_run_id: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -391,6 +416,38 @@ def _find_recent_signals_for_voice(
         .limit(signal_limit)
         .all()
     )
+
+
+@router.get("/feed")
+def list_curated_feed(
+    category: Optional[str] = Query(None, description="Filter by category (AI, Fintech, Banking, Startup)"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """List curated feed items with optional category filtering and pagination.
+
+    Returns editorially curated signals with headlines, context, thumbnails,
+    and embed information. Items are ordered by relevance_score descending.
+    """
+    query = db.query(CuratedFeedItem)
+
+    if category:
+        query = query.filter(CuratedFeedItem.category == category)
+
+    total = query.count()
+    items = (
+        query.order_by(desc(CuratedFeedItem.relevance_score))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return {
+        "items": [CuratedFeedItemResponse.model_validate(i) for i in items],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/stats", response_model=SignalStatsResponse)
