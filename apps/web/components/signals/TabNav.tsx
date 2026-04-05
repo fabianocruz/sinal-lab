@@ -13,8 +13,6 @@ interface Tab {
 const TABS: Tab[] = [
   { key: "pulse", label: "Pulse Geral", icon: "◎" },
   { key: "voices", label: "Top Voices", icon: "◈" },
-  { key: "empresas", label: "Empresas", icon: "◇" },
-  { key: "temas", label: "Temas", icon: "◆" },
   { key: "memo", label: "Memo Semanal", icon: "◉" },
 ];
 
