@@ -6,13 +6,15 @@ interface TrendingSidebarProps {
   clusters: SignalCluster[];
 }
 
-function ScoreBar({ score }: { score: number }) {
+const ACCENT_ROTATION = ["#59FFB4", "#E8FF59", "#59B4FF", "#FF8A59", "#C459FF"];
+
+function ScoreBar({ score, accent }: { score: number; accent: string }) {
   const pct = Math.round(Math.min(Math.max(score, 0), 1) * 100);
   return (
     <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
       <div
-        className="h-full rounded-full bg-signal"
-        style={{ width: `${pct}%` }}
+        className="h-full rounded-full"
+        style={{ width: `${pct}%`, backgroundColor: accent }}
         aria-hidden="true"
       />
     </div>
@@ -44,13 +46,16 @@ export default function TrendingSidebar({ clusters }: TrendingSidebarProps) {
           className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-agent-radar"
           aria-hidden="true"
         />
-        <span className="font-mono text-[10px] uppercase tracking-[2px] text-ash">Tendencias</span>
+        <h3 className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: "#59FFB4" }}>
+          Tendencias
+        </h3>
       </div>
 
       <ol className="space-y-3" aria-label="Top clusters por score">
         {top.map((cluster, idx) => {
           const stageColor = STAGE_COLORS[cluster.narrative_stage] ?? "#9A9AA8";
           const stageLabel = STAGE_LABELS[cluster.narrative_stage] ?? cluster.narrative_stage;
+          const accent = ACCENT_ROTATION[idx % ACCENT_ROTATION.length];
 
           return (
             <li key={cluster.id}>
@@ -70,12 +75,15 @@ export default function TrendingSidebar({ clusters }: TrendingSidebarProps) {
                 </div>
 
                 {/* Cluster name */}
-                <p className="mb-1 text-[13px] font-semibold leading-[1.4] text-silver transition-colors group-hover:text-sinal-white">
+                <p
+                  className="mb-1 text-[13px] font-semibold leading-[1.4] transition-colors group-hover:opacity-100"
+                  style={{ color: accent, opacity: 0.85 }}
+                >
                   {cluster.name}
                 </p>
 
                 {/* Score bar */}
-                <ScoreBar score={cluster.composite_score} />
+                <ScoreBar score={cluster.composite_score} accent={accent} />
 
                 {/* Meta: score + signal count */}
                 <div className="mt-2 flex items-center justify-between">

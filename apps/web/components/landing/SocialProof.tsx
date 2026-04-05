@@ -1,7 +1,12 @@
 const METRICS = [
-  { number: "52", label: "edições publicadas" },
-  { number: "150+", label: "fontes monitoradas por semana" },
-  { number: "4.000+", label: "empresas mapeadas em 17 países" },
+  { number: "52", label: "edições publicadas", bg: "#59FFB4", textColor: "#0A0A0B" },
+  { number: "150+", label: "fontes monitoradas por semana", bg: "#FF8A59", textColor: "#0A0A0B" },
+  {
+    number: "4.000+",
+    label: "empresas mapeadas em 17 países",
+    bg: "#C459FF",
+    textColor: "#FAFAF8",
+  },
 ];
 
 const TESTIMONIALS = [
@@ -51,12 +56,11 @@ export default function SocialProof() {
           {METRICS.map((metric) => (
             <div
               key={metric.label}
-              className="rounded-2xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite px-5 py-8 text-center"
+              className="rounded-2xl px-5 py-8 text-center"
+              style={{ backgroundColor: metric.bg, color: metric.textColor }}
             >
-              <div className="mb-2 font-display text-[clamp(36px,5vw,52px)] text-sinal-white">
-                {metric.number}
-              </div>
-              <div className="text-[14px] text-ash">{metric.label}</div>
+              <div className="mb-2 font-display text-[clamp(36px,5vw,52px)]">{metric.number}</div>
+              <div className="text-[14px] opacity-70">{metric.label}</div>
             </div>
           ))}
         </div>

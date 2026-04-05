@@ -32,7 +32,7 @@ export default function IntelligenceHighlight() {
         </div>
 
         <h2 className="mb-5 font-display text-[clamp(28px,4vw,44px)] font-normal leading-[1.15] tracking-[-0.01em] text-sinal-white">
-          Pesquisa profunda, dados verificáveis.
+          Pesquisa profunda, <span style={{ color: "#59B4FF" }}>dados verificáveis.</span>
         </h2>
         <p className="mb-14 max-w-[600px] text-[17px] leading-[1.7] text-ash">
           Deep Studies com centenas de empresas analisadas, scoring proprietário e análise crítica.
@@ -44,15 +44,13 @@ export default function IntelligenceHighlight() {
             <Link
               key={report.slug}
               href={`/intelligence/${report.slug}`}
-              className="group rounded-2xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-8 transition-all duration-300 hover:-translate-y-[3px] hover:border-[rgba(255,255,255,0.12)]"
+              className="group rounded-2xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite p-8 transition-all duration-300 hover:-translate-y-[3px]"
+              style={{ borderTop: `4px solid ${report.accent}` }}
             >
               {/* Badge */}
               <span
-                className="mb-4 inline-block rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[1.5px]"
-                style={{
-                  backgroundColor: `${report.accent}10`,
-                  color: report.accent,
-                }}
+                className="mb-4 inline-block rounded-md px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[1.5px]"
+                style={{ backgroundColor: report.accent, color: "#0A0A0B" }}
               >
                 Deep Study
               </span>

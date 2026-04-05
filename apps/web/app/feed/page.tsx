@@ -77,35 +77,37 @@ export default async function FeedPage({
     <>
       <Navbar />
       <main className="pt-[72px]">
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)]">
-          {/* ----------------------------------------------------------------
-              Page header
-          ----------------------------------------------------------------- */}
-          <div className="py-10">
-            <div className="mb-1 flex items-center gap-2">
+        {/* ----------------------------------------------------------------
+            Vibrant hero header — RADAR mint on dark
+        ----------------------------------------------------------------- */}
+        <div className="bg-[#59FFB4]">
+          <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] py-12">
+            <div className="mb-2 flex items-center gap-2">
               <span
-                className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-agent-radar"
+                className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[rgba(0,0,0,0.4)]"
                 aria-hidden="true"
               />
-              <span className="font-mono text-[10px] uppercase tracking-[2px] text-ash">
-                Ao vivo
+              <span className="font-mono text-[10px] uppercase tracking-[2px] text-[rgba(0,0,0,0.5)]">
+                Tempo real
               </span>
             </div>
-            <h1 className="mb-2 font-display text-[clamp(28px,4vw,40px)] text-sinal-white">Feed</h1>
-            <p className="max-w-[540px] text-[15px] leading-[1.6] text-ash">
-              Sinais em tempo real de Twitter/X, Reddit, Bluesky, YouTube, newsletters e mais.
+            <h1 className="mb-2 font-display text-[clamp(32px,5vw,48px)] text-sinal-black">Feed</h1>
+            <p className="max-w-[500px] text-[16px] leading-[1.6] text-[rgba(0,0,0,0.7)]">
+              Sinais de AI, Fintech e Banking de multiplas fontes, atualizados em tempo real.
               {stats.total_signals > 0 && (
-                <span className="ml-1 text-silver">
+                <span className="ml-1 font-semibold text-[rgba(0,0,0,0.5)]">
                   {stats.total_signals.toLocaleString("pt-BR")} sinais indexados.
                 </span>
               )}
             </p>
           </div>
+        </div>
 
+        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)]">
           {/* ----------------------------------------------------------------
-              Filter bar — Client Component (useSearchParams + useRouter)
+              Filter bar — dark section with colored top border
           ----------------------------------------------------------------- */}
-          <div className="mb-8">
+          <div className="mb-8 border-t-[3px] border-[#59FFB4] pt-6">
             <Suspense fallback={<FilterBarFallback />}>
               <FeedFilterBar />
             </Suspense>

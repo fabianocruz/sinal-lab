@@ -67,7 +67,8 @@ export default function FeedItem({ signal }: FeedItemProps) {
 
   return (
     <article
-      className="border-b border-[rgba(255,255,255,0.05)] py-6 transition-colors hover:bg-[rgba(255,255,255,0.01)]"
+      className="border-b border-[rgba(255,255,255,0.05)] py-6 pl-4 transition-colors hover:bg-[rgba(255,255,255,0.01)]"
+      style={{ borderLeft: `3px solid ${platform.color}` }}
       aria-label={`Post de ${signal.author_display_name || signal.author_handle} em ${platform.label}`}
     >
       {/* Platform + time header */}
