@@ -46,11 +46,17 @@ class TestValidCategories:
     def test_has_fintech_category(self):
         assert "Fintech" in FEED_CURATOR_CONFIG.valid_categories
 
-    def test_has_banking_category(self):
-        assert "Banking" in FEED_CURATOR_CONFIG.valid_categories
+    def test_has_ai_in_banking_category(self):
+        assert "AI in Banking" in FEED_CURATOR_CONFIG.valid_categories
 
-    def test_has_startup_category(self):
-        assert "Startup" in FEED_CURATOR_CONFIG.valid_categories
+    def test_has_funding_category(self):
+        assert "Funding" in FEED_CURATOR_CONFIG.valid_categories
+
+    def test_has_healthtech_category(self):
+        assert "HealthTech" in FEED_CURATOR_CONFIG.valid_categories
+
+    def test_has_devtools_category(self):
+        assert "DevTools" in FEED_CURATOR_CONFIG.valid_categories
 
     def test_no_duplicate_categories(self):
         cats = FEED_CURATOR_CONFIG.valid_categories

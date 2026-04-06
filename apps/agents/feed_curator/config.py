@@ -27,8 +27,17 @@ class FeedCuratorConfig:
     valid_categories: List[str] = field(default_factory=lambda: [
         "AI",
         "Fintech",
-        "Banking",
-        "Startup",
+        "AI in Banking",
+        "Funding",
+        "VC",
+        "HealthTech",
+        "DevTools",
+        "Startup Ops",
+        "Cybersecurity",
+        "Regulation",
+        "RetailTech",
+        "CleanTech",
+        "EdTech",
     ])
     skip_keywords: List[str] = field(default_factory=lambda: [
         "apostas esportivas",
@@ -61,7 +70,7 @@ CURATOR_USER_PROMPT_TEMPLATE = (
     '{{"editorial_headline": string (pt-BR, max 80 chars), '
     '"editorial_context": string (pt-BR, 1-2 sentences why this matters), '
     '"relevance_score": int 0-100, '
-    '"category": "AI"|"Fintech"|"Banking"|"Startup"}}. '
+    '"category": "AI"|"Fintech"|"AI in Banking"|"Funding"|"VC"|"HealthTech"|"DevTools"|"Startup Ops"|"Cybersecurity"|"Regulation"|"RetailTech"|"CleanTech"|"EdTech"}}. '
     "SKIP: sports bets, political predictions, generic news, spam. "
     "PRIORITIZE: funding rounds, product launches, technical insights, "
     "regulatory changes, LATAM-specific news.\n\n"

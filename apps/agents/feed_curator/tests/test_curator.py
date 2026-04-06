@@ -331,20 +331,20 @@ class TestParseLlmResponse:
     # --- Category validation ---
 
     def test_valid_category_preserved(self):
-        for category in ["AI", "Fintech", "Banking", "Startup"]:
+        for category in ["AI", "Fintech", "AI in Banking", "Funding", "HealthTech", "DevTools"]:
             raw = json.dumps([make_llm_item(category=category)])
             result = _parse_llm_response(raw, self._signals())
             assert result[0].category == category
 
-    def test_invalid_category_falls_back_to_startup(self):
+    def test_invalid_category_falls_back_to_ai(self):
         raw = json.dumps([make_llm_item(category="Politics")])
         result = _parse_llm_response(raw, self._signals())
-        assert result[0].category == "Startup"
+        assert result[0].category == "AI"
 
-    def test_empty_category_falls_back_to_startup(self):
+    def test_empty_category_falls_back_to_ai(self):
         raw = json.dumps([make_llm_item(category="")])
         result = _parse_llm_response(raw, self._signals())
-        assert result[0].category == "Startup"
+        assert result[0].category == "AI"
 
     # --- Headline truncation ---
 

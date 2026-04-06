@@ -258,7 +258,7 @@ def _parse_llm_response(
 
         # Validate category
         if category not in valid_categories:
-            category = "Startup"  # fallback
+            category = "AI"  # fallback
 
         # Truncate headline if needed
         if len(headline) > max_headline:
