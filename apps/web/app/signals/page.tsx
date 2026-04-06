@@ -14,7 +14,12 @@ import PersonaSelector from "@/components/signals/PersonaSelector";
 import type { SignalsTab } from "@/components/signals/TabNav";
 // Persona helpers inlined — PersonaSelector is "use client", can't import runtime values in Server Component
 type Persona = "all" | "cto" | "vc" | "founder";
-const PERSONA_LABELS: Record<Persona, string> = { all: "Todos", cto: "CTO / Tech Lead", vc: "Investidor / VC", founder: "Fundador / CEO" };
+const PERSONA_LABELS: Record<Persona, string> = {
+  all: "Todos",
+  cto: "CTO / Tech Lead",
+  vc: "Investidor / VC",
+  founder: "Fundador / CEO",
+};
 function resolvePersona(v: string | undefined): Persona {
   if (v === "cto" || v === "vc" || v === "founder") return v;
   return "all";
@@ -175,13 +180,15 @@ export default async function SignalsPage({
           )}
 
           {activeTab === "voices" && (
-            <VoicesPanel
-              voices={voicesData.items}
-              recentSignals={voicesSignalsData.items}
-              total={voicesData.total}
-              activeType={voiceType}
-              persona={activePersona}
-            />
+            <Suspense fallback={<PanelSkeleton />}>
+              <VoicesPanel
+                voices={voicesData.items}
+                recentSignals={voicesSignalsData.items}
+                total={voicesData.total}
+                activeType={voiceType}
+                persona={activePersona}
+              />
+            </Suspense>
           )}
 
           {activeTab === "empresas" && (
@@ -218,6 +225,16 @@ export default async function SignalsPage({
       </main>
       <Footer />
     </>
+  );
+}
+
+function PanelSkeleton() {
+  return (
+    <div className="space-y-4 py-8">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-16 animate-pulse rounded-lg bg-sinal-graphite" />
+      ))}
+    </div>
   );
 }
 

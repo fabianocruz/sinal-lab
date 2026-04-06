@@ -147,27 +147,67 @@ class MonitoredAccountResponse(BaseModel):
 
 
 class CuratedFeedItemResponse(BaseModel):
-    """Curated feed item response schema."""
+    """Curated feed item response schema.
+
+    Field names are aligned with the frontend CuratedFeedItem interface.
+    DB column names (source_*) are mapped to frontend names (platform, original_*, author_*).
+    """
 
     id: UUID
-    content_hash: str
     editorial_headline: str
     editorial_context: Optional[str] = None
     relevance_score: int = 0
     category: str
-    source_platform: Optional[str] = None
-    source_url: Optional[str] = None
-    source_author: Optional[str] = None
-    source_text: Optional[str] = None
+    # Mapped fields — frontend expects these names
+    original_text: Optional[str] = None
+    original_url: Optional[str] = None
+    platform: Optional[str] = None
+    author_handle: Optional[str] = None
+    author_display_name: Optional[str] = None
     thumbnail_url: Optional[str] = None
-    embed_type: Optional[str] = None
-    embed_url: Optional[str] = None
+    video_embed: Optional[Dict[str, Any]] = None
+    theme: Optional[str] = None
+    metrics: Optional[Dict[str, Any]] = None
     curated_at: Optional[datetime] = None
-    agent_run_id: Optional[str] = None
-    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_db(cls, item: Any) -> "CuratedFeedItemResponse":
+        """Build response from a CuratedFeedItem DB model, mapping field names."""
+        video_embed = None
+        if item.embed_type and item.embed_url:
+            thumbnail = None
+            if item.embed_type == "youtube":
+                # Extract video ID from embed URL
+                embed_url = item.embed_url or ""
+                vid = embed_url.rsplit("/", 1)[-1] if "/" in embed_url else ""
+                if vid:
+                    thumbnail = f"https://img.youtube.com/vi/{vid}/hqdefault.jpg"
+            video_embed = {
+                "platform": item.embed_type,
+                "embed_url": item.embed_url,
+                "thumbnail": thumbnail,
+            }
+
+        return cls(
+            id=item.id,
+            editorial_headline=item.editorial_headline,
+            editorial_context=item.editorial_context,
+            relevance_score=item.relevance_score,
+            category=item.category,
+            original_text=item.source_text or "",
+            original_url=item.source_url or "",
+            platform=item.source_platform or "",
+            author_handle=item.source_author or "",
+            author_display_name=item.source_author or "",
+            thumbnail_url=item.thumbnail_url,
+            video_embed=video_embed,
+            theme=item.category,  # Use category as theme for frontend
+            metrics=None,
+            curated_at=item.curated_at,
+        )
 
 
 class SignalStatsResponse(BaseModel):
@@ -421,6 +461,7 @@ def _find_recent_signals_for_voice(
 @router.get("/feed")
 def list_curated_feed(
     category: Optional[str] = Query(None, description="Filter by category (AI, Fintech, Banking, Startup)"),
+    theme: Optional[str] = Query(None, description="Alias for category (used by frontend)"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -429,11 +470,13 @@ def list_curated_feed(
 
     Returns editorially curated signals with headlines, context, thumbnails,
     and embed information. Items are ordered by relevance_score descending.
+    Accepts both `category` and `theme` query params (theme is an alias).
     """
+    filter_category = category or theme
     query = db.query(CuratedFeedItem)
 
-    if category:
-        query = query.filter(CuratedFeedItem.category == category)
+    if filter_category:
+        query = query.filter(CuratedFeedItem.category == filter_category)
 
     total = query.count()
     items = (
@@ -443,7 +486,7 @@ def list_curated_feed(
         .all()
     )
     return {
-        "items": [CuratedFeedItemResponse.model_validate(i) for i in items],
+        "items": [CuratedFeedItemResponse.from_db(i) for i in items],
         "total": total,
         "limit": limit,
         "offset": offset,
