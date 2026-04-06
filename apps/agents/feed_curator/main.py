@@ -18,6 +18,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+
 from apps.agents.feed_curator.agent import FeedCuratorAgent
 from apps.agents.feed_curator.config import FEED_CURATOR_CONFIG
 
