@@ -208,7 +208,9 @@ def _parse_llm_response(
     except json.JSONDecodeError:
         # Try JSON lines (one object per line)
         try:
-            items_data = [json.loads(line) for line in cleaned.strip().split("\n") if line.strip().startswith("{")]
+            jsonl_items = [json.loads(line) for line in cleaned.strip().split("\n") if line.strip().startswith("{")]
+            if jsonl_items:
+                items_data = jsonl_items
         except json.JSONDecodeError:
             pass
 
