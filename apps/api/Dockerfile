@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir \
     fastapi \
     uvicorn[standard] \
     pydantic-settings \
+    email-validator \
     python-dotenv \
     feedparser \
     httpx \
