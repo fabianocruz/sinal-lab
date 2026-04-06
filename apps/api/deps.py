@@ -1,16 +1,19 @@
 """Dependency injection for the API layer.
 
-Provides database sessions, configuration, and admin auth to route handlers.
+Provides database sessions, configuration, admin auth, and API key auth
+to route handlers.
 """
 
+import hashlib
 from datetime import datetime, timezone
-from typing import Generator
+from typing import Generator, Optional
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from apps.api.config import get_settings
+from packages.database.models.api_key import ApiKey
 from packages.database.models.session import SessionDB
 from packages.database.models.user import User
 
@@ -116,3 +119,71 @@ def get_admin_user(
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
 
     return user
+
+
+def _hash_api_key(raw_key: str) -> str:
+    """Compute SHA-256 hex digest of a raw API key."""
+    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+
+
+def get_api_key(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+) -> ApiKey:
+    """FastAPI dependency that authenticates a request via API key.
+
+    Expects ``Authorization: Bearer sk_live_...`` header.
+    Hashes the provided key and looks it up in the api_keys table.
+    Updates ``last_used_at`` on every successful authentication.
+
+    Raises:
+        HTTPException 401: if header is missing, malformed, or key not found.
+        HTTPException 403: if the key exists but is inactive or expired.
+    """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="API key ausente. Use Authorization: Bearer <key>.")
+
+    parts = authorization.split(" ", 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Formato de autorizacao invalido. Use Bearer <key>.")
+
+    raw_key = parts[1]
+    key_hash = _hash_api_key(raw_key)
+
+    api_key = db.query(ApiKey).filter(ApiKey.key_hash == key_hash).first()
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API key invalida.")
+
+    if not api_key.is_active:
+        raise HTTPException(status_code=403, detail="API key desativada.")
+
+    if api_key.expires_at is not None:
+        now_utc = datetime.now(timezone.utc)
+        expires = api_key.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < now_utc:
+            raise HTTPException(status_code=403, detail="API key expirada.")
+
+    # Update last_used_at
+    api_key.last_used_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return api_key
+
+
+def optional_api_key(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+) -> Optional[ApiKey]:
+    """Like get_api_key, but returns None instead of raising 401 when no key is provided.
+
+    Useful for endpoints that work both publicly and with authentication
+    (e.g., higher rate limits for authenticated users).
+    Still raises 401/403 if a key IS provided but is invalid/inactive/expired.
+    """
+    if not authorization:
+        return None
+
+    # Delegate to the strict version when a header is present
+    return get_api_key(authorization=authorization, db=db)

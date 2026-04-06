@@ -1,65 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import type { Signal } from "@/lib/signal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// ISO week number (1-53) from a Date
-function isoWeek(date: Date): number {
-  const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  // Thursday in current week decides the year
-  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-  return Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+interface ExportButtonProps {
+  /** Which export endpoint to call: "signals" or "feed" */
+  type?: "signals" | "feed";
+  /** Optional theme/category filter passed as query param */
+  theme?: string;
 }
 
-function signalsToCsv(signals: Signal[]): string {
-  const headers = [
-    "platform",
-    "author",
-    "text",
-    "theme",
-    "sentiment",
-    "published_at",
-    "url",
-    "likes",
-    "replies",
-  ];
-
-  const rows = signals.map((s) => {
-    const author = s.author_display_name || s.author_handle;
-    const text = `"${(s.text || "").replace(/"/g, '""').slice(0, 200)}"`;
-    return [
-      s.platform,
-      author,
-      text,
-      s.theme,
-      s.sentiment?.toFixed(2) ?? "0",
-      s.published_at || "",
-      s.post_url,
-      s.metrics?.likes ?? 0,
-      s.metrics?.replies ?? 0,
-    ].join(",");
-  });
-
-  return [headers.join(","), ...rows].join("\n");
-}
-
-function triggerDownload(csv: string, filename: string) {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-export default function ExportButton() {
+/**
+ * Triggers a server-side CSV export via the /api/export/* endpoints.
+ * The API returns a StreamingResponse with Content-Disposition attachment,
+ * so we fetch the blob and create a download link.
+ */
+export default function ExportButton({ type = "signals", theme }: ExportButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,24 +25,38 @@ export default function ExportButton() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/api/signals?limit=500`);
-
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar sinais (${response.status})`);
+      const params = new URLSearchParams({ format: "csv", limit: "500" });
+      if (theme) {
+        params.set("theme", theme);
       }
 
-      const data: { items: Signal[]; total: number } = await response.json();
-      const signals = data.items ?? [];
+      const response = await fetch(`${API_BASE}/api/export/${type}?${params.toString()}`);
 
-      if (signals.length === 0) {
-        setError("Nenhum sinal disponivel para exportar.");
+      if (!response.ok) {
+        throw new Error(`Erro ao exportar (${response.status})`);
+      }
+
+      // Extract filename from Content-Disposition or fall back to default
+      const disposition = response.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename="(.+?)"/);
+      const filename = filenameMatch?.[1] || `sinal-${type}-export.csv`;
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        setError("Nenhum dado disponivel para exportar.");
         return;
       }
 
-      const csv = signalsToCsv(signals);
-      const week = isoWeek(new Date());
-      const filename = `sinal-signals-week-${week}.csv`;
-      triggerDownload(csv, filename);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro desconhecido";
       setError(message);

@@ -452,6 +452,68 @@ SOCIAL_SIGNAL_SOURCES = [
         url="https://lex.substack.com/feed",
     ),
 
+    # --- Podcasts ---
+    DataSourceConfig(
+        name="podcast_a16z",
+        source_type="rss",
+        url="https://a16z.simplecast.com/rss",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_acquired",
+        source_type="rss",
+        url="https://feeds.pacific-content.com/acquired",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_lex_fridman",
+        source_type="rss",
+        url="https://lexfridman.com/feed/podcast/",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_all_in",
+        source_type="rss",
+        url="https://feeds.megaphone.fm/all-in-with-chamath-jason-sacks-friedberg",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_latitud",
+        source_type="rss",
+        url="https://anchor.fm/s/5e8d2e20/podcast/rss",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_pragmatic_engineer",
+        source_type="rss",
+        url="https://feeds.transistor.fm/the-pragmatic-engineer-podcast",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_lennys",
+        source_type="rss",
+        url="https://feeds.simplecast.com/lFMjRXlA",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_20_minute_vc",
+        source_type="rss",
+        url="https://thetwentyminutevc.libsyn.com/rss",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_cafe_com_startups",
+        source_type="rss",
+        url="https://anchor.fm/s/2c2c2b64/podcast/rss",
+        params={"max_items": 5},
+    ),
+    DataSourceConfig(
+        name="podcast_hipsters_tech",
+        source_type="rss",
+        url="https://hipsters.tech/feed/podcast/",
+        params={"max_items": 5},
+    ),
+
     # --- Hacker News (reused from RADAR agent) ---
     DataSourceConfig(
         name="hn_best_signals",

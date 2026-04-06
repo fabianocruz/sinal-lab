@@ -2,6 +2,7 @@
 
 from packages.database.models.base import Base
 from packages.database.models.account import Account
+from packages.database.models.api_key import ApiKey
 from packages.database.models.agent_run import AgentRun
 from packages.database.models.company import Company
 from packages.database.models.company_external_id import CompanyExternalId
@@ -24,6 +25,7 @@ from packages.database.models.weekly_pulse import WeeklyPulse
 __all__ = [
     "Base",
     "Account",
+    "ApiKey",
     "AgentRun",
     "Company",
     "CompanyExternalId",
