@@ -794,6 +794,30 @@ const SIGNAL_STATS_FIELDS: ApiField[] = [
   { name: "themes", type: "object", description: "Contagem por tema: { AI: N, Fintech: N, ... }" },
 ];
 
+const CURATED_FEED_FIELDS: ApiField[] = [
+  { name: "id", type: "UUID", description: "Identificador único" },
+  { name: "editorial_headline", type: "string", description: "Título editorial em pt-BR" },
+  {
+    name: "editorial_context",
+    type: "string?",
+    description: "Contexto editorial: por que isso importa",
+  },
+  { name: "relevance_score", type: "int", description: "Score de relevância (0-100)" },
+  { name: "category", type: "string", description: "Categoria: AI, Fintech, Banking, Startup" },
+  { name: "original_text", type: "string?", description: "Texto original truncado" },
+  { name: "original_url", type: "string?", description: "URL do post original" },
+  { name: "platform", type: "string?", description: "Plataforma de origem" },
+  { name: "author_handle", type: "string?", description: "Handle do autor" },
+  { name: "thumbnail_url", type: "string?", description: "URL da imagem og:image" },
+  {
+    name: "video_embed",
+    type: "object?",
+    description: "Embed de vídeo: { platform, embed_url, thumbnail }",
+  },
+  { name: "theme", type: "string?", description: "Tema (mapeado da categoria)" },
+  { name: "curated_at", type: "datetime?", description: "Data da curadoria" },
+];
+
 const signalsApi: ApiGroup = {
   id: "sinais",
   name: "Sinais",
@@ -861,6 +885,63 @@ data.items.forEach(s =>
   ],
   "total": 12483,
   "limit": 5,
+  "offset": 0
+}`,
+    },
+    {
+      method: "GET",
+      path: "/api/signals/feed",
+      description:
+        "Lista itens do Feed Curado — sinais com headline editorial, contexto e mídia, ordenados por relevância.",
+      params: [
+        {
+          name: "theme",
+          type: "string",
+          required: false,
+          description: "Filtra por categoria (AI, Fintech, Banking, Startup). Alias: category",
+        },
+        ...PAGINATION_PARAMS,
+      ],
+      responseFields: CURATED_FEED_FIELDS,
+      examples: {
+        curl: `curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "${BASE}/api/signals/feed?theme=AI&limit=10"`,
+        python: `import requests
+
+r = requests.get(
+    "${BASE}/api/signals/feed",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+    params={"theme": "AI", "limit": 10},
+)
+items = r.json()["items"]
+for item in items:
+    print(item["relevance_score"], "-", item["editorial_headline"])`,
+        javascript: `const res = await fetch(
+  "${BASE}/api/signals/feed?theme=AI&limit=10",
+  { headers: { Authorization: "Bearer YOUR_API_KEY" } }
+);
+const { items } = await res.json();
+items.forEach(item =>
+  console.log(item.relevance_score, "-", item.editorial_headline)
+);`,
+      },
+      exampleResponse: `{
+  "items": [
+    {
+      "id": "b134...",
+      "editorial_headline": "Mega-IPOs de SpaceX, OpenAI e Anthropic vão testar o mercado",
+      "editorial_context": "A possível onda de IPOs pode redefinir valuations...",
+      "relevance_score": 88,
+      "category": "AI",
+      "platform": "web",
+      "original_url": "https://www.newcomer.co/p/mega-ipos",
+      "thumbnail_url": "https://substackcdn.com/image/...",
+      "video_embed": null,
+      "curated_at": "2026-04-05T11:49:55Z"
+    }
+  ],
+  "total": 15,
+  "limit": 20,
   "offset": 0
 }`,
     },

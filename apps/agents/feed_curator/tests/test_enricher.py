@@ -353,3 +353,34 @@ class TestEnrichItems:
         with patch("apps.agents.feed_curator.enricher.extract_og_image", return_value=None):
             enrich_items([item], fetch_thumbnails=True)
         assert item.thumbnail_url is None
+
+    def test_youtube_link_in_source_text_detected(self):
+        """Twitter posts store YouTube links in text, not source_url."""
+        item = make_item(source_url="https://x.com/user/status/123")
+        item.source_text = "Check this out https://www.youtube.com/watch?v=dQw4w9WgXcQ great video"
+        enrich_items([item], fetch_thumbnails=False)
+        assert item.embed_type == "youtube"
+        assert item.embed_url == "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        assert item.thumbnail_url == "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+
+    def test_instagram_link_in_source_text_detected(self):
+        """Instagram reel links in tweet text."""
+        item = make_item(source_url="https://x.com/user/status/456")
+        item.source_text = "Amazing reel https://www.instagram.com/reel/ABC123/"
+        enrich_items([item], fetch_thumbnails=False)
+        assert item.embed_type == "instagram"
+
+    def test_source_url_embed_takes_priority_over_text(self):
+        """If source_url is already a YouTube link, don't scan text."""
+        item = make_item(source_url="https://www.youtube.com/watch?v=abc123abcde")
+        item.source_text = "Also see https://www.youtube.com/watch?v=xyz789xyz78"
+        enrich_items([item], fetch_thumbnails=False)
+        # Should use the source_url video, not the text one
+        assert item.embed_url == "https://www.youtube.com/embed/abc123abcde"
+
+    def test_no_video_in_text_no_embed(self):
+        """Plain text without video links should not trigger embed detection."""
+        item = make_item(source_url="https://x.com/user/status/789")
+        item.source_text = "Just a regular tweet about AI and fintech"
+        enrich_items([item], fetch_thumbnails=False)
+        assert item.embed_type is None

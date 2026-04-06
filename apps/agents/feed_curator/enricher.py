@@ -139,15 +139,19 @@ def enrich_items(
     from apps.agents.feed_curator.curator import CuratedItem  # noqa: F811
 
     for item in items:
-        # Detect embeds
+        # Detect embeds — check source_url first, then scan source_text for video links.
+        # Twitter posts store YouTube/Instagram/TikTok links inside the tweet text,
+        # so source_url (the tweet permalink) won't match embed patterns.
         embed_type, embed_url = detect_embed(item.source_url)
+        if not embed_type and item.source_text:
+            embed_type, embed_url = detect_embed(item.source_text)
+
         if embed_type:
             item.embed_type = embed_type
             item.embed_url = embed_url
 
             # For YouTube embeds, use the known thumbnail URL pattern
             if embed_type == "youtube":
-                # Extract video ID from embed URL
                 video_id = embed_url.split("/")[-1] if embed_url else ""
                 if video_id:
                     item.thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"

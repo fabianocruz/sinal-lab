@@ -124,6 +124,21 @@ SOCIAL_SIGNAL_SOURCES = [
         api_key_env="X_BEARER_TOKEN",
         params={"query": "(startup LATAM OR fintech Brasil OR VC Latin America) -is:retweet", "max_results": 100},
     ),
+    # Twitter — tweets sharing YouTube/video content about AI & fintech
+    DataSourceConfig(
+        name="twitter_ai_videos",
+        source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN",
+        params={"query": "(AI OR LLM OR GPT OR fintech) (url:youtube.com OR url:youtu.be) -is:retweet lang:en", "max_results": 50},
+    ),
+    DataSourceConfig(
+        name="twitter_tech_videos_ptbr",
+        source_type="api",
+        url="https://api.twitter.com/2/tweets/search/recent",
+        api_key_env="X_BEARER_TOKEN",
+        params={"query": "(inteligência artificial OR fintech OR startup) (url:youtube.com OR url:youtu.be) -is:retweet lang:pt", "max_results": 50},
+    ),
 
     # --- Reddit ---
     DataSourceConfig(
@@ -276,6 +291,29 @@ SOCIAL_SIGNAL_SOURCES = [
         source_type="api",
         url="https://api.github.com/search/repositories",
         params={"sort": "stars", "order": "desc", "window": "weekly"},
+    ),
+
+    # --- YouTube ---
+    DataSourceConfig(
+        name="youtube_ai_fintech",
+        source_type="api",
+        url="https://www.googleapis.com/youtube/v3/search",
+        api_key_env="YOUTUBE_API_KEY",
+        params={"query": "AI agents fintech banking", "max_results": 25},
+    ),
+    DataSourceConfig(
+        name="youtube_latam_startups",
+        source_type="api",
+        url="https://www.googleapis.com/youtube/v3/search",
+        api_key_env="YOUTUBE_API_KEY",
+        params={"query": "startups LATAM venture capital tecnologia", "max_results": 25},
+    ),
+    DataSourceConfig(
+        name="youtube_open_banking",
+        source_type="api",
+        url="https://www.googleapis.com/youtube/v3/search",
+        api_key_env="YOUTUBE_API_KEY",
+        params={"query": "open banking Brasil pagamentos digitais", "max_results": 25},
     ),
 
     # --- Web scraper sources (newsletter archives without RSS) ---
