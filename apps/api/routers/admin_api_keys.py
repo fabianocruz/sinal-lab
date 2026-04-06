@@ -13,7 +13,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/admin/api-keys", tags=["admin-api-keys"])
 class CreateApiKeyRequest(BaseModel):
     """Request body to create a new API key."""
 
-    email: EmailStr
+    email: str
     name: str
 
 
