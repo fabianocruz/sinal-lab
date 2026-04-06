@@ -12,11 +12,12 @@ COPY packages/database/requirements.txt /app/requirements-db.txt
 RUN pip install --no-cache-dir -r /app/requirements-db.txt
 COPY apps/agents/requirements.txt /app/requirements-agents.txt
 RUN pip install --no-cache-dir -r /app/requirements-agents.txt
+# cache-bust: 2026-04-06
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn[standard] \
+    "pydantic[email]" \
     pydantic-settings \
-    email-validator \
     python-dotenv \
     feedparser \
     httpx \
