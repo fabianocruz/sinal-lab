@@ -126,7 +126,10 @@ def enrich_items(
 ) -> List["CuratedItem"]:
     """Enrich curated items with embed detection and og:image thumbnails.
 
-    Modifies items in place and returns the same list.
+    Modifies items in place and returns the same list. Embed detection
+    checks both ``source_url`` and ``source_text``: Twitter posts store
+    YouTube/Instagram/TikTok links inside the tweet text rather than in
+    the post URL, so scanning source_text catches those embeds.
 
     Args:
         items: List of CuratedItem instances to enrich.
