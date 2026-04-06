@@ -25,7 +25,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from apps.agents.sintese.email_renderer import AgentCard, ArticleHighlight, IntelligenceHighlight, extract_agent_summary
+from apps.agents.sintese.email_renderer import AgentCard, ArticleHighlight, FeatureHighlight, IntelligenceHighlight, extract_agent_summary
 from apps.agents.sintese.newsletter import (
     build_newsletter_email,
     markdown_to_html,
@@ -193,6 +193,11 @@ INTELLIGENCE_REPORTS: Dict[str, dict] = {
         "summary": "Como um fundador técnico treinou o Claude para replicar seu estilo de escrita, os erros no caminho, e o framework que saiu do processo.",
         "author": "Fabiano Cruz",
     },
+    "healthtech-ai-mapa-completo-mercado-global": {
+        "title": "Healthtech + AI: O Mapa Completo do Mercado Global",
+        "summary": "100 empresas analisadas, 16 segmentos, 50+ investidores, rankings e 10 tendencias para 2026-2028.",
+        "author": "Sinal Intelligence",
+    },
 }
 
 
@@ -226,6 +231,35 @@ ARTICLE_HIGHLIGHTS: Dict[int, dict] = {
         "cover_url": "https://q1anrx64yh9vfjwf.public.blob.vercel-storage.com/covers/sintese/ed30-v1-dlbMCZN89f6qr3zjqCxwEb0b3Y5pQx-4lZvQTKwcwr5o1A2sZrJUMKQIho9Ga.png",
     },
 }
+
+
+# Registry of feature highlights per edition.
+# Use this to promote platform features (e.g. Social Signal Intelligence).
+FEATURE_HIGHLIGHTS: Dict[int, dict] = {
+    53: {
+        "title": "Social Signal Intelligence",
+        "summary": "866 sinais, 13 clusters, 5 plataformas, 13 temas. Detecte tendencias emergentes em AI, Fintech, HealthTech e mais antes de virarem mainstream.",
+        "site_url": "https://sinal.tech/signals",
+        "badge": "Novo na plataforma",
+        "cta_label": "Explorar sinais",
+        "color": "#E8FF59",
+    },
+}
+
+
+def _build_feature_highlight(edition: int) -> Optional[FeatureHighlight]:
+    """Build FeatureHighlight for the current edition."""
+    meta = FEATURE_HIGHLIGHTS.get(edition)
+    if not meta:
+        return None
+    return FeatureHighlight(
+        title=meta["title"],
+        summary=meta["summary"],
+        site_url=meta["site_url"],
+        badge=meta.get("badge", "Novo"),
+        cta_label=meta.get("cta_label", "Explorar agora"),
+        color=meta.get("color", "#E8FF59"),
+    )
 
 
 def _build_article_highlight(edition: int = 52) -> Optional[ArticleHighlight]:
@@ -332,10 +366,15 @@ def publish_newsletter(
     if article_highlight:
         logger.info("Article highlight: %s", article_highlight.title)
 
+    # Build feature highlight for this edition
+    feature_highlight = _build_feature_highlight(edition)
+    if feature_highlight:
+        logger.info("Feature highlight: %s", feature_highlight.title)
+
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
         intelligence=intelligence, article=article_highlight,
-        max_hero_articles=8,
+        feature=feature_highlight, max_hero_articles=8,
     )
 
     # Always save HTML to standard output directory
@@ -437,15 +476,16 @@ def publish_briefing_email(
 
     # Build highlights for this edition
     intel_highlight = _build_intelligence_highlight(
-        "https://sinal.tech/intelligence/devtools-market-intelligence-mar-2026"
+        "https://sinal.tech/intelligence/healthtech-ai-mapa-completo-mercado-global"
     )
-    article_highlight = _build_article_highlight()
+    article_highlight = _build_article_highlight(edition)
+    feature_highlight = _build_feature_highlight(edition)
 
     # Convert to email-safe HTML (same template as broadcast)
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
         intelligence=intel_highlight, article=article_highlight,
-        max_hero_articles=8,
+        feature=feature_highlight, max_hero_articles=8,
     )
 
     # Save preview HTML
