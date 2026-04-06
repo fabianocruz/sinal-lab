@@ -38,11 +38,11 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: "Social Signal Intelligence | Sinal",
   description:
-    "Sinais emergentes em AI, Fintech e Banking detectados por inteligencia artificial. Clusters de tendencias, vozes influentes e posts relevantes.",
+    "Sinais emergentes em tecnologia, financas e startups LATAM detectados por inteligencia artificial. Clusters de tendencias, vozes influentes e posts relevantes.",
   openGraph: {
     title: "Social Signal Intelligence | Sinal",
     description:
-      "Sinais emergentes em AI, Fintech e Banking detectados por inteligencia artificial.",
+      "Sinais emergentes em tecnologia, financas e startups LATAM detectados por inteligencia artificial.",
     type: "website",
   },
 };
@@ -134,8 +134,8 @@ export default async function SignalsPage({
                 Social Signal Intelligence
               </h1>
               <p className="max-w-[520px] text-[15px] leading-[1.5] text-ash">
-                Sinais emergentes detectados por IA em conversas publicas sobre AI, Fintech e
-                Banking. Atualizado semanalmente pelo agente{" "}
+                Sinais emergentes detectados por IA em conversas publicas sobre tecnologia, financas
+                e startups LATAM. Atualizado semanalmente pelo agente{" "}
                 <span className="font-mono text-[12px] text-agent-radar">RADAR</span>.
               </p>
             </div>

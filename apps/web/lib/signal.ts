@@ -61,6 +61,114 @@ export interface SignalStats {
   themes: Record<string, number>;
 }
 
+// ---------------------------------------------------------------------------
+// Signal Themes — single source of truth for the 13-theme taxonomy
+// ---------------------------------------------------------------------------
+
+export const SIGNAL_THEMES = [
+  { key: "AI", label: "AI", color: "#59FFB4" },
+  { key: "Fintech", label: "Fintech", color: "#E8FF59" },
+  { key: "AI in Banking", label: "AI in Banking", color: "#59B4FF" },
+  { key: "Funding", label: "Funding", color: "#FF8A59" },
+  { key: "VC", label: "VC", color: "#B59FFF" },
+  { key: "HealthTech", label: "HealthTech", color: "#59D4FF" },
+  { key: "DevTools", label: "DevTools", color: "#C459FF" },
+  { key: "Startup Ops", label: "Startup Ops", color: "#FF6B8A" },
+  { key: "Cybersecurity", label: "Cybersecurity", color: "#FF5E5E" },
+  { key: "Regulation", label: "Regulation", color: "#8A8A96" },
+  { key: "RetailTech", label: "RetailTech", color: "#FFB859" },
+  { key: "CleanTech", label: "CleanTech", color: "#59FF8A" },
+  { key: "EdTech", label: "EdTech", color: "#FF59D4" },
+] as const;
+
+export type SignalThemeKey = (typeof SIGNAL_THEMES)[number]["key"];
+
+/** Quick lookup: theme key → hex color */
+export const THEME_COLORS: Record<string, string> = Object.fromEntries(
+  SIGNAL_THEMES.map((t) => [t.key, t.color]),
+);
+
+/**
+ * Maps voice sector_tags and common aliases to canonical theme keys.
+ * Every theme must have at least one entry so that VoicesPanel can match
+ * voices to signals via theme-based fallback.
+ */
+export const SECTOR_TAG_TO_THEME: Record<string, string> = {
+  // AI
+  ai: "AI",
+  "artificial intelligence": "AI",
+  "machine learning": "AI",
+  developer: "AI",
+  infrastructure: "AI",
+  // Fintech
+  fintech: "Fintech",
+  payments: "Fintech",
+  crypto: "Fintech",
+  blockchain: "Fintech",
+  "digital assets": "Fintech",
+  // AI in Banking
+  banking: "AI in Banking",
+  "banking ai": "AI in Banking",
+  kyc: "AI in Banking",
+  aml: "AI in Banking",
+  regtech: "AI in Banking",
+  insurtech: "AI in Banking",
+  // Funding
+  funding: "Funding",
+  "venture capital": "Funding",
+  investor: "Funding",
+  vc: "Funding",
+  angel: "Funding",
+  // VC
+  lp: "VC",
+  gp: "VC",
+  "fund manager": "VC",
+  // HealthTech
+  healthtech: "HealthTech",
+  health: "HealthTech",
+  telemedicine: "HealthTech",
+  biotech: "HealthTech",
+  medtech: "HealthTech",
+  // DevTools
+  devtools: "DevTools",
+  "developer tools": "DevTools",
+  observability: "DevTools",
+  "ci/cd": "DevTools",
+  api: "DevTools",
+  // Startup Ops
+  "startup ops": "Startup Ops",
+  hiring: "Startup Ops",
+  culture: "Startup Ops",
+  scaling: "Startup Ops",
+  founder: "Startup Ops",
+  // Cybersecurity
+  cybersecurity: "Cybersecurity",
+  security: "Cybersecurity",
+  appsec: "Cybersecurity",
+  privacy: "Cybersecurity",
+  // Regulation
+  regulation: "Regulation",
+  compliance: "Regulation",
+  lgpd: "Regulation",
+  "open finance": "Regulation",
+  // RetailTech
+  retailtech: "RetailTech",
+  "e-commerce": "RetailTech",
+  ecommerce: "RetailTech",
+  marketplace: "RetailTech",
+  logistics: "RetailTech",
+  // CleanTech
+  cleantech: "CleanTech",
+  "clean energy": "CleanTech",
+  sustainability: "CleanTech",
+  "carbon credits": "CleanTech",
+  // EdTech
+  edtech: "EdTech",
+  education: "EdTech",
+  "online learning": "EdTech",
+  "corporate training": "EdTech",
+};
+
 // Platform colors for visual identity
 export const PLATFORM_COLORS: Record<string, string> = {
   twitter: "#1DA1F2",

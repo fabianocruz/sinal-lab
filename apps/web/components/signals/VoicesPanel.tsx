@@ -3,7 +3,12 @@
 import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Voice, Signal } from "@/lib/signal";
-import { PLATFORM_COLORS, PLATFORM_LABELS, VOICE_TYPE_LABELS } from "@/lib/signal";
+import {
+  PLATFORM_COLORS,
+  PLATFORM_LABELS,
+  VOICE_TYPE_LABELS,
+  SECTOR_TAG_TO_THEME,
+} from "@/lib/signal";
 import type { Persona } from "@/components/signals/PersonaSelector";
 
 // ---------------------------------------------------------------------------
@@ -82,24 +87,6 @@ const PLATFORM_OPTIONS = [
   { key: "bluesky", label: "Bluesky" },
   { key: "reddit", label: "Reddit" },
 ];
-
-// Maps voice sector_tags to signal themes so that e.g. a "vc" voice
-// gets matched to "fintech" signals and a "developer" voice to "ai" signals.
-const SECTOR_TAG_TO_THEME: Record<string, string> = {
-  fintech: "fintech",
-  ai: "ai",
-  "artificial intelligence": "ai",
-  "machine learning": "ai",
-  banking: "ai in banking",
-  payments: "fintech",
-  crypto: "fintech",
-  blockchain: "fintech",
-  investor: "fintech",
-  vc: "fintech",
-  founder: "ai",
-  developer: "ai",
-  infrastructure: "ai",
-};
 
 // Colors keyed by account_type for avatar backgrounds
 const TYPE_COLORS: Record<string, string> = {
@@ -475,14 +462,14 @@ export default function VoicesPanel({
 
       // Strategy 3: theme-based match — signals in this voice's sector areas
       // Map sector_tags through SECTOR_TAG_TO_THEME so that tags like "vc"
-      // or "investor" resolve to actual signal themes ("fintech", "ai", etc.)
+      // or "investor" resolve to canonical theme names, then lowercase for lookup
       const byTheme: Signal[] = [];
       if (byHandle.length === 0 && byDisplayName.length === 0) {
         const tags = (voice.sector_tags ?? []).map((t) => t.toLowerCase());
         const resolvedThemes = new Set<string>();
         for (const tag of tags) {
           const mapped = SECTOR_TAG_TO_THEME[tag];
-          if (mapped) resolvedThemes.add(mapped);
+          if (mapped) resolvedThemes.add(mapped.toLowerCase());
           // Also try the raw tag as a theme key (backwards compat)
           resolvedThemes.add(tag);
         }
@@ -534,8 +521,7 @@ export default function VoicesPanel({
     if (persona !== "all") {
       result.sort(
         (a, b) =>
-          personaSortWeight(a.account_type, persona) -
-          personaSortWeight(b.account_type, persona),
+          personaSortWeight(a.account_type, persona) - personaSortWeight(b.account_type, persona),
       );
     }
 

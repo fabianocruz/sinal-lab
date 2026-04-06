@@ -21,10 +21,11 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "Feed | Sinal",
   description:
-    "Os sinais mais relevantes sobre AI, Fintech e Banking, selecionados e contextualizados pela editora Ana Torres.",
+    "Os sinais mais relevantes sobre tecnologia, financas e startups LATAM, selecionados e contextualizados pela editora Ana Torres.",
   openGraph: {
     title: "Feed | Sinal",
-    description: "Sinais curados sobre AI, Fintech e Banking. Atualizados em tempo real.",
+    description:
+      "Sinais curados sobre tecnologia, financas e startups LATAM. Atualizados em tempo real.",
     type: "website",
   },
 };
@@ -82,8 +83,8 @@ export default async function FeedPage({
             </div>
             <h1 className="mb-2 font-display text-[clamp(28px,4vw,40px)] text-sinal-white">Feed</h1>
             <p className="max-w-[500px] text-[15px] leading-[1.6] text-ash">
-              Os sinais mais relevantes sobre AI, Fintech e Banking, selecionados e contextualizados
-              pela editora Ana Torres.
+              Os sinais mais relevantes sobre tecnologia, financas e startups LATAM, selecionados e
+              contextualizados pela editora Ana Torres.
             </p>
           </div>
         </div>

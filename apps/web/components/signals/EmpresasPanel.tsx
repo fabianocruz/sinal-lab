@@ -5,15 +5,18 @@ import Link from "next/link";
 import type { Company } from "@/lib/company";
 import { SECTOR_COLORS } from "@/lib/company";
 import type { Signal } from "@/lib/signal";
+import { SIGNAL_THEMES, THEME_COLORS } from "@/lib/signal";
 
 // Sector filter pills shown at the top of the panel
 const SECTOR_FILTERS = ["Fintech", "AI/ML", "SaaS", "Healthtech", "E-commerce"] as const;
 type SectorFilter = (typeof SECTOR_FILTERS)[number] | "Todos";
+type ThemeFilter = string | "Todos";
 
 interface MatchedCompany {
   company: Company;
   mentionCount: number;
   latestSnippet: string;
+  themes: Set<string>;
 }
 
 /**
@@ -32,12 +35,13 @@ function matchCompaniesAgainstSignals(companies: Company[], signals: Signal[]): 
 
     let count = 0;
     let latestSnippet = "";
+    const themes = new Set<string>();
 
     for (const signal of signals) {
       const textLower = signal.text.toLowerCase();
       if (textLower.includes(nameLower)) {
         count++;
-        // Keep the snippet from the most recent signal that mentions the company
+        if (signal.theme) themes.add(signal.theme);
         if (!latestSnippet) {
           latestSnippet = signal.text.slice(0, 120).trimEnd();
           if (signal.text.length > 120) latestSnippet += "...";
@@ -46,7 +50,7 @@ function matchCompaniesAgainstSignals(companies: Company[], signals: Signal[]): 
     }
 
     if (count > 0) {
-      results.push({ company, mentionCount: count, latestSnippet });
+      results.push({ company, mentionCount: count, latestSnippet, themes });
     }
   }
 
@@ -127,13 +131,15 @@ interface EmpresasPanelProps {
 
 export default function EmpresasPanel({ companies, signals }: EmpresasPanelProps) {
   const [activeSector, setActiveSector] = useState<SectorFilter>("Todos");
+  const [activeTheme, setActiveTheme] = useState<ThemeFilter>("Todos");
 
   const allMatches = matchCompaniesAgainstSignals(companies, signals);
 
-  const filtered =
-    activeSector === "Todos"
-      ? allMatches
-      : allMatches.filter((m) => m.company.sector === activeSector);
+  const filtered = allMatches.filter((m) => {
+    if (activeSector !== "Todos" && m.company.sector !== activeSector) return false;
+    if (activeTheme !== "Todos" && !m.themes.has(activeTheme)) return false;
+    return true;
+  });
 
   return (
     <div id="panel-empresas" role="tabpanel" aria-label="Empresas no Sinal" className="space-y-6">
@@ -153,42 +159,89 @@ export default function EmpresasPanel({ companies, signals }: EmpresasPanelProps
         )}
       </div>
 
+      {/* Theme filter pills */}
+      <div>
+        <p className="mb-2 font-mono text-[10px] uppercase tracking-[1.5px] text-[#4A4A56]">
+          Tema do sinal
+        </p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por tema">
+          <button
+            onClick={() => setActiveTheme("Todos")}
+            className={[
+              "rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-all",
+              activeTheme === "Todos"
+                ? "border-sinal-slate bg-sinal-graphite text-sinal-white"
+                : "border-[rgba(255,255,255,0.06)] text-ash hover:border-sinal-slate hover:text-silver",
+            ].join(" ")}
+          >
+            Todos
+          </button>
+          {SIGNAL_THEMES.map((theme) => {
+            const isActive = activeTheme === theme.key;
+            return (
+              <button
+                key={theme.key}
+                onClick={() => setActiveTheme(theme.key)}
+                className={[
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-all",
+                  isActive
+                    ? "border-sinal-slate bg-sinal-graphite text-sinal-white"
+                    : "border-[rgba(255,255,255,0.06)] text-ash hover:border-sinal-slate hover:text-silver",
+                ].join(" ")}
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: theme.color }}
+                  aria-hidden="true"
+                />
+                {theme.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Sector filter pills */}
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por setor">
-        <button
-          onClick={() => setActiveSector("Todos")}
-          className={[
-            "rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-all",
-            activeSector === "Todos"
-              ? "border-sinal-slate bg-sinal-graphite text-sinal-white"
-              : "border-[rgba(255,255,255,0.06)] text-ash hover:border-sinal-slate hover:text-silver",
-          ].join(" ")}
-        >
-          Todos
-        </button>
-        {SECTOR_FILTERS.map((sector) => {
-          const color = SECTOR_COLORS[sector] ?? "#8A8A96";
-          const isActive = activeSector === sector;
-          return (
-            <button
-              key={sector}
-              onClick={() => setActiveSector(sector)}
-              className={[
-                "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-all",
-                isActive
-                  ? "border-sinal-slate bg-sinal-graphite text-sinal-white"
-                  : "border-[rgba(255,255,255,0.06)] text-ash hover:border-sinal-slate hover:text-silver",
-              ].join(" ")}
-            >
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: color }}
-                aria-hidden="true"
-              />
-              {sector}
-            </button>
-          );
-        })}
+      <div>
+        <p className="mb-2 font-mono text-[10px] uppercase tracking-[1.5px] text-[#4A4A56]">
+          Setor da empresa
+        </p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por setor">
+          <button
+            onClick={() => setActiveSector("Todos")}
+            className={[
+              "rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-all",
+              activeSector === "Todos"
+                ? "border-sinal-slate bg-sinal-graphite text-sinal-white"
+                : "border-[rgba(255,255,255,0.06)] text-ash hover:border-sinal-slate hover:text-silver",
+            ].join(" ")}
+          >
+            Todos
+          </button>
+          {SECTOR_FILTERS.map((sector) => {
+            const color = SECTOR_COLORS[sector] ?? "#8A8A96";
+            const isActive = activeSector === sector;
+            return (
+              <button
+                key={sector}
+                onClick={() => setActiveSector(sector)}
+                className={[
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-all",
+                  isActive
+                    ? "border-sinal-slate bg-sinal-graphite text-sinal-white"
+                    : "border-[rgba(255,255,255,0.06)] text-ash hover:border-sinal-slate hover:text-silver",
+                ].join(" ")}
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                  aria-hidden="true"
+                />
+                {sector}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Company list */}

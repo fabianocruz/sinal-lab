@@ -72,8 +72,9 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
           </span>
         </div>
         <p className="text-[14px] leading-[1.5] text-silver">
-          Resumo curado dos sinais mais relevantes da semana em AI, Fintech e Banking, gerado pelo
-          agente <span className="font-mono text-[11px] text-agent-radar">RADAR</span>.
+          Resumo curado dos sinais mais relevantes da semana em tecnologia, financas e startups
+          LATAM, gerado pelo agente{" "}
+          <span className="font-mono text-[11px] text-agent-radar">RADAR</span>.
         </p>
       </div>
 
