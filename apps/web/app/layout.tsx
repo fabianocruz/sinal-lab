@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     default: "Sinal — Inteligência essencial sobre o ecossistema tech LATAM",
   },
   description:
-    "Toda segunda-feira, os dados mais relevantes sobre o ecossistema tech da América Latina — pesquisados por agentes de IA, revisados por humanos.",
+    "Toda terça-feira, os dados mais relevantes sobre o ecossistema tech da América Latina — pesquisados por agentes de IA, revisados por humanos.",
   openGraph: {
     siteName: "Sinal",
     locale: "pt_BR",

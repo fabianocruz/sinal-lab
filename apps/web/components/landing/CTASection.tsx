@@ -23,7 +23,7 @@ export default function CTASection() {
             inteligência de verdade?
           </h2>
           <p className="mx-auto mb-9 max-w-[600px] text-[17px] leading-[1.7] text-ash">
-            O próximo Briefing sai na segunda-feira. Junte-se a milhares de fundadores, CTOs e
+            O próximo Briefing sai na terça-feira. Junte-se a milhares de fundadores, CTOs e
             investidores que começam a semana com os dados certos.
           </p>
 

@@ -17,11 +17,11 @@ import { homepageJsonLd } from "@/lib/jsonld";
 export const metadata: Metadata = {
   title: "Sinal — Inteligência essencial sobre o ecossistema tech LATAM",
   description:
-    "Toda segunda-feira, os dados mais relevantes sobre o ecossistema tech da América Latina — pesquisados por centenas de agentes de IA auditáveis, revisados por humanos, entregues no seu inbox.",
+    "Toda terça-feira, os dados mais relevantes sobre o ecossistema tech da América Latina — pesquisados por centenas de agentes de IA auditáveis, revisados por humanos, entregues no seu inbox.",
   openGraph: {
     title: "Sinal — Inteligência essencial sobre o ecossistema tech LATAM",
     description:
-      "Toda segunda-feira, os dados mais relevantes sobre o ecossistema tech da América Latina.",
+      "Toda terça-feira, os dados mais relevantes sobre o ecossistema tech da América Latina.",
     locale: "pt_BR",
     type: "website",
   },

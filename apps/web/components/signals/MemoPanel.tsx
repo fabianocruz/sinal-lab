@@ -27,7 +27,7 @@ function EmptyPulse() {
       </div>
       <p className="mb-1 text-[15px] text-ash">Nenhum memo disponivel</p>
       <p className="text-[13px] text-[#4A4A56]">
-        O memo semanal e gerado pelo agente RADAR toda segunda-feira.
+        O memo semanal e gerado pelo agente RADAR toda terça-feira.
       </p>
     </div>
   );

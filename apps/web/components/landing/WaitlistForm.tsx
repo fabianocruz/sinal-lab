@@ -74,7 +74,7 @@ export default function WaitlistForm({
       >
         <span className="text-signal">✓</span>
         <p className="font-mono text-[14px] text-signal">
-          Inscrição confirmada! O próximo Briefing chega na segunda-feira.
+          Inscrição confirmada! O próximo Briefing chega na terça-feira.
         </p>
       </div>
     );

@@ -45,8 +45,8 @@ export default function Hero() {
 
           {/* Subheadline */}
           <p className="mb-10 max-w-[580px] text-[clamp(17px,2vw,19px)] leading-[1.7] text-ash">
-            Toda segunda-feira, os dados mais relevantes sobre o ecossistema tech da América Latina
-            — pesquisados por centenas de agentes de IA auditáveis, revisados por humanos, entregues
+            Toda terça-feira, os dados mais relevantes sobre o ecossistema tech da América Latina —
+            pesquisados por centenas de agentes de IA auditáveis, revisados por humanos, entregues
             no seu inbox.
           </p>
 

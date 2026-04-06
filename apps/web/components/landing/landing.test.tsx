@@ -42,7 +42,7 @@ describe("Hero", () => {
 
   it("renders the subheadline paragraph", () => {
     render(<Hero />);
-    expect(screen.getByText(/Toda segunda-feira/i)).toBeInTheDocument();
+    expect(screen.getByText(/Toda terça-feira/i)).toBeInTheDocument();
   });
 
   it("renders the social proof subscriber count", () => {
