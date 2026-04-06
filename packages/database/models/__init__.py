@@ -18,6 +18,7 @@ from packages.database.models.signal_cluster import SignalCluster
 from packages.database.models.social_signal import SocialSignal
 from packages.database.models.user import User
 from packages.database.models.verification_token import VerificationToken
+from packages.database.models.watchlist_item import WatchlistItem
 from packages.database.models.weekly_pulse import WeeklyPulse
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "SocialSignal",
     "User",
     "VerificationToken",
+    "WatchlistItem",
     "WeeklyPulse",
 ]

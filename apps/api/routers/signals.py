@@ -25,6 +25,7 @@ from packages.database.models.curated_feed_item import CuratedFeedItem
 from packages.database.models.monitored_account import MonitoredAccount
 from packages.database.models.signal_cluster import SignalCluster
 from packages.database.models.social_signal import SocialSignal
+from packages.database.models.watchlist_item import WatchlistItem
 from packages.database.models.weekly_pulse import WeeklyPulse
 
 router = APIRouter(prefix="/signals", tags=["signals"])
@@ -526,3 +527,98 @@ def signal_stats(db: Session = Depends(get_db)):
         platforms=platforms,
         themes=themes,
     )
+
+
+# ---------------------------------------------------------------------------
+# Watchlist — user-specific bookmarks for clusters and voices
+# ---------------------------------------------------------------------------
+
+
+class WatchlistItemResponse(BaseModel):
+    """Watchlist item response schema."""
+
+    id: UUID
+    user_email: str
+    item_type: str
+    item_slug: str
+    item_name: str
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WatchlistItemCreate(BaseModel):
+    """Request body to add an item to the watchlist."""
+
+    email: str
+    item_type: str  # "cluster" or "voice"
+    item_slug: str
+    item_name: str
+
+
+@router.get("/watchlist")
+def list_watchlist(
+    email: str = Query(..., description="User email to filter watchlist"),
+    item_type: Optional[str] = Query(None, description="Filter by item type (cluster, voice)"),
+    db: Session = Depends(get_db),
+):
+    """List watchlist items for a user, optionally filtered by item_type."""
+    query = db.query(WatchlistItem).filter(WatchlistItem.user_email == email)
+
+    if item_type:
+        query = query.filter(WatchlistItem.item_type == item_type)
+
+    items = query.order_by(desc(WatchlistItem.created_at)).all()
+    return {
+        "items": [WatchlistItemResponse.model_validate(i) for i in items],
+        "total": len(items),
+    }
+
+
+@router.post("/watchlist", status_code=201)
+def add_to_watchlist(
+    body: WatchlistItemCreate,
+    db: Session = Depends(get_db),
+):
+    """Add an item to a user's watchlist.
+
+    Returns 409 if the item already exists (unique constraint on email + type + slug).
+    """
+    # Check for existing duplicate
+    existing = (
+        db.query(WatchlistItem)
+        .filter(
+            WatchlistItem.user_email == body.email,
+            WatchlistItem.item_type == body.item_type,
+            WatchlistItem.item_slug == body.item_slug,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="Item already in watchlist")
+
+    item = WatchlistItem(
+        user_email=body.email,
+        item_type=body.item_type,
+        item_slug=body.item_slug,
+        item_name=body.item_name,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return WatchlistItemResponse.model_validate(item)
+
+
+@router.delete("/watchlist/{item_id}", status_code=204)
+def remove_from_watchlist(
+    item_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """Remove an item from a user's watchlist by item ID."""
+    item = db.query(WatchlistItem).filter(WatchlistItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+    db.delete(item)
+    db.commit()
+    return None

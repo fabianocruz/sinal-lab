@@ -485,6 +485,66 @@ export async function fetchSignalEntities(params?: {
 }
 
 // ---------------------------------------------------------------------------
+// Watchlist
+// ---------------------------------------------------------------------------
+
+export interface WatchlistItem {
+  id: string;
+  user_email: string;
+  item_type: string;
+  item_slug: string;
+  item_name: string;
+  created_at: string | null;
+}
+
+export async function fetchWatchlist(email: string): Promise<WatchlistItem[]> {
+  try {
+    const encoded = encodeURIComponent(email);
+    const response = await fetch(`${API_BASE}/api/signals/watchlist?email=${encoded}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addToWatchlist(
+  email: string,
+  itemType: string,
+  slug: string,
+  name: string,
+): Promise<WatchlistItem | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/signals/watchlist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        item_type: itemType,
+        item_slug: slug,
+        item_name: name,
+      }),
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function removeFromWatchlist(itemId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/api/signals/watchlist/${itemId}`, {
+      method: "DELETE",
+    });
+    return response.status === 204;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
 

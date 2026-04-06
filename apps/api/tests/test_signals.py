@@ -23,6 +23,7 @@ from packages.database.models.base import Base
 from packages.database.models.monitored_account import MonitoredAccount
 from packages.database.models.signal_cluster import SignalCluster
 from packages.database.models.social_signal import SocialSignal
+from packages.database.models.watchlist_item import WatchlistItem
 from packages.database.models.weekly_pulse import WeeklyPulse
 
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -711,3 +712,180 @@ def test_voices_recent_signals_limited_to_three(client, db_session):
 
     prolific = next(v for v in data["items"] if v["handle"] == "prolific-author")
     assert len(prolific["recent_signals"]) == 3
+
+
+# ---------------------------------------------------------------------------
+# Watchlist — CRUD endpoints
+# ---------------------------------------------------------------------------
+
+
+def test_add_to_watchlist(client, db_session):
+    """Test adding an item to the watchlist returns 201."""
+    response = client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "user@example.com",
+            "item_type": "cluster",
+            "item_slug": "ai-in-fintech",
+            "item_name": "AI in Fintech",
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["user_email"] == "user@example.com"
+    assert data["item_type"] == "cluster"
+    assert data["item_slug"] == "ai-in-fintech"
+    assert data["item_name"] == "AI in Fintech"
+    assert "id" in data
+
+
+def test_list_watchlist_empty(client, db_session):
+    """Test listing watchlist for a user with no items."""
+    response = client.get("/api/signals/watchlist?email=nobody@example.com")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["items"] == []
+    assert data["total"] == 0
+
+
+def test_list_watchlist_with_items(client, db_session):
+    """Test listing watchlist returns all items for a user."""
+    # Add two items
+    client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "user@example.com",
+            "item_type": "cluster",
+            "item_slug": "ai-in-fintech",
+            "item_name": "AI in Fintech",
+        },
+    )
+    client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "user@example.com",
+            "item_type": "voice",
+            "item_slug": "founder1",
+            "item_name": "Founder One",
+        },
+    )
+
+    response = client.get("/api/signals/watchlist?email=user@example.com")
+    data = response.json()
+
+    assert data["total"] == 2
+    assert len(data["items"]) == 2
+    slugs = {item["item_slug"] for item in data["items"]}
+    assert slugs == {"ai-in-fintech", "founder1"}
+
+
+def test_list_watchlist_filter_by_item_type(client, db_session):
+    """Test listing watchlist filtered by item_type."""
+    client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "user@example.com",
+            "item_type": "cluster",
+            "item_slug": "ai-in-fintech",
+            "item_name": "AI in Fintech",
+        },
+    )
+    client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "user@example.com",
+            "item_type": "voice",
+            "item_slug": "founder1",
+            "item_name": "Founder One",
+        },
+    )
+
+    response = client.get("/api/signals/watchlist?email=user@example.com&item_type=cluster")
+    data = response.json()
+
+    assert data["total"] == 1
+    assert data["items"][0]["item_type"] == "cluster"
+
+
+def test_list_watchlist_filters_by_email(client, db_session):
+    """Test that watchlist items are scoped to the requesting user."""
+    client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "alice@example.com",
+            "item_type": "cluster",
+            "item_slug": "ai-in-fintech",
+            "item_name": "AI in Fintech",
+        },
+    )
+    client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "bob@example.com",
+            "item_type": "cluster",
+            "item_slug": "funding-surge",
+            "item_name": "Funding Surge",
+        },
+    )
+
+    alice_resp = client.get("/api/signals/watchlist?email=alice@example.com")
+    bob_resp = client.get("/api/signals/watchlist?email=bob@example.com")
+
+    assert alice_resp.json()["total"] == 1
+    assert alice_resp.json()["items"][0]["item_slug"] == "ai-in-fintech"
+    assert bob_resp.json()["total"] == 1
+    assert bob_resp.json()["items"][0]["item_slug"] == "funding-surge"
+
+
+def test_add_duplicate_watchlist_item_returns_409(client, db_session):
+    """Test that adding the same item twice returns 409 Conflict."""
+    payload = {
+        "email": "user@example.com",
+        "item_type": "cluster",
+        "item_slug": "ai-in-fintech",
+        "item_name": "AI in Fintech",
+    }
+    response1 = client.post("/api/signals/watchlist", json=payload)
+    assert response1.status_code == 201
+
+    response2 = client.post("/api/signals/watchlist", json=payload)
+    assert response2.status_code == 409
+    assert "already" in response2.json()["detail"].lower()
+
+
+def test_remove_from_watchlist(client, db_session):
+    """Test removing an item from the watchlist."""
+    # Add item
+    add_resp = client.post(
+        "/api/signals/watchlist",
+        json={
+            "email": "user@example.com",
+            "item_type": "cluster",
+            "item_slug": "ai-in-fintech",
+            "item_name": "AI in Fintech",
+        },
+    )
+    item_id = add_resp.json()["id"]
+
+    # Remove it
+    del_resp = client.delete(f"/api/signals/watchlist/{item_id}")
+    assert del_resp.status_code == 204
+
+    # Verify it's gone
+    list_resp = client.get("/api/signals/watchlist?email=user@example.com")
+    assert list_resp.json()["total"] == 0
+
+
+def test_remove_nonexistent_watchlist_item_returns_404(client, db_session):
+    """Test removing a non-existent watchlist item returns 404."""
+    fake_id = str(uuid.uuid4())
+    response = client.delete(f"/api/signals/watchlist/{fake_id}")
+    assert response.status_code == 404
+
+
+def test_watchlist_email_required(client, db_session):
+    """Test that the email query param is required for listing."""
+    response = client.get("/api/signals/watchlist")
+    assert response.status_code == 422

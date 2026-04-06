@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 import type { WeeklyPulse, SignalCluster, SignalStats } from "@/lib/signal";
 import { STAGE_COLORS, STAGE_LABELS } from "@/lib/signal";
 import Link from "next/link";
 import PlatformHeatmap from "@/components/signals/PlatformHeatmap";
 import type { PlatformHeatmapRow } from "@/components/signals/PlatformHeatmap";
 import ClusterCard from "@/components/signals/ClusterCard";
+import { fetchWatchlist, addToWatchlist, removeFromWatchlist, type WatchlistItem } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Theme filter constants
@@ -121,29 +123,78 @@ function writeWatchlist(slugs: Set<string>): void {
 }
 
 export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email ?? null;
+
   const [activeTheme, setActiveTheme] = useState("all");
   // Start with empty set; populate after mount to avoid SSR/hydration mismatch
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
+  // Map slug -> server-side WatchlistItem id (for DELETE calls)
+  const watchlistIdsRef = useRef<Map<string, string>>(new Map());
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from localStorage after mount
+  // Hydrate watchlist from API (authenticated) or localStorage (anonymous)
   useEffect(() => {
-    setWatchlist(readWatchlist());
-    setHydrated(true);
-  }, []);
+    let cancelled = false;
 
-  const handleWatch = useCallback((slug: string) => {
-    setWatchlist((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) {
-        next.delete(slug);
+    async function loadWatchlist() {
+      if (userEmail) {
+        const items = await fetchWatchlist(userEmail);
+        if (cancelled) return;
+        const slugs = new Set(items.map((i: WatchlistItem) => i.item_slug));
+        const idMap = new Map(items.map((i: WatchlistItem) => [i.item_slug, i.id]));
+        watchlistIdsRef.current = idMap;
+        setWatchlist(slugs);
       } else {
-        next.add(slug);
+        setWatchlist(readWatchlist());
       }
-      writeWatchlist(next);
-      return next;
-    });
-  }, []);
+      setHydrated(true);
+    }
+
+    loadWatchlist();
+    return () => {
+      cancelled = true;
+    };
+  }, [userEmail]);
+
+  const handleWatch = useCallback(
+    (slug: string) => {
+      // Find the cluster to get its display name
+      const cluster = clusters.find((c) => c.slug === slug);
+      const itemName = cluster?.name ?? slug;
+
+      setWatchlist((prev) => {
+        const next = new Set(prev);
+        if (next.has(slug)) {
+          // Remove
+          next.delete(slug);
+          if (userEmail) {
+            const itemId = watchlistIdsRef.current.get(slug);
+            if (itemId) {
+              removeFromWatchlist(itemId);
+              watchlistIdsRef.current.delete(slug);
+            }
+          } else {
+            writeWatchlist(next);
+          }
+        } else {
+          // Add
+          next.add(slug);
+          if (userEmail) {
+            addToWatchlist(userEmail, "cluster", slug, itemName).then((item) => {
+              if (item) {
+                watchlistIdsRef.current.set(slug, item.id);
+              }
+            });
+          } else {
+            writeWatchlist(next);
+          }
+        }
+        return next;
+      });
+    },
+    [userEmail, clusters],
+  );
 
   const accelerating = pulse?.accelerating_themes ?? [];
   const emerging = pulse?.emerging_signals ?? [];
