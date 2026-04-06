@@ -242,6 +242,43 @@ def normalize_youtube_item(item: dict) -> SocialPost:
     )
 
 
+def normalize_youtube_video(video: "YouTubeVideo") -> SocialPost:
+    """Convert a YouTubeVideo (native API) to a unified SocialPost.
+
+    Maps YouTube video fields and engagement metrics into the generic
+    SocialPost structure for unified processing.
+
+    Args:
+        video: A YouTubeVideo from the shared YouTube source connector.
+
+    Returns:
+        SocialPost with platform="youtube".
+    """
+    from apps.agents.sources.youtube import YouTubeVideo  # noqa: F811
+
+    text = video.title
+    if video.description:
+        text = f"{video.title}\n\n{video.description[:500]}"
+
+    return SocialPost(
+        text=text,
+        url=video.url,
+        platform="youtube",
+        author_handle=video.channel_title,
+        author_display_name=video.channel_title,
+        author_followers=video.subscriber_count,
+        published_at=video.published_at,
+        image_url=video.thumbnail_url,
+        source_name="youtube_api",
+        metrics={
+            "likes": video.like_count,
+            "views": video.view_count,
+            "comments": video.comment_count,
+        },
+        content_hash=video.content_hash,
+    )
+
+
 def normalize_web_scraped_article(article: dict) -> SocialPost:
     """Convert a web-scraped article dict to a unified SocialPost.
 
@@ -538,10 +575,11 @@ def collect_from_youtube(
     queries: Optional[List[str]] = None,
     max_per_query: int = 25,
 ) -> List[SocialPost]:
-    """Collect YouTube video comments/metadata via Monid API.
+    """Collect YouTube videos via native Data API v3 or Monid fallback.
 
-    Only runs when MONID_API_KEY is set. Uses the YouTube comment scraper
-    Apify endpoint to fetch video metadata and comments for the given queries.
+    Tries the native YouTube Data API v3 first when YOUTUBE_API_KEY is
+    configured. Falls back to Monid YouTube scraper when MONID_API_KEY
+    is set but YOUTUBE_API_KEY is not. Returns empty if neither is available.
 
     Args:
         provenance: Provenance tracker for recording source attribution.
@@ -551,19 +589,54 @@ def collect_from_youtube(
     Returns:
         List of normalized SocialPost items from YouTube.
     """
+    if queries is None:
+        queries = [
+            "AI agents fintech",
+            "banking technology LATAM",
+        ]
+
+    # Strategy 1: Native YouTube Data API v3
+    try:
+        import os
+        if os.getenv("YOUTUBE_API_KEY"):
+            from apps.agents.sources.youtube import fetch_youtube_videos
+
+            all_posts: List[SocialPost] = []
+            for query in queries:
+                videos = fetch_youtube_videos(
+                    query, max_results=max_per_query,
+                )
+                for video in videos:
+                    post = normalize_youtube_video(video)
+                    if post.text and post.url:
+                        all_posts.append(post)
+                        provenance.track(
+                            source_url=video.url,
+                            source_name="youtube_api",
+                            extraction_method="api",
+                            confidence=0.7,
+                            collector_agent="social_signals",
+                        )
+
+            logger.info(
+                "YouTube API: collected %d posts from %d queries",
+                len(all_posts), len(queries),
+            )
+            return all_posts
+    except Exception as e:
+        logger.warning("YouTube native API failed, trying Monid fallback: %s", e)
+
+    # Strategy 2: Monid YouTube scraper (fallback)
     try:
         from apps.agents.sources.monid import is_available, fetch_youtube_comments
         if not is_available():
-            logger.debug("MONID_API_KEY not set, skipping YouTube collection")
+            logger.debug(
+                "Neither YOUTUBE_API_KEY nor MONID_API_KEY set, "
+                "skipping YouTube collection"
+            )
             return []
 
-        if queries is None:
-            queries = [
-                "AI agents fintech",
-                "banking technology LATAM",
-            ]
-
-        all_posts: List[SocialPost] = []
+        all_posts = []
         for query in queries:
             items = fetch_youtube_comments(query, max_results=max_per_query, provenance=provenance)
             for item in items:
