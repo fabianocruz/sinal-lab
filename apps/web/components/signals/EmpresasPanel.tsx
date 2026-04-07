@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Company } from "@/lib/company";
 import { SECTOR_COLORS } from "@/lib/company";
 import type { Signal } from "@/lib/signal";
-import { SIGNAL_THEMES, THEME_COLORS } from "@/lib/signal";
+import { SIGNAL_THEMES } from "@/lib/signal";
 
 // Sector filter pills shown at the top of the panel
 const SECTOR_FILTERS = ["Fintech", "AI/ML", "SaaS", "Healthtech", "E-commerce"] as const;

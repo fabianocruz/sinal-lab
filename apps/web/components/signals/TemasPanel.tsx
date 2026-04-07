@@ -5,7 +5,7 @@ import ClusterCard from "@/components/signals/ClusterCard";
 import SignalCard from "@/components/signals/SignalCard";
 import DimensionRadar from "@/components/signals/DimensionRadar";
 import type { Signal, SignalCluster } from "@/lib/signal";
-import { SIGNAL_THEMES, THEME_COLORS } from "@/lib/signal";
+import { SIGNAL_THEMES } from "@/lib/signal";
 
 const TEMAS = [{ key: "Todos" as const, label: "Todos", color: "#8A8A96" }, ...SIGNAL_THEMES];
 
