@@ -165,6 +165,11 @@ NEGATIVE_KEYWORDS: list[str] = [
     "firma parceria com", "fecha acordo com",
     "avancam na parceria", "avançam na parceria",
     "redesenhando o futuro", "estao redesenhando", "estão redesenhando",
+    # Legal/political/judicial (non-tech)
+    "stf", "supremo tribunal", "constitucionalidade", "inconstitucional",
+    "congresso nacional", "senado", "camara dos deputados", "câmara dos deputados",
+    "projeto de lei", "pec", "medida provisoria", "medida provisória",
+    "a terra e nossa", "a terra é nossa", "compra de terras",
 ]
 
 # Blocked domains — articles from these domains are filtered out regardless

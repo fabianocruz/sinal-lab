@@ -2,24 +2,7 @@
 
 import React, { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-// ---------------------------------------------------------------------------
-// Theme options — platform filter removed (curator already filtered by source)
-// ---------------------------------------------------------------------------
-
-const THEME_OPTIONS = [
-  { value: "", label: "Todos" },
-  { value: "AI", label: "AI" },
-  { value: "Fintech", label: "Fintech" },
-  { value: "Banking", label: "Banking" },
-];
-
-// Category accent colors aligned with FeedItem
-const THEME_COLORS: Record<string, string> = {
-  AI: "#59FFB4",
-  Fintech: "#E8FF59",
-  Banking: "#59B4FF",
-};
+import { SIGNAL_THEMES, THEME_COLORS } from "@/lib/signal";
 
 // ---------------------------------------------------------------------------
 // Pill sub-component
@@ -84,14 +67,17 @@ export default function FeedFilterBar() {
 
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por tema">
-      {THEME_OPTIONS.map((opt) => (
+      <Pill key="" active={activeTheme === ""} onClick={() => applyTheme("")}>
+        Todos
+      </Pill>
+      {SIGNAL_THEMES.map((theme) => (
         <Pill
-          key={opt.value}
-          active={activeTheme === opt.value}
-          onClick={() => applyTheme(opt.value)}
-          accentColor={opt.value ? THEME_COLORS[opt.value] : undefined}
+          key={theme.key}
+          active={activeTheme === theme.key}
+          onClick={() => applyTheme(theme.key)}
+          accentColor={theme.color}
         >
-          {opt.label}
+          {theme.label}
         </Pill>
       ))}
     </div>

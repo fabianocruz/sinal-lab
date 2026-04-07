@@ -1,16 +1,5 @@
 import type { CuratedFeedItem } from "@/lib/signal";
-
-// ---------------------------------------------------------------------------
-// Category config
-// ---------------------------------------------------------------------------
-
-const CATEGORY_COLORS: Record<string, string> = {
-  AI: "#59FFB4",
-  Fintech: "#E8FF59",
-  Banking: "#59B4FF",
-  Crypto: "#FF8A59",
-  Startups: "#C459FF",
-};
+import { THEME_COLORS } from "@/lib/signal";
 
 const FALLBACK_CATEGORY_COLOR = "#9A9AA8";
 
@@ -72,7 +61,7 @@ interface FeedItemProps {
 
 export default function FeedItem({ item }: FeedItemProps) {
   const platformCfg = PLATFORM_CONFIG[item.platform] ?? FALLBACK_PLATFORM;
-  const categoryColor = CATEGORY_COLORS[item.category] ?? FALLBACK_CATEGORY_COLOR;
+  const categoryColor = THEME_COLORS[item.category] ?? FALLBACK_CATEGORY_COLOR;
 
   const hasThumbnail = Boolean(item.thumbnail_url);
   const hasYouTubeEmbed = item.video_embed?.platform === "youtube";
