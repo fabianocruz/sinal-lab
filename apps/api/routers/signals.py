@@ -434,7 +434,7 @@ def _find_recent_signals_for_voice(
     Returns:
         List of SocialSignal records (may be empty).
     """
-    # Strategy 1: exact handle match
+    # Strategy 1: exact handle match (same platform)
     by_handle = (
         db.query(SocialSignal)
         .filter(SocialSignal.author_handle == account.handle)
@@ -445,17 +445,39 @@ def _find_recent_signals_for_voice(
     if by_handle:
         return by_handle
 
-    # Strategy 2: match by sector_tags -> signal theme
-    if not account.sector_tags:
+    # Strategy 2: display_name containment (cross-platform)
+    display_name = (account.display_name or "").strip()
+    if display_name and len(display_name) > 3:
+        by_name = (
+            db.query(SocialSignal)
+            .filter(SocialSignal.author_display_name.ilike(f"%{display_name}%"))
+            .order_by(desc(SocialSignal.published_at))
+            .limit(signal_limit)
+            .all()
+        )
+        if by_name:
+            return by_name
+
+    # Strategy 3: match by sector_tags -> signal theme
+    # Map common account tags to signal themes
+    tag_to_theme = {
+        "fintech": "Fintech", "ai": "AI", "banking": "AI in Banking",
+        "healthtech": "HealthTech", "devtools": "DevTools", "crypto": "Fintech",
+        "saas": "AI", "investor": "Funding", "vc": "VC",
+    }
+    tags = account.sector_tags or []
+    theme_conditions = []
+    for tag in tags:
+        mapped = tag_to_theme.get(tag.lower())
+        if mapped:
+            theme_conditions.append(SocialSignal.theme == mapped)
+
+    if not theme_conditions:
         return []
 
-    tag_conditions = [
-        SocialSignal.theme.ilike(f"%{tag}%")
-        for tag in account.sector_tags
-    ]
     return (
         db.query(SocialSignal)
-        .filter(or_(*tag_conditions))
+        .filter(or_(*theme_conditions))
         .order_by(desc(SocialSignal.published_at))
         .limit(signal_limit)
         .all()
