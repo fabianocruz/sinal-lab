@@ -362,6 +362,12 @@ def score_topic_relevance(item: FeedItem) -> float:
             "diz vice", "afirma vice", "diz presidente", "afirma presidente",
             "conteudo patrocinado", "conteúdo patrocinado",
             "publieditorial", "branded content",
+            # Legal/political — never relevant regardless of fintech keywords
+            "stf", "supremo tribunal", "constitucionalidade",
+            "congresso nacional", "senado", "camara dos deputados",
+            "projeto de lei", "pec", "medida provisoria",
+            "ticket savings", "massive ticket", "save up to",
+            "discount code", "promo code", "early bird",
         )
         has_hard_block = any(
             any(kw.startswith(prefix) for prefix in hard_block_prefixes)
