@@ -14,11 +14,11 @@ const COUNTRY_STATS = [
 ];
 
 const SECTOR_STATS = [
-  { name: "Fintech", pct: 100, color: "#FF8A59" },
-  { name: "AI / ML", pct: 77, color: "#59B4FF" },
+  { name: "Fintech", pct: 100, color: "#E8FF59" },
+  { name: "AI / ML", pct: 77, color: "#59FFB4" },
   { name: "SaaS", pct: 61, color: "#C459FF" },
-  { name: "E-Commerce", pct: 44, color: "#59FFB4" },
-  { name: "Healthtech", pct: 33, color: "#8A8A96" },
+  { name: "E-Commerce", pct: 44, color: "#FFB859" },
+  { name: "Healthtech", pct: 33, color: "#59D4FF" },
 ];
 
 function MiniCard({ company }: { company: Company }) {
@@ -124,7 +124,7 @@ export default async function MapaHighlight() {
 
   return (
     <section className="border-t border-sinal-slate">
-      <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] py-[100px]">
+      <div className="mx-auto max-w-container px-6 py-20 md:px-10 md:py-24">
         {/* Header */}
         <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-[560px]">
