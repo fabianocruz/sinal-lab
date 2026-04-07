@@ -1158,6 +1158,12 @@ def build_newsletter_email_html(
         _editorial_lead(data.subtitle, data.editorial_lead),
     ]
 
+    # Intelligence + Feature highlights — above hero articles for visibility
+    if intelligence:
+        parts.append(_intelligence_highlight(intelligence))
+    if feature:
+        parts.append(_feature_highlight(feature))
+
     parts.append(_divider())
 
     # Hero: artigos do SINTESE (limitado a max_hero_articles)
@@ -1184,14 +1190,6 @@ def build_newsletter_email_html(
     # Article highlight (artigo autoral, antes dos agent cards)
     if article:
         parts.append(_article_highlight(article))
-
-    # Intelligence highlight (relatório de pesquisa)
-    if intelligence:
-        parts.append(_intelligence_highlight(intelligence))
-
-    # Feature highlight (promoção de feature/produto)
-    if feature:
-        parts.append(_feature_highlight(feature))
 
     # Cards de agentes secundários
     if agent_cards:
