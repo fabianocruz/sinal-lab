@@ -200,9 +200,9 @@ export default function ListenButton({ text, estimatedMinutes }: ListenButtonPro
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const fullMinutes = estimatedMinutes ?? Math.ceil(wordCount / 150);
-  // Preview is capped at the first ~2 min worth of the article.
-  const previewMinutes = Math.min(fullMinutes, 2);
-  const adjustedMinutes = Math.ceil(previewMinutes / speed);
+  // Audio preview is capped at ~2 min (PREVIEW_CHARS), but display full reading time.
+  const audioPreviewMinutes = Math.min(fullMinutes, 2);
+  const adjustedMinutes = Math.ceil(audioPreviewMinutes / speed);
   const isPreview = fullMinutes > 4;
 
   return (
@@ -265,12 +265,10 @@ export default function ListenButton({ text, estimatedMinutes }: ListenButtonPro
       </span>
 
       {/* Duration + preview label */}
-      <span className="font-mono text-[11px] text-[#4A4A56]">
-        {isPreview ? `~${adjustedMinutes} min` : `${adjustedMinutes} min`}
-      </span>
+      <span className="font-mono text-[11px] text-[#4A4A56]">~{fullMinutes} min de leitura</span>
       {isPreview && !isPlaying && !isPaused && !isLoading && (
         <span className="font-mono text-[10px] text-[#4A4A56]">
-          (primeiros {previewMinutes} min)
+          (audio: primeiros {adjustedMinutes} min)
         </span>
       )}
 

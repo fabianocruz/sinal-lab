@@ -29,10 +29,11 @@ function parseHeadersFromMarkdown(markdown: string): TocItem[] {
 
   for (const line of lines) {
     const h2Match = line.match(/^##\s+(.+)$/);
-    const h3Match = line.match(/^###\s+(.+)$/);
 
-    const matched = h2Match ?? h3Match;
-    const level = h2Match ? 2 : h3Match ? 3 : null;
+    // Only include h2 headers to keep the TOC concise for long reports.
+    // h3 headers are omitted to avoid excessive sidebar length.
+    const matched = h2Match;
+    const level = h2Match ? 2 : null;
 
     if (!matched || !level) continue;
 
