@@ -43,7 +43,7 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
     DataSourceConfig(name="abstartups", source_type="rss", url="https://abstartups.com.br/feed/"),
     DataSourceConfig(name="blocknews", source_type="rss", url="https://blocknews.com.br/feed/", enabled=False),  # 403 Forbidden (bot blocking)
 
-    # --- Google News (LATAM funding) ---
+    # --- Google News (LATAM funding — multiple queries for coverage) ---
     DataSourceConfig(
         name="gnews_funding_br",
         source_type="rss",
@@ -56,6 +56,29 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
         url=None,
         params={"query": "startup funding round Latin America Series", "language": "en", "country": "BR"},
     ),
+    DataSourceConfig(
+        name="gnews_funding_latam_es",
+        source_type="rss",
+        url=None,
+        params={"query": "startup ronda inversion America Latina Serie", "language": "es"},
+    ),
+    DataSourceConfig(
+        name="gnews_series_a_br",
+        source_type="rss",
+        url=None,
+        params={"query": "Serie A startup Brasil captou levantou", "language": "pt-BR", "country": "BR"},
+    ),
+    DataSourceConfig(
+        name="gnews_seed_br",
+        source_type="rss",
+        url=None,
+        params={"query": "seed round pre-seed startup Brasil fintech", "language": "pt-BR", "country": "BR"},
+    ),
+
+    # --- Additional LATAM funding news ---
+    DataSourceConfig(name="the_block_latam", source_type="rss", url="https://www.theblock.co/rss/all"),
+    DataSourceConfig(name="sifted", source_type="rss", url="https://sifted.eu/feed"),
+    DataSourceConfig(name="rest_of_world", source_type="rss", url="https://restofworld.org/feed/"),
 
     # --- Dealroom API (freemium) ---
     DataSourceConfig(

@@ -230,6 +230,12 @@ ARTICLE_HIGHLIGHTS: Dict[int, dict] = {
         "site_url": "https://sinal.tech/artigos/eu-treinei-o-claude-para-escrever-como-eu-em-duas-semanas-ele-ja-rascunhava-80-dos-meus-textos",
         "cover_url": "https://q1anrx64yh9vfjwf.public.blob.vercel-storage.com/covers/sintese/ed30-v1-dlbMCZN89f6qr3zjqCxwEb0b3Y5pQx-4lZvQTKwcwr5o1A2sZrJUMKQIho9Ga.png",
     },
+    53: {
+        "title": "MCP Dev Brasil: 33 servidores MCP open source para APIs brasileiras",
+        "summary": "Pagamentos, nota fiscal, logistica, banking, ERPs, messaging e crypto. 379+ tools tipadas para conectar AI agents com a infraestrutura real de negocios no Brasil. MIT license.",
+        "author": "CodeSpar",
+        "site_url": "https://github.com/codespar/mcp-dev-brasil",
+    },
 }
 
 
