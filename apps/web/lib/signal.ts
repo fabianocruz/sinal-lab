@@ -230,9 +230,11 @@ export interface Voice {
 }
 
 // Voice account type labels in Portuguese
+// Backend uses "exec", frontend historically used "executive" — support both.
 export const VOICE_TYPE_LABELS: Record<string, string> = {
   founder: "Founders",
   vc: "VCs",
+  exec: "Executivos",
   executive: "Executivos",
   thought_leader: "Liderancas",
   company: "Empresas",

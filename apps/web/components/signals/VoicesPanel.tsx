@@ -47,12 +47,12 @@ function personaSortWeight(accountType: string | null, persona: Persona): number
 
   if (persona === "vc") {
     if (type === "vc" || type === "angel") return 0;
-    if (type === "executive") return 1;
+    if (type === "executive" || type === "exec") return 1;
     return 2;
   }
 
   if (persona === "cto") {
-    if (type === "executive") return 0;
+    if (type === "executive" || type === "exec") return 0;
     if (type === "founder") return 1;
     if (type === "thought_leader") return 2;
     return 3;
@@ -60,7 +60,7 @@ function personaSortWeight(accountType: string | null, persona: Persona): number
 
   if (persona === "founder") {
     if (type === "founder") return 0;
-    if (type === "executive") return 1;
+    if (type === "executive" || type === "exec") return 1;
     return 2;
   }
 
@@ -75,7 +75,7 @@ const TYPE_OPTIONS = [
   { key: "all", label: "Todos" },
   { key: "founder", label: VOICE_TYPE_LABELS.founder },
   { key: "vc", label: VOICE_TYPE_LABELS.vc },
-  { key: "executive", label: VOICE_TYPE_LABELS.executive },
+  { key: "exec", label: VOICE_TYPE_LABELS.exec },
   { key: "thought_leader", label: VOICE_TYPE_LABELS.thought_leader },
   { key: "company", label: VOICE_TYPE_LABELS.company },
 ];
@@ -92,6 +92,7 @@ const PLATFORM_OPTIONS = [
 const TYPE_COLORS: Record<string, string> = {
   founder: "#59FFB4",
   vc: "#E8FF59",
+  exec: "#FF8A59",
   executive: "#FF8A59",
   thought_leader: "#B59FFF",
   company: "#59D4FF",

@@ -240,8 +240,15 @@ def _classify_with_keywords(text: str) -> Tuple[str, str]:
     best_theme = ""
     best_score = 0
 
-    # Check most specific first (AI in Banking > Fintech > AI)
-    for theme in ["AI in Banking", "Fintech", "AI"]:
+    # Check all themes, most specific first to avoid false positives
+    # Priority: AI in Banking > Fintech > AI (broad terms last)
+    priority_order = [
+        "AI in Banking", "Regulation", "Cybersecurity",
+        "HealthTech", "DevTools", "CleanTech", "EdTech", "RetailTech",
+        "Funding", "VC", "Startup Ops",
+        "Fintech", "AI",
+    ]
+    for theme in priority_order:
         keywords = _THEME_KEYWORDS.get(theme, [])
         score = sum(1 for kw in keywords if kw in text_lower)
         if score > best_score:

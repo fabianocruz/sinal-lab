@@ -28,23 +28,32 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 POLYMARKET_KEYWORDS: list[str] = [
-    "ai", "artificial intelligence", "machine learning", "llm", "gpt",
-    "crypto", "bitcoin", "ethereum", "solana", "stablecoin", "defi",
-    "fintech", "banking", "payments", "neobank",
-    "startup", "ipo", "funding", "venture", "regulation",
-    "fed", "interest rate", "inflation", "central bank",
-    "tech", "software", "saas", "cloud",
-    "semiconductor", "chip", "nvidia", "openai", "anthropic",
+    "artificial intelligence", "machine learning", "llm", "gpt",
+    "crypto", "bitcoin", "ethereum", "stablecoin", "defi",
+    "fintech", "neobank", "startup", "ipo", "venture",
+    "semiconductor", "nvidia", "openai", "anthropic",
+]
+
+# Markets containing these terms are always excluded regardless of keywords.
+POLYMARKET_BLOCKLIST: list[str] = [
+    "nhl", "nba", "nfl", "mlb", "ufc", "tennis", "golf",
+    "panthers", "penguins", "lakers", "celtics", "yankees",
+    "super bowl", "world cup", "champions league", "premier league",
+    "trump talk", "trump call", "trump meet", "biden",
+    "will trump", "will biden", "election", "presidential",
+    "weather", "earthquake", "hurricane",
 ]
 
 
 def _is_relevant_polymarket(title: str, description: str) -> bool:
     """Return True if a Polymarket market matches our topic keywords.
 
-    We search both title and description (lowercased) for any keyword.
-    This filters out sports, entertainment, politics-only markets, etc.
+    Filters out sports, entertainment, politics-only markets.
     """
     text_lower = (title + " " + description).lower()
+    # Block sports, politics, weather
+    if any(term in text_lower for term in POLYMARKET_BLOCKLIST):
+        return False
     return any(kw in text_lower for kw in POLYMARKET_KEYWORDS)
 
 

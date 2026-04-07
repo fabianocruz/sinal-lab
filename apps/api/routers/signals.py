@@ -391,17 +391,20 @@ def list_voices(
     items: List[MonitoredAccountResponse] = []
     for account in accounts:
         voice_data = MonitoredAccountResponse.model_validate(account)
-        recent_signals = _find_recent_signals_for_voice(db, account)
-        voice_data.recent_signals = [
-            RecentSignalBrief(
-                platform=sig.platform,
-                text=(sig.text or "")[:200],
-                post_url=sig.post_url,
-                published_at=sig.published_at,
-                metrics=sig.metrics,
-            )
-            for sig in recent_signals
-        ]
+        try:
+            recent_signals = _find_recent_signals_for_voice(db, account)
+            voice_data.recent_signals = [
+                RecentSignalBrief(
+                    platform=sig.platform or "unknown",
+                    text=(sig.text or "")[:200],
+                    post_url=sig.post_url or "",
+                    published_at=sig.published_at,
+                    metrics=sig.metrics if isinstance(sig.metrics, dict) else None,
+                )
+                for sig in recent_signals
+            ]
+        except Exception:
+            voice_data.recent_signals = []
         items.append(voice_data)
 
     return {

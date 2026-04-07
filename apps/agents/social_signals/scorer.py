@@ -237,6 +237,30 @@ def _compute_commercial_signals(signals: List[ProcessedSignal]) -> float:
     return min(1.0, commercial / max(1, len(signals)) * 3.0)
 
 
+# Handles known to be bots or AI assistants — excluded from top voices/posts.
+_BOT_HANDLES: set = {
+    "grok", "chatgpt", "copilot", "perplexity_ai", "claudeai",
+    "openai", "gemini", "bard",
+}
+
+# Text patterns indicating sponsored/promotional content.
+_SPONSORED_PATTERNS: list = [
+    "conteúdo patrocinado", "conteudo patrocinado", "publi",
+    "branded content", "sponsored", "#ad ", "#publi",
+]
+
+
+def _is_bot(handle: str) -> bool:
+    """Check if a handle belongs to a known bot."""
+    return handle.lower() in _BOT_HANDLES
+
+
+def _is_sponsored(text: str) -> bool:
+    """Check if a post is sponsored/promotional content."""
+    text_lower = text.lower()
+    return any(p in text_lower for p in _SPONSORED_PATTERNS)
+
+
 def extract_top_voices(
     signals: List[ProcessedSignal],
     limit: int = 10,
@@ -246,7 +270,7 @@ def extract_top_voices(
 
     for s in signals:
         handle = s.post.author_handle
-        if not handle:
+        if not handle or _is_bot(handle):
             continue
 
         if handle not in voice_scores:
@@ -277,12 +301,20 @@ def extract_top_posts(
     """Extract top posts by engagement and authority."""
     scored = []
     for s in signals:
+        # Skip bots and sponsored content
+        if _is_bot(s.post.author_handle or ""):
+            continue
+        if _is_sponsored(s.post.text or ""):
+            continue
+        # Skip posts with zero engagement (noise)
         metrics = s.post.metrics or {}
         engagement = (
             metrics.get("likes", 0)
             + metrics.get("replies", 0) * 2
             + metrics.get("reposts", 0) * 3
         )
+        if engagement == 0:
+            continue
         score = engagement * 0.5 + s.authority_score * 1000 * 0.5
         scored.append((score, s))
 
