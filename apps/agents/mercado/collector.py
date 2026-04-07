@@ -207,6 +207,8 @@ def collect_all_sources(
         if source.source_type == "api":
             if "github" in source.name:
                 profiles = collect_from_github(source, provenance, known_slugs=known_slugs)
+            elif "coresignal" in source.name:
+                profiles = _collect_from_coresignal(source, provenance)
             elif "dealroom" in source.name:
                 profiles = collect_from_dealroom(source, provenance)
             else:
@@ -222,6 +224,40 @@ def collect_all_sources(
     )
 
     return all_profiles
+
+
+def _collect_from_coresignal(
+    source: DataSourceConfig,
+    provenance: "ProvenanceTracker",
+) -> list[CompanyProfile]:
+    """Collect company profiles from CoreSignal API.
+
+    Converts CoreSignalCompany objects to CompanyProfile for compatibility
+    with the MERCADO pipeline.
+    """
+    from apps.agents.sources.coresignal import fetch_coresignal_companies
+
+    with httpx.Client() as client:
+        cs_companies = fetch_coresignal_companies(source, client, max_collect=200)
+
+    profiles = []
+    for c in cs_companies:
+        profiles.append(CompanyProfile(
+            name=c.name,
+            slug=c.slug,
+            website=c.website,
+            description=c.description,
+            sector=c.industry,
+            city=c.city,
+            country=c.country or "Brasil",
+            team_size=c.employees_count,
+            linkedin_url=c.linkedin_url,
+            source_url=c.source_url,
+            source_name="coresignal",
+        ))
+
+    logger.info("CoreSignal: converted %d companies to CompanyProfile", len(profiles))
+    return profiles
 
 
 def collect_market_trends(
