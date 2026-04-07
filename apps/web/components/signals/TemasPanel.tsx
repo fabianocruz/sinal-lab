@@ -5,14 +5,9 @@ import ClusterCard from "@/components/signals/ClusterCard";
 import SignalCard from "@/components/signals/SignalCard";
 import DimensionRadar from "@/components/signals/DimensionRadar";
 import type { Signal, SignalCluster } from "@/lib/signal";
+import { SIGNAL_THEMES, THEME_COLORS } from "@/lib/signal";
 
-// Theme definitions with accent colors
-const TEMAS = [
-  { key: "Todos", label: "Todos", color: "#8A8A96" },
-  { key: "AI", label: "AI", color: "#59FFB4" },
-  { key: "Fintech", label: "Fintech", color: "#E8FF59" },
-  { key: "AI in Banking", label: "AI in Banking", color: "#59B4FF" },
-] as const;
+const TEMAS = [{ key: "Todos" as const, label: "Todos", color: "#8A8A96" }, ...SIGNAL_THEMES];
 
 type TemaKey = (typeof TEMAS)[number]["key"];
 

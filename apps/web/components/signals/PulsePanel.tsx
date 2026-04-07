@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import type { WeeklyPulse, SignalCluster, SignalStats } from "@/lib/signal";
-import { STAGE_COLORS, STAGE_LABELS } from "@/lib/signal";
+import { STAGE_COLORS, STAGE_LABELS, SIGNAL_THEMES } from "@/lib/signal";
 import Link from "next/link";
 import PlatformHeatmap from "@/components/signals/PlatformHeatmap";
 import type { PlatformHeatmapRow } from "@/components/signals/PlatformHeatmap";
@@ -16,9 +16,7 @@ import { fetchWatchlist, addToWatchlist, removeFromWatchlist, type WatchlistItem
 
 const THEME_OPTIONS = [
   { key: "all", label: "Todos" },
-  { key: "AI", label: "AI" },
-  { key: "Fintech", label: "Fintech" },
-  { key: "AI in Banking", label: "AI in Banking" },
+  ...SIGNAL_THEMES.map((t) => ({ key: t.key, label: t.label })),
 ];
 
 const WATCHLIST_KEY = "sinal_watchlist";

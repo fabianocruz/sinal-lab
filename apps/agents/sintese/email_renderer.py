@@ -925,6 +925,73 @@ def _article_highlight(highlight: ArticleHighlight) -> str:
 </tr>"""
 
 
+@dataclass
+class FeatureHighlight:
+    """Destaque de feature/produto para promoção no briefing semanal.
+
+    Card com cor customizável, badge, título, resumo e CTA.
+    Diferente de ArticleHighlight (conteúdo autoral) e IntelligenceHighlight
+    (relatório de pesquisa), este é para promover features da plataforma.
+
+    Exemplo::
+
+        highlight = FeatureHighlight(
+            title="Social Signal Intelligence",
+            summary="Sinais emergentes detectados por IA em 13 temas...",
+            site_url="https://sinal.tech/signals",
+            badge="Novo",
+            color="#E8FF59",
+        )
+    """
+
+    title: str
+    summary: str
+    site_url: str
+    badge: str = "Novo"
+    cta_label: str = "Explorar agora"
+    color: str = "#E8FF59"  # signal yellow by default
+
+
+def _feature_highlight(highlight: FeatureHighlight) -> str:
+    """Renderiza card de destaque de feature/produto no briefing semanal.
+
+    Card com fundo tintado na cor do highlight, badge customizável e CTA.
+    """
+    bg_rgba = _hex_to_rgba(highlight.color, 0.06)
+    border_rgba = _hex_to_rgba(highlight.color, 0.15)
+    return f"""\
+<!-- ===== FEATURE HIGHLIGHT ===== -->
+<tr>
+<td style="padding: 20px 40px;" class="mp">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:{bg_rgba}; border:1px solid {border_rgba}; border-radius:12px;">
+  <tr>
+  <td style="padding: 28px;">
+    <p style="font-family:{_FONT_MONO}; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:{highlight.color}; margin:0 0 14px 0;">
+      <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:{highlight.color}; vertical-align:middle; margin-right:6px;"></span>
+      <span style="vertical-align:middle;">{_esc(highlight.badge)}</span>
+    </p>
+    <p style="font-family:{_FONT_SERIF}; font-size:18px; font-weight:700; color:{_COLOR_HEADING}; line-height:1.35; margin:0 0 10px 0;">
+      {_esc(highlight.title)}
+    </p>
+    <p style="font-family:{_FONT_SANS}; font-size:14px; color:{_COLOR_BODY}; line-height:1.6; margin:0 0 18px 0;">
+      {_esc(highlight.summary)}
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="background-color:{highlight.color}; border-radius:8px; padding:10px 22px;">
+        <a href="{_esc(highlight.site_url)}" style="font-family:{_FONT_MONO}; font-size:13px; font-weight:700; color:{_COLOR_BG}; text-decoration:none;">
+          {_esc(highlight.cta_label)} \u2192
+        </a>
+      </td>
+    </tr>
+    </table>
+  </td>
+  </tr>
+  </table>
+</td>
+</tr>"""
+
+
 def _share_cta() -> str:
     """Seção CTA de compartilhamento (padrão do briefing).
 
@@ -1040,6 +1107,7 @@ def build_newsletter_email_html(
     edition_url: Optional[str] = None,
     intelligence: Optional[IntelligenceHighlight] = None,
     article: Optional[ArticleHighlight] = None,
+    feature: Optional[FeatureHighlight] = None,
 ) -> str:
     """Constrói HTML email-safe a partir dos dados da newsletter.
 
@@ -1052,9 +1120,10 @@ def build_newsletter_email_html(
     3. Artigos hero (top N do SINTESE, com imagens clicáveis)
     4. Article highlight (se disponível)
     5. Intelligence highlight (se disponível)
-    6. Cards de agentes secundários (RADAR, CÓDIGO, FUNDING, MERCADO)
-    7. CTA de compartilhamento
-    8. Rodapé profissional com links
+    6. Feature highlight (se disponível)
+    7. Cards de agentes secundários (RADAR, CÓDIGO, FUNDING, MERCADO)
+    8. CTA de compartilhamento
+    9. Rodapé profissional com links
 
     Args:
         data: Dados estruturados da newsletter (output do parser).
@@ -1063,6 +1132,7 @@ def build_newsletter_email_html(
         edition_url: URL da edição completa no site (para CTA "ler mais").
         intelligence: Destaque opcional de relatório Intelligence.
         article: Destaque opcional de artigo autoral.
+        feature: Destaque opcional de feature/produto da plataforma.
 
     Returns:
         String HTML completa pronta para envio por email.
@@ -1118,6 +1188,10 @@ def build_newsletter_email_html(
     # Intelligence highlight (relatório de pesquisa)
     if intelligence:
         parts.append(_intelligence_highlight(intelligence))
+
+    # Feature highlight (promoção de feature/produto)
+    if feature:
+        parts.append(_feature_highlight(feature))
 
     # Cards de agentes secundários
     if agent_cards:

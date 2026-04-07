@@ -77,15 +77,6 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Verifique se o codigo segue os padroes do CLAUDE.md. Todos os arquivos novos tem testes? Existe documentacao? Responda com {\"ok\": true} ou {\"ok\": false, \"reason\": \"o que falta\"}"
-          }
-        ]
-      }
-    ]
+    "Stop": []
   }
 }
