@@ -227,7 +227,7 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
       )}
 
       {/* Temas Monitorados — watchlist section */}
-      {hydrated && (
+      {hydrated && watchedClusters.length > 0 && (
         <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div>
@@ -236,11 +236,9 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
               </h3>
               <p className="text-[12px] text-[#4A4A56]">Clusters que voce esta acompanhando</p>
             </div>
-            {watchedClusters.length > 0 && (
-              <span className="rounded-full bg-[rgba(232,255,89,0.10)] px-2.5 py-[3px] font-mono text-[11px] text-signal">
-                {watchedClusters.length}
-              </span>
-            )}
+            <span className="rounded-full bg-[rgba(232,255,89,0.10)] px-2.5 py-[3px] font-mono text-[11px] text-signal">
+              {watchedClusters.length}
+            </span>
           </div>
 
           {watchedClusters.length > 0 ? (
@@ -253,28 +251,6 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
                   onWatch={handleWatch}
                 />
               ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1}
-                stroke="currentColor"
-                className="mb-3 h-8 w-8 text-[#4A4A56]"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
-                />
-              </svg>
-              <p className="mb-1 text-[14px] text-ash">Nenhum tema monitorado</p>
-              <p className="text-[12px] text-[#4A4A56]">
-                Clique no marcador nos cards abaixo para acompanhar um tema
-              </p>
             </div>
           )}
         </div>
