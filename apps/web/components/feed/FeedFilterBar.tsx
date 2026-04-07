@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SIGNAL_THEMES, THEME_COLORS } from "@/lib/signal";
+import { SIGNAL_THEMES } from "@/lib/signal";
 
 // ---------------------------------------------------------------------------
 // Pill sub-component
