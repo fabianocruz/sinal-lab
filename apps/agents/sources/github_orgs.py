@@ -308,7 +308,7 @@ def _resolve_location(query: str) -> tuple:
 def collect_from_github(
     source: DataSourceConfig,
     provenance: ProvenanceTracker,
-    min_startup_score: float = 0.4,
+    min_startup_score: float = 0.3,
     known_slugs: Optional[frozenset] = None,
 ) -> list[CompanyProfile]:
     """Collect organization profiles from GitHub Search API.

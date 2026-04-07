@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # can slip through Google Trends or community sources.
 BLOCKED_TERMS: list[str] = [
     # Adult content / spam
-    "xvidio", "xvideo", "xvid", "pornhub", "onlyfans", "chaturbate",
+    "xvidio", "x vidio", "xvideo", "x video", "xvid", "pornhub", "onlyfans", "chaturbate",
     "brazzers", "redtube", "xhamster", "youporn", "porn", "hentai",
     "nude", "nudes", "nsfw", "sex tape", "escort",
     # Gambling / betting

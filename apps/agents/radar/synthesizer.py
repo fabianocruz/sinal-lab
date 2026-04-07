@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-TOP_SIGNALS_COUNT = 15
-MIN_SCORE_THRESHOLD = 0.10
-MAX_PER_ENTITY = 2
+TOP_SIGNALS_COUNT = 12
+MIN_SCORE_THRESHOLD = 0.25
+MAX_PER_ENTITY = 1
 
 # Display names for topic categories
 TOPIC_DISPLAY_NAMES: dict[str, str] = {

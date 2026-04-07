@@ -49,6 +49,29 @@ _GITHUB_CITIES: list[tuple[str, str, int]] = [
 ]
 
 MERCADO_SOURCES: list[DataSourceConfig] = [
+    # Database — pre-collected companies from INDEX agent
+    DataSourceConfig(
+        name="companies_db",
+        source_type="database",
+        url=None,
+        params={"limit": 500},
+    ),
+
+    # Coresignal — company discovery via LinkedIn data
+    DataSourceConfig(
+        name="coresignal_latam",
+        source_type="api",
+        url="https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter",
+        api_key_env="CORESIGNAL_API_KEY",
+        params={
+            "country": "Brazil,Mexico,Argentina,Colombia,Chile",
+            "industry": "Technology,Financial Services,Information Technology",
+            "employees_count_min": 5,
+            "limit": 100,
+        },
+        rate_limit_per_minute=5,
+    ),
+
     # GitHub Search — discover tech organizations by LATAM city
     # Uses /search/users endpoint with type:org filter
     *[

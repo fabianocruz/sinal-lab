@@ -113,7 +113,7 @@ DEFAULT_SOURCE_AUTHORITY = 0.5
 # Items below this threshold are filtered out regardless of recency,
 # authority, or LATAM score. Prevents non-editorial content (cars,
 # consumer gadgets, sports, lifestyle) from appearing.
-MIN_TOPIC_SCORE = 0.40
+MIN_TOPIC_SCORE = 0.55
 
 # Negative keywords — if matched, topic score is forced to 0.0.
 # Catches off-topic content that slips through keyword matching
@@ -155,6 +155,16 @@ NEGATIVE_KEYWORDS: list[str] = [
     "quadruplica receita", "quintuplica receita",
     "receita anual", "faturamento anual",
     "resultado financeiro", "balanco trimestral", "balanço trimestral",
+    # Ticket/event promotions
+    "ticket savings", "massive ticket", "save up to", "discount code",
+    "use code", "promo code", "early bird", "register now",
+    "inscreva-se", "garanta seu ingresso", "compre agora",
+    # Press release patterns
+    "faz maior m&a", "faz maior aquisicao", "faz maior aquisição",
+    "anuncia parceria estrategica", "anuncia parceria estratégica",
+    "firma parceria com", "fecha acordo com",
+    "avancam na parceria", "avançam na parceria",
+    "redesenhando o futuro", "estao redesenhando", "estão redesenhando",
 ]
 
 # Blocked domains — articles from these domains are filtered out regardless
@@ -170,6 +180,10 @@ BLOCKED_DOMAINS: list[str] = [
     "olhardigital.com.br",
     "techtudo.com.br",
     "tecmundo.com.br",
+    "mancheteesportiva.com.br",
+    "moneytimes.com.br",
+    "suno.com.br",
+    "einvestidor.com.br",
 ]
 
 # Title prefixes used by Google News RSS (e.g., "Exame: titulo do artigo").

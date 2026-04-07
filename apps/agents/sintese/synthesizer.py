@@ -20,11 +20,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # How many items to include in the newsletter
-TOP_ITEMS_COUNT = 18
-MIN_SCORE_THRESHOLD = 0.35
+TOP_ITEMS_COUNT = 14
+MIN_SCORE_THRESHOLD = 0.50
 
 # Max articles per company/entity to prevent one company from dominating.
-MAX_PER_ENTITY = 2
+MAX_PER_ENTITY = 1
 
 # Category definitions for grouping newsletter items (aligned with Editorial v2)
 CATEGORIES: dict[str, list[str]] = {
