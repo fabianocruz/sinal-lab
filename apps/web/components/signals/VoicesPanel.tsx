@@ -211,8 +211,8 @@ function PlatformFilter({
 }
 
 function SignalPost({ post }: { post: RecentSignal }) {
-  const totalEngagement =
-    (post.metrics.likes ?? 0) + (post.metrics.reposts ?? 0) + (post.metrics.replies ?? 0);
+  const m = post.metrics ?? {};
+  const totalEngagement = (m.likes ?? 0) + (m.reposts ?? 0) + (m.replies ?? 0);
 
   return (
     <a
