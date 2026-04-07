@@ -81,17 +81,26 @@ function ThemeRow({
 // Derive PlatformHeatmapRow data from clusters + their top_posts
 function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
   return clusters.slice(0, 5).map((cluster) => {
-    const counts: Record<string, number> = { twitter: 0, reddit: 0, bluesky: 0, rss: 0 };
+    const counts: Record<string, number> = {
+      twitter: 0, reddit: 0, bluesky: 0, rss: 0, web: 0, youtube: 0,
+    };
     cluster.top_posts.forEach((post) => {
       const p = post.platform.toLowerCase();
       if (p in counts) counts[p]++;
     });
+    // Use signal_count as fallback when top_posts are sparse
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (total === 0 && cluster.signal_count > 0) {
+      counts.twitter = cluster.signal_count;
+    }
     return {
       theme: cluster.name,
       twitter: counts.twitter,
       reddit: counts.reddit,
       bluesky: counts.bluesky,
       rss: counts.rss,
+      web: counts.web,
+      youtube: counts.youtube,
     };
   });
 }

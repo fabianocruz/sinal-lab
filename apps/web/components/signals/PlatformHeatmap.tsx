@@ -16,7 +16,7 @@ interface PlatformHeatmapProps {
   data: PlatformHeatmapRow[];
 }
 
-const PLATFORMS = ["twitter", "reddit", "bluesky", "rss"] as const;
+const PLATFORMS = ["twitter", "reddit", "bluesky", "rss", "web", "youtube"] as const;
 
 interface TooltipPayloadItem {
   name: string;

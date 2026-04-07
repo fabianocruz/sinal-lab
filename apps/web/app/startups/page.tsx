@@ -55,7 +55,7 @@ export default async function StartupsPage({
       <Navbar />
       <main className="pt-[72px]">
         {/* Hero section */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pt-12">
+        <div className="mx-auto max-w-container px-6 md:px-10 pt-12">
           <div className="mb-2 flex flex-wrap items-end justify-between gap-4">
             <div>
               <span className="mb-2.5 block font-mono text-[10px] uppercase tracking-[2px] text-signal">
@@ -106,7 +106,7 @@ export default async function StartupsPage({
         </div>
 
         {/* Filters section */}
-        <div className="mx-auto max-w-[1280px] border-b border-sinal-slate px-[clamp(20px,4vw,32px)] py-6">
+        <div className="mx-auto max-w-container border-b border-sinal-slate px-6 py-6 md:px-10">
           {/* Search + Country filter row */}
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="min-w-[240px] max-w-[400px] flex-1">
@@ -120,7 +120,7 @@ export default async function StartupsPage({
         </div>
 
         {/* Results */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pb-12 pt-6">
+        <div className="mx-auto max-w-container px-6 md:px-10 pb-12 pt-6">
           {/* Results count */}
           <div className="mb-5 flex items-center justify-between">
             <span className="font-mono text-[12px] tracking-[0.5px] text-[#4A4A56]">
@@ -150,7 +150,7 @@ export default async function StartupsPage({
         </div>
 
         {/* Methodology badge */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pb-12">
+        <div className="mx-auto max-w-container px-6 md:px-10 pb-12">
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-sinal-slate bg-sinal-graphite px-6 py-5">
             <div className="flex items-center gap-4">
               <div className="h-2 w-2 animate-pulse rounded-full bg-agent-radar" />

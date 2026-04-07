@@ -71,7 +71,7 @@ export default async function FeedPage({
             Header — dark with subtle signal accent
         ----------------------------------------------------------------- */}
         <div className="border-b border-[rgba(255,255,255,0.04)] bg-sinal-graphite">
-          <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] py-10">
+          <div className="mx-auto max-w-container px-6 md:px-10 py-10">
             <div className="mb-2 flex items-center gap-2">
               <span
                 className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-signal"
@@ -89,7 +89,7 @@ export default async function FeedPage({
           </div>
         </div>
 
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)]">
+        <div className="mx-auto max-w-container px-6 md:px-10">
           {/* ----------------------------------------------------------------
               Filter bar — theme pills only
           ----------------------------------------------------------------- */}

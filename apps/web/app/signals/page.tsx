@@ -124,7 +124,7 @@ export default async function SignalsPage({
       <Navbar />
       <main className="pt-[72px]">
         {/* Hero section */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pt-12">
+        <div className="mx-auto max-w-container px-6 md:px-10 pt-12">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
             <div>
               <span className="mb-2.5 block font-mono text-[10px] uppercase tracking-[2px] text-signal">
@@ -149,7 +149,7 @@ export default async function SignalsPage({
         </div>
 
         {/* Persona selector + optional active banner */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pb-4">
+        <div className="mx-auto max-w-container px-6 md:px-10 pb-4">
           <Suspense fallback={null}>
             <PersonaSelector activePersona={activePersona} />
           </Suspense>
@@ -165,7 +165,7 @@ export default async function SignalsPage({
         </div>
 
         {/* Tab navigation — Client Component */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)]">
+        <div className="mx-auto max-w-container px-6 md:px-10">
           <div className="border-b border-sinal-slate">
             <Suspense fallback={<TabNavSkeleton />}>
               <TabNav activeTab={activeTab} />
@@ -174,7 +174,7 @@ export default async function SignalsPage({
         </div>
 
         {/* Panel content */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pb-16 pt-8">
+        <div className="mx-auto max-w-container px-6 md:px-10 pb-16 pt-8">
           {activeTab === "pulse" && (
             <PulsePanel pulse={pulse} clusters={pulseClusters} stats={stats} />
           )}
@@ -203,7 +203,7 @@ export default async function SignalsPage({
         </div>
 
         {/* Methodology badge */}
-        <div className="mx-auto max-w-[1280px] px-[clamp(20px,4vw,32px)] pb-12">
+        <div className="mx-auto max-w-container px-6 md:px-10 pb-12">
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-sinal-slate bg-sinal-graphite px-6 py-5">
             <div className="flex items-center gap-4">
               <div

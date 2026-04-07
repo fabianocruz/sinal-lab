@@ -57,7 +57,7 @@ export default async function NewsletterArchivePage({
     <>
       <Navbar />
       <main className="pt-[72px]">
-        <div className="mx-auto max-w-[1120px] px-[clamp(20px,4vw,48px)] py-10">
+        <div className="mx-auto max-w-container px-6 md:px-10 py-10">
           {/* Page header */}
           <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div>

@@ -176,6 +176,8 @@ export const PLATFORM_COLORS: Record<string, string> = {
   bluesky: "#0085FF",
   linkedin: "#0A66C2",
   rss: "#EE802F",
+  web: "#8A8A96",
+  youtube: "#FF0000",
 };
 
 // Narrative stage colors
@@ -201,6 +203,8 @@ export const PLATFORM_LABELS: Record<string, string> = {
   bluesky: "Bluesky",
   linkedin: "LinkedIn",
   rss: "RSS",
+  web: "Web",
+  youtube: "YouTube",
 };
 
 // Monitored voice (account) tracked by RADAR agent
