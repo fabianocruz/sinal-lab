@@ -82,7 +82,12 @@ function ThemeRow({
 function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
   return clusters.slice(0, 5).map((cluster) => {
     const counts: Record<string, number> = {
-      twitter: 0, reddit: 0, bluesky: 0, rss: 0, web: 0, youtube: 0,
+      twitter: 0,
+      reddit: 0,
+      bluesky: 0,
+      rss: 0,
+      web: 0,
+      youtube: 0,
     };
     cluster.top_posts.forEach((post) => {
       const p = post.platform.toLowerCase();
@@ -250,18 +255,16 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
             </span>
           </div>
 
-          {watchedClusters.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {watchedClusters.map((cluster) => (
-                <ClusterCard
-                  key={cluster.id}
-                  cluster={cluster}
-                  isWatched={true}
-                  onWatch={handleWatch}
-                />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {watchedClusters.map((cluster) => (
+              <ClusterCard
+                key={cluster.id}
+                cluster={cluster}
+                isWatched={true}
+                onWatch={handleWatch}
+              />
+            ))}
+          </div>
         </div>
       )}
 
