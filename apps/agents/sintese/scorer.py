@@ -189,7 +189,8 @@ BLOCKED_DOMAINS: list[str] = [
 # Title prefixes used by Google News RSS (e.g., "Exame: titulo do artigo").
 # Built from BLOCKED_DOMAINS to also catch gnews articles where the URL
 # is news.google.com but the title reveals the original source.
-_BLOCKED_TITLE_PREFIXES: list[str] = [
+_BLOCKED_TITLE_MARKERS: list[str] = [
+    # Prefixes (e.g., "Exame: titulo do artigo")
     "exame:",
     "startupi:",
     "infomoney:",
@@ -198,16 +199,32 @@ _BLOCKED_TITLE_PREFIXES: list[str] = [
     "techtudo:",
     "tecmundo:",
     "abstartups:",
+    "mancheteesportiva:",
+    "moneytimes:",
+    "suno:",
+    "einvestidor:",
+    # Suffixes (Google News uses "- source.com.br" at end of title)
+    "- mancheteesportiva.com.br",
+    "- moneytimes.com.br",
+    "- suno.com.br",
+    "- einvestidor.com.br",
+    "- exame.com",
+    "- startupi.com.br",
+    "- infomoney.com.br",
+    "- canaltech.com.br",
+    "- olhardigital.com.br",
+    "- techtudo.com.br",
+    "- tecmundo.com.br",
 ]
 
 
 def _is_blocked_source(item: "FeedItem") -> bool:
     """Check if an item comes from a blocked domain.
 
-    Checks two signals:
+    Checks three signals:
     1. URL domain — catches direct RSS feeds and resolved Google News URLs.
-    2. Title prefix — catches Google News aggregator items where URL is
-       news.google.com but title starts with "Exame:", "Startupi:", etc.
+    2. Title prefix/suffix — catches Google News aggregator items where URL
+       is news.google.com but title contains the source name.
 
     Returns True if the item should be blocked.
     """
@@ -217,13 +234,35 @@ def _is_blocked_source(item: "FeedItem") -> bool:
         if domain in url_lower:
             return True
 
-    # Check Google News title prefix (e.g., "Exame: Como uma startup...")
-    title_lower = item.title.lower().lstrip()
-    for prefix in _BLOCKED_TITLE_PREFIXES:
-        if title_lower.startswith(prefix):
+    # Check title for blocked source markers (prefix or suffix)
+    title_lower = item.title.lower().strip()
+    for marker in _BLOCKED_TITLE_MARKERS:
+        if title_lower.startswith(marker) or title_lower.endswith(marker):
             return True
 
+    # Resolve Google News redirect URLs to check actual source domain
+    if "news.google.com" in url_lower:
+        resolved = _resolve_gnews_source(item.title)
+        if resolved:
+            for domain in BLOCKED_DOMAINS:
+                if domain in resolved:
+                    return True
+
     return False
+
+
+def _resolve_gnews_source(title: str) -> str:
+    """Extract source domain from Google News title suffix.
+
+    Google News titles often end with "- source.com.br" or "| Source Name".
+    Returns the extracted source string (lowercase) or empty string.
+    """
+    for sep in [" - ", " | ", " · "]:
+        if sep in title:
+            source_part = title.rsplit(sep, 1)[-1].strip().lower()
+            if "." in source_part:
+                return source_part
+    return ""
 
 
 # Cache for compiled regex patterns used by _keyword_in_text
