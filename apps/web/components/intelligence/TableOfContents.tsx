@@ -27,13 +27,23 @@ function parseHeadersFromMarkdown(markdown: string): TocItem[] {
   const items: TocItem[] = [];
   const idCount: Record<string, number> = {};
 
+  // Include h2 always, h3 only under each h2 up to a limit to keep TOC manageable.
+  const MAX_H3_PER_H2 = 4;
+  let h3CountUnderCurrentH2 = 0;
+
   for (const line of lines) {
     const h2Match = line.match(/^##\s+(.+)$/);
+    const h3Match = line.match(/^###\s+(.+)$/);
 
-    // Only include h2 headers to keep the TOC concise for long reports.
-    // h3 headers are omitted to avoid excessive sidebar length.
-    const matched = h2Match;
-    const level = h2Match ? 2 : null;
+    if (h2Match) {
+      h3CountUnderCurrentH2 = 0; // reset for new section
+    } else if (h3Match) {
+      h3CountUnderCurrentH2++;
+      if (h3CountUnderCurrentH2 > MAX_H3_PER_H2) continue;
+    }
+
+    const matched = h2Match ?? h3Match;
+    const level = h2Match ? 2 : h3Match ? 3 : null;
 
     if (!matched || !level) continue;
 
