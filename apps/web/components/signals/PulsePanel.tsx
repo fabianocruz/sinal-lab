@@ -208,8 +208,10 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
     [userEmail, clusters],
   );
 
-  const accelerating = pulse?.accelerating_themes ?? [];
-  const emerging = pulse?.emerging_signals ?? [];
+  // Pulse accelerating/emerging are global aggregates (not per-theme).
+  // Only show them when no theme filter is active, to avoid confusion.
+  const accelerating = activeTheme === "all" ? (pulse?.accelerating_themes ?? []) : [];
+  const emerging = activeTheme === "all" ? (pulse?.emerging_signals ?? []) : [];
 
   // Filter clusters by selected theme, then sort by signal_count
   const filteredClusters = useMemo(() => {
