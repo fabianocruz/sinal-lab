@@ -81,10 +81,10 @@ export default async function SignalsPage({
   // Fetch data for the active tab only to keep page fast
   const [clustersData, voicesData, voicesSignalsData, temasSignalsData, companiesData] =
     await Promise.all([
-      // Pulse and Temas tabs need clusters
+      // Pulse and Temas tabs need clusters — fetch all for theme filtering
       activeTab === "pulse" || activeTab === "temas"
-        ? fetchSignalClusters({ limit: 20 })
-        : Promise.resolve({ items: [], total: 0, limit: 20, offset: 0 }),
+        ? fetchSignalClusters({ limit: 100 })
+        : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
 
       // Voices tab — accounts
       activeTab === "voices"
