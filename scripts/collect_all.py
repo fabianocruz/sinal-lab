@@ -238,9 +238,10 @@ def run_loop(jobs: List[Job], dry_run: bool = False) -> None:
             if job.due:
                 job.execute(dry_run=dry_run)
 
-        # Log status every hour
+        # Log status every hour + write health file for monitoring
         now = datetime.now(timezone.utc)
         if now.minute == 0 and now.second < 60:
+            total_errors = 0
             for job in jobs:
                 next_run = ""
                 if job.last_run:
@@ -250,6 +251,31 @@ def run_loop(jobs: List[Job], dry_run: bool = False) -> None:
                     "[status] %s: runs=%d, errors=%d, %s",
                     job.name, job.run_count, job.error_count, next_run,
                 )
+                total_errors += job.error_count
+
+            # Alert if error rate is high
+            total_runs = sum(j.run_count for j in jobs)
+            if total_runs > 0 and total_errors / max(total_runs, 1) > 0.5:
+                logger.error(
+                    "[ALERT] High error rate: %d errors / %d runs (%.0f%%). "
+                    "Check job configurations and API keys.",
+                    total_errors, total_runs, total_errors / total_runs * 100,
+                )
+
+            # Write health file (Railway health check reads this)
+            health = {
+                "status": "healthy" if total_errors < total_runs else "degraded",
+                "uptime_hours": (now - jobs[0].last_run).total_seconds() / 3600 if jobs[0].last_run else 0,
+                "total_runs": total_runs,
+                "total_errors": total_errors,
+                "timestamp": now.isoformat(),
+            }
+            try:
+                Path("/tmp/collector_health.json").write_text(
+                    __import__("json").dumps(health)
+                )
+            except Exception:
+                pass
 
 
 def main() -> None:

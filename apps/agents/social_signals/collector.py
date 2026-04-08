@@ -843,8 +843,11 @@ def collect_all(
         except Exception as e:
             logger.warning("TikTok/Monid collection failed (non-fatal): %s", e)
 
-        # Polymarket: prediction market signals (filtered to relevant topics)
-        try:
+        # Polymarket: DISABLED — prediction markets add noise without actionable
+        # value for the target audience (CTOs, founders, VCs). The blocklist
+        # reduced but didn't eliminate sports/politics markets, and the remaining
+        # signals don't justify the noise floor they create.
+        if False:  # noqa: SIM108
             from apps.agents.sources.polymarket import collect_polymarket_signals
             pm_markets = collect_polymarket_signals(provenance, limit=30)
             pm_added = 0
