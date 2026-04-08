@@ -847,29 +847,31 @@ def collect_all(
         # value for the target audience (CTOs, founders, VCs). The blocklist
         # reduced but didn't eliminate sports/politics markets, and the remaining
         # signals don't justify the noise floor they create.
-        if False:  # noqa: SIM108
-            from apps.agents.sources.polymarket import collect_polymarket_signals
-            pm_markets = collect_polymarket_signals(provenance, limit=30)
-            pm_added = 0
-            for m in pm_markets:
-                if not _is_relevant_polymarket(m.title, m.description):
-                    continue
-                pct = f"{m.outcome_yes*100:.0f}%"
-                all_posts.append(SocialPost(
-                    text=f"[Polymarket {pct} YES] {m.title}. {m.description[:200]}",
-                    url=m.url,
-                    platform="polymarket",
-                    source_name="polymarket",
-                    metrics={"volume_usd": m.volume_usd, "liquidity_usd": m.liquidity_usd, "outcome_yes": m.outcome_yes},
-                    content_hash=m.content_hash,
-                ))
-                pm_added += 1
-            logger.info(
-                "Polymarket: %d relevant markets out of %d fetched",
-                pm_added, len(pm_markets),
-            )
-        except Exception as e:
-            logger.warning("Polymarket collection failed (non-fatal): %s", e)
+        # To re-enable, uncomment the try/except block below.
+        #
+        # try:
+        #     from apps.agents.sources.polymarket import collect_polymarket_signals
+        #     pm_markets = collect_polymarket_signals(provenance, limit=30)
+        #     pm_added = 0
+        #     for m in pm_markets:
+        #         if not _is_relevant_polymarket(m.title, m.description):
+        #             continue
+        #         pct = f"{m.outcome_yes*100:.0f}%"
+        #         all_posts.append(SocialPost(
+        #             text=f"[Polymarket {pct} YES] {m.title}. {m.description[:200]}",
+        #             url=m.url,
+        #             platform="polymarket",
+        #             source_name="polymarket",
+        #             metrics={"volume_usd": m.volume_usd, "liquidity_usd": m.liquidity_usd, "outcome_yes": m.outcome_yes},
+        #             content_hash=m.content_hash,
+        #         ))
+        #         pm_added += 1
+        #     logger.info(
+        #         "Polymarket: %d relevant markets out of %d fetched",
+        #         pm_added, len(pm_markets),
+        #     )
+        # except Exception as e:
+        #     logger.warning("Polymarket collection failed (non-fatal): %s", e)
 
         # sc-research: social media research via CLI tool
         try:

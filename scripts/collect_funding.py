@@ -123,6 +123,7 @@ def collect_from_coresignal(
     cutoff = date.today() - timedelta(days=days_back)
     events: List[Dict] = []
     seen_keys: set = set()
+    credits_used = 0  # Track API credit consumption
 
     with httpx.Client(timeout=30) as client:
         for country in CORESIGNAL_COUNTRIES:
@@ -151,6 +152,7 @@ def collect_from_coresignal(
                             f"https://api.coresignal.com/cdapi/v2/company_base/collect/{cid}",
                             headers={"apikey": api_key},
                         )
+                        credits_used += 1  # Each collect call costs 1 credit
                         if r2.status_code != 200:
                             continue
                         data = r2.json()
@@ -221,7 +223,10 @@ def collect_from_coresignal(
                     country, industry, collected, len(ids),
                 )
 
-    logger.info("Coresignal total: %d funding events", len(events))
+    logger.info(
+        "Coresignal total: %d funding events (used ~%d collect credits, %d search credits)",
+        len(events), credits_used, len(CORESIGNAL_COUNTRIES) * len(CORESIGNAL_INDUSTRIES),
+    )
     return events
 
 
@@ -324,9 +329,11 @@ def collect_from_bloomberg() -> List[Dict]:
         logger.error("Bloomberg Linea scrape failed: %s", e)
         return []
 
-    # Extract all links and titles
+    # Extract titles from JSON-LD headlines + h2/h3 + card text
     links = re.findall(r'href="(https://www\.bloomberglinea\.com\.br/[^"]+)"', html)
-    titles = re.findall(r'<h[23][^>]*>\s*([^<]{15,})\s*</h[23]>', html)
+    titles = re.findall(r'"headline"\s*:\s*"([^"]{15,})"', html)
+    titles += re.findall(r'<h[23][^>]*>\s*([^<]{15,})\s*</h[23]>', html)
+    titles += re.findall(r'class="[^"]*card[^"]*"[^>]*>.*?<[^>]+>([^<]{15,})<', html, re.DOTALL)
 
     seen_urls: set = set()
     for title in titles:
