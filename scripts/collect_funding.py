@@ -112,7 +112,7 @@ def _normalize_round_type(raw: str) -> str:
 
 def collect_from_coresignal(
     days_back: int = 30,
-    max_companies: int = 100,
+    max_companies: int = 10,
 ) -> List[Dict]:
     """Fetch recent funding rounds from Coresignal API."""
     api_key = os.getenv("CORESIGNAL_API_KEY")

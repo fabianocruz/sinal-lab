@@ -94,27 +94,36 @@ class Job:
 # Job implementations
 # ---------------------------------------------------------------------------
 
-def run_funding() -> None:
-    """Collect funding events from Coresignal + scrapers."""
-    from scripts.collect_funding import run_collection
-    run_collection(dry_run=False)
+def run_funding_scrapers() -> None:
+    """Collect funding events from free scrapers only (NeoFeed, Bloomberg, RSS)."""
+    from scripts.collect_funding import collect_from_neofeed, collect_from_bloomberg, persist_events
+    events = collect_from_neofeed() + collect_from_bloomberg()
+    if events:
+        inserted, skipped = persist_events(events)
+        logger.info("Funding scrapers: %d inserted, %d skipped", inserted, skipped)
+
+
+def run_funding_coresignal() -> None:
+    """Collect funding events from Coresignal API (costs credits, run sparingly)."""
+    from scripts.collect_funding import collect_from_coresignal, persist_events
+    events = collect_from_coresignal(days_back=30, max_companies=10)
+    if events:
+        inserted, skipped = persist_events(events)
+        logger.info("Coresignal funding: %d inserted, %d skipped", inserted, skipped)
 
 
 def run_signals() -> None:
     """Collect social signals (Twitter, Bluesky, RSS)."""
-    from scripts.run_agents import run_agent_subprocess
     run_agent_subprocess("social_signals", week=_current_week(), persist=True)
 
 
 def run_companies() -> None:
-    """Discover companies via Coresignal + GitHub."""
-    from scripts.run_agents import run_agent_subprocess
+    """Discover companies via GitHub (free). Coresignal runs separately."""
     run_agent_subprocess("mercado", week=_current_week(), persist=True)
 
 
 def run_feed() -> None:
     """Curate collected signals into feed items."""
-    from scripts.run_agents import run_agent_subprocess
     run_agent_subprocess("feed_curator", week=_current_week(), persist=True)
 
 
@@ -166,11 +175,17 @@ def run_agent_subprocess(agent_name: str, week: int, persist: bool = True) -> No
 # ---------------------------------------------------------------------------
 
 JOBS: Dict[str, Job] = {
-    "funding": Job(
-        name="FUNDING",
-        interval_seconds=4 * 3600,  # 4 hours
-        run_fn=run_funding,
-        description="Funding events (Coresignal + scrapers)",
+    "funding_scrapers": Job(
+        name="FUNDING_SCRAPE",
+        interval_seconds=4 * 3600,  # 4 hours (free scrapers)
+        run_fn=run_funding_scrapers,
+        description="Funding scrapers (NeoFeed, Bloomberg, RSS)",
+    ),
+    "funding_coresignal": Job(
+        name="FUNDING_API",
+        interval_seconds=24 * 3600,  # 24 hours (costs credits)
+        run_fn=run_funding_coresignal,
+        description="Coresignal funding API (10 companies/cycle)",
     ),
     "signals": Job(
         name="SIGNALS",
@@ -180,9 +195,9 @@ JOBS: Dict[str, Job] = {
     ),
     "companies": Job(
         name="COMPANIES",
-        interval_seconds=12 * 3600,  # 12 hours
+        interval_seconds=24 * 3600,  # 24 hours (GitHub only, free)
         run_fn=run_companies,
-        description="Company discovery (Coresignal + GitHub)",
+        description="Company discovery (GitHub)",
     ),
     "feed": Job(
         name="FEED",
