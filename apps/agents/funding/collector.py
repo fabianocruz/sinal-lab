@@ -329,6 +329,55 @@ def fetch_feed(
         return []
 
 
+def _load_from_funding_rounds_table(days_back: int = 14) -> List[FundingEvent]:
+    """Load pre-collected funding events from the funding_rounds DB table.
+
+    The collect_funding.py daemon populates this table from Coresignal,
+    NeoFeed, Bloomberg, etc. This function reads recent entries and
+    converts them to FundingEvent objects for the FUNDING agent pipeline.
+    """
+    try:
+        from packages.database.session import get_session
+        from packages.database.models.funding_round import FundingRound
+        from datetime import timedelta
+
+        session = get_session()
+        cutoff = date.today() - timedelta(days=days_back)
+
+        rows = (
+            session.query(FundingRound)
+            .filter(FundingRound.announced_date >= cutoff)
+            .order_by(FundingRound.announced_date.desc())
+            .limit(50)
+            .all()
+        )
+
+        events = []
+        for row in rows:
+            events.append(FundingEvent(
+                company_name=row.company_name,
+                company_slug=row.company_slug,
+                round_type=row.round_type,
+                amount_usd=row.amount_usd,
+                amount_local=row.amount_local,
+                currency=row.currency or "USD",
+                announced_date=row.announced_date,
+                lead_investors=row.lead_investors or [],
+                participants=row.participants or [],
+                source_url=row.source_url or "",
+                source_name=row.source_name or "funding_rounds_db",
+                notes=row.notes,
+            ))
+
+        session.close()
+        logger.info("Loaded %d events from funding_rounds table (last %d days)", len(events), days_back)
+        return events
+
+    except Exception as e:
+        logger.warning("Could not load from funding_rounds table: %s", e)
+        return []
+
+
 def collect_all_sources(
     sources: List[DataSourceConfig],
     provenance: ProvenanceTracker,
@@ -347,6 +396,17 @@ def collect_all_sources(
         List of all collected FundingEvent objects
     """
     all_events: List[FundingEvent] = []
+
+    # Source 0: Pre-collected events from funding_rounds table
+    # (populated by collect_funding.py daemon running 24/7)
+    db_events = _load_from_funding_rounds_table(days_back=14)
+    all_events.extend(db_events)
+    for e in db_events:
+        provenance.track(
+            source_url=e.source_url,
+            source_name=e.source_name,
+            extraction_method="database",
+        )
 
     for source in sources:
         if source.source_type == "rss" and "gnews" in source.name:
