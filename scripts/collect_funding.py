@@ -89,8 +89,8 @@ def _normalize_round_type(raw: str) -> str:
     """Normalize Coresignal round types to our schema."""
     raw = raw.lower().strip()
     mapping = {
-        "seed": "seed",
         "pre-seed": "pre_seed",
+        "seed": "seed",
         "series a": "series_a",
         "series b": "series_b",
         "series c": "series_c",

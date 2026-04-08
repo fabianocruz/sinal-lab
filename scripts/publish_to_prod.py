@@ -19,6 +19,7 @@ Usage:
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,7 +38,10 @@ from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
 
-PROD_DB_URL = "postgresql://postgres:TIJEisKHZxvdLkfnfCDjVXPCXqQSusdp@trolley.proxy.rlwy.net:25062/railway"
+PROD_DB_URL = os.environ.get(
+    "PROD_DATABASE_URL",
+    os.environ.get("DATABASE_PUBLIC_URL", ""),
+)
 
 # Agent output file mapping
 AGENT_FILES = {
@@ -195,6 +199,10 @@ def main() -> None:
         format="%(asctime)s [publish] %(levelname)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    if not PROD_DB_URL:
+        logger.error("PROD_DATABASE_URL or DATABASE_PUBLIC_URL env var required")
+        sys.exit(1)
 
     engine = create_engine(PROD_DB_URL)
 

@@ -11,6 +11,7 @@ from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore, compute_confidence
 from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
+from apps.agents.base.post_filter import filter_rejected_items
 from apps.agents.codigo.analyzer import AnalyzedSignal, analyze_signals
 from apps.agents.codigo.collector import DevSignal, collect_all_sources
 from apps.agents.codigo.config import CODIGO_CONFIG
@@ -89,6 +90,9 @@ class CodigoAgent(BaseAgent):
             week_number=self.week_number,
             writer=writer,
         )
+
+        # Remove items where the LLM's own analysis says "skip this"
+        report_md = filter_rejected_items(report_md)
 
         source_urls = self.provenance.get_source_urls()[:20]
 

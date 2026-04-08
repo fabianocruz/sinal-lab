@@ -131,6 +131,12 @@ def send_via_resend(
 
     from_addr = from_email or settings.resend_from_email
 
+    # Replace Resend Broadcasts unsubscribe placeholder with account URL
+    # (Broadcasts inject this automatically, transactional emails don't)
+    html_content = html_content.replace(
+        "{{ unsubscribe_url }}", "https://sinal.tech/conta"
+    )
+
     try:
         import httpx
 
