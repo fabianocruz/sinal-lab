@@ -464,6 +464,8 @@ def _find_recent_signals_for_voice(
         "fintech": "Fintech", "ai": "AI", "banking": "AI in Banking",
         "healthtech": "HealthTech", "devtools": "DevTools", "crypto": "Fintech",
         "saas": "AI", "investor": "Funding", "vc": "VC",
+        "exec": "AI", "executive": "AI", "founder": "Startup Ops",
+        "thought_leader": "AI", "company": "Fintech",
     }
     tags = account.sector_tags or []
     theme_conditions = []

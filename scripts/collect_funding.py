@@ -230,11 +230,23 @@ def collect_from_coresignal(
 # ---------------------------------------------------------------------------
 
 NEOFEED_URL = "https://neofeed.com.br/negocios/"
-FUNDING_PATTERNS = [
-    re.compile(r"(capt[ao]u?|levant[ao]u?|receb[eu]+)\s+(?:R\$|US\$)\s*([\d,.]+)\s*(milh[oõ]es|bilh[oõ]es|M|B|mil)", re.I),
-    re.compile(r"(s[eé]rie\s+[A-E]|seed|pr[eé]-seed|rodada)", re.I),
-    re.compile(r"(Series?\s+[A-E]|Seed\s+Round|Pre-Seed|funding)", re.I),
+
+# Broad funding-related keywords (case-insensitive match against title)
+FUNDING_KEYWORDS = [
+    "capta", "captou", "levanta", "levantou", "recebe", "recebeu",
+    "rodada", "aporte", "investimento", "serie a", "serie b", "serie c",
+    "series a", "series b", "series c", "seed", "pre-seed",
+    "funding", "ipo", "m&a", "aquisicao", "aquisição", "compra",
+    "fusao", "fusão", "deal", "megadeal",
+    "us$", "r$", "milhoes", "milhões", "bilhoes", "bilhões",
+    "valuation", "unicornio", "unicórnio",
 ]
+
+
+def _title_has_funding(title: str) -> bool:
+    """Check if a title is about funding/deals."""
+    t = title.lower()
+    return any(kw in t for kw in FUNDING_KEYWORDS)
 
 
 def collect_from_neofeed() -> List[Dict]:
@@ -250,21 +262,30 @@ def collect_from_neofeed() -> List[Dict]:
         logger.error("NeoFeed scrape failed: %s", e)
         return []
 
-    # Extract article links and titles
-    article_pattern = re.compile(
-        r'<a[^>]+href="(https://neofeed\.com\.br/negocios/[^"]+)"[^>]*>.*?'
-        r'<h[23][^>]*>([^<]+)</h[23]>',
-        re.DOTALL,
-    )
+    # Extract links + nearby titles (h2/h3 tags)
+    links = re.findall(r'href="(https://neofeed\.com\.br/negocios/[^"]+)"', html)
+    titles = re.findall(r'<h[23][^>]*>\s*([^<]{15,})\s*</h[23]>', html)
 
-    for url, title in article_pattern.findall(html):
+    # Match links to titles by position (best effort)
+    seen_urls: set = set()
+    for title in titles:
         title = title.strip()
-        # Check if title mentions funding
-        has_funding = any(p.search(title) for p in FUNDING_PATTERNS)
-        if not has_funding:
+        if not _title_has_funding(title):
             continue
 
-        slug = hashlib.md5(url.encode()).hexdigest()[:12]
+        # Find a matching link
+        title_slug = re.sub(r'[^a-z0-9]', '', title.lower())[:20]
+        matched_url = None
+        for link in links:
+            if link not in seen_urls:
+                matched_url = link
+                seen_urls.add(link)
+                break
+
+        if not matched_url:
+            matched_url = f"https://neofeed.com.br/negocios/{hashlib.md5(title.encode()).hexdigest()[:8]}"
+
+        slug = hashlib.md5(matched_url.encode()).hexdigest()[:12]
         events.append({
             "company_slug": slug,
             "company_name": title[:100],
@@ -273,7 +294,7 @@ def collect_from_neofeed() -> List[Dict]:
             "announced_date": date.today(),
             "lead_investors": [],
             "participants": [],
-            "source_url": url,
+            "source_url": matched_url,
             "source_name": "neofeed",
             "confidence": 0.4,
             "notes": title,
@@ -303,17 +324,27 @@ def collect_from_bloomberg() -> List[Dict]:
         logger.error("Bloomberg Linea scrape failed: %s", e)
         return []
 
-    article_pattern = re.compile(
-        r'<a[^>]+href="(https://www\.bloomberglinea\.com\.br/[^"]+)"[^>]*>[^<]*'
-        r'<[^>]+>([^<]*(?:capt|levant|rodada|series?|seed|funding|invest)[^<]*)<',
-        re.DOTALL | re.I,
-    )
+    # Extract all links and titles
+    links = re.findall(r'href="(https://www\.bloomberglinea\.com\.br/[^"]+)"', html)
+    titles = re.findall(r'<h[23][^>]*>\s*([^<]{15,})\s*</h[23]>', html)
 
-    for url, title in article_pattern.findall(html):
+    seen_urls: set = set()
+    for title in titles:
         title = title.strip()
-        if len(title) < 10:
+        if not _title_has_funding(title):
             continue
-        slug = hashlib.md5(url.encode()).hexdigest()[:12]
+
+        matched_url = None
+        for link in links:
+            if link not in seen_urls and "/negocios/" in link:
+                matched_url = link
+                seen_urls.add(link)
+                break
+
+        if not matched_url:
+            matched_url = f"https://www.bloomberglinea.com.br/negocios/{hashlib.md5(title.encode()).hexdigest()[:8]}"
+
+        slug = hashlib.md5(matched_url.encode()).hexdigest()[:12]
         events.append({
             "company_slug": slug,
             "company_name": title[:100],
@@ -322,7 +353,7 @@ def collect_from_bloomberg() -> List[Dict]:
             "announced_date": date.today(),
             "lead_investors": [],
             "participants": [],
-            "source_url": url,
+            "source_url": matched_url,
             "source_name": "bloomberg_linea",
             "confidence": 0.4,
             "notes": title,
