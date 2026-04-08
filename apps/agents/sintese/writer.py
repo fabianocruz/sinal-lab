@@ -26,6 +26,7 @@ from typing import List, Optional
 
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.sintese.synthesizer import NewsletterSection
+from apps.agents.base.writing_rules import WRITING_RULES
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ SYSTEM_PROMPT = (
     "- 'O futuro do X' sem dados sobre o presente do X\n\n"
     "Pergunta-filtro: 'Um CTO de fintech em Sao Paulo com 10 anos de experiencia "
     "pararia de trabalhar para ler isto?' Se nao, reformule."
-)
+) + WRITING_RULES
 
 
 @dataclass

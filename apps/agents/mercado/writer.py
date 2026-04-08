@@ -26,6 +26,7 @@ from typing import Optional
 
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.mercado.scorer import ScoredCompanyProfile
+from apps.agents.base.writing_rules import WRITING_RULES
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ SYSTEM_PROMPT = (
     "- Va alem de listar empresas — analise o que os dados revelam sobre o ecossistema\n\n"
     "Pergunta-filtro: 'Um CTO de fintech em Sao Paulo com 10 anos de experiencia "
     "pararia de trabalhar para ler isto?'"
-)
+) + WRITING_RULES
 
 
 class MercadoWriter:

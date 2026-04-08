@@ -24,6 +24,7 @@ from typing import Optional
 
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.codigo.synthesizer import ReportSection
+from apps.agents.base.writing_rules import WRITING_RULES
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ SYSTEM_PROMPT = (
     "- Filtre conteudo irrelevante: repos sem descricao util, projetos sem relevancia LATAM\n\n"
     "Pergunta-filtro: 'Um CTO de fintech em Sao Paulo com 10 anos de experiencia "
     "pararia de trabalhar para ler isto?'"
-)
+) + WRITING_RULES
 
 
 @dataclass

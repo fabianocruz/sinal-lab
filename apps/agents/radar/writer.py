@@ -24,6 +24,7 @@ from typing import Optional
 
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.radar.synthesizer import TrendSection
+from apps.agents.base.writing_rules import WRITING_RULES
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ SYSTEM_PROMPT = (
     "- Nao ignore o contexto LATAM — sempre conecte sinais globais ao impacto regional\n\n"
     "Pergunta-filtro: 'Um CTO de fintech em Sao Paulo com 10 anos de experiencia "
     "pararia de trabalhar para ler isto?'"
-)
+) + WRITING_RULES
 
 
 @dataclass

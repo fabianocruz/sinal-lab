@@ -24,6 +24,7 @@ from typing import Optional
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.funding.scorer import ScoredFundingEvent
 from apps.agents.funding.synthesizer import format_amount, format_round_type
+from apps.agents.base.writing_rules import WRITING_RULES
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ SYSTEM_PROMPT = (
     "- Cada rodada deve ter contexto: por que esse investimento importa?\n\n"
     "Pergunta-filtro: 'Um CTO de fintech em Sao Paulo com 10 anos de experiencia "
     "pararia de trabalhar para ler isto?'"
-)
+) + WRITING_RULES
 
 
 @dataclass
