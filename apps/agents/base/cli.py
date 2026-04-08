@@ -21,12 +21,31 @@ import argparse
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Optional, Type
 
 from apps.agents.base.output import AgentOutput
 from apps.agents.base.persistence import persist_agent_output
 
 logger = logging.getLogger(__name__)
+
+
+def _load_dotenv() -> None:
+    """Load .env from the project root so API keys are available.
+
+    Searches for .env in known locations relative to this file.
+    Silently skips if python-dotenv is not installed.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+
+    # Try project root (4 levels up from apps/agents/base/cli.py)
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    env_file = project_root / ".env"
+    if env_file.exists():
+        load_dotenv(env_file)
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -67,12 +86,12 @@ def build_base_parser(
 
     if period_help is None:
         if period_arg == "edition":
-            period_help = "Edition number (default: 1)"
+            period_help = "Edition number (default: auto-increment from DB)"
         else:
             period_help = "Week number (default: current week)"
 
     if period_arg == "edition":
-        default_val = 1
+        default_val = None  # Resolved later by auto_period_fn or fallback to 1
     else:
         default_val = datetime.now().isocalendar()[1]
 
@@ -176,6 +195,7 @@ def display_run_summary(
         f"(DQ: {result.confidence.dq_display}/5, "
         f"AC: {result.confidence.ac_display}/5)"
     )
+    print(f"  Mode: {'LLM' if result.llm_used else 'TEMPLATE (no LLM)'}")
     print(f"  Output: {output_path}")
 
     if persisted:
@@ -191,6 +211,7 @@ def run_agent_cli(
     filename_fn: Optional[Callable[..., str]] = None,
     post_run_fn: Optional[Callable[..., None]] = None,
     extra_args_fn: Optional[Callable[[argparse.ArgumentParser], None]] = None,
+    auto_period_fn: Optional[Callable[[], int]] = None,
 ) -> None:
     """Main entry point replacing ~100 lines of boilerplate per agent.
 
@@ -204,7 +225,11 @@ def run_agent_cli(
         post_run_fn: Callable(agent, result, args, session) for agent-specific
             post-processing (e.g. persist domain entities).
         extra_args_fn: Callable(parser) to add agent-specific CLI args.
+        auto_period_fn: Callable() -> int to auto-detect period value when not
+            explicitly passed (e.g. query DB for next edition number).
     """
+    _load_dotenv()
+
     parser = build_base_parser(
         description=description,
         period_arg=period_arg,
@@ -214,6 +239,15 @@ def run_agent_cli(
     setup_logging(args.verbose)
 
     period_value = getattr(args, period_arg)
+
+    # Auto-detect period value when not explicitly provided
+    if period_value is None:
+        if auto_period_fn:
+            period_value = auto_period_fn()
+            logger.info("Auto-detected %s: %d", period_arg, period_value)
+        else:
+            period_value = 1
+        setattr(args, period_arg, period_value)
     agent_log = logging.getLogger(f"{agent_class.agent_name}.main")
     agent_log.info(
         "Starting %s agent, %s #%d",
