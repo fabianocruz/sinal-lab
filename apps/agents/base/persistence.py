@@ -9,6 +9,7 @@ Usage:
     agent_run, content = persist_agent_output(session, agent, result, slug)
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -97,14 +98,30 @@ def persist_content_piece(
     """
     existing = session.query(ContentPiece).filter_by(slug=slug).first()
 
+    # Strip YAML frontmatter from body_md before persisting.
+    # The body_md should contain only the Markdown content, not the
+    # frontmatter metadata (title, sources, confidence, etc.).
+    clean_body = result.body_md
+    if clean_body.strip().startswith("---"):
+        parts = clean_body.split("---", 2)
+        if len(parts) >= 3:
+            clean_body = parts[2].strip()
+
     # Merge email_subject into metadata so it survives DB persistence
     merged_metadata = dict(result.metadata)
     if result.email_subject:
         merged_metadata["email_subject"] = result.email_subject
 
     if existing:
+        # Preserve hero_image from existing metadata (covers should not be clobbered)
+        old_meta = existing.metadata_ or {}
+        if isinstance(old_meta, str):
+            old_meta = json.loads(old_meta)
+        if "hero_image" in old_meta and "hero_image" not in merged_metadata:
+            merged_metadata["hero_image"] = old_meta["hero_image"]
+
         existing.title = result.title
-        existing.body_md = result.body_md
+        existing.body_md = clean_body
         existing.confidence_dq = result.confidence.dq_display
         existing.confidence_ac = result.confidence.ac_display
         existing.sources = result.sources
@@ -123,7 +140,7 @@ def persist_content_piece(
         id=uuid.uuid4(),
         title=result.title,
         slug=slug,
-        body_md=result.body_md,
+        body_md=clean_body,
         body_html=body_html,
         summary=result.summary,
         content_type=result.content_type,
