@@ -102,7 +102,11 @@ def extract_og_image(url: str, timeout: float = 5.0) -> Optional[str]:
             re.IGNORECASE,
         )
         if match:
-            return match.group(1)
+            img_url = match.group(1)
+            # Skip relative URLs (browser can't resolve them in email/feed)
+            if img_url.startswith("http"):
+                return img_url
+            return None
 
         # Try reversed attribute order
         match = re.search(
@@ -111,7 +115,10 @@ def extract_og_image(url: str, timeout: float = 5.0) -> Optional[str]:
             re.IGNORECASE,
         )
         if match:
-            return match.group(1)
+            img_url = match.group(1)
+            if img_url.startswith("http"):
+                return img_url
+            return None
 
         return None
 
