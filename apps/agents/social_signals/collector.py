@@ -334,71 +334,111 @@ def collect_from_twitter(
     agent_name: str = "social_signals",
     run_id: str = "",
 ) -> List[SocialPost]:
-    """Collect posts from all Twitter/X data source configs.
+    """Collect posts from Twitter/X using twitter-cli (cookie-based, free).
 
-    Each source config should have a 'query' and optional 'max_results'
-    in its params dict.
+    Primary: twitter-cli (no API key, no credit limits, cookie auth).
+    Fallback: official Twitter API (if twitter-cli unavailable).
 
     Args:
         sources: Twitter DataSourceConfig items (name contains "twitter").
         provenance: Provenance tracker for recording source attribution.
-        client: Shared httpx.Client for API requests.
+        client: Shared httpx.Client for API requests (fallback only).
         agent_name: Agent name for provenance tracking.
         run_id: Current run ID for provenance tracking.
 
     Returns:
         List of normalized SocialPost items from Twitter.
     """
-    from apps.agents.sources.twitter import fetch_twitter_search
+    from apps.agents.sources.twitter_cli import fetch_tweets_cli, fetch_user_tweets_cli, is_available
 
     posts: List[SocialPost] = []
+    use_cli = is_available()
 
-    for source in sources:
-        if not source.enabled:
-            continue
+    if use_cli:
+        logger.info("Twitter: using twitter-cli (cookie-based, free)")
 
-        query = source.params.get("query", "")
-        max_results = source.params.get("max_results", 100)
+        for source in sources:
+            if not source.enabled:
+                continue
+            query = source.params.get("query", "")
+            max_results = min(source.params.get("max_results", 50), 50)
 
-        twitter_posts = fetch_twitter_search(
-            source, client, query=query, max_results=max_results,
-        )
-
-        for tp in twitter_posts:
-            posts.append(normalize_twitter_post(tp))
-            provenance.track(
-                source_url=tp.url,
-                source_name=source.name,
-                extraction_method="api",
-                confidence=0.6,
-                collector_agent=agent_name,
-                collector_run_id=run_id,
+            cli_tweets = fetch_tweets_cli(
+                query=query, max_results=max_results, exclude_retweets=True,
             )
+            for ct in cli_tweets:
+                posts.append(SocialPost(
+                    text=ct.text,
+                    url=ct.url,
+                    platform="twitter",
+                    source_name=source.name,
+                    author_handle=ct.author_handle,
+                    author_display_name=ct.author_display_name,
+                    published_at=ct.created_at,
+                    metrics=ct.metrics,
+                    content_hash=f"tw-{ct.id}",
+                ))
+                provenance.track(
+                    source_url=ct.url,
+                    source_name=source.name,
+                    extraction_method="cli",
+                    confidence=0.7,
+                    collector_agent=agent_name,
+                    collector_run_id=run_id,
+                )
 
-    # Also collect from monitored Twitter voices (handles from DB)
-    try:
-        from packages.database.session import get_session
-        session = get_session()
-        voice_handles = [
-            r[0] for r in session.execute(
-                text("SELECT handle FROM monitored_accounts WHERE platform='twitter' AND is_active=true")
-            ).fetchall()
-        ]
-        session.close()
+        # Collect from monitored Twitter voices
+        try:
+            from packages.database.session import get_session
+            session = get_session()
+            voice_handles = [
+                r[0] for r in session.execute(
+                    text("SELECT handle FROM monitored_accounts WHERE platform='twitter' AND is_active=true")
+                ).fetchall()
+            ]
+            session.close()
 
-        if voice_handles and sources:
-            # Build a "from:handle1 OR from:handle2" query for up to 20 voices
-            handles_query = " OR ".join(f"from:{h}" for h in voice_handles[:20])
-            voice_posts = fetch_twitter_search(
-                sources[0], client, query=handles_query, max_results=50,
+            voice_count = 0
+            for handle in voice_handles[:20]:
+                user_tweets = fetch_user_tweets_cli(handle, max_results=5)
+                for ct in user_tweets:
+                    posts.append(SocialPost(
+                        text=ct.text,
+                        url=ct.url,
+                        platform="twitter",
+                        source_name="twitter_voice",
+                        author_handle=ct.author_handle,
+                        author_display_name=ct.author_display_name,
+                        published_at=ct.created_at,
+                        metrics=ct.metrics,
+                        content_hash=f"tw-{ct.id}",
+                    ))
+                    voice_count += 1
+            logger.info("Twitter voices (CLI): %d posts from %d handles", voice_count, min(len(voice_handles), 20))
+        except Exception as e:
+            logger.warning("Twitter voice collection failed (non-fatal): %s", e)
+    else:
+        # Fallback to official API
+        logger.info("Twitter: twitter-cli unavailable, falling back to API")
+        from apps.agents.sources.twitter import fetch_twitter_search
+
+        for source in sources:
+            if not source.enabled:
+                continue
+            query = source.params.get("query", "")
+            max_results = source.params.get("max_results", 100)
+            twitter_posts = fetch_twitter_search(
+                source, client, query=query, max_results=max_results,
             )
-            for tp in voice_posts:
+            for tp in twitter_posts:
                 posts.append(normalize_twitter_post(tp))
-            logger.info("Twitter voices: %d posts from %d handles", len(voice_posts), min(len(voice_handles), 20))
-    except Exception as e:
-        logger.warning("Twitter voice collection failed (non-fatal): %s", e)
+                provenance.track(
+                    source_url=tp.url, source_name=source.name,
+                    extraction_method="api", confidence=0.6,
+                    collector_agent=agent_name, collector_run_id=run_id,
+                )
 
-    logger.info("Twitter: collected %d posts total from %d sources + voices", len(posts), len(sources))
+    logger.info("Twitter: collected %d posts total (%s)", len(posts), "CLI" if use_cli else "API")
     return posts
 
 
