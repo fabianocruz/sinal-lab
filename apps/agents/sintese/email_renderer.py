@@ -1000,29 +1000,59 @@ def _share_cta() -> str:
         html = _share_cta()
         # Retorna <tr> com card 'Esta newsletter foi util?' + link sinal.tech/assinar
     """
+    # NPS feedback URL base — score appended as query param
+    api_base = "https://sinalapi-prod.up.railway.app/api/feedback"
+    site_base = "https://sinal.tech"
+
+    # Build NPS buttons (0-10) as links to the feedback API
+    nps_buttons = ""
+    for score in range(11):
+        if score <= 6:
+            color = "#FF5E5E"  # detractor (red)
+        elif score <= 8:
+            color = "#FFB859"  # passive (yellow)
+        else:
+            color = "#59FFB4"  # promoter (green)
+
+        nps_buttons += f"""\
+      <td style="padding: 0 2px;">
+        <a href="{site_base}/feedback?score={score}&source=newsletter" style="display:inline-block; width:28px; height:28px; line-height:28px; text-align:center; border-radius:6px; background-color:{_COLOR_BG}; border:1px solid {color}40; font-family:{_FONT_MONO}; font-size:12px; color:{color}; text-decoration:none;">
+          {score}
+        </a>
+      </td>"""
+
     return f"""\
-<!-- ===== SHARE CTA ===== -->
+<!-- ===== NPS FEEDBACK ===== -->
 <tr>
 <td style="padding: 32px 40px;" class="mp">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:{_COLOR_CONTAINER}; border:1px solid {_COLOR_BORDER}; border-radius:12px;">
   <tr>
   <td style="padding: 28px; text-align:center;">
-    <p style="font-family: {_FONT_SERIF}; font-size: 17px; color: {_COLOR_HEADING}; line-height: 1.35; margin: 0 0 10px 0;">
-      Esta newsletter foi \u00fatil?
+    <p style="font-family: {_FONT_SERIF}; font-size: 17px; color: {_COLOR_HEADING}; line-height: 1.35; margin: 0 0 6px 0;">
+      Como foi esta edi\u00e7\u00e3o?
     </p>
-    <p style="font-family: {_FONT_SANS}; font-size: 14px; color: {_COLOR_MUTED}; line-height: 1.6; margin: 0 0 20px 0;">
-      Encaminhe para algu\u00e9m que constr\u00f3i tecnologia na Am\u00e9rica Latina.
+    <p style="font-family: {_FONT_SANS}; font-size: 13px; color: {_COLOR_MUTED}; line-height: 1.5; margin: 0 0 16px 0;">
+      Seu feedback melhora a pr\u00f3xima edi\u00e7\u00e3o automaticamente.
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" align="center">
     <tr>
-      <td style="background-color:{_COLOR_BG}; border:1px solid {_COLOR_BORDER}; border-radius:8px; padding:12px 20px;">
-        <a href="https://sinal.tech/assinar" style="font-family:{_FONT_MONO}; font-size:13px; color:{_COLOR_SINTESE}; text-decoration:none;">
-          sinal.tech/assinar
-        </a>
-      </td>
+{nps_buttons}
     </tr>
     </table>
+    <p style="font-family: {_FONT_MONO}; font-size: 10px; color: {_COLOR_MUTED}; margin: 12px 0 0 0;">
+      0 = nada \u00fatil &nbsp;&middot;&nbsp; 10 = essencial
+    </p>
   </td>
+  </tr>
+  </table>
+  <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin-top:12px;">
+  <tr>
+    <td style="text-align:center;">
+      <p style="font-family: {_FONT_SANS}; font-size: 13px; color: {_COLOR_MUTED}; margin: 0;">
+        Encaminhe para quem constr\u00f3i tech na LATAM &rarr;
+        <a href="{site_base}/assinar" style="color:{_COLOR_SINTESE}; text-decoration:none; font-family:{_FONT_MONO}; font-size:12px;">sinal.tech/assinar</a>
+      </p>
+    </td>
   </tr>
   </table>
 </td>
