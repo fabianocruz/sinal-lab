@@ -142,10 +142,9 @@ def main() -> None:
             from apps.agents.base.persistence import persist_agent_output
             from apps.agents.feed_curator.db_writer import persist_curated_feed
 
-            persist_agent_output(
-                session, agent, result,
-                slug=f"feed-curated-{agent.run_id}",
-            )
+            # Feed items go to curated_feed_items table only.
+            # Do NOT create ContentPiece — it pollutes the admin with
+            # dozens of "Feed Curado por Ana Torres" entries.
             persist_curated_feed(agent, result, session)
             session.commit()
             logger.info("Feed Curator data committed to database")

@@ -114,6 +114,7 @@ AGENTS = {
         "slug_pattern": "feed-curated",
         "output_dir": "apps/agents/feed_curator/output",
         "filename_pattern": "feed-curated.md",
+        "skip_content_piece": True,  # Feed items go to curated_feed_items, not content_pieces
     },
 }
 
