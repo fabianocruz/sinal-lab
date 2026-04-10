@@ -288,7 +288,7 @@ def cluster_signals(
     signals: List[ProcessedSignal],
     llm_client: Optional[LLMClient] = None,
     distance_threshold: float = 0.7,
-    min_cluster_size: int = 2,
+    min_cluster_size: int = 5,
 ) -> List[SignalClusterResult]:
     """Cluster related signals and build SignalClusterResult objects.
 
@@ -526,7 +526,7 @@ def cluster_signals_with_embeddings(
     embeddings: Dict[str, List[float]],
     llm_client: Optional[LLMClient] = None,
     distance_threshold: float = 0.5,
-    min_cluster_size: int = 2,
+    min_cluster_size: int = 5,
 ) -> List[SignalClusterResult]:
     """Cluster signals using embedding vectors for higher-quality grouping.
 

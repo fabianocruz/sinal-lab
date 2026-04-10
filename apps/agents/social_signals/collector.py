@@ -12,6 +12,7 @@ by content_hash before returning.
 import logging
 from typing import List, Optional
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from apps.agents.base.config import DataSourceConfig
@@ -374,7 +375,30 @@ def collect_from_twitter(
                 collector_run_id=run_id,
             )
 
-    logger.info("Twitter: collected %d posts from %d sources", len(posts), len(sources))
+    # Also collect from monitored Twitter voices (handles from DB)
+    try:
+        from packages.database.session import get_session
+        session = get_session()
+        voice_handles = [
+            r[0] for r in session.execute(
+                text("SELECT handle FROM monitored_accounts WHERE platform='twitter' AND is_active=true")
+            ).fetchall()
+        ]
+        session.close()
+
+        if voice_handles and sources:
+            # Build a "from:handle1 OR from:handle2" query for up to 20 voices
+            handles_query = " OR ".join(f"from:{h}" for h in voice_handles[:20])
+            voice_posts = fetch_twitter_search(
+                sources[0], client, query=handles_query, max_results=50,
+            )
+            for tp in voice_posts:
+                posts.append(normalize_twitter_post(tp))
+            logger.info("Twitter voices: %d posts from %d handles", len(voice_posts), min(len(voice_handles), 20))
+    except Exception as e:
+        logger.warning("Twitter voice collection failed (non-fatal): %s", e)
+
+    logger.info("Twitter: collected %d posts total from %d sources + voices", len(posts), len(sources))
     return posts
 
 
@@ -813,9 +837,19 @@ def collect_all(
             ))
 
         if rss_sources:
-            all_posts.extend(collect_from_rss(
+            rss_posts = collect_from_rss(
                 rss_sources, provenance, client, agent_name, run_id,
-            ))
+            )
+            # Filter RSS by minimum text length (short items are noise)
+            rss_filtered = [
+                p for p in rss_posts
+                if len(p.text or "") >= 50
+            ]
+            logger.info(
+                "RSS quality filter: %d -> %d posts (removed %d short items)",
+                len(rss_posts), len(rss_filtered), len(rss_posts) - len(rss_filtered),
+            )
+            all_posts.extend(rss_filtered)
 
         if scraper_sources:
             all_posts.extend(collect_from_web_scraper(
