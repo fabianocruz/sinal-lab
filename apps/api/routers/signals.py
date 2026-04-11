@@ -325,6 +325,10 @@ def get_cluster_by_slug(slug: str, db: Session = Depends(get_db)):
     cluster = db.query(SignalCluster).filter(SignalCluster.slug == slug).first()
     if not cluster:
         raise HTTPException(status_code=404, detail=f"Cluster '{slug}' not found")
+    # Block clusters matching name blocklist (same filter as list endpoint)
+    name_lower = (cluster.name or "").lower()
+    if any(pattern in name_lower for pattern in CLUSTER_NAME_BLOCKLIST):
+        raise HTTPException(status_code=404, detail=f"Cluster '{slug}' not found")
     return cluster
 
 

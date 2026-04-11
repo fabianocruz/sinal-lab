@@ -284,6 +284,7 @@ MIN_CLUSTER_COMPOSITE_SCORE = 0.3
 # Cluster names matching any of these patterns are hidden from the API.
 # Catches generic/noise clusters where the labeler couldn't find a real theme.
 CLUSTER_NAME_BLOCKLIST: list[str] = [
+    # Generic / no-theme clusters
     "sem tema comum",
     "sem tema claro",
     "diversas sem tema",
@@ -297,12 +298,24 @@ CLUSTER_NAME_BLOCKLIST: list[str] = [
     "conteúdos diversos",
     "tópicos variados",
     "notícias diversas",
-    "episódios do podcast",
-    "entrevistas em podcast sobre cinema",
-    "entrevistas e reflexões sobre sociedade",
+    # Off-topic content
+    "política e poder",
+    "política e sociedade",
+    "política, economia e mídia",
+    "política, sociedade",
+    "política e mercados",
+    "poder global",
+    "geopolítica",
+    "previsões políticas",
+    "apostas especulativas",
+    "regulação ambiental",
+    "ciência e sociedade",
+    "cinema e inteligência artificial",
     "exploradores, amazônia",
     "revisão por pares",
     "acadêmicas",
+    # Noise from podcasts/RSS
+    "episódios do podcast",
 ]
 
 # ---------------------------------------------------------------------------
