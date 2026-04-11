@@ -28,6 +28,45 @@ logger = logging.getLogger(__name__)
 # Polymarket relevance filter — only keep markets related to our themes
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# General off-topic blocklist — drop posts about politics, sports,
+# entertainment, weather, and other topics outside tech/fintech/AI scope.
+# Applied to ALL sources after collection (defense-in-depth).
+# ---------------------------------------------------------------------------
+
+OFF_TOPIC_BLOCKLIST: list[str] = [
+    # Politics
+    "trump", "biden", "election", "presidential", "democrat", "republican",
+    "congress", "senate", "white house", "capitol", "impeach",
+    "pope", "vatican", "cardinal",
+    "bolsonaro", "lula presidente",
+    # Sports
+    "nba", "nfl", "nhl", "mlb", "ufc", "fifa", "tennis", "golf",
+    "olympics", "olympic", "world cup", "champions league", "premier league",
+    "super bowl", "copa do mundo", "copa libertadores",
+    "athlete", "atleta", "jogador",
+    # Entertainment
+    "celebrity", "kardashian", "grammy", "oscar", "emmy", "box office",
+    "reality show", "big brother", "novela",
+    # Weather / natural disasters
+    "hurricane", "earthquake", "tornado", "tsunami", "wildfire",
+    # Misc noise
+    "horoscope", "astrology", "lottery", "betting odds",
+]
+
+
+def is_on_topic(post: "SocialPost") -> bool:
+    """Return True if a post is within our tech/fintech/AI domain.
+
+    Checks the post text against the OFF_TOPIC_BLOCKLIST. Posts matching
+    any blocked term are considered off-topic noise from broad searches.
+    """
+    text_lower = (post.text or "").lower()
+    if not text_lower:
+        return False
+    return not any(term in text_lower for term in OFF_TOPIC_BLOCKLIST)
+
+
 POLYMARKET_KEYWORDS: list[str] = [
     "artificial intelligence", "machine learning", "llm", "gpt",
     "crypto", "bitcoin", "ethereum", "stablecoin", "defi",
@@ -922,7 +961,48 @@ def collect_all(
                 scraper_sources, provenance, client, agent_name, run_id,
             ))
 
-        # LinkedIn via Monid (paid, cost-aware)
+        # LinkedIn: fetch recent articles from monitored LinkedIn voices via Jina Reader
+        try:
+            from apps.agents.sources.jina_reader import fetch_url_content
+            from packages.database.session import get_session
+
+            li_session = get_session()
+            li_voices = li_session.execute(
+                text("SELECT handle, display_name, profile_url FROM monitored_accounts WHERE platform='linkedin' AND is_active=true LIMIT 10")
+            ).fetchall()
+            li_session.close()
+
+            li_count = 0
+            for voice in li_voices:
+                profile_url = voice[2]
+                if not profile_url:
+                    continue
+                # Fetch recent activity page
+                activity_url = f"{profile_url.rstrip('/')}/recent-activity/all/"
+                content = fetch_url_content(activity_url)
+                if content and len(content.text) > 100:
+                    all_posts.append(SocialPost(
+                        text=content.text[:500],
+                        url=activity_url,
+                        platform="linkedin",
+                        source_name="linkedin_jina",
+                        author_handle=voice[0],
+                        author_display_name=voice[1],
+                        content_hash=f"li-{voice[0]}-{hash(content.text[:100]) % 10**8}",
+                    ))
+                    li_count += 1
+                    provenance.track(
+                        source_url=activity_url,
+                        source_name="linkedin_jina",
+                        extraction_method="jina_reader",
+                    )
+                import time as _time
+                _time.sleep(3)  # respect rate limits
+            logger.info("LinkedIn (Jina): %d posts from %d voices", li_count, len(li_voices))
+        except Exception as e:
+            logger.warning("LinkedIn/Jina collection failed (non-fatal): %s", e)
+
+        # LinkedIn via Monid (paid, cost-aware) — fallback
         try:
             linkedin_posts = collect_from_monid_linkedin(provenance)
             all_posts.extend(linkedin_posts)
@@ -1015,15 +1095,26 @@ def collect_all(
                     "Monitored account collection failed (non-fatal): %s", e,
                 )
 
-    unique_posts = deduplicate_by_hash(all_posts, hash_fn=lambda p: p.content_hash)
+    # Off-topic filter: drop posts matching blocklist before dedup/pipeline
+    on_topic_posts = [p for p in all_posts if is_on_topic(p)]
+    off_topic_count = len(all_posts) - len(on_topic_posts)
+    if off_topic_count:
+        logger.info(
+            "Off-topic filter: removed %d/%d posts (politics, sports, entertainment)",
+            off_topic_count,
+            len(all_posts),
+        )
+
+    unique_posts = deduplicate_by_hash(on_topic_posts, hash_fn=lambda p: p.content_hash)
 
     enabled_count = len([s for s in sources if s.enabled])
     logger.info(
         "Social Signals collected %d unique posts from %d enabled sources "
-        "(before dedup: %d, includes monitored accounts)",
+        "(before dedup: %d, off-topic removed: %d)",
         len(unique_posts),
         enabled_count,
-        len(all_posts),
+        len(on_topic_posts),
+        off_topic_count,
     )
 
     return unique_posts

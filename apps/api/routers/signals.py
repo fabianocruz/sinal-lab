@@ -21,6 +21,7 @@ from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
+from apps.agents.social_signals.config import MIN_CLUSTER_COMPOSITE_SCORE
 from packages.database.models.curated_feed_item import CuratedFeedItem
 from packages.database.models.monitored_account import MonitoredAccount
 from packages.database.models.signal_cluster import SignalCluster
@@ -275,6 +276,12 @@ def list_clusters(
     narrative_stage: Optional[str] = Query(None, description="Filter by narrative stage"),
     week_number: Optional[int] = Query(None, description="Filter by week number"),
     year: Optional[int] = Query(None, description="Filter by year"),
+    min_score: Optional[float] = Query(
+        MIN_CLUSTER_COMPOSITE_SCORE,
+        ge=0.0,
+        le=1.0,
+        description="Minimum composite score (0-1). Pass 0 to include all clusters.",
+    ),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -290,6 +297,8 @@ def list_clusters(
         query = query.filter(SignalCluster.week_number == week_number)
     if year is not None:
         query = query.filter(SignalCluster.year == year)
+    if min_score and min_score > 0:
+        query = query.filter(SignalCluster.composite_score >= min_score)
 
     total = query.count()
     clusters = (
