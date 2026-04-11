@@ -279,7 +279,7 @@ DIMENSION_WEIGHTS = {
 
 # Minimum composite score for a cluster to be shown in the API.
 # Clusters below this threshold are noise (too few signals, too weak).
-MIN_CLUSTER_COMPOSITE_SCORE = 0.5
+MIN_CLUSTER_COMPOSITE_SCORE = 0.4
 
 # ---------------------------------------------------------------------------
 # Data sources
