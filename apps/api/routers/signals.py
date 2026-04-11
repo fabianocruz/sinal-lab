@@ -21,7 +21,7 @@ from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
-from apps.agents.social_signals.config import MIN_CLUSTER_COMPOSITE_SCORE
+from apps.agents.social_signals.config import CLUSTER_NAME_BLOCKLIST, MIN_CLUSTER_COMPOSITE_SCORE
 from packages.database.models.curated_feed_item import CuratedFeedItem
 from packages.database.models.monitored_account import MonitoredAccount
 from packages.database.models.signal_cluster import SignalCluster
@@ -299,6 +299,10 @@ def list_clusters(
         query = query.filter(SignalCluster.year == year)
     if min_score and min_score > 0:
         query = query.filter(SignalCluster.composite_score >= min_score)
+
+    # Exclude clusters with generic/noise names (blocklist from config)
+    for pattern in CLUSTER_NAME_BLOCKLIST:
+        query = query.filter(~SignalCluster.name.ilike(f"%{pattern}%"))
 
     total = query.count()
     clusters = (

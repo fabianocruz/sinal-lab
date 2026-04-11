@@ -23,6 +23,10 @@ from apps.agents.social_signals.models import ProcessedSignal, SignalClusterResu
 
 logger = logging.getLogger(__name__)
 
+# Clusters larger than this are re-clustered with a tighter threshold.
+# Prevents mega-clusters (700+ signals) that mix unrelated content.
+MAX_CLUSTER_SIZE = 150
+
 # Try importing sklearn; flag availability for graceful fallback
 try:
     from sklearn.cluster import AgglomerativeClustering
@@ -215,11 +219,33 @@ def label_cluster(
         Human-readable cluster name string in Portuguese.
     """
     if llm_client and llm_client.is_available and len(signals) >= 2:
-        sample_texts = [s.post.text[:150] for s in signals[:5]]
+        # Sample more signals for better coverage, prioritize diverse authors
+        seen_authors: set = set()
+        sample: List[ProcessedSignal] = []
+        for s in signals:
+            author = s.post.author_handle or ""
+            if author not in seen_authors or len(sample) < 10:
+                sample.append(s)
+                seen_authors.add(author)
+            if len(sample) >= 10:
+                break
+
+        sample_texts = [s.post.text[:150] for s in sample]
+
+        # Include theme distribution for context
+        theme_dist: Dict[str, int] = defaultdict(int)
+        for s in signals:
+            if s.theme:
+                theme_dist[s.theme] += 1
+        theme_summary = ", ".join(f"{t} ({c})" for t, c in sorted(theme_dist.items(), key=lambda x: -x[1])[:3])
+
         prompt = (
-            "Given these related social media posts, generate a short "
-            "(3-7 words) descriptive label for their shared topic.\n\n"
-            "Posts:\n" + "\n---\n".join(sample_texts) + "\n\n"
+            f"These {len(signals)} social media posts are clustered together. "
+            f"Theme distribution: {theme_summary}.\n\n"
+            "Sample posts:\n" + "\n---\n".join(sample_texts) + "\n\n"
+            "Generate a SPECIFIC label (3-7 words) for the shared topic.\n"
+            "BAD labels: 'Publicações diversas', 'Tendências em tecnologia', 'Conteúdos variados'\n"
+            "GOOD labels: 'Agentes de IA para Compliance', 'Pagamentos Pix e Open Banking', 'Startups HealthTech LATAM'\n\n"
             "IMPORTANT: Reply in Brazilian Portuguese only.\n"
             "Reply with ONLY the label, no quotes or explanation."
         )
@@ -227,11 +253,14 @@ def label_cluster(
         result = llm_client.generate(
             user_prompt=prompt,
             system_prompt=(
-                "You are a topic labeler for a Brazilian tech intelligence platform. "
-                "Reply in Brazilian Portuguese only. Reply with a short descriptive label only."
+                "You are a topic labeler for a Brazilian tech intelligence platform "
+                "covering AI, Fintech, Banking, Startups, and VC in Latin America. "
+                "Generate specific, descriptive labels. Never use generic words like "
+                "'diversos', 'variados', 'tendências gerais'. "
+                "Reply in Brazilian Portuguese only. Reply with a short label only."
             ),
             max_tokens=30,
-            temperature=0.3,
+            temperature=0.2,
         )
 
         if result and result.strip():
@@ -284,6 +313,52 @@ def slugify_cluster_name(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _split_large_clusters(
+    grouped: Dict[str, List[ProcessedSignal]],
+    max_size: int = MAX_CLUSTER_SIZE,
+    tighter_threshold: float = 0.4,
+) -> Dict[str, List[ProcessedSignal]]:
+    """Re-cluster oversized groups with a tighter distance threshold.
+
+    When a cluster exceeds max_size, it likely mixed unrelated signals.
+    We re-run TF-IDF clustering on just that group with a lower threshold
+    to split it into more specific sub-clusters.
+
+    Args:
+        grouped: Dict of cluster_key -> signals.
+        max_size: Maximum acceptable cluster size.
+        tighter_threshold: Distance threshold for re-clustering.
+
+    Returns:
+        Updated grouped dict with large clusters split.
+    """
+    if not _SKLEARN_AVAILABLE:
+        return grouped
+
+    result: Dict[str, List[ProcessedSignal]] = {}
+    split_count = 0
+
+    for key, signals in grouped.items():
+        if len(signals) <= max_size:
+            result[key] = signals
+            continue
+
+        # Re-cluster with tighter threshold
+        sub_clusters = _cluster_with_tfidf(signals, tighter_threshold)
+        for sub_key, sub_signals in sub_clusters.items():
+            result[f"{key}_sub{sub_key}"] = sub_signals
+        split_count += 1
+        logger.info(
+            "Split oversized cluster %s (%d signals) into %d sub-clusters",
+            key, len(signals), len(sub_clusters),
+        )
+
+    if split_count:
+        logger.info("Split %d oversized clusters (max_size=%d)", split_count, max_size)
+
+    return result
+
+
 def cluster_signals(
     signals: List[ProcessedSignal],
     llm_client: Optional[LLMClient] = None,
@@ -332,6 +407,9 @@ def cluster_signals(
         }
     else:
         grouped = _cluster_by_theme(signals)
+
+    # Split oversized clusters into tighter sub-clusters
+    grouped = _split_large_clusters(grouped)
 
     # Build SignalClusterResult objects
     results: List[SignalClusterResult] = []
@@ -606,6 +684,9 @@ def cluster_signals_with_embeddings(
             if key not in grouped:
                 grouped[key] = []
             grouped[key].append(s)
+
+    # Split oversized clusters into tighter sub-clusters
+    grouped = _split_large_clusters(grouped)
 
     results: List[SignalClusterResult] = []
     small_cluster_signals: List[ProcessedSignal] = []

@@ -55,6 +55,24 @@ OFF_TOPIC_BLOCKLIST: list[str] = [
 ]
 
 
+# Whitelist for RSS/podcast sources — at least one keyword must appear
+# to confirm the post is about tech/fintech/AI (not generic interviews).
+RSS_RELEVANCE_KEYWORDS: list[str] = [
+    "ai", "artificial intelligence", "machine learning", "llm", "gpt",
+    "fintech", "neobank", "payment", "banking", "startup", "venture",
+    "crypto", "blockchain", "defi", "open banking",
+    "saas", "api", "cloud", "devops", "kubernetes", "docker",
+    "cybersecurity", "data privacy", "compliance",
+    "funding", "series a", "series b", "ipo", "acquisition",
+    "latam", "brasil", "brazil", "latin america",
+    "founder", "cto", "ceo", "engineer", "developer",
+    "open source", "github", "infrastructure",
+    "healthtech", "edtech", "insurtech", "proptech", "cleantech",
+    "inteligência artificial", "tecnologia", "inovação",
+    "empreendedorismo", "investimento", "pagamento",
+]
+
+
 def is_on_topic(post: "SocialPost") -> bool:
     """Return True if a post is within our tech/fintech/AI domain.
 
@@ -65,6 +83,19 @@ def is_on_topic(post: "SocialPost") -> bool:
     if not text_lower:
         return False
     return not any(term in text_lower for term in OFF_TOPIC_BLOCKLIST)
+
+
+def is_relevant_rss(post: "SocialPost") -> bool:
+    """Return True if an RSS/podcast post is relevant to our domain.
+
+    RSS and podcast feeds are broad (e.g. Lex Fridman interviews anyone).
+    This whitelist check ensures the content mentions at least one
+    tech/fintech/AI keyword before entering the pipeline.
+    """
+    text_lower = (post.text or "").lower()
+    if not text_lower:
+        return False
+    return any(kw in text_lower for kw in RSS_RELEVANCE_KEYWORDS)
 
 
 POLYMARKET_KEYWORDS: list[str] = [
@@ -945,13 +976,13 @@ def collect_all(
             rss_posts = collect_from_rss(
                 rss_sources, provenance, client, agent_name, run_id,
             )
-            # Filter RSS by minimum text length (short items are noise)
+            # Filter RSS: minimum text length + relevance whitelist
             rss_filtered = [
                 p for p in rss_posts
-                if len(p.text or "") >= 50
+                if len(p.text or "") >= 50 and is_relevant_rss(p)
             ]
             logger.info(
-                "RSS quality filter: %d -> %d posts (removed %d short items)",
+                "RSS quality filter: %d -> %d posts (removed %d short/irrelevant items)",
                 len(rss_posts), len(rss_filtered), len(rss_posts) - len(rss_filtered),
             )
             all_posts.extend(rss_filtered)

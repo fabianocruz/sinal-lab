@@ -279,7 +279,31 @@ DIMENSION_WEIGHTS = {
 
 # Minimum composite score for a cluster to be shown in the API.
 # Clusters below this threshold are noise (too few signals, too weak).
-MIN_CLUSTER_COMPOSITE_SCORE = 0.4
+MIN_CLUSTER_COMPOSITE_SCORE = 0.3
+
+# Cluster names matching any of these patterns are hidden from the API.
+# Catches generic/noise clusters where the labeler couldn't find a real theme.
+CLUSTER_NAME_BLOCKLIST: list[str] = [
+    "sem tema comum",
+    "sem tema claro",
+    "diversas sem tema",
+    "diversas de redes sociais",
+    "diversas em redes sociais",
+    "diversas sobre",
+    "publicações diversas",
+    "postagens diversas",
+    "publicações virais",
+    "conteúdo variado",
+    "conteúdos diversos",
+    "tópicos variados",
+    "notícias diversas",
+    "episódios do podcast",
+    "entrevistas em podcast sobre cinema",
+    "entrevistas e reflexões sobre sociedade",
+    "exploradores, amazônia",
+    "revisão por pares",
+    "acadêmicas",
+]
 
 # ---------------------------------------------------------------------------
 # Data sources
