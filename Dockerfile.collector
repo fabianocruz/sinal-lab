@@ -18,7 +18,8 @@ RUN pip install --no-cache-dir \
     python-dotenv \
     pydantic \
     psycopg2-binary \
-    beautifulsoup4
+    beautifulsoup4 \
+    twitter-cli
 
 # Application code
 COPY packages/ /app/packages/

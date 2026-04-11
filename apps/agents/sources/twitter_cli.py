@@ -23,11 +23,23 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Path to twitter-cli binary
-TWITTER_CLI = os.environ.get(
-    "TWITTER_CLI_PATH",
-    "/Users/fabianocruz/Library/Python/3.9/bin/twitter",
-)
+# Path to twitter-cli binary — auto-detect or use env override
+def _find_twitter_cli() -> str:
+    env_path = os.environ.get("TWITTER_CLI_PATH")
+    if env_path:
+        return env_path
+    # Try common locations
+    import shutil
+    found = shutil.which("twitter")
+    if found:
+        return found
+    # Mac local install
+    local = os.path.expanduser("~/Library/Python/3.9/bin/twitter")
+    if os.path.exists(local):
+        return local
+    return "twitter"  # hope it's on PATH
+
+TWITTER_CLI = _find_twitter_cli()
 
 
 @dataclass
