@@ -867,9 +867,35 @@ def collect_all(
             ))
 
         if reddit_sources:
-            all_posts.extend(collect_from_reddit(
-                reddit_sources, provenance, client, agent_name, run_id,
-            ))
+            # Primary: public JSON API (no auth needed)
+            try:
+                from apps.agents.sources.reddit_json import fetch_all_subreddits
+                reddit_posts = fetch_all_subreddits(limit_per_sub=15)
+                for rp in reddit_posts:
+                    all_posts.append(SocialPost(
+                        text=rp.text,
+                        url=rp.permalink or rp.url,
+                        platform="reddit",
+                        source_name=f"reddit_r_{rp.subreddit}",
+                        author_handle=rp.author,
+                        author_display_name=rp.author,
+                        metrics={"likes": rp.score, "comments": rp.num_comments},
+                        content_hash=f"reddit-{rp.id}",
+                    ))
+                    provenance.track(
+                        source_url=rp.permalink or rp.url,
+                        source_name=f"reddit_r_{rp.subreddit}",
+                        extraction_method="json_api",
+                        confidence=0.6,
+                        collector_agent=agent_name,
+                        collector_run_id=run_id,
+                    )
+                logger.info("Reddit (JSON API): %d posts from %d subreddits", len(reddit_posts), 8)
+            except Exception as e:
+                logger.warning("Reddit JSON API failed, trying OAuth fallback: %s", e)
+                all_posts.extend(collect_from_reddit(
+                    reddit_sources, provenance, client, agent_name, run_id,
+                ))
 
         if bluesky_sources:
             all_posts.extend(collect_from_bluesky(
