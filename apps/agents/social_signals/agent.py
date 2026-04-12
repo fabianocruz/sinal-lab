@@ -55,8 +55,10 @@ class SocialSignalsAgent(BaseAgent):
     agent_category = AgentCategory.DATA.value
     version = SOCIAL_SIGNALS_CONFIG.version
 
-    # Enable async collection by default (falls back to sync on failure)
-    use_async = True
+    # Async collector is out of sync with collector.py (missing off-topic
+    # filters, Reddit curl, yt-dlp, Exa, RSS relevance whitelist).
+    # Use sync until async_collector.py is updated.
+    use_async = False
 
     def __init__(self, week_number: int = 1, persist: bool = False) -> None:
         super().__init__()
