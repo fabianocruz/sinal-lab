@@ -9,6 +9,8 @@ Usage:
 """
 
 import logging
+import random
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -27,7 +29,49 @@ SUBREDDITS = [
     "SaaS",
 ]
 
-USER_AGENT = "SinalBot/1.0 (intelligence platform; contact@sinal.tech)"
+# Reddit blocks generic bot UAs. Rotate browser-like UAs to avoid 403.
+_USER_AGENTS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0",
+]
+
+
+def _get_ua() -> str:
+    return random.choice(_USER_AGENTS)
+
+
+def _reddit_get(url: str, params: dict, max_retries: int = 2) -> Optional[dict]:
+    """GET from Reddit JSON API with UA rotation and retry on 403/429."""
+    for attempt in range(max_retries + 1):
+        try:
+            with httpx.Client(timeout=15, follow_redirects=True) as client:
+                r = client.get(
+                    url,
+                    params=params,
+                    headers={"User-Agent": _get_ua()},
+                )
+                if r.status_code == 200:
+                    return r.json()
+                if r.status_code in (403, 429) and attempt < max_retries:
+                    wait = 2 ** attempt + random.random()
+                    logger.debug("Reddit %d, retrying in %.1fs (attempt %d)", r.status_code, wait, attempt + 1)
+                    time.sleep(wait)
+                    continue
+                if r.status_code == 403:
+                    logger.warning("Reddit blocked %s after %d attempts", url[:60], max_retries + 1)
+                    return None
+                r.raise_for_status()
+                return r.json()
+        except Exception as e:
+            if attempt < max_retries:
+                time.sleep(1)
+                continue
+            logger.warning("Reddit fetch failed %s: %s", url[:60], e)
+            return None
+    return None
 
 
 @dataclass
@@ -62,21 +106,8 @@ def fetch_subreddit_posts(
         List of RedditPost objects.
     """
     url = f"https://www.reddit.com/r/{subreddit}/{sort}.json"
-
-    try:
-        with httpx.Client(timeout=10, follow_redirects=True) as client:
-            r = client.get(
-                url,
-                params={"limit": min(limit, 100)},
-                headers={"User-Agent": USER_AGENT},
-            )
-            if r.status_code == 403:
-                logger.warning("Reddit blocked r/%s (403)", subreddit)
-                return []
-            r.raise_for_status()
-            data = r.json()
-    except Exception as e:
-        logger.warning("Reddit r/%s fetch failed: %s", subreddit, e)
+    data = _reddit_get(url, {"limit": min(limit, 100)})
+    if not data:
         return []
 
     posts = []
@@ -123,26 +154,13 @@ def search_reddit(
         List of RedditPost objects matching the search.
     """
     url = "https://www.reddit.com/search.json"
-
-    try:
-        with httpx.Client(timeout=10, follow_redirects=True) as client:
-            r = client.get(
-                url,
-                params={
-                    "q": query,
-                    "sort": sort,
-                    "t": time_filter,
-                    "limit": min(limit, 100),
-                },
-                headers={"User-Agent": USER_AGENT},
-            )
-            if r.status_code == 403:
-                logger.warning("Reddit search blocked (403) for '%s'", query[:30])
-                return []
-            r.raise_for_status()
-            data = r.json()
-    except Exception as e:
-        logger.warning("Reddit search failed for '%s': %s", query[:30], e)
+    data = _reddit_get(url, {
+        "q": query,
+        "sort": sort,
+        "t": time_filter,
+        "limit": min(limit, 100),
+    })
+    if not data:
         return []
 
     posts = []
@@ -185,21 +203,9 @@ def fetch_top_comments(
         List of comment body strings.
     """
     url = f"https://www.reddit.com{permalink}.json"
+    data = _reddit_get(url, {"limit": limit, "sort": "top"})
 
-    try:
-        with httpx.Client(timeout=10, follow_redirects=True) as client:
-            r = client.get(
-                url,
-                params={"limit": limit, "sort": "top"},
-                headers={"User-Agent": USER_AGENT},
-            )
-            r.raise_for_status()
-            data = r.json()
-    except Exception as e:
-        logger.debug("Reddit comments fetch failed: %s", e)
-        return []
-
-    if not isinstance(data, list) or len(data) < 2:
+    if not data or not isinstance(data, list) or len(data) < 2:
         return []
 
     comments = []
@@ -243,13 +249,14 @@ def fetch_all_subreddits(
     all_posts: List[RedditPost] = []
     seen_ids: set = set()
 
-    # Hot posts from curated subreddits
+    # Hot posts from curated subreddits (with delay to avoid rate limit)
     for sub in subs:
         posts = fetch_subreddit_posts(sub, limit=limit_per_sub)
         for p in posts:
             if p.id not in seen_ids:
                 all_posts.append(p)
                 seen_ids.add(p.id)
+        time.sleep(1)  # Respect Reddit rate limits
 
     # Cross-Reddit search for broader discovery
     for query in SEARCH_QUERIES:
@@ -258,6 +265,7 @@ def fetch_all_subreddits(
             if p.id not in seen_ids:
                 all_posts.append(p)
                 seen_ids.add(p.id)
+        time.sleep(1)
 
     # Enrich top posts with comments for richer text
     top_posts = sorted(all_posts, key=lambda p: p.score, reverse=True)
