@@ -423,12 +423,24 @@ SOCIAL_SIGNAL_SOURCES = [
         url="https://www.reddit.com/r/startups/hot.rss",
     ),
 
-    # --- Bluesky ---
+    # --- Bluesky (separate queries for precision, not one broad query) ---
     DataSourceConfig(
-        name="bluesky_ai_fintech",
+        name="bluesky_ai_agents",
         source_type="api",
         url="https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
-        params={"query": "AI fintech banking startup", "limit": 25},
+        params={"query": "AI agents LLM", "limit": 15},
+    ),
+    DataSourceConfig(
+        name="bluesky_fintech",
+        source_type="api",
+        url="https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+        params={"query": "fintech neobank payments", "limit": 15},
+    ),
+    DataSourceConfig(
+        name="bluesky_startups_latam",
+        source_type="api",
+        url="https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+        params={"query": "startup LATAM venture capital", "limit": 15},
     ),
 
     # --- LinkedIn ---
@@ -493,7 +505,8 @@ SOCIAL_SIGNAL_SOURCES = [
         url="https://lex.substack.com/feed",
     ),
 
-    # --- Podcasts ---
+    # --- Podcasts (focused only — broad ones like Lex Fridman, All-In,
+    # and Acquired bring too much off-topic noise) ---
     DataSourceConfig(
         name="podcast_a16z",
         source_type="rss",
@@ -501,45 +514,15 @@ SOCIAL_SIGNAL_SOURCES = [
         params={"max_items": 5},
     ),
     DataSourceConfig(
-        name="podcast_acquired",
+        name="podcast_20_minute_vc",
         source_type="rss",
-        url="https://feeds.pacific-content.com/acquired",
-        params={"max_items": 5},
-    ),
-    DataSourceConfig(
-        name="podcast_lex_fridman",
-        source_type="rss",
-        url="https://lexfridman.com/feed/podcast/",
-        params={"max_items": 5},
-    ),
-    DataSourceConfig(
-        name="podcast_all_in",
-        source_type="rss",
-        url="https://feeds.megaphone.fm/all-in-with-chamath-jason-sacks-friedberg",
+        url="https://thetwentyminutevc.libsyn.com/rss",
         params={"max_items": 5},
     ),
     DataSourceConfig(
         name="podcast_latitud",
         source_type="rss",
         url="https://anchor.fm/s/5e8d2e20/podcast/rss",
-        params={"max_items": 5},
-    ),
-    DataSourceConfig(
-        name="podcast_pragmatic_engineer",
-        source_type="rss",
-        url="https://feeds.transistor.fm/the-pragmatic-engineer-podcast",
-        params={"max_items": 5},
-    ),
-    DataSourceConfig(
-        name="podcast_lennys",
-        source_type="rss",
-        url="https://feeds.simplecast.com/lFMjRXlA",
-        params={"max_items": 5},
-    ),
-    DataSourceConfig(
-        name="podcast_20_minute_vc",
-        source_type="rss",
-        url="https://thetwentyminutevc.libsyn.com/rss",
         params={"max_items": 5},
     ),
     DataSourceConfig(
@@ -554,13 +537,31 @@ SOCIAL_SIGNAL_SOURCES = [
         url="https://hipsters.tech/feed/podcast/",
         params={"max_items": 5},
     ),
-
-    # --- Hacker News (reused from RADAR agent) ---
     DataSourceConfig(
-        name="hn_best_signals",
+        name="podcast_pragmatic_engineer",
         source_type="rss",
-        url="https://hnrss.org/best",
-        params={"points": 50},
+        url="https://feeds.transistor.fm/the-pragmatic-engineer-podcast",
+        params={"max_items": 5},
+    ),
+
+    # --- Hacker News (topic-filtered to avoid random viral posts) ---
+    DataSourceConfig(
+        name="hn_ai",
+        source_type="rss",
+        url="https://hnrss.org/newest?q=AI+LLM+agents",
+        params={"points": 20},
+    ),
+    DataSourceConfig(
+        name="hn_fintech",
+        source_type="rss",
+        url="https://hnrss.org/newest?q=fintech+payments+banking",
+        params={"points": 20},
+    ),
+    DataSourceConfig(
+        name="hn_startups",
+        source_type="rss",
+        url="https://hnrss.org/newest?q=startup+funding+YC",
+        params={"points": 20},
     ),
     DataSourceConfig(
         name="hn_show_signals",

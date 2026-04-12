@@ -293,27 +293,38 @@ def _upsert_weekly_pulse(
 
     existing = session.query(WeeklyPulse).filter_by(slug=slug).first()
 
-    # Build structured data from clusters
+    # Quality filter: exclude low-score and blocklist-matching clusters
+    from apps.agents.social_signals.config import CLUSTER_NAME_BLOCKLIST, MIN_CLUSTER_COMPOSITE_SCORE
+
+    def _is_quality_cluster(c: SignalClusterResult) -> bool:
+        if c.composite_score < MIN_CLUSTER_COMPOSITE_SCORE:
+            return False
+        name_lower = (c.name or "").lower()
+        return not any(p in name_lower for p in CLUSTER_NAME_BLOCKLIST)
+
+    quality_clusters = [c for c in clusters if _is_quality_cluster(c)]
+
+    # Build structured data from quality-filtered clusters
     accelerating = [
         {"name": c.name, "score": round(c.composite_score, 3), "signals": c.signal_count}
-        for c in clusters if c.narrative_stage == "accelerating"
+        for c in quality_clusters if c.narrative_stage == "accelerating"
     ][:5]
 
     emerging = [
         {"name": c.name, "score": round(c.composite_score, 3), "platforms": c.platforms}
-        for c in clusters if c.narrative_stage == "emerging"
+        for c in quality_clusters if c.narrative_stage == "emerging"
     ][:5]
 
-    # Aggregate top posts across all clusters
+    # Aggregate top posts across quality clusters
     all_top_posts: List[Dict[str, Any]] = []
-    for c in clusters:
+    for c in quality_clusters:
         all_top_posts.extend(c.top_posts[:3])
     all_top_posts = all_top_posts[:10]
 
     # Aggregate top voices (dedup by handle)
     seen_handles: set = set()
     all_voices: List[Dict[str, Any]] = []
-    for c in clusters:
+    for c in quality_clusters:
         for v in c.top_voices:
             handle = v.get("handle", "")
             if handle and handle not in seen_handles:
@@ -323,7 +334,7 @@ def _upsert_weekly_pulse(
 
     # Companies to watch
     company_counts: Dict[str, int] = {}
-    for c in clusters:
+    for c in quality_clusters:
         for comp in c.related_companies:
             name = comp.get("name", "")
             count = comp.get("mention_count", 1)
