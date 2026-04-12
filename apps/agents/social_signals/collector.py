@@ -1054,6 +1054,72 @@ def collect_all(
         except Exception as e:
             logger.warning("TikTok/Monid collection failed (non-fatal): %s", e)
 
+        # YouTube via yt-dlp (free, subtitles for richer text)
+        try:
+            from apps.agents.sources.ytdlp import is_available as ytdlp_available, search_and_extract
+            if ytdlp_available():
+                ytdlp_queries = [
+                    "AI agents fintech banking 2026",
+                    "startup LATAM venture capital",
+                    "open source LLM developer tools",
+                ]
+                for query in ytdlp_queries:
+                    yt_results = search_and_extract(query, max_results=5, max_subs=3)
+                    for r in yt_results:
+                        all_posts.append(SocialPost(
+                            text=r.full_text,
+                            url=r.url,
+                            platform="youtube",
+                            source_name="ytdlp",
+                            author_handle=r.channel,
+                            author_display_name=r.channel,
+                            metrics={
+                                "views": r.view_count,
+                                "likes": r.like_count,
+                                "comments": r.comment_count,
+                            },
+                            content_hash=r.content_hash,
+                        ))
+                        provenance.track(
+                            source_url=r.url,
+                            source_name="ytdlp",
+                            extraction_method="cli",
+                            confidence=0.7 if r.subtitle_text else 0.5,
+                            collector_agent=agent_name,
+                            collector_run_id=run_id,
+                        )
+                logger.info("yt-dlp: collected videos from %d queries", len(ytdlp_queries))
+        except Exception as e:
+            logger.warning("yt-dlp collection failed (non-fatal): %s", e)
+
+        # Exa semantic search (AI-powered, broader signal discovery)
+        try:
+            from apps.agents.sources.exa_search import is_available as exa_available, search_all_themes
+            if exa_available():
+                exa_results = search_all_themes(num_per_query=10, days_back=7)
+                for r in exa_results:
+                    all_posts.append(SocialPost(
+                        text=r.full_text,
+                        url=r.url,
+                        platform="web",
+                        source_name="exa",
+                        author_handle=r.author or "",
+                        author_display_name=r.author or "",
+                        metrics={},
+                        content_hash=r.content_hash,
+                    ))
+                    provenance.track(
+                        source_url=r.url,
+                        source_name="exa",
+                        extraction_method="api",
+                        confidence=0.7,
+                        collector_agent=agent_name,
+                        collector_run_id=run_id,
+                    )
+                logger.info("Exa: %d signals from semantic search", len(exa_results))
+        except Exception as e:
+            logger.warning("Exa search failed (non-fatal): %s", e)
+
         # Polymarket: DISABLED — prediction markets add noise without actionable
         # value for the target audience (CTOs, founders, VCs). The blocklist
         # reduced but didn't eliminate sports/politics markets, and the remaining
