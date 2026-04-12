@@ -76,13 +76,23 @@ RSS_RELEVANCE_KEYWORDS: list[str] = [
 def is_on_topic(post: "SocialPost") -> bool:
     """Return True if a post is within our tech/fintech/AI domain.
 
-    Checks the post text against the OFF_TOPIC_BLOCKLIST. Posts matching
-    any blocked term are considered off-topic noise from broad searches.
+    Two-layer filter:
+    1. Blocklist: reject posts about politics, sports, entertainment
+    2. Whitelist (social media only): Bluesky/Twitter posts must contain
+       at least one tech keyword. This catches personal/lifestyle noise
+       that doesn't match any blocklist term but is still off-topic.
     """
     text_lower = (post.text or "").lower()
     if not text_lower:
         return False
-    return not any(term in text_lower for term in OFF_TOPIC_BLOCKLIST)
+    # Layer 1: explicit blocklist
+    if any(term in text_lower for term in OFF_TOPIC_BLOCKLIST):
+        return False
+    # Layer 2: social media posts must pass relevance whitelist
+    # (RSS/web already filtered by is_relevant_rss separately)
+    if post.platform in ("bluesky", "twitter", "tiktok"):
+        return any(kw in text_lower for kw in RSS_RELEVANCE_KEYWORDS)
+    return True
 
 
 def is_relevant_rss(post: "SocialPost") -> bool:

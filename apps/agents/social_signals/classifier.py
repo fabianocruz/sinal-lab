@@ -150,11 +150,11 @@ _THEME_KEYWORDS: Dict[str, List[str]] = {
         "supply chain", "inventory", "warehouse automation",
     ],
     "CleanTech": [
-        "cleantech", "clean tech", "renewable energy", "solar",
+        "cleantech", "clean tech", "renewable energy", "solar energy",
         "wind energy", "green hydrogen", "h2v",
         "carbon credit", "carbon offset", "esg", "sustainability",
-        "electric vehicle", "ev", "electric mobility",
-        "lithium", "battery", "energy storage",
+        "electric vehicle", "electric mobility",  # "ev" removed (matches "every", "event", etc.)
+        "lithium", "battery tech", "energy storage",
         "agritech", "precision agriculture", "smart farm",
         "climate tech", "climate fintech", "water tech",
     ],
@@ -233,6 +233,18 @@ def _classify_with_llm(text: str, client: LLMClient) -> Tuple[str, str]:
     return ("", "")
 
 
+def _keyword_matches(kw: str, text_lower: str) -> bool:
+    """Check if keyword matches in text, using word boundaries for short terms.
+
+    Short keywords (≤3 chars like 'ev', 'ai', 'dx') could match inside
+    longer words ('every', 'said', 'index'). For these, we require word
+    boundary matching via regex. Longer keywords use fast substring search.
+    """
+    if len(kw) <= 3:
+        return bool(re.search(r'\b' + re.escape(kw) + r'\b', text_lower))
+    return kw in text_lower
+
+
 def _classify_with_keywords(text: str) -> Tuple[str, str]:
     """Fallback classification using keyword matching."""
     text_lower = text.lower()
@@ -250,7 +262,7 @@ def _classify_with_keywords(text: str) -> Tuple[str, str]:
     ]
     for theme in priority_order:
         keywords = _THEME_KEYWORDS.get(theme, [])
-        score = sum(1 for kw in keywords if kw in text_lower)
+        score = sum(1 for kw in keywords if _keyword_matches(kw, text_lower))
         if score > best_score:
             best_score = score
             best_theme = theme
