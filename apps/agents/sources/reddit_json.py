@@ -8,13 +8,15 @@ Usage:
     posts = fetch_subreddit_posts("fintech", limit=25)
 """
 
+import json
 import logging
 import random
+import shutil
+import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-
-import httpx
+from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
@@ -29,49 +31,43 @@ SUBREDDITS = [
     "SaaS",
 ]
 
-# Reddit blocks generic bot UAs. Rotate browser-like UAs to avoid 403.
+# Reddit blocks Python HTTP clients (httpx, requests) by TLS fingerprint.
+# Using curl subprocess bypasses this — curl's TLS handshake is accepted.
+_CURL_BIN = shutil.which("curl") or "curl"
+
 _USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0",
 ]
 
 
-def _get_ua() -> str:
-    return random.choice(_USER_AGENTS)
+def _reddit_get(url: str, params: dict) -> Optional[dict]:
+    """GET from Reddit JSON API using curl to bypass TLS fingerprinting."""
+    qs = urlencode(params)
+    full_url = f"{url}?{qs}" if qs else url
+    ua = random.choice(_USER_AGENTS)
 
-
-def _reddit_get(url: str, params: dict, max_retries: int = 2) -> Optional[dict]:
-    """GET from Reddit JSON API with UA rotation and retry on 403/429."""
-    for attempt in range(max_retries + 1):
-        try:
-            with httpx.Client(timeout=15, follow_redirects=True) as client:
-                r = client.get(
-                    url,
-                    params=params,
-                    headers={"User-Agent": _get_ua()},
-                )
-                if r.status_code == 200:
-                    return r.json()
-                if r.status_code in (403, 429) and attempt < max_retries:
-                    wait = 2 ** attempt + random.random()
-                    logger.debug("Reddit %d, retrying in %.1fs (attempt %d)", r.status_code, wait, attempt + 1)
-                    time.sleep(wait)
-                    continue
-                if r.status_code == 403:
-                    logger.warning("Reddit blocked %s after %d attempts", url[:60], max_retries + 1)
-                    return None
-                r.raise_for_status()
-                return r.json()
-        except Exception as e:
-            if attempt < max_retries:
-                time.sleep(1)
-                continue
-            logger.warning("Reddit fetch failed %s: %s", url[:60], e)
+    try:
+        result = subprocess.run(
+            [_CURL_BIN, "-s", "-H", f"User-Agent: {ua}", full_url],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            logger.warning("Reddit curl failed for %s (exit %d)", url[:60], result.returncode)
             return None
-    return None
+        return json.loads(result.stdout)
+    except subprocess.TimeoutExpired:
+        logger.warning("Reddit curl timed out for %s", url[:60])
+        return None
+    except json.JSONDecodeError:
+        logger.warning("Reddit returned non-JSON for %s", url[:60])
+        return None
+    except Exception as e:
+        logger.warning("Reddit fetch failed %s: %s", url[:60], e)
+        return None
 
 
 @dataclass
