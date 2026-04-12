@@ -19,7 +19,9 @@ RUN pip install --no-cache-dir \
     pydantic \
     psycopg2-binary \
     beautifulsoup4 \
-    twitter-cli
+    twitter-cli \
+    yt-dlp \
+    exa-py
 
 # Application code
 COPY packages/ /app/packages/
