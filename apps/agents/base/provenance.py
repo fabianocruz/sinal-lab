@@ -25,7 +25,7 @@ class ProvenanceRecord:
     raw_value: Optional[str] = None
 
     def __post_init__(self) -> None:
-        valid_methods = {"api", "scraper", "rss", "manual", "community"}
+        valid_methods = {"api", "scraper", "rss", "manual", "community", "cli", "json_api", "jina_reader"}
         if self.extraction_method not in valid_methods:
             raise ValueError(
                 f"extraction_method must be one of {valid_methods}, "
