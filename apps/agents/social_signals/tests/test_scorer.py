@@ -17,6 +17,7 @@ from apps.agents.social_signals.scorer import (
     _compute_sentiment_shift,
     _compute_velocity,
     _compute_volume,
+    assign_narrative_stages_by_percentile,
     classify_signal_type,
     compute_cluster_dimensions,
     determine_narrative_stage,
@@ -339,3 +340,96 @@ class TestExtractTopPosts:
         assert len(posts) == 1
         # Second signal has higher engagement
         assert posts[0]["platform"] == "twitter"
+
+
+# ---------------------------------------------------------------------------
+# Helpers for percentile stage tests
+# ---------------------------------------------------------------------------
+
+
+def _make_cluster_with_score(composite: float) -> "SignalClusterResult":  # type: ignore[name-defined]
+    """Build a minimal SignalClusterResult with controlled composite_score."""
+    from apps.agents.social_signals.models import SignalClusterResult, SignalDimensions
+
+    # Build dimensions that produce the desired composite score via equal weights.
+    # With equal weighting across 8 dims the composite = mean(dims).
+    # We set all dims to `composite` so the weighted sum equals `composite`.
+    dims = SignalDimensions(
+        volume=composite,
+        velocity=composite,
+        authority_concentration=composite,
+        cross_platform_propagation=composite,
+        sentiment_shift=composite,
+        new_entrants=composite,
+        narrative_maturity=composite,
+        commercial_signals=composite,
+    )
+    cluster = SignalClusterResult(name="Test Cluster", slug="test-cluster", dimensions=dims)
+    return cluster
+
+
+class TestAssignNarrativeStagesByPercentile:
+    def test_empty_list_no_crash(self):
+        """Should return immediately without raising."""
+        assign_narrative_stages_by_percentile([])  # must not raise
+
+    def test_has_historical_data_is_noop(self):
+        """When has_historical_data=True the function must not mutate stages."""
+        clusters = [_make_cluster_with_score(s) for s in [0.3, 0.4, 0.5]]
+        for c in clusters:
+            c.narrative_stage = "emerging"
+        assign_narrative_stages_by_percentile(clusters, has_historical_data=True)
+        for c in clusters:
+            assert c.narrative_stage == "emerging"
+
+    def test_at_least_two_different_stages_with_ten_clusters(self):
+        """10 clusters with varied scores must produce more than one distinct stage."""
+        scores = [0.30, 0.33, 0.36, 0.39, 0.42, 0.45, 0.48, 0.50, 0.53, 0.55]
+        clusters = [_make_cluster_with_score(s) for s in scores]
+        assign_narrative_stages_by_percentile(clusters, has_historical_data=False)
+        stages = {c.narrative_stage for c in clusters}
+        assert len(stages) >= 2
+
+    def test_top_15_percent_get_accelerating(self):
+        """With 20 clusters, the top 15% (≈ 3 clusters) should be accelerating."""
+        # 20 evenly-spaced scores from 0.10 to 1.0
+        scores = [0.10 + i * (0.90 / 19) for i in range(20)]
+        clusters = [_make_cluster_with_score(s) for s in scores]
+        assign_narrative_stages_by_percentile(clusters, has_historical_data=False)
+
+        # Sort by composite score descending to identify top 15%
+        sorted_clusters = sorted(clusters, key=lambda c: c.composite_score, reverse=True)
+        n = len(sorted_clusters)
+        top_count = max(1, int(n * 0.15))  # at least 1
+        for c in sorted_clusters[:top_count]:
+            assert c.narrative_stage == "accelerating", (
+                f"Expected accelerating for top cluster, got {c.narrative_stage}"
+            )
+
+    def test_bottom_15_percent_get_declining(self):
+        """With 20 clusters, the bottom 15% (≈ 3 clusters) should be declining."""
+        scores = [0.10 + i * (0.90 / 19) for i in range(20)]
+        clusters = [_make_cluster_with_score(s) for s in scores]
+        assign_narrative_stages_by_percentile(clusters, has_historical_data=False)
+
+        sorted_clusters = sorted(clusters, key=lambda c: c.composite_score, reverse=True)
+        n = len(sorted_clusters)
+        bottom_threshold = int(n * 0.85)
+        for c in sorted_clusters[bottom_threshold:]:
+            assert c.narrative_stage == "declining", (
+                f"Expected declining for bottom cluster, got {c.narrative_stage}"
+            )
+
+    def test_all_clusters_receive_a_stage(self):
+        """Every cluster must have a non-empty narrative_stage after the call."""
+        valid_stages = {"accelerating", "emerging", "peaking", "declining"}
+        clusters = [_make_cluster_with_score(s) for s in [0.3, 0.45, 0.6, 0.8]]
+        assign_narrative_stages_by_percentile(clusters, has_historical_data=False)
+        for c in clusters:
+            assert c.narrative_stage in valid_stages
+
+    def test_single_cluster_gets_accelerating(self):
+        """A single cluster lands in the top 15% by definition (0/1 = 0.0 < 0.15)."""
+        clusters = [_make_cluster_with_score(0.4)]
+        assign_narrative_stages_by_percentile(clusters, has_historical_data=False)
+        assert clusters[0].narrative_stage == "accelerating"

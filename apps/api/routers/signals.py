@@ -17,11 +17,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from collections import defaultdict
+
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
-from apps.agents.social_signals.config import CLUSTER_NAME_BLOCKLIST, MIN_CLUSTER_COMPOSITE_SCORE
+from apps.agents.social_signals.config import (
+    CLUSTER_NAME_BLOCKLIST,
+    CLUSTER_NAME_BLOCKLIST_RE,
+    MIN_CLUSTER_COMPOSITE_SCORE,
+)
 from packages.database.models.curated_feed_item import CuratedFeedItem
 from packages.database.models.monitored_account import MonitoredAccount
 from packages.database.models.signal_cluster import SignalCluster
@@ -300,17 +306,18 @@ def list_clusters(
     if min_score and min_score > 0:
         query = query.filter(SignalCluster.composite_score >= min_score)
 
-    # Exclude clusters with generic/noise names (blocklist from config)
-    for pattern in CLUSTER_NAME_BLOCKLIST:
-        query = query.filter(~SignalCluster.name.ilike(f"%{pattern}%"))
-
-    total = query.count()
-    clusters = (
+    # Exclude clusters with generic/noise names.
+    # Fetch all matching rows and filter in Python with pre-compiled regex.
+    # This avoids N individual SQL NOT ILIKE clauses and works with both
+    # PostgreSQL and SQLite (tests).
+    all_matching = (
         query.order_by(desc(SignalCluster.composite_score))
-        .offset(offset)
-        .limit(limit)
         .all()
     )
+    filtered = [c for c in all_matching if not CLUSTER_NAME_BLOCKLIST_RE.search(c.name or "")]
+    total = len(filtered)
+    clusters = filtered[offset : offset + limit]
+
     return {
         "items": [SignalClusterResponse.model_validate(c) for c in clusters],
         "total": total,
@@ -326,8 +333,7 @@ def get_cluster_by_slug(slug: str, db: Session = Depends(get_db)):
     if not cluster:
         raise HTTPException(status_code=404, detail=f"Cluster '{slug}' not found")
     # Block clusters matching name blocklist (same filter as list endpoint)
-    name_lower = (cluster.name or "").lower()
-    if any(pattern in name_lower for pattern in CLUSTER_NAME_BLOCKLIST):
+    if CLUSTER_NAME_BLOCKLIST_RE.search(cluster.name or ""):
         raise HTTPException(status_code=404, detail=f"Cluster '{slug}' not found")
     return cluster
 
@@ -404,24 +410,23 @@ def list_voices(
         .all()
     )
 
-    # Enrich each voice with recent signals
+    # Batch-fetch recent signals (avoids N+1 queries per account)
+    signals_by_handle = _batch_fetch_signals_for_voices(db, accounts)
+
     items: List[MonitoredAccountResponse] = []
     for account in accounts:
         voice_data = MonitoredAccountResponse.model_validate(account)
-        try:
-            recent_signals = _find_recent_signals_for_voice(db, account)
-            voice_data.recent_signals = [
-                RecentSignalBrief(
-                    platform=sig.platform or "unknown",
-                    text=(sig.text or "")[:200],
-                    post_url=sig.post_url or "",
-                    published_at=sig.published_at,
-                    metrics=sig.metrics if isinstance(sig.metrics, dict) else None,
-                )
-                for sig in recent_signals
-            ]
-        except Exception:
-            voice_data.recent_signals = []
+        matched_signals = signals_by_handle.get(account.handle, [])
+        voice_data.recent_signals = [
+            RecentSignalBrief(
+                platform=sig.platform or "unknown",
+                text=(sig.text or "")[:200],
+                post_url=sig.post_url or "",
+                published_at=sig.published_at,
+                metrics=sig.metrics if isinstance(sig.metrics, dict) else None,
+            )
+            for sig in matched_signals[:3]
+        ]
         items.append(voice_data)
 
     return {
@@ -430,6 +435,145 @@ def list_voices(
         "limit": limit,
         "offset": offset,
     }
+
+
+def _batch_fetch_signals_for_voices(
+    db: Session,
+    accounts: List[MonitoredAccount],
+    per_voice_limit: int = 3,
+) -> Dict[str, List[Any]]:
+    """Batch-fetch recent signals for multiple monitored accounts.
+
+    Returns a dict mapping account handle -> list of SocialSignal rows
+    (already sorted by published_at DESC, at most ``per_voice_limit`` each).
+
+    Matching strategy (applied in priority order):
+        1. Exact author_handle match
+        2. display_name containment (cross-platform)
+        3. Sector-tag -> theme fallback
+
+    Uses at most 3 DB queries total (one per strategy) instead of
+    N queries per account.
+    """
+    if not accounts:
+        return {}
+
+    result: Dict[str, List[Any]] = {}
+    # Upper bound on signals to fetch per strategy. With 100 accounts and
+    # 3 signals each we need at most 300 rows, but some handles will share
+    # signals so we fetch a generous batch.
+    batch_limit = len(accounts) * per_voice_limit * 2
+
+    # --- Strategy 1: exact handle match -----------------------------------
+    all_handles = [a.handle for a in accounts]
+    handle_signals = (
+        db.query(SocialSignal)
+        .filter(SocialSignal.author_handle.in_(all_handles))
+        .order_by(desc(SocialSignal.published_at))
+        .limit(batch_limit)
+        .all()
+    )
+
+    by_handle: Dict[str, List[Any]] = defaultdict(list)
+    for sig in handle_signals:
+        by_handle[sig.author_handle].append(sig)
+
+    matched_handles = set()
+    for account in accounts:
+        sigs = by_handle.get(account.handle, [])
+        if sigs:
+            result[account.handle] = sigs[:per_voice_limit]
+            matched_handles.add(account.handle)
+
+    # --- Strategy 2: display_name containment (cross-platform) ------------
+    unmatched_by_name = [
+        a for a in accounts
+        if a.handle not in matched_handles
+        and (a.display_name or "").strip()
+        and len((a.display_name or "").strip()) > 3
+    ]
+    if unmatched_by_name:
+        name_conditions = [
+            SocialSignal.author_display_name.ilike(f"%{a.display_name.strip()}%")
+            for a in unmatched_by_name
+        ]
+        name_signals = (
+            db.query(SocialSignal)
+            .filter(or_(*name_conditions))
+            .order_by(desc(SocialSignal.published_at))
+            .limit(batch_limit)
+            .all()
+        )
+
+        # Group results: for each unmatched account check which signals match
+        for account in unmatched_by_name:
+            display = account.display_name.strip().lower()
+            matching = [
+                s for s in name_signals
+                if s.author_display_name
+                and display in s.author_display_name.lower()
+            ]
+            if matching:
+                result[account.handle] = matching[:per_voice_limit]
+                matched_handles.add(account.handle)
+
+    # --- Strategy 3: sector_tags -> theme fallback ------------------------
+    tag_to_theme = {
+        "fintech": "Fintech", "ai": "AI", "banking": "AI in Banking",
+        "healthtech": "HealthTech", "devtools": "DevTools", "crypto": "Fintech",
+        "saas": "AI", "investor": "Funding", "vc": "VC",
+        "exec": "AI", "executive": "AI", "founder": "Startup Ops",
+        "thought_leader": "AI", "company": "Fintech",
+    }
+    # Collect all needed themes across remaining unmatched accounts
+    unmatched_tag_accounts = [
+        a for a in accounts if a.handle not in matched_handles
+    ]
+    all_themes: set = set()
+    account_themes: Dict[str, set] = {}
+    for account in unmatched_tag_accounts:
+        themes_for_account: set = set()
+        for tag in (account.sector_tags or []):
+            mapped = tag_to_theme.get(tag.lower())
+            if mapped:
+                themes_for_account.add(mapped)
+                all_themes.add(mapped)
+        account_themes[account.handle] = themes_for_account
+
+    if all_themes:
+        theme_signals = (
+            db.query(SocialSignal)
+            .filter(SocialSignal.theme.in_(list(all_themes)))
+            .order_by(desc(SocialSignal.published_at))
+            .limit(batch_limit)
+            .all()
+        )
+
+        # Group by theme for fast lookup
+        by_theme: Dict[str, List[Any]] = defaultdict(list)
+        for sig in theme_signals:
+            if sig.theme:
+                by_theme[sig.theme].append(sig)
+
+        for account in unmatched_tag_accounts:
+            themes = account_themes.get(account.handle, set())
+            if not themes:
+                continue
+            matching = []
+            seen_ids: set = set()
+            for theme in themes:
+                for sig in by_theme.get(theme, []):
+                    if sig.id not in seen_ids:
+                        matching.append(sig)
+                        seen_ids.add(sig.id)
+                    if len(matching) >= per_voice_limit:
+                        break
+                if len(matching) >= per_voice_limit:
+                    break
+            if matching:
+                result[account.handle] = matching[:per_voice_limit]
+
+    return result
 
 
 def _find_recent_signals_for_voice(

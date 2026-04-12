@@ -27,6 +27,13 @@ function scoreBar(score: number) {
   );
 }
 
+function stripHtml(text: string): string {
+  return text
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function ClusterCard({ cluster, isWatched = false, onWatch }: ClusterCardProps) {
   const stageColor = STAGE_COLORS[cluster.narrative_stage] ?? "#8A8A96";
   const stageLabel = STAGE_LABELS[cluster.narrative_stage] ?? cluster.narrative_stage;
@@ -83,7 +90,7 @@ export default function ClusterCard({ cluster, isWatched = false, onWatch }: Clu
           {/* Description */}
           {cluster.description && (
             <p className="mb-4 line-clamp-2 text-[13px] leading-[1.5] text-silver">
-              {cluster.description}
+              {stripHtml(cluster.description)}
             </p>
           )}
 

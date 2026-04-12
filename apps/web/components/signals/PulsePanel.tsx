@@ -215,6 +215,7 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
 
   // Filter clusters by selected theme, then sort by signal_count
   const filteredClusters = useMemo(() => {
+    setShowAllClusters(false); // Reset pagination when filter changes
     if (activeTheme === "all") return clusters;
     return clusters.filter((c) => c.theme?.toLowerCase() === activeTheme.toLowerCase());
   }, [clusters, activeTheme]);
@@ -223,6 +224,15 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
   const dominant = [...filteredClusters]
     .sort((a, b) => b.signal_count - a.signal_count)
     .slice(0, 5);
+
+  // Cluster grid pagination — show 12 initially, expand on demand
+  const INITIAL_CLUSTER_COUNT = 12;
+  const [showAllClusters, setShowAllClusters] = useState(false);
+  const visibleClusters = useMemo(() => {
+    if (showAllClusters) return filteredClusters;
+    return filteredClusters.slice(0, INITIAL_CLUSTER_COUNT);
+  }, [filteredClusters, showAllClusters]);
+  const hasMoreClusters = filteredClusters.length > INITIAL_CLUSTER_COUNT;
 
   // Clusters currently in watchlist
   const watchedClusters = useMemo(
@@ -365,7 +375,7 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredClusters.map((cluster) => (
+            {visibleClusters.map((cluster) => (
               <ClusterCard
                 key={cluster.id}
                 cluster={cluster}
@@ -374,6 +384,18 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
               />
             ))}
           </div>
+
+          {/* Show more / show less toggle */}
+          {hasMoreClusters && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => setShowAllClusters((prev) => !prev)}
+                className="rounded-lg border border-[rgba(255,255,255,0.06)] px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.8px] text-ash transition-all hover:border-[rgba(255,255,255,0.12)] hover:text-silver"
+              >
+                {showAllClusters ? "Mostrar menos" : `Mostrar todos (${filteredClusters.length})`}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

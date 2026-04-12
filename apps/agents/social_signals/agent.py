@@ -227,12 +227,14 @@ class SocialSignalsAgent(BaseAgent):
         if self._historical_context is None:
             self._historical_context = self._load_historical_context()
 
-        self._clusters, self._all_signals = run_pipeline(
+        result = run_pipeline(
             posts=posts,
             llm_client=self._llm_client,
             historical_context=self._historical_context,
             top_n_for_llm=20,
         )
+        self._clusters = result.clusters
+        self._all_signals = result.all_signals
 
         logger.info(
             "Processed %d posts into %d clusters (%d themed signals)",

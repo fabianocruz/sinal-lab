@@ -8,7 +8,7 @@ agent pipeline: collect -> classify -> cluster -> score -> output.
 import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -145,3 +145,18 @@ class SignalClusterResult:
     @property
     def platforms(self) -> List[str]:
         return list(set(s.post.platform for s in self.signals))
+
+
+@dataclass
+class PipelineResult:
+    """Complete output from run_pipeline(), replacing module-level state.
+
+    Bundles clusters, signals, embeddings, narrative shifts, and first
+    mover data so the caller doesn't rely on hidden global variables.
+    """
+
+    clusters: List[SignalClusterResult] = field(default_factory=list)
+    all_signals: List[ProcessedSignal] = field(default_factory=list)
+    signal_embeddings: Dict[str, List[float]] = field(default_factory=dict)
+    narrative_shifts: List[Dict[str, Any]] = field(default_factory=list)
+    first_movers: Dict[str, Any] = field(default_factory=dict)

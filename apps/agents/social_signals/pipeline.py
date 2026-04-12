@@ -24,10 +24,12 @@ from apps.agents.social_signals.clusterer import (
     cluster_signals,
     cluster_signals_with_embeddings,
     compute_cluster_centroid,
+    describe_cluster,
 )
 from apps.agents.social_signals.embeddings import generate_embeddings
 from apps.agents.social_signals.first_mover import detect_first_movers
 from apps.agents.social_signals.models import (
+    PipelineResult,
     ProcessedSignal,
     SignalClusterResult,
     SocialPost,
@@ -35,10 +37,12 @@ from apps.agents.social_signals.models import (
 from apps.agents.social_signals.narrative_shift import detect_narrative_shifts
 from apps.agents.social_signals.propagation import enrich_signals_with_propagation
 from apps.agents.social_signals.scorer import (
+    assign_narrative_stages_by_percentile,
     compute_cluster_dimensions,
     determine_narrative_stage,
     extract_top_posts,
     extract_top_voices,
+    strip_html,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,7 +139,7 @@ def run_pipeline(
     top_n_for_llm: int = 20,
     force_tfidf_embeddings: bool = False,
     skip_embeddings: bool = False,
-) -> Tuple[List[SignalClusterResult], List[ProcessedSignal]]:
+) -> PipelineResult:
     """Execute the full social signals processing pipeline.
 
     Steps:
@@ -168,13 +172,12 @@ def run_pipeline(
             use classic TF-IDF clustering. Useful for quick runs.
 
     Returns:
-        Tuple of:
-            - List of scored SignalClusterResult objects (sorted by composite score)
-            - List of all ProcessedSignal objects (including filtered-out ones)
+        PipelineResult containing clusters, signals, embeddings,
+        narrative shifts, and first mover data.
     """
     if not posts:
         logger.warning("Pipeline received 0 posts, returning empty results")
-        return [], []
+        return PipelineResult()
 
     # Step 1: Batch-classify all posts (keyword-first, LLM for top N)
     logger.info("Step 1/8: Batch-classifying %d posts (LLM top %d)...", len(posts), top_n_for_llm)
@@ -192,7 +195,7 @@ def run_pipeline(
 
     if not themed_signals:
         logger.warning("No signals matched any theme, returning empty clusters")
-        return [], all_signals
+        return PipelineResult(all_signals=all_signals)
 
     # Step 2.5: Generate embeddings for themed signals
     signal_embeddings: Dict[str, List[float]] = {}
@@ -309,9 +312,10 @@ def run_pipeline(
             )[:10]
         ]
 
-        # Set description from top post text
-        if cluster.top_posts:
-            cluster.description = cluster.top_posts[0].get("text", "")[:200]
+        # Generate cluster description via LLM, fallback to theme summary
+        cluster.description = describe_cluster(
+            cluster.signals, cluster.name, llm_client,
+        )
 
         # Step 9: Compute centroid embedding for the cluster
         if signal_embeddings:
@@ -320,26 +324,23 @@ def run_pipeline(
                 # Attach centroid to cluster for db_writer to persist
                 cluster._centroid_embedding = centroid  # type: ignore[attr-defined]
 
-    # Attach signal embeddings to pipeline output for db_writer
-    _last_signal_embeddings.clear()
-    _last_signal_embeddings.update(signal_embeddings)
+    # When no historical data, redistribute stages by percentile so that
+    # not all clusters end up as "accelerating" from the fixed thresholds.
+    if not has_historical_data:
+        assign_narrative_stages_by_percentile(clusters, has_historical_data=False)
 
     # Detect narrative shifts (compare current vs previous clusters)
-    _last_narrative_shifts.clear()
     prev_for_shifts = previous_clusters or []
     if not prev_for_shifts and historical_context:
         # historical_context doesn't carry full cluster objects, so shifts
         # are only computed when previous_clusters is provided directly
         pass
     shifts = detect_narrative_shifts(clusters, prev_for_shifts)
-    _last_narrative_shifts.extend(shifts)
     if shifts:
         logger.info("Narrative shifts detected: %d", len(shifts))
 
     # Detect first movers per cluster
-    _last_first_movers.clear()
     first_movers = detect_first_movers(themed_signals, clusters)
-    _last_first_movers.update(first_movers)
     if first_movers:
         logger.info("First mover detection: %d clusters with timing data", len(first_movers))
 
@@ -356,4 +357,18 @@ def run_pipeline(
         clusters[0].narrative_stage if clusters else "n/a",
     )
 
-    return clusters, all_signals
+    # Update module-level state for backward compatibility (db_writer, agent)
+    _last_signal_embeddings.clear()
+    _last_signal_embeddings.update(signal_embeddings)
+    _last_narrative_shifts.clear()
+    _last_narrative_shifts.extend(shifts)
+    _last_first_movers.clear()
+    _last_first_movers.update(first_movers)
+
+    return PipelineResult(
+        clusters=clusters,
+        all_signals=all_signals,
+        signal_embeddings=signal_embeddings,
+        narrative_shifts=shifts,
+        first_movers=first_movers,
+    )
