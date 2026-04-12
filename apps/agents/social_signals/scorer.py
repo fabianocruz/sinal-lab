@@ -298,7 +298,12 @@ def extract_top_posts(
     signals: List[ProcessedSignal],
     limit: int = 10,
 ) -> List[Dict]:
-    """Extract top posts by engagement and authority."""
+    """Extract top posts by engagement, text quality, and authority.
+
+    Social media posts are ranked by engagement metrics. RSS/web posts
+    (which have no engagement data) are ranked by text length and
+    commercial signal presence as a proxy for quality.
+    """
     scored = []
     for s in signals:
         # Skip bots and sponsored content
@@ -306,16 +311,28 @@ def extract_top_posts(
             continue
         if _is_sponsored(s.post.text or ""):
             continue
-        # Skip posts with zero engagement (noise)
+
         metrics = s.post.metrics or {}
         engagement = (
             metrics.get("likes", 0)
             + metrics.get("replies", 0) * 2
             + metrics.get("reposts", 0) * 3
+            + metrics.get("score", 0)  # Reddit score
+            + metrics.get("views", 0) * 0.01  # YouTube views
         )
-        if engagement == 0:
-            continue
-        score = engagement * 0.5 + s.authority_score * 1000 * 0.5
+
+        if engagement > 0:
+            # Social media: rank by engagement + authority
+            score = engagement * 0.5 + s.authority_score * 1000 * 0.5
+        else:
+            # RSS/web: rank by text quality (length + commercial signals)
+            text_len = len(s.post.text or "")
+            if text_len < 50:
+                continue  # Too short to be useful
+            quality = min(1.0, text_len / 500.0)  # Longer = more analytical
+            commercial_bonus = 0.3 if s.is_commercial else 0.0
+            score = (quality + commercial_bonus) * 10  # Lower scale than engagement
+
         scored.append((score, s))
 
     scored.sort(key=lambda x: x[0], reverse=True)
