@@ -12,6 +12,7 @@ Signal classification:
 
 import logging
 import math
+import re
 from collections import Counter
 from typing import Dict, List, Optional
 
@@ -127,6 +128,57 @@ def determine_narrative_stage(
         return "emerging"
 
 
+def assign_narrative_stages_by_percentile(
+    clusters: list,
+    has_historical_data: bool = False,
+) -> None:
+    """Assign narrative stages using percentile-based distribution.
+
+    When no historical data exists, fixed thresholds cause all clusters
+    to land in the same stage. This function distributes stages across
+    the cluster population based on relative composite_score ranking:
+        - Top 15%: accelerating
+        - Next 35%: emerging
+        - Next 35%: emerging (lower)
+        - Bottom 15%: declining
+
+    When historical data IS available, delegates to per-cluster
+    determine_narrative_stage() which uses velocity-based logic.
+
+    Args:
+        clusters: List of SignalClusterResult with dimensions already set.
+        has_historical_data: Whether previous-period data was available.
+
+    Mutates clusters in-place (sets narrative_stage).
+    """
+    if not clusters:
+        return
+
+    if has_historical_data:
+        # Velocity-based logic handles each cluster individually;
+        # caller should use determine_narrative_stage() per cluster.
+        return
+
+    # Sort by composite score descending to assign by rank
+    scored = sorted(
+        clusters,
+        key=lambda c: c.composite_score,
+        reverse=True,
+    )
+    n = len(scored)
+
+    for i, cluster in enumerate(scored):
+        pct = i / n  # 0.0 = highest score, 1.0 = lowest
+        if pct < 0.15:
+            cluster.narrative_stage = "accelerating"
+        elif pct < 0.50:
+            cluster.narrative_stage = "emerging"
+        elif pct < 0.85:
+            cluster.narrative_stage = "peaking"
+        else:
+            cluster.narrative_stage = "declining"
+
+
 # ---------------------------------------------------------------------------
 # Individual dimension computations
 # ---------------------------------------------------------------------------
@@ -237,6 +289,14 @@ def _compute_commercial_signals(signals: List[ProcessedSignal]) -> float:
     return min(1.0, commercial / max(1, len(signals)) * 3.0)
 
 
+def strip_html(text: str) -> str:
+    """Remove HTML tags and decode common entities from text."""
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+    text = text.replace("&quot;", '"').replace("&#39;", "'").replace("&nbsp;", " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
 # Handles known to be bots or AI assistants — excluded from top voices/posts.
 _BOT_HANDLES: set = {
     "grok", "chatgpt", "copilot", "perplexity_ai", "claudeai",
@@ -340,7 +400,7 @@ def extract_top_posts(
     return [
         {
             "url": s.post.url,
-            "text": s.post.text[:200],
+            "text": strip_html(s.post.text)[:200],
             "author": s.post.author_display_name or s.post.author_handle,
             "platform": s.post.platform,
             "metrics": s.post.metrics,

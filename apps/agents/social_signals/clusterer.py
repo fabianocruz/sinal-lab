@@ -281,6 +281,65 @@ def label_cluster(
     return "Sinais Diversos"
 
 
+def describe_cluster(
+    signals: List[ProcessedSignal],
+    cluster_name: str,
+    llm_client: Optional[LLMClient] = None,
+) -> str:
+    """Generate a 1-2 sentence description for a cluster.
+
+    Uses LLM when available. Falls back to a summary built from the
+    most common entities and theme.
+
+    Args:
+        signals: Signals in this cluster.
+        cluster_name: The cluster's display name (for context).
+        llm_client: Optional LLM client for generation.
+
+    Returns:
+        Portuguese description string (max ~200 chars).
+    """
+    if llm_client and llm_client.is_available and len(signals) >= 3:
+        # Sample diverse signals for context
+        sample_texts = [s.post.text[:120] for s in signals[:8]]
+
+        prompt = (
+            f"Cluster: '{cluster_name}' ({len(signals)} posts)\n\n"
+            "Sample posts:\n" + "\n---\n".join(sample_texts) + "\n\n"
+            "Write a 1-2 sentence summary (max 180 chars) describing "
+            "what this cluster is about and why it matters.\n"
+            "IMPORTANT: Write in Brazilian Portuguese. Be specific, not generic.\n"
+            "Reply with ONLY the description, no quotes."
+        )
+
+        result = llm_client.generate(
+            user_prompt=prompt,
+            system_prompt=(
+                "You summarize social signal clusters for a Brazilian tech "
+                "intelligence platform. Be concise and specific. "
+                "Reply in Brazilian Portuguese only."
+            ),
+            max_tokens=80,
+            temperature=0.3,
+        )
+
+        if result and result.strip():
+            return result.strip()[:200]
+
+    # Fallback: theme + signal count + top entity
+    theme = signals[0].theme if signals else ""
+    entity_names: list = []
+    for s in signals[:20]:
+        for e in s.entities:
+            if e.entity_type == "company":
+                entity_names.append(e.name)
+    top_entity = max(set(entity_names), key=entity_names.count) if entity_names else ""
+
+    if top_entity:
+        return f"Discussoes sobre {theme} com destaque para {top_entity} ({len(signals)} sinais)"
+    return f"Cluster de {len(signals)} sinais sobre {theme or 'tecnologia'}"
+
+
 def slugify_cluster_name(name: str) -> str:
     """Convert a cluster name to a URL-safe slug.
 
@@ -359,6 +418,135 @@ def _split_large_clusters(
     return result
 
 
+def _merge_similar_clusters(
+    clusters: List[SignalClusterResult],
+) -> List[SignalClusterResult]:
+    """Merge clusters with identical or near-identical slugs.
+
+    After labeling, different raw groups may receive the same LLM-generated
+    name (e.g., two groups both labeled "Venture Capital e Investimentos").
+    These produce duplicate slugs and visually identical cards on the dashboard.
+
+    Merging strategy: clusters with the same slug are combined. The merged
+    cluster keeps the name from the largest contributor and combines all
+    signals.
+
+    Args:
+        clusters: List of labeled SignalClusterResult objects.
+
+    Returns:
+        Deduplicated list of SignalClusterResult.
+    """
+    if len(clusters) <= 1:
+        return clusters
+
+    slug_groups: Dict[str, List[SignalClusterResult]] = defaultdict(list)
+    for cluster in clusters:
+        slug_groups[cluster.slug].append(cluster)
+
+    merged: List[SignalClusterResult] = []
+    merge_count = 0
+
+    for slug, group in slug_groups.items():
+        if len(group) == 1:
+            merged.append(group[0])
+            continue
+
+        # Merge: keep name from largest cluster, combine all signals
+        group.sort(key=lambda c: c.signal_count, reverse=True)
+        primary = group[0]
+        all_signals: List[ProcessedSignal] = []
+        for c in group:
+            all_signals.extend(c.signals)
+
+        merged.append(SignalClusterResult(
+            name=primary.name,
+            slug=slug,
+            theme=primary.theme,
+            sub_theme=primary.sub_theme,
+            signals=all_signals,
+        ))
+        merge_count += len(group) - 1
+
+    if merge_count:
+        logger.info(
+            "Merged %d duplicate clusters (%d -> %d)",
+            merge_count,
+            len(clusters),
+            len(merged),
+        )
+
+    return merged
+
+
+def _build_cluster_results(
+    grouped: Dict[str, List[ProcessedSignal]],
+    llm_client: Optional[LLMClient] = None,
+    min_cluster_size: int = 5,
+) -> List[SignalClusterResult]:
+    """Build SignalClusterResult objects from grouped signals.
+
+    Shared logic used by both TF-IDF and embedding clustering paths.
+    Groups smaller than min_cluster_size are merged into a catch-all
+    "Outros Sinais" cluster.
+
+    Args:
+        grouped: Dict mapping group_key -> list of ProcessedSignals.
+        llm_client: Optional LLM client for cluster labeling.
+        min_cluster_size: Minimum signals per cluster.
+
+    Returns:
+        List of SignalClusterResult sorted by signal count descending.
+    """
+    results: List[SignalClusterResult] = []
+    small_cluster_signals: List[ProcessedSignal] = []
+
+    for _key, cluster_signals_list in grouped.items():
+        if len(cluster_signals_list) < min_cluster_size:
+            small_cluster_signals.extend(cluster_signals_list)
+            continue
+
+        name = label_cluster(cluster_signals_list, llm_client)
+
+        # Determine dominant theme/sub_theme
+        theme_counts: Dict[str, int] = defaultdict(int)
+        sub_counts: Dict[str, int] = defaultdict(int)
+        for s in cluster_signals_list:
+            if s.theme:
+                theme_counts[s.theme] += 1
+            if s.sub_theme:
+                sub_counts[s.sub_theme] += 1
+
+        dominant_theme = max(theme_counts, key=theme_counts.get) if theme_counts else ""  # type: ignore[arg-type]
+        dominant_sub = max(sub_counts, key=sub_counts.get) if sub_counts else ""  # type: ignore[arg-type]
+
+        results.append(SignalClusterResult(
+            name=name,
+            slug=slugify_cluster_name(name),
+            theme=dominant_theme,
+            sub_theme=dominant_sub,
+            signals=cluster_signals_list,
+        ))
+
+    # Merge small clusters into catch-all
+    if small_cluster_signals:
+        results.append(SignalClusterResult(
+            name="Outros Sinais",
+            slug="outros-sinais",
+            theme="",
+            sub_theme="",
+            signals=small_cluster_signals,
+        ))
+
+    # Merge clusters with duplicate slugs (same LLM-generated name)
+    results = _merge_similar_clusters(results)
+
+    # Sort by signal count descending
+    results.sort(key=lambda c: c.signal_count, reverse=True)
+
+    return results
+
+
 def cluster_signals(
     signals: List[ProcessedSignal],
     llm_client: Optional[LLMClient] = None,
@@ -411,49 +599,7 @@ def cluster_signals(
     # Split oversized clusters into tighter sub-clusters
     grouped = _split_large_clusters(grouped)
 
-    # Build SignalClusterResult objects
-    results: List[SignalClusterResult] = []
-    small_cluster_signals: List[ProcessedSignal] = []
-
-    for _key, cluster_signals_list in grouped.items():
-        if len(cluster_signals_list) < min_cluster_size:
-            small_cluster_signals.extend(cluster_signals_list)
-            continue
-
-        name = label_cluster(cluster_signals_list, llm_client)
-
-        # Determine dominant theme/sub_theme
-        theme_counts: Dict[str, int] = defaultdict(int)
-        sub_counts: Dict[str, int] = defaultdict(int)
-        for s in cluster_signals_list:
-            if s.theme:
-                theme_counts[s.theme] += 1
-            if s.sub_theme:
-                sub_counts[s.sub_theme] += 1
-
-        dominant_theme = max(theme_counts, key=theme_counts.get) if theme_counts else ""  # type: ignore[arg-type]
-        dominant_sub = max(sub_counts, key=sub_counts.get) if sub_counts else ""  # type: ignore[arg-type]
-
-        results.append(SignalClusterResult(
-            name=name,
-            slug=slugify_cluster_name(name),
-            theme=dominant_theme,
-            sub_theme=dominant_sub,
-            signals=cluster_signals_list,
-        ))
-
-    # Merge small clusters into catch-all
-    if small_cluster_signals:
-        results.append(SignalClusterResult(
-            name="Outros Sinais",
-            slug="outros-sinais",
-            theme="",
-            sub_theme="",
-            signals=small_cluster_signals,
-        ))
-
-    # Sort by signal count descending
-    results.sort(key=lambda c: c.signal_count, reverse=True)
+    results = _build_cluster_results(grouped, llm_client, min_cluster_size)
 
     logger.info(
         "Clustered %d signals into %d clusters (min_size=%d)",
@@ -688,48 +834,7 @@ def cluster_signals_with_embeddings(
     # Split oversized clusters into tighter sub-clusters
     grouped = _split_large_clusters(grouped)
 
-    results: List[SignalClusterResult] = []
-    small_cluster_signals: List[ProcessedSignal] = []
-
-    for _key, cluster_signals_list in grouped.items():
-        if len(cluster_signals_list) < min_cluster_size:
-            small_cluster_signals.extend(cluster_signals_list)
-            continue
-
-        name = label_cluster(cluster_signals_list, llm_client)
-
-        # Determine dominant theme/sub_theme
-        theme_counts: Dict[str, int] = defaultdict(int)
-        sub_counts: Dict[str, int] = defaultdict(int)
-        for s in cluster_signals_list:
-            if s.theme:
-                theme_counts[s.theme] += 1
-            if s.sub_theme:
-                sub_counts[s.sub_theme] += 1
-
-        dominant_theme = max(theme_counts, key=theme_counts.get) if theme_counts else ""  # type: ignore[arg-type]
-        dominant_sub = max(sub_counts, key=sub_counts.get) if sub_counts else ""  # type: ignore[arg-type]
-
-        results.append(SignalClusterResult(
-            name=name,
-            slug=slugify_cluster_name(name),
-            theme=dominant_theme,
-            sub_theme=dominant_sub,
-            signals=cluster_signals_list,
-        ))
-
-    # Merge small clusters into catch-all
-    if small_cluster_signals:
-        results.append(SignalClusterResult(
-            name="Outros Sinais",
-            slug="outros-sinais",
-            theme="",
-            sub_theme="",
-            signals=small_cluster_signals,
-        ))
-
-    # Sort by signal count descending
-    results.sort(key=lambda c: c.signal_count, reverse=True)
+    results = _build_cluster_results(grouped, llm_client, min_cluster_size)
 
     logger.info(
         "Embedding-clustered %d signals into %d clusters (min_size=%d, coverage=%.0f%%)",

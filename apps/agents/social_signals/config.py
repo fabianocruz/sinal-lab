@@ -318,6 +318,16 @@ CLUSTER_NAME_BLOCKLIST: list[str] = [
     "episódios do podcast",
 ]
 
+import re as _re
+
+# Pre-compiled regex combining all blocklist patterns into a single match.
+# Used by the API router for efficient filtering in Python instead of
+# N individual SQL NOT ILIKE clauses.
+CLUSTER_NAME_BLOCKLIST_RE = _re.compile(
+    "|".join(_re.escape(p) for p in CLUSTER_NAME_BLOCKLIST),
+    _re.IGNORECASE,
+)
+
 # ---------------------------------------------------------------------------
 # Data sources
 # ---------------------------------------------------------------------------

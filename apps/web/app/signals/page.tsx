@@ -79,42 +79,47 @@ export default async function SignalsPage({
   const [stats, pulse] = await Promise.all([fetchSignalStats(), fetchLatestPulse()]);
 
   // Fetch data for the active tab only to keep page fast
-  const [clustersData, voicesData, voicesSignalsData, temasSignalsData, companiesData] =
-    await Promise.all([
-      // Pulse and Temas tabs need clusters — fetch all for theme filtering
-      activeTab === "pulse" || activeTab === "temas"
-        ? fetchSignalClusters({ limit: 100 })
-        : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
+  const [
+    clustersData,
+    voicesData,
+    voicesSignalsData,
+    temasSignalsData,
+    companiesData,
+    empresasSignalsData,
+  ] = await Promise.all([
+    // Pulse and Temas tabs need clusters — fetch all for theme filtering
+    activeTab === "pulse" || activeTab === "temas"
+      ? fetchSignalClusters({ limit: 100 })
+      : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
 
-      // Voices tab — accounts
-      activeTab === "voices"
-        ? fetchVoices({
-            account_type: voiceType === "all" ? undefined : voiceType,
-            limit: 50,
-          })
-        : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
+    // Voices tab — accounts
+    activeTab === "voices"
+      ? fetchVoices({
+          account_type: voiceType === "all" ? undefined : voiceType,
+          limit: 50,
+        })
+      : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
 
-      // Voices tab — recent signals to join with voices
-      activeTab === "voices"
-        ? fetchSignals({ limit: 100 })
-        : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
+    // Voices tab — recent signals to join with voices
+    activeTab === "voices"
+      ? fetchSignals({ limit: 100 })
+      : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
 
-      // Temas tab — all signals (TemasPanel filters client-side by theme)
-      activeTab === "temas"
-        ? fetchSignals({ limit: 50 })
-        : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
+    // Temas tab — all signals (TemasPanel filters client-side by theme)
+    activeTab === "temas"
+      ? fetchSignals({ limit: 50 })
+      : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
 
-      // Empresas tab — known companies + signals for matching
-      activeTab === "empresas"
-        ? fetchCompanies({ limit: 200 })
-        : Promise.resolve({ items: [], total: 0, limit: 200, offset: 0 }),
-    ]);
-
-  // Empresas tab also needs signals to match against
-  const empresasSignalsData =
+    // Empresas tab — known companies
     activeTab === "empresas"
-      ? await fetchSignals({ limit: 200 })
-      : { items: [], total: 0, limit: 200, offset: 0 };
+      ? fetchCompanies({ limit: 200 })
+      : Promise.resolve({ items: [], total: 0, limit: 200, offset: 0 }),
+
+    // Empresas tab — signals for matching (parallel with companies)
+    activeTab === "empresas"
+      ? fetchSignals({ limit: 200 })
+      : Promise.resolve({ items: [], total: 0, limit: 200, offset: 0 }),
+  ]);
 
   const pulseClusters = activeTab === "pulse" ? clustersData.items : [];
   const temasClusters = activeTab === "temas" ? clustersData.items : [];
