@@ -65,10 +65,10 @@ SECTION_ORDER = ["radar", "codigo", "funding", "mercado"]
 
 # URL path prefix per agent (matches Next.js app/[agent]/[slug] routes).
 AGENT_URL_PREFIX: Dict[str, str] = {
-    "radar": "radar",
-    "codigo": "codigo",
-    "funding": "funding",
-    "mercado": "mercado",
+    "radar": "newsletter",
+    "codigo": "newsletter",
+    "funding": "newsletter",
+    "mercado": "newsletter",
 }
 
 # Default output subdirectory for composed newsletters (relative to project root).
@@ -196,6 +196,11 @@ INTELLIGENCE_REPORTS: Dict[str, dict] = {
     "healthtech-ai-mapa-completo-mercado-global": {
         "title": "Healthtech + AI: O Mapa Completo do Mercado Global",
         "summary": "100 empresas analisadas, 16 segmentos, 50+ investidores, rankings e 10 tendencias para 2026-2028.",
+        "author": "Sinal Intelligence",
+    },
+    "embedded-finance-deep-research-2026": {
+        "title": "Embedded Finance: Deep Market Intelligence Report 2026",
+        "summary": "O mapa completo de embedded finance na America Latina: players, infraestrutura, regulacao e oportunidades para fintechs e plataformas que integram servicos financeiros.",
         "author": "Sinal Intelligence",
     },
 }
@@ -398,6 +403,19 @@ def publish_newsletter(
 
     # Send via Resend Broadcasts
     if not dry_run:
+        print("\n" + "=" * 60)
+        print("  BROADCAST REVIEW")
+        print("=" * 60)
+        print(f"  Subject: {subject}")
+        print(f"  Edition: #{edition}")
+        print(f"  HTML:    {default_path}")
+        print("=" * 60)
+        print("  This will send to ALL subscribers. This cannot be undone.")
+        print("=" * 60)
+        confirm = input("\n  Type ENVIAR to confirm broadcast: ").strip()
+        if confirm != "ENVIAR":
+            logger.info("Broadcast cancelled by user (typed %r)", confirm)
+            return
         ok = send_broadcast(html_email, subject)
         if ok:
             logger.info("Newsletter broadcast sent via Resend")
