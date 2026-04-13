@@ -214,20 +214,24 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
   const emerging = activeTheme === "all" ? (pulse?.emerging_signals ?? []) : [];
 
   // Filter clusters by selected theme, then sort by signal_count
+  // Cluster grid pagination — show 12 initially, expand on demand
+  const INITIAL_CLUSTER_COUNT = 12;
+  const [showAllClusters, setShowAllClusters] = useState(false);
+
   const filteredClusters = useMemo(() => {
-    setShowAllClusters(false); // Reset pagination when filter changes
     if (activeTheme === "all") return clusters;
     return clusters.filter((c) => c.theme?.toLowerCase() === activeTheme.toLowerCase());
   }, [clusters, activeTheme]);
+
+  // Reset pagination when theme filter changes
+  useEffect(() => {
+    setShowAllClusters(false);
+  }, [activeTheme]);
 
   // Dominant narratives: filtered clusters sorted by signal_count
   const dominant = [...filteredClusters]
     .sort((a, b) => b.signal_count - a.signal_count)
     .slice(0, 5);
-
-  // Cluster grid pagination — show 12 initially, expand on demand
-  const INITIAL_CLUSTER_COUNT = 12;
-  const [showAllClusters, setShowAllClusters] = useState(false);
   const visibleClusters = useMemo(() => {
     if (showAllClusters) return filteredClusters;
     return filteredClusters.slice(0, INITIAL_CLUSTER_COUNT);
