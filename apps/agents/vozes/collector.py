@@ -293,6 +293,46 @@ def collect_all(
         except Exception as e:
             logger.warning("YouTube collection failed (non-fatal): %s", e)
 
+        # LinkedIn via RapidAPI (search posts)
+        linkedin_sources = [s for s in sources if "linkedin" in s.name and s.enabled]
+        if linkedin_sources:
+            try:
+                from apps.agents.sources.linkedin import fetch_linkedin_posts
+
+                for li_src in linkedin_sources:
+                    query = li_src.params.get("query", "")
+                    limit = li_src.params.get("limit", 20)
+                    li_posts = fetch_linkedin_posts(li_src, client, query, limit)
+                    for lp in li_posts:
+                        all_posts.append(SocialPost(
+                            text=lp.text,
+                            url=lp.url,
+                            platform="linkedin",
+                            source_name=li_src.name,
+                            author_handle=lp.author_name or "",
+                            author_display_name=lp.author_name or "",
+                            author_followers=0,
+                            metrics={
+                                "likes": lp.like_count,
+                                "comments": lp.comment_count,
+                            },
+                            content_hash=lp.content_hash,
+                            image_url=lp.image_url,
+                        ))
+                        provenance.track(
+                            source_url=lp.url,
+                            source_name=li_src.name,
+                            extraction_method="api",
+                            collector_agent=agent_name,
+                            collector_run_id=run_id,
+                        )
+                    logger.info(
+                        "LinkedIn (RapidAPI) %s: %d posts",
+                        li_src.name, len(li_posts),
+                    )
+            except Exception as e:
+                logger.warning("LinkedIn RapidAPI collection failed (non-fatal): %s", e)
+
         # LinkedIn via Jina Reader (monitored voices)
         try:
             from apps.agents.sources.jina_reader import fetch_url_content

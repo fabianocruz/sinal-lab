@@ -307,14 +307,30 @@ VOZES_SOURCES: list[DataSourceConfig] = [
         params={"query": "open banking Brasil pagamentos digitais", "max_results": 25},
     ),
 
-    # --- LinkedIn (1 source, disabled) ---
+    # --- LinkedIn (3 sources, via RapidAPI) ---
     DataSourceConfig(
         name="linkedin_fintech_ai",
         source_type="api",
         url="https://linkedin-data-api.p.rapidapi.com/search-posts",
         api_key_env="RAPIDAPI_KEY",
-        enabled=False,
+        enabled=True,
         params={"query": "fintech AI banking LATAM", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="linkedin_startups_brasil",
+        source_type="api",
+        url="https://linkedin-data-api.p.rapidapi.com/search-posts",
+        api_key_env="RAPIDAPI_KEY",
+        enabled=True,
+        params={"query": "startup Brasil tecnologia Series A funding", "limit": 25},
+    ),
+    DataSourceConfig(
+        name="linkedin_cto_founders_latam",
+        source_type="api",
+        url="https://linkedin-data-api.p.rapidapi.com/search-posts",
+        api_key_env="RAPIDAPI_KEY",
+        enabled=True,
+        params={"query": "CTO founder startup América Latina", "limit": 20},
     ),
 
     # --- Podcasts (4 LATAM-focused) ---
