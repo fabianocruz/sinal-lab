@@ -13,7 +13,7 @@ import Pricing from "@/components/landing/Pricing";
 import Manifesto from "@/components/landing/Manifesto";
 import FAQ from "@/components/landing/FAQ";
 import StickyMobileCTA from "@/components/landing/StickyMobileCTA";
-import { FAQ_ITEMS } from "@/components/landing/FAQ";
+import { FAQ_ITEMS } from "@/components/landing/faq-data";
 import { homepageJsonLd, faqPageJsonLd } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
