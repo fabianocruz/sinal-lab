@@ -293,16 +293,21 @@ def collect_all(
         except Exception as e:
             logger.warning("YouTube collection failed (non-fatal): %s", e)
 
-        # LinkedIn via RapidAPI (search posts)
-        linkedin_sources = [s for s in sources if "linkedin" in s.name and s.enabled]
-        if linkedin_sources:
-            try:
-                from apps.agents.sources.linkedin import fetch_linkedin_posts
+        # LinkedIn via FreshData RapidAPI (company + profile posts)
+        li_company_sources = [s for s in sources if s.source_type == "linkedin_fresh_company" and s.enabled]
+        li_profile_sources = [s for s in sources if s.source_type == "linkedin_fresh_profile" and s.enabled]
 
-                for li_src in linkedin_sources:
-                    query = li_src.params.get("query", "")
-                    limit = li_src.params.get("limit", 20)
-                    li_posts = fetch_linkedin_posts(li_src, client, query, limit)
+        if li_company_sources or li_profile_sources:
+            try:
+                from apps.agents.sources.linkedin_fresh import (
+                    fetch_company_posts,
+                    fetch_profile_posts,
+                )
+                import time as _li_time
+
+                for li_src in li_company_sources:
+                    limit = li_src.params.get("limit", 5)
+                    li_posts = fetch_company_posts(li_src.url, client, li_src.name, limit)
                     for lp in li_posts:
                         all_posts.append(SocialPost(
                             text=lp.text,
@@ -313,8 +318,10 @@ def collect_all(
                             author_display_name=lp.author_name or "",
                             author_followers=0,
                             metrics={
-                                "likes": lp.like_count,
-                                "comments": lp.comment_count,
+                                "likes": lp.num_likes,
+                                "comments": lp.num_comments,
+                                "reactions": lp.num_reactions,
+                                "reposts": lp.num_reposts,
                             },
                             content_hash=lp.content_hash,
                             image_url=lp.image_url,
@@ -326,12 +333,44 @@ def collect_all(
                             collector_agent=agent_name,
                             collector_run_id=run_id,
                         )
-                    logger.info(
-                        "LinkedIn (RapidAPI) %s: %d posts",
-                        li_src.name, len(li_posts),
-                    )
+                    _li_time.sleep(2)  # rate limit between sources
+
+                for li_src in li_profile_sources:
+                    limit = li_src.params.get("limit", 5)
+                    li_posts = fetch_profile_posts(li_src.url, client, li_src.name, limit)
+                    for lp in li_posts:
+                        all_posts.append(SocialPost(
+                            text=lp.text,
+                            url=lp.url,
+                            platform="linkedin",
+                            source_name=li_src.name,
+                            author_handle=lp.author_name or "",
+                            author_display_name=lp.author_name or "",
+                            author_followers=0,
+                            metrics={
+                                "likes": lp.num_likes,
+                                "comments": lp.num_comments,
+                                "reactions": lp.num_reactions,
+                                "reposts": lp.num_reposts,
+                            },
+                            content_hash=lp.content_hash,
+                            image_url=lp.image_url,
+                        ))
+                        provenance.track(
+                            source_url=lp.url,
+                            source_name=li_src.name,
+                            extraction_method="api",
+                            collector_agent=agent_name,
+                            collector_run_id=run_id,
+                        )
+                    _li_time.sleep(2)
+
+                logger.info(
+                    "LinkedIn (FreshData): %d company sources, %d profile sources",
+                    len(li_company_sources), len(li_profile_sources),
+                )
             except Exception as e:
-                logger.warning("LinkedIn RapidAPI collection failed (non-fatal): %s", e)
+                logger.warning("LinkedIn FreshData collection failed (non-fatal): %s", e)
 
         # LinkedIn via Jina Reader (monitored voices)
         try:
