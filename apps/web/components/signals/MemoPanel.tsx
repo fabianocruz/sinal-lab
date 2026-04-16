@@ -158,6 +158,13 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
                   <span className="font-mono text-[10px] text-[#4A4A56]">
                     {String(i + 1).padStart(2, "0")}
                   </span>
+                  {post.platform && (
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: PLATFORM_COLORS[post.platform] ?? "#4A4A56" }}
+                      title={post.platform}
+                    />
+                  )}
                   <span className="font-mono text-[12px] text-silver">{post.author}</span>
                 </div>
                 <p className="mb-2 text-[13px] leading-[1.5] text-ash line-clamp-2">{post.text}</p>
@@ -188,7 +195,10 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-[12px] text-sinal-white">
+                    <p
+                      className="line-clamp-1 font-mono text-[12px] text-sinal-white"
+                      title={voice.name || voice.handle}
+                    >
                       {voice.name || voice.handle}
                     </p>
                     <p className="font-mono text-[10px] text-ash">@{voice.handle}</p>

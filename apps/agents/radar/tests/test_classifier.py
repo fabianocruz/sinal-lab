@@ -7,6 +7,7 @@ from apps.agents.radar.collector import TrendSignal
 from apps.agents.radar.classifier import (
     BLOCKED_TERMS,
     ClassifiedSignal,
+    MIN_LATAM_RELEVANCE,
     MIN_TOPIC_CONFIDENCE,
     NEGATIVE_KEYWORDS,
     _has_negative_keyword,
@@ -286,17 +287,60 @@ class TestMinTopicConfidence:
     def test_min_topic_confidence_value(self):
         assert MIN_TOPIC_CONFIDENCE == 0.10
 
+    def test_min_latam_relevance_value(self):
+        assert MIN_LATAM_RELEVANCE == 0.10
+
     def test_blocked_terms_list_not_empty(self):
         assert len(BLOCKED_TERMS) >= 5
 
     def test_negative_keywords_list_not_empty(self):
         assert len(NEGATIVE_KEYWORDS) >= 3
 
+    def test_self_promo_thread_filtered(self):
+        """Self-promotion community threads are rejected as negative keywords."""
+        signal = make_signal(title="Show HN: my new devtool — shameless plug")
+        assert _has_negative_keyword(signal) is True
+
+    def test_hiring_thread_filtered(self):
+        signal = make_signal(title="Who is hiring this month? Monthly thread")
+        assert _has_negative_keyword(signal) is True
+
+    def test_global_low_latam_low_topic_filtered(self):
+        """Global noise signals with low LATAM relevance and low topic confidence are dropped."""
+        signals = [
+            make_signal(
+                title="Silicon Valley weather report today",
+                url="https://example.com/weather",
+            ),
+        ]
+        classified = classify_signals(signals)
+        assert len(classified) == 0
+
+    def test_high_confidence_global_signal_kept(self):
+        """High topic-confidence global signal is kept even with low LATAM relevance."""
+        signals = [
+            make_signal(
+                title=(
+                    "Major AI breakthrough: new transformer architecture outperforms GPT on "
+                    "reasoning benchmarks with deep learning and machine learning techniques"
+                ),
+                url="https://arxiv.org/ai-breakthrough",
+                source_type="arxiv",
+                published_at=datetime.now(timezone.utc),
+            ),
+        ]
+        classified = classify_signals(signals)
+        assert len(classified) == 1
+        assert classified[0].topic_confidence >= 0.5
+
 
 class TestClassifySignals:
     """Test the full classification pipeline."""
 
     def test_returns_sorted_by_composite(self):
+        # "Random news" and "Weather today" have uncategorized topic_confidence=0.1
+        # and no LATAM relevance, so they are filtered by the MIN_LATAM_RELEVANCE
+        # layer (low topic confidence AND low LATAM = global noise).
         signals = [
             make_signal(title="Random news", url="https://a.com/1"),
             make_signal(
@@ -308,10 +352,10 @@ class TestClassifySignals:
             make_signal(title="Weather today", url="https://a.com/3"),
         ]
         classified = classify_signals(signals)
-        assert len(classified) == 3
-        # Most relevant should be first
+        # Only the strong LATAM+tech signal survives all four filter layers
+        assert len(classified) == 1
         assert classified[0].signal.url == "https://a.com/2"
-        # Scores descending
+        # Scores descending invariant still holds
         for i in range(len(classified) - 1):
             assert classified[i].composite_score >= classified[i + 1].composite_score
 
@@ -319,7 +363,13 @@ class TestClassifySignals:
         assert classify_signals([]) == []
 
     def test_classified_signal_has_all_fields(self):
-        signals = [make_signal(published_at=datetime.now(timezone.utc))]
+        # Include LATAM context + tech keywords so signal survives all four filter layers
+        signals = [
+            make_signal(
+                title="Machine learning startup raises Series A in Brasil latam",
+                published_at=datetime.now(timezone.utc),
+            )
+        ]
         classified = classify_signals(signals)
         s = classified[0]
         assert isinstance(s.topics, list)
@@ -361,8 +411,13 @@ class TestClassifySignals:
                 url="https://trends.google.com/trends/startup-brasil",
                 source_type="trends",
             ),
+            # High topic confidence (>= 0.5) via many matched keywords, so it
+            # passes layer 4 even without explicit LATAM keywords in the title.
             make_signal(
-                title="AI machine learning deep learning LLM startup raises funding",
+                title=(
+                    "AI machine learning deep learning LLM transformer neural network "
+                    "generative ai startup raises funding"
+                ),
                 url="https://techcrunch.com/ai-ml",
                 published_at=datetime.now(timezone.utc),
             ),
@@ -403,8 +458,13 @@ class TestClassifySignals:
                 title="Incognia triplica receita anual com nova solucao B2B",
                 url="https://example.com/pr-incognia",
             ),
+            # Four+ AI keyword matches give topic_confidence >= 0.5, so layer 4
+            # passes even without explicit LATAM geography in the title.
             make_signal(
-                title="Open source LLM framework reaches 50k GitHub stars",
+                title=(
+                    "Open source LLM transformer framework for generative ai, machine learning "
+                    "and deep learning reaches 50k GitHub stars"
+                ),
                 url="https://github.com/example/llm",
                 published_at=datetime.now(timezone.utc),
             ),

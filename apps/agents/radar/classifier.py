@@ -47,13 +47,22 @@ NEGATIVE_KEYWORDS: list[str] = [
     "triplica faturamento", "dobra faturamento",
     "resultado financeiro", "balanco trimestral",
     "conteudo patrocinado", "publieditorial", "branded content",
+    # Self-promotion / community noise threads
+    "weekly thread", "self-promo", "self-promotion", "shameless plug",
+    "show hn:", "hiring thread", "who is hiring", "freelance thread",
+    "monthly thread", "daily discussion", "megathread",
 ]
 
 # Minimum topic confidence to include in report. Signals that only match
 # on momentum (Google Trends) or LATAM relevance but have zero topic
-# confidence are noise — they contain geographic/language signals but
+# confidence are noise -- they contain geographic/language signals but
 # no actual tech content.
 MIN_TOPIC_CONFIDENCE = 0.10
+
+# Minimum LATAM relevance to include low-confidence global signals.
+# High-confidence global signals (e.g., major AI breakthrough) are kept
+# regardless; this filters generic global noise with weak topic match.
+MIN_LATAM_RELEVANCE = 0.10
 
 # Topic taxonomy with keyword patterns
 TOPIC_PATTERNS: dict[str, list[str]] = {
@@ -124,11 +133,15 @@ class ClassifiedSignal:
 
     @property
     def composite_score(self) -> float:
-        """Weighted composite: topic relevance 30%, momentum 40%, LATAM 30%."""
+        """Weighted composite: topic relevance 35%, momentum 30%, LATAM 35%.
+
+        Momentum weight reduced from 0.40 to 0.30 to avoid recency bias
+        dominating over topic quality and LATAM signal strength.
+        """
         return round(
-            self.topic_confidence * 0.30
-            + self.momentum_score * 0.40
-            + self.latam_relevance * 0.30,
+            self.topic_confidence * 0.35
+            + self.momentum_score * 0.30
+            + self.latam_relevance * 0.35,
             4,
         )
 
@@ -307,6 +320,15 @@ def classify_signals(
 
         momentum = compute_momentum(signal, reference_time)
         latam = compute_latam_relevance(signal)
+
+        # Layer 4: filter low-confidence global signals with no LATAM relevance.
+        # High-confidence signals (major AI breakthroughs, etc.) pass regardless.
+        if latam < MIN_LATAM_RELEVANCE and topic_confidence < 0.5:
+            logger.debug(
+                "Filtered global noise signal (latam=%.2f, topic=%.2f): %s",
+                latam, topic_confidence, signal.title,
+            )
+            continue
 
         classified.append(ClassifiedSignal(
             signal=signal,

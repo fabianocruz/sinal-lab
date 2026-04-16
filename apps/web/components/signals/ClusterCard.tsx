@@ -38,6 +38,9 @@ export default function ClusterCard({ cluster, isWatched = false, onWatch }: Clu
   const stageColor = STAGE_COLORS[cluster.narrative_stage] ?? "#8A8A96";
   const stageLabel = STAGE_LABELS[cluster.narrative_stage] ?? cluster.narrative_stage;
 
+  const scoreValue = Math.round(cluster.composite_score * 100);
+  const scoreColor = scoreValue >= 70 ? "#59FFB4" : scoreValue >= 50 ? "#E8FF59" : "#8A8A96";
+
   // Unique platforms from top_posts
   const platforms = [...new Set(cluster.top_posts.map((p) => p.platform))].slice(0, 4);
 
@@ -59,7 +62,10 @@ export default function ClusterCard({ cluster, isWatched = false, onWatch }: Clu
           {/* Header */}
           <div className="mb-3 flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <h2 className="mb-1 truncate font-display text-[17px] leading-[1.2] text-sinal-white">
+              <h2
+                className="mb-1 line-clamp-2 font-display text-[17px] leading-[1.2] text-sinal-white"
+                title={cluster.name}
+              >
                 {cluster.name}
               </h2>
               <span className="font-mono text-[11px] uppercase tracking-[0.5px] text-ash">
@@ -118,9 +124,10 @@ export default function ClusterCard({ cluster, isWatched = false, onWatch }: Clu
             <div className="flex flex-col items-end">
               <span
                 className="font-mono text-[14px] font-semibold leading-none"
-                style={{ color: stageColor }}
+                style={{ color: scoreColor }}
+                title="Score composto: volume, velocidade, autoridade, propagacao entre plataformas"
               >
-                {Math.round(cluster.composite_score * 100)}
+                {scoreValue}
               </span>
               <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
                 Score

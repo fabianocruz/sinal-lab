@@ -31,9 +31,9 @@ logger = logging.getLogger("run_cron")
 
 # isoweekday(): 1=Monday … 7=Sunday
 SCHEDULE: dict[int, list[str]] = {
-    1: ["codigo", "radar", "sintese", "funding", "social_signals"],  # Monday
-    3: ["mercado"],                                                    # Wednesday
-    6: ["index"],                                                      # Saturday
+    1: ["codigo", "radar", "sintese", "funding", "vozes", "pulso", "feed_curator"],  # Monday
+    3: ["mercado"],                                                                    # Wednesday
+    6: ["index"],                                                                      # Saturday
 }
 
 
