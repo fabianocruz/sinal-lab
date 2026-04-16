@@ -4,6 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ArticleContent from "@/components/article/ArticleContent";
 import { fetchNewsletterBySlug } from "@/lib/api";
+import { breadcrumbJsonLd } from "@/lib/jsonld";
 
 export const revalidate = 300;
 
@@ -38,6 +39,18 @@ export default async function ArticleSlugPage({ params }: PageProps) {
         <ArticleContent item={item} />
       </main>
       <Footer />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Artigos", path: "/artigos" },
+              { name: item.title, path: `/artigos/${item.slug}` },
+            ]),
+          ),
+        }}
+      />
     </>
   );
 }

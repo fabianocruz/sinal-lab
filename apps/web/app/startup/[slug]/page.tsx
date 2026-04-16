@@ -4,7 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CompanyDetail from "@/components/startup/CompanyDetail";
 import { fetchCompanyBySlug } from "@/lib/api";
-import { companyJsonLd } from "@/lib/jsonld";
+import { companyJsonLd, breadcrumbJsonLd } from "@/lib/jsonld";
 
 export const revalidate = 300;
 
@@ -50,6 +50,18 @@ export default async function StartupSlugPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(companyJsonLd(company)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Mapa", path: "/startups" },
+              { name: company.name, path: `/startup/${company.slug}` },
+            ]),
+          ),
+        }}
       />
     </>
   );

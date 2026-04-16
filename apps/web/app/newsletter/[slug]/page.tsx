@@ -9,7 +9,7 @@ import {
   FALLBACK_NEWSLETTERS,
   type NewsletterMetadata,
 } from "@/lib/newsletter";
-import { articleJsonLd } from "@/lib/jsonld";
+import { articleJsonLd, breadcrumbJsonLd } from "@/lib/jsonld";
 
 export const revalidate = 300;
 
@@ -78,6 +78,18 @@ export default async function NewsletterSlugPage({ params }: PageProps) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Briefing", path: "/newsletter" },
+              { name: newsletter.title, path: `/newsletter/${newsletter.slug}` },
+            ]),
+          ),
+        }}
+      />
     </>
   );
 }

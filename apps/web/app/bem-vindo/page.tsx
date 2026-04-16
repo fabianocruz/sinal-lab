@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import SignupForm from "@/components/auth/SignupForm";
+import { UTMCapture } from "@/components/auth/UTMCapture";
 
 export const metadata: Metadata = {
   title: "Bem-vindo ao Sinal",
@@ -39,6 +40,11 @@ export default function BemVindoPage() {
         <p className="mb-6 text-center font-mono text-[13px] text-signal">
           +2.500 fundadores, CTOs e investidores já recebem.
         </p>
+
+        {/* Captures UTM params from the URL and stores in localStorage */}
+        <Suspense>
+          <UTMCapture />
+        </Suspense>
 
         <Suspense>
           <SignupForm />

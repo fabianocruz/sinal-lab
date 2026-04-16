@@ -52,13 +52,13 @@ function NavbarAuthState({ mobile = false }: { mobile?: boolean }) {
 }
 
 /**
- * Auth-aware CTA button: "Assine o Briefing" for guests, "Meu Briefing" for logged-in users.
+ * Auth-aware CTA button: "Assine gratis" for guests, "Meu Briefing" for logged-in users.
  */
 function NavbarCTA({ mobile = false, onClick }: { mobile?: boolean; onClick?: () => void }) {
   const { status } = useSession();
   const isAuth = status === "authenticated";
 
-  const label = isAuth ? "Meu Briefing" : "Assine o Briefing";
+  const label = isAuth ? "Meu Briefing" : "Assine grátis";
   const href = isAuth ? "/newsletter" : "/#hero";
 
   if (mobile) {

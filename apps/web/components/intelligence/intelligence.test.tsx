@@ -7,6 +7,11 @@ vi.mock("next-auth/react", () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(() => "/intelligence/devtools-market-intelligence-mar-2026"),
+  useRouter: vi.fn(() => ({ push: vi.fn() })),
+}));
+
 vi.mock("@/components/newsletter/MarkdownRenderer", () => ({
   default: ({ content }: { content: string }) => <div data-testid="markdown">{content}</div>,
 }));
@@ -21,7 +26,9 @@ vi.mock("@/components/newsletter/SourcesList", () => ({
   ),
 }));
 
+import { useSession } from "next-auth/react";
 import IntelligenceContent from "./IntelligenceContent";
+import IntelligenceGate from "./IntelligenceGate";
 import type { ContentApiItem } from "@/lib/newsletter";
 
 const MOCK_ITEM: ContentApiItem = {
@@ -76,12 +83,6 @@ describe("IntelligenceContent", () => {
     expect(screen.getByText(/15 de mar/i)).toBeInTheDocument();
   });
 
-  it("renders full body content without gating", () => {
-    render(<IntelligenceContent item={MOCK_ITEM} />);
-    const markdown = screen.getByTestId("markdown");
-    expect(markdown.textContent).toContain("Conteudo do relatorio completo aqui.");
-  });
-
   it("renders sources list when sources exist", () => {
     render(<IntelligenceContent item={MOCK_ITEM} />);
     expect(screen.getByTestId("sources-list")).toBeInTheDocument();
@@ -111,5 +112,65 @@ describe("IntelligenceContent", () => {
   it("renders hero image component", () => {
     render(<IntelligenceContent item={MOCK_ITEM} />);
     expect(screen.getByTestId("hero-image")).toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// IntelligenceGate
+// ===========================================================================
+
+describe("IntelligenceGate — unauthenticated", () => {
+  it("shows preview content for unauthenticated users", () => {
+    vi.mocked(useSession).mockReturnValue({ data: null, status: "unauthenticated" } as ReturnType<
+      typeof useSession
+    >);
+    render(<IntelligenceGate content="# Introducao\n\nConteudo do relatorio completo aqui." />);
+    expect(screen.getByTestId("intelligence-gate")).toBeInTheDocument();
+  });
+
+  it("renders the gate sign-up prompt for unauthenticated users", () => {
+    vi.mocked(useSession).mockReturnValue({ data: null, status: "unauthenticated" } as ReturnType<
+      typeof useSession
+    >);
+    render(<IntelligenceGate content="Conteudo aqui." />);
+    expect(screen.getByText(/Continue lendo gratuitamente/i)).toBeInTheDocument();
+  });
+
+  it("renders sign-up link for unauthenticated users", () => {
+    vi.mocked(useSession).mockReturnValue({ data: null, status: "unauthenticated" } as ReturnType<
+      typeof useSession
+    >);
+    render(<IntelligenceGate content="Conteudo aqui." />);
+    expect(screen.getByText(/Criar conta gratuita/i)).toBeInTheDocument();
+  });
+
+  it("renders login link for unauthenticated users", () => {
+    vi.mocked(useSession).mockReturnValue({ data: null, status: "unauthenticated" } as ReturnType<
+      typeof useSession
+    >);
+    render(<IntelligenceGate content="Conteudo aqui." />);
+    expect(screen.getByText(/Ja tenho conta/i)).toBeInTheDocument();
+  });
+});
+
+describe("IntelligenceGate — authenticated", () => {
+  it("shows full content for authenticated users without gate wrapper", () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: { user: { name: "Test" }, expires: "2099-01-01" },
+      status: "authenticated",
+    } as ReturnType<typeof useSession>);
+    render(<IntelligenceGate content="# Introducao\n\nConteudo do relatorio completo aqui." />);
+    expect(screen.queryByTestId("intelligence-gate")).not.toBeInTheDocument();
+    const markdown = screen.getByTestId("markdown");
+    expect(markdown.textContent).toContain("Conteudo do relatorio completo aqui.");
+  });
+
+  it("does not render sign-up prompt for authenticated users", () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: { user: { name: "Test" }, expires: "2099-01-01" },
+      status: "authenticated",
+    } as ReturnType<typeof useSession>);
+    render(<IntelligenceGate content="Conteudo aqui." />);
+    expect(screen.queryByText(/Continue lendo gratuitamente/i)).not.toBeInTheDocument();
   });
 });

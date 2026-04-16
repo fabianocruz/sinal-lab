@@ -40,7 +40,7 @@ describe("Navbar auth-aware", () => {
   });
 
   // -------------------------------------------------------------------------
-  // Unauthenticated — "Entrar" link + "Assine o Briefing" CTA
+  // Unauthenticated — "Entrar" link + "Assine gratis" CTA
   // -------------------------------------------------------------------------
 
   describe("unauthenticated", () => {
@@ -58,15 +58,15 @@ describe("Navbar auth-aware", () => {
       });
     });
 
-    it("test_navbar_shows_assine_o_briefing_cta_when_unauthenticated", () => {
+    it("test_navbar_shows_assine_gratis_cta_when_unauthenticated", () => {
       render(<Navbar />);
-      const ctaLinks = screen.getAllByRole("link", { name: "Assine o Briefing" });
+      const ctaLinks = screen.getAllByRole("link", { name: "Assine grátis" });
       expect(ctaLinks.length).toBeGreaterThanOrEqual(1);
     });
 
     it("test_navbar_assine_cta_points_to_hero_when_unauthenticated", () => {
       render(<Navbar />);
-      const ctaLinks = screen.getAllByRole("link", { name: "Assine o Briefing" });
+      const ctaLinks = screen.getAllByRole("link", { name: "Assine grátis" });
       ctaLinks.forEach((link) => {
         expect(link).toHaveAttribute("href", "/#hero");
       });
@@ -124,9 +124,9 @@ describe("Navbar auth-aware", () => {
       expect(screen.queryByRole("link", { name: "Entrar" })).not.toBeInTheDocument();
     });
 
-    it("test_navbar_does_not_show_assine_o_briefing_when_authenticated", () => {
+    it("test_navbar_does_not_show_assine_gratis_when_authenticated", () => {
       render(<Navbar />);
-      expect(screen.queryByRole("link", { name: "Assine o Briefing" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Assine grátis" })).not.toBeInTheDocument();
     });
   });
 

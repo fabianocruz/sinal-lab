@@ -167,7 +167,7 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
                   )}
                   <span className="font-mono text-[12px] text-silver">{post.author}</span>
                 </div>
-                <p className="mb-2 text-[13px] leading-[1.5] text-ash line-clamp-2">{post.text}</p>
+                <p className="mb-2 text-[13px] leading-[1.5] text-ash line-clamp-3">{post.text}</p>
                 <Link
                   href={post.url}
                   target="_blank"

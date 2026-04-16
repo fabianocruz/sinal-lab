@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   title: "Sinal: inteligência de mercado tech LATAM, grátis toda terça",
   description:
     "Briefing semanal com dados de funding, tendências e mercado do ecossistema tech da América Latina. Pesquisado por agentes de IA, verificado por humanos. 2.500+ leitores.",
+  keywords:
+    "LATAM tech, startup intelligence, fintech Latin America, AI startups, venture capital LATAM, Brazil tech ecosystem",
   openGraph: {
     title: "Sinal: inteligência de mercado tech LATAM, grátis toda terça",
     description:

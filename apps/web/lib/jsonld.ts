@@ -44,13 +44,27 @@ export function homepageJsonLd(): object[] {
       name: "Sinal",
       url: SITE_URL,
       description:
-        "Inteligência essencial sobre o ecossistema tech da América Latina — pesquisada por agentes de IA, revisada por humanos.",
+        "Inteligência essencial sobre o ecossistema tech da América Latina, pesquisada por agentes de IA, revisada por humanos.",
+      sameAs: ["https://www.linkedin.com/company/sinal-tech/", "https://twitter.com/sabordetech"],
+      knowsAbout: [
+        "Latin America technology ecosystem",
+        "LATAM startup funding",
+        "Fintech Latin America",
+        "AI startups Brazil",
+        "Venture capital Latin America",
+      ],
+      areaServed: {
+        "@type": "Place",
+        name: "Latin America",
+      },
     },
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       name: "Sinal",
       url: SITE_URL,
+      description:
+        "Weekly intelligence briefing on the Latin American technology ecosystem, covering funding rounds, market trends, and startup data. Researched by AI agents, verified by humans.",
       potentialAction: {
         "@type": "SearchAction",
         target: {

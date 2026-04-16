@@ -1,9 +1,9 @@
 import Link from "next/link";
-import MarkdownRenderer from "@/components/newsletter/MarkdownRenderer";
 import HeroImage from "@/components/newsletter/HeroImage";
 import SourcesList from "@/components/newsletter/SourcesList";
 import DownloadButton from "@/components/intelligence/DownloadButton";
 import TableOfContents from "@/components/intelligence/TableOfContents";
+import IntelligenceGate from "@/components/intelligence/IntelligenceGate";
 import ListenButton from "@/components/shared/ListenButton";
 import type { ContentApiItem } from "@/lib/newsletter";
 
@@ -110,10 +110,8 @@ export default function IntelligenceContent({ item }: IntelligenceContentProps) 
             <ListenButton text={body} />
           </div>
 
-          {/* Full content — no gating for intelligence reports */}
-          <div className="prose-sinal">
-            <MarkdownRenderer content={body} agentColor={ACCENT_COLOR} />
-          </div>
+          {/* Gated content: full access for authenticated users, preview + prompt otherwise */}
+          <IntelligenceGate content={body} accentColor={ACCENT_COLOR} />
 
           {/* Sources */}
           {item.sources && item.sources.length > 0 && (

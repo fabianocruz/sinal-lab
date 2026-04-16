@@ -73,16 +73,16 @@ describe("Navbar", () => {
   });
 
   describe("CTA button", () => {
-    it("test_navbar_cta_assine_o_briefing_is_rendered", () => {
+    it("test_navbar_cta_assine_gratis_is_rendered", () => {
       render(<Navbar />);
       // There is always at least one CTA (the desktop one)
-      const ctaLinks = screen.getAllByRole("link", { name: "Assine o Briefing" });
+      const ctaLinks = screen.getAllByRole("link", { name: "Assine grátis" });
       expect(ctaLinks.length).toBeGreaterThanOrEqual(1);
     });
 
     it("test_navbar_cta_points_to_hero_section", () => {
       render(<Navbar />);
-      const ctaLinks = screen.getAllByRole("link", { name: "Assine o Briefing" });
+      const ctaLinks = screen.getAllByRole("link", { name: "Assine grátis" });
       // All CTA links should point to /#hero
       ctaLinks.forEach((link) => {
         expect(link).toHaveAttribute("href", "/#hero");
@@ -162,7 +162,7 @@ describe("Navbar", () => {
       render(<Navbar />);
       fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
 
-      const ctaLinks = screen.getAllByRole("link", { name: "Assine o Briefing" });
+      const ctaLinks = screen.getAllByRole("link", { name: "Assine grátis" });
       // Desktop (hidden via CSS) + mobile = 2
       expect(ctaLinks).toHaveLength(2);
     });

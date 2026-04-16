@@ -4,6 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import IntelligenceContent from "@/components/intelligence/IntelligenceContent";
 import { fetchNewsletterBySlug } from "@/lib/api";
+import { breadcrumbJsonLd } from "@/lib/jsonld";
 
 export const revalidate = 300;
 
@@ -38,6 +39,18 @@ export default async function IntelligenceSlugPage({ params }: PageProps) {
         <IntelligenceContent item={item} />
       </main>
       <Footer />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Intelligence", path: "/intelligence" },
+              { name: item.title, path: `/intelligence/${item.slug}` },
+            ]),
+          ),
+        }}
+      />
     </>
   );
 }
