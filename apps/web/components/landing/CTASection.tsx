@@ -36,7 +36,7 @@ export default function CTASection() {
           </Suspense>
 
           <p className="text-[12px] text-sinal-slate">
-            Sem spam. Cancelamento em 1 clique. Seus dados nunca são vendidos.
+            Sem spam. Saia quando quiser. Seus dados nunca são vendidos.
           </p>
         </div>
       </div>

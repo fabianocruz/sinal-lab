@@ -31,33 +31,33 @@ describe("Hero", () => {
 
   it("renders the main headline text", () => {
     render(<Hero />);
-    expect(screen.getByText("essencial,")).toBeInTheDocument();
-    expect(screen.getByText(/não superficial/i)).toBeInTheDocument();
+    expect(screen.getByText(/O ecossistema tech LATAM/i)).toBeInTheDocument();
+    expect(screen.getByText(/inbox\./i)).toBeInTheDocument();
   });
 
-  it('renders the label "Inteligência tech LATAM"', () => {
+  it('renders the label "Briefing semanal gratuito"', () => {
     render(<Hero />);
-    expect(screen.getByText(/Inteligência tech LATAM/i)).toBeInTheDocument();
+    expect(screen.getByText(/Briefing semanal gratuito/i)).toBeInTheDocument();
   });
 
   it("renders the subheadline paragraph", () => {
     render(<Hero />);
-    expect(screen.getByText(/Toda terça-feira/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dados de funding/i)).toBeInTheDocument();
   });
 
   it("renders the social proof subscriber count", () => {
     render(<Hero />);
-    expect(screen.getByText("+2.500")).toBeInTheDocument();
+    expect(screen.getByText(/\+2\.500 fundadores/i)).toBeInTheDocument();
   });
 
-  it("renders the link to last briefing", () => {
+  it("renders the link to last edition", () => {
     render(<Hero />);
-    expect(screen.getByRole("link", { name: /Ver último Briefing/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ler a última edição/i })).toBeInTheDocument();
   });
 
-  it('renders micro copy with "Grátis para sempre. Sem spam."', () => {
+  it('renders micro copy with "Sem spam. Saia quando quiser."', () => {
     render(<Hero />);
-    expect(screen.getByText(/Grátis para sempre. Sem spam./i)).toBeInTheDocument();
+    expect(screen.getByText(/Sem spam\. Saia quando quiser\./i)).toBeInTheDocument();
   });
 });
 
@@ -210,9 +210,9 @@ describe("Pricing", () => {
     expect(screen.getByText("R$79")).toBeInTheDocument();
   });
 
-  it('renders the "Recomendado" badge on the Pro tier', () => {
+  it('renders the "Mais popular" badge on the Briefing tier', () => {
     render(<Pricing />);
-    expect(screen.getByText("Recomendado")).toBeInTheDocument();
+    expect(screen.getByText("Mais popular")).toBeInTheDocument();
   });
 
   it('renders the section heading "Quanto custa?"', () => {
@@ -222,8 +222,8 @@ describe("Pricing", () => {
 
   it("renders the CTA buttons for each tier", () => {
     render(<Pricing />);
-    expect(screen.getByRole("link", { name: /Assinar grátis/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Começar Pro/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Comece pelo Briefing grátis/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Fazer upgrade para Pro/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Seja um Founding Member/i })).toBeInTheDocument();
   });
 
@@ -239,8 +239,8 @@ describe("Pricing", () => {
 
   it("includes plan parameter in CTA links", () => {
     render(<Pricing />);
-    const briefingLink = screen.getByRole("link", { name: /Assinar grátis/i });
-    const proLink = screen.getByRole("link", { name: /Começar Pro/i });
+    const briefingLink = screen.getByRole("link", { name: /Comece pelo Briefing grátis/i });
+    const proLink = screen.getByRole("link", { name: /Fazer upgrade para Pro/i });
     const foundingLink = screen.getByRole("link", { name: /Seja um Founding Member/i });
 
     expect(briefingLink).toHaveAttribute("href", "/?plan=briefing#hero");
@@ -320,7 +320,7 @@ describe("CTASection", () => {
 
   it("renders the no-spam disclaimer text", () => {
     render(<CTASection />);
-    expect(screen.getByText(/Sem spam. Cancelamento em 1 clique/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sem spam\. Saia quando quiser\./i)).toBeInTheDocument();
   });
 });
 

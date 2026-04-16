@@ -63,6 +63,36 @@ export function homepageJsonLd(): object[] {
   ];
 }
 
+/** Generate FAQPage JSON-LD for pages with FAQ sections. */
+export function faqPageJsonLd(items: Array<{ question: string; answer: string }>): object {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+}
+
+/** Generate BreadcrumbList JSON-LD. */
+export function breadcrumbJsonLd(items: Array<{ name: string; path: string }>): object {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${SITE_URL}${item.path}`,
+    })),
+  };
+}
+
 /** Generate NewsArticle JSON-LD for newsletter/article detail pages. */
 export function articleJsonLd(
   title: string,

@@ -19,7 +19,7 @@ export default function Manifesto() {
           </h2>
 
           <p className="mb-5 text-[17px] leading-[1.8] text-silver">
-            Informação é infraestrutura — tão essencial para quem constrói tecnologia na América
+            Informação é infraestrutura. Tão essencial para quem constrói tecnologia na América
             Latina quanto energia elétrica ou banda larga.
           </p>
 
@@ -31,7 +31,7 @@ export default function Manifesto() {
 
           <p className="mb-8 text-[17px] leading-[1.8] text-silver">
             O ecossistema que produz 3 milhões de desenvolvedores e 40.000 startups merece sua
-            própria infraestrutura de inteligência — transparente, auditável, contínua e acessível a
+            própria infraestrutura de inteligência: transparente, auditável, contínua e acessível a
             qualquer fundador técnico com a ambição de construir algo que importe.
           </p>
 

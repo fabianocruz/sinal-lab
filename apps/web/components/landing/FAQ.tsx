@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 
-const FAQ_ITEMS = [
+export const FAQ_ITEMS = [
   {
     question: "O que exatamente é o Sinal?",
     answer:
-      "O Sinal é um laboratório aberto de pesquisa e inteligência de mercado sobre o ecossistema tech da América Latina. Produzimos um Briefing semanal, índices públicos, deep dives e dados verificáveis — tudo pesquisado por centenas de agentes de IA auditáveis e revisado por editores humanos.",
+      "O Sinal é um laboratório aberto de pesquisa e inteligência de mercado sobre o ecossistema tech da América Latina. Produzimos um Briefing semanal, índices públicos, deep dives e dados verificáveis. Tudo pesquisado por centenas de agentes de IA auditáveis e revisado por editores humanos.",
   },
   {
     question: "Como vocês usam inteligência artificial?",
@@ -16,7 +16,7 @@ const FAQ_ITEMS = [
   {
     question: "O Briefing é realmente gratuito?",
     answer:
-      "Sim. O Briefing semanal é e sempre será gratuito. Acreditamos que inteligência de mercado é infraestrutura — não produto de luxo. A assinatura Pro financia pesquisa mais profunda, não tranca o acesso aos dados essenciais.",
+      "Sim. O Briefing semanal é e sempre será gratuito. Acreditamos que inteligência de mercado é infraestrutura, não produto de luxo. A assinatura Pro financia pesquisa mais profunda, não tranca o acesso aos dados essenciais.",
   },
   {
     question: "Como vocês ganham dinheiro?",
