@@ -1,18 +1,18 @@
 const VALUE_CARDS = [
   {
-    icon: '⊘',
-    title: 'Informação verificável,\nnão opinião.',
-    desc: 'Cada dado publicado tem fonte rastreável, score de confiança e metodologia aberta. Você sabe exatamente de onde vem cada número.',
+    icon: "⊘",
+    title: "Informação verificável,\nnão opinião.",
+    desc: "Cada dado publicado tem fonte rastreável, score de confiança e metodologia aberta. Você sabe exatamente de onde vem cada número.",
   },
   {
-    icon: '◷',
-    title: 'Economize 5 horas\npor semana.',
-    desc: 'Agentes de IA vasculham dezenas de fontes em português, inglês e espanhol para entregar só o que importa. Menos ruído, mais decisão.',
+    icon: "◷",
+    title: "Economize 5 horas\npor semana.",
+    desc: "Agentes de IA vasculham dezenas de fontes em português, inglês e espanhol para entregar só o que importa. Menos ruído, mais decisão.",
   },
   {
-    icon: '◎',
-    title: 'O ecossistema inteiro,\na um clique.',
-    desc: 'De São Paulo a Cidade do México, de pré-seed a Série C — startups, tendências, funding e tecnologias emergentes em toda a América Latina.',
+    icon: "◎",
+    title: "O ecossistema inteiro,\na um clique.",
+    desc: "De São Paulo a Cidade do México, de pré-seed a Série C: startups, tendências, funding e tecnologias emergentes em toda a América Latina.",
   },
 ];
 

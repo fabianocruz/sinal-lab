@@ -69,7 +69,7 @@ export default async function EditionsPreviews() {
           seus próprios olhos.
         </h2>
         <p className="mb-12 max-w-[600px] text-[17px] leading-[1.7] text-ash">
-          Não pedimos que confie em nós. Pedimos que verifique. Aqui estão as últimas edições — com
+          Não pedimos que confie em nós. Pedimos que verifique. Aqui estão as últimas edições, com
           todas as fontes, metodologias e scores de confiança.
         </p>
 

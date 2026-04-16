@@ -268,9 +268,12 @@ class TestSchedule:
                 )
 
     def test_all_agents_appear_in_schedule(self):
-        """Every agent in AGENTS must appear in SCHEDULE at least once."""
+        """Every non-deprecated agent in AGENTS must appear in SCHEDULE."""
+        deprecated = {"social_signals"}  # Replaced by vozes + pulso
         scheduled = {a for agents in SCHEDULE.values() for a in agents}
         for agent_name in AGENTS:
+            if agent_name in deprecated:
+                continue
             assert agent_name in scheduled, (
                 f"Agent '{agent_name}' not found in any SCHEDULE day"
             )

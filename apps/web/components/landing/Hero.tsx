@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 
-const AVATARS = ["FC", "ML", "RB", "AS", "+"];
-
 export default function Hero() {
   const { status: authStatus } = useSession();
 
   return (
-    <section id="hero" className="relative flex min-h-dvh items-center overflow-hidden">
+    <section id="hero" className="relative overflow-hidden">
       {/* Background glows */}
       <div
         aria-hidden="true"
@@ -26,28 +24,32 @@ export default function Hero() {
         }}
       />
 
-      <div className="relative z-10 mx-auto max-w-container px-6 pb-20 pt-[calc(72px+5rem)] md:px-10">
+      <div className="relative z-10 mx-auto max-w-container px-6 pb-16 pt-[calc(72px+3rem)] md:px-10 md:pb-20 md:pt-[calc(72px+4rem)]">
         <div className="max-w-[720px]">
           {/* Label */}
           <div className="mb-6 flex items-center gap-2.5">
             <span className="block h-px w-6 bg-signal" />
             <span className="font-mono text-[12px] font-semibold uppercase tracking-[2.5px] text-signal">
-              Inteligência tech LATAM
+              Briefing semanal gratuito
             </span>
           </div>
 
           {/* Headline */}
           <h1 className="mb-7 font-display text-[clamp(40px,6vw,72px)] font-normal leading-[1.08] tracking-[-0.02em] text-sinal-white">
-            Inteligência <em className="italic text-signal">essencial,</em>
+            O ecossistema tech LATAM,
             <br />
-            não superficial.
+            toda terça no seu <em className="italic text-signal">inbox.</em>
           </h1>
 
           {/* Subheadline */}
-          <p className="mb-10 max-w-[580px] text-[clamp(17px,2vw,19px)] leading-[1.7] text-ash">
-            Toda terça-feira, os dados mais relevantes sobre o ecossistema tech da América Latina —
-            pesquisados por centenas de agentes de IA auditáveis, revisados por humanos, entregues
-            no seu inbox.
+          <p className="mb-8 max-w-[580px] text-[clamp(17px,2vw,19px)] leading-[1.7] text-ash">
+            Dados de funding, tendências e mercado pesquisados por agentes de IA, verificados por
+            humanos. Grátis.
+          </p>
+
+          {/* Social proof — above CTA for trust before action */}
+          <p className="mb-8 font-mono text-[14px] text-signal">
+            +2.500 fundadores, CTOs e investidores já recebem o Sinal.
           </p>
 
           {/* CTA */}
@@ -62,47 +64,28 @@ export default function Hero() {
               </p>
             </div>
           ) : (
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/cadastro"
-                className="inline-flex items-center justify-center rounded-[10px] border border-signal bg-signal px-7 py-4 font-body text-[15px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim"
-              >
-                Assine grátis
-              </Link>
-              <Link
-                href="#edicoes"
-                className="inline-flex items-center justify-center rounded-[10px] border border-[rgba(255,255,255,0.12)] px-7 py-4 font-body text-[15px] font-semibold text-ash transition-colors hover:border-[rgba(255,255,255,0.25)] hover:text-sinal-white"
-              >
-                Ver último Briefing →
-              </Link>
-            </div>
-          )}
-
-          {/* Micro copy */}
-          {authStatus !== "authenticated" && (
-            <p className="mb-12 text-[13px] text-sinal-slate">
-              Grátis para sempre. Sem spam. Cancelamento em 1 clique.
-            </p>
-          )}
-
-          {/* Social proof */}
-          <div className="flex items-center gap-4 border-t border-[rgba(255,255,255,0.06)] pt-8">
-            <div className="flex">
-              {AVATARS.map((initials, i) => (
-                <span
-                  key={i}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-sinal-black bg-sinal-slate text-[11px] font-semibold text-ash"
-                  style={{ marginRight: i < AVATARS.length - 1 ? "-8px" : "0" }}
+            <>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href="/cadastro"
+                  className="inline-flex items-center justify-center rounded-[10px] border border-signal bg-signal px-7 py-4 font-body text-[15px] font-semibold text-sinal-black transition-colors hover:bg-signal-dim"
                 >
-                  {initials}
-                </span>
-              ))}
-            </div>
-            <p className="text-[14px] text-ash">
-              <strong className="font-semibold text-bone">+2.500</strong> fundadores, CTOs e
-              investidores já leem o Sinal
-            </p>
-          </div>
+                  Receber o Briefing grátis
+                </Link>
+                <Link
+                  href="#edicoes"
+                  className="inline-flex items-center justify-center rounded-[10px] border border-[rgba(255,255,255,0.12)] px-7 py-4 font-body text-[15px] font-semibold text-ash transition-colors hover:border-[rgba(255,255,255,0.25)] hover:text-sinal-white"
+                >
+                  Ler a última edição →
+                </Link>
+              </div>
+
+              {/* Micro copy */}
+              <p className="text-[13px] text-sinal-slate">
+                Toda terça-feira. Sem spam. Saia quando quiser.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </section>

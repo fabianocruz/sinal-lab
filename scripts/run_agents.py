@@ -97,13 +97,33 @@ AGENTS = {
     },
     "social_signals": {
         "module": "apps.agents.social_signals.main",
-        "description": "Social Signal Intelligence for AI, Fintech, and Banking",
+        "description": "Social Signal Intelligence for AI, Fintech, and Banking (DEPRECATED: use vozes+pulso)",
         "class_module": "apps.agents.social_signals.agent",
         "class_name": "SocialSignalsAgent",
         "period_arg": "week",
         "slug_pattern": "social-signals-week-{period}",
         "output_dir": "apps/agents/social_signals/output",
         "filename_pattern": "social-signals-week-{period}.md",
+    },
+    "vozes": {
+        "module": "apps.agents.vozes.main",
+        "description": "Social voice monitoring, collection, and authority scoring",
+        "class_module": "apps.agents.vozes.agent",
+        "class_name": "VozesAgent",
+        "period_arg": "week",
+        "slug_pattern": "vozes-week-{period}",
+        "output_dir": "apps/agents/vozes/output",
+        "filename_pattern": "vozes-week-{period}.md",
+    },
+    "pulso": {
+        "module": "apps.agents.pulso.main",
+        "description": "Social signal clustering, scoring, and weekly pulse generation",
+        "class_module": "apps.agents.pulso.agent",
+        "class_name": "PulsoAgent",
+        "period_arg": "week",
+        "slug_pattern": "pulso-week-{period}",
+        "output_dir": "apps/agents/pulso/output",
+        "filename_pattern": "pulso-week-{period}.md",
     },
     "feed_curator": {
         "module": "apps.agents.feed_curator.main",
@@ -208,6 +228,20 @@ def _social_signals_domain_persist(agent: Any, agent_output: Any, session: Any) 
     persist_social_signals(agent, agent_output, session)
 
 
+def _vozes_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
+    """Persist individual social signals from VOZES."""
+    from apps.agents.vozes.db_writer import persist_vozes_signals
+
+    persist_vozes_signals(agent, agent_output, session)
+
+
+def _pulso_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
+    """Persist signal clusters and weekly pulse from PULSO."""
+    from apps.agents.pulso.db_writer import persist_pulso_data
+
+    persist_pulso_data(agent, agent_output, session)
+
+
 def _feed_curator_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
     """Persist curated feed items."""
     from apps.agents.feed_curator.db_writer import persist_curated_feed
@@ -220,6 +254,8 @@ DOMAIN_PERSIST_FNS: Dict[str, Callable[..., None]] = {
     "mercado": _mercado_domain_persist,
     "index": _index_domain_persist,
     "social_signals": _social_signals_domain_persist,
+    "vozes": _vozes_domain_persist,
+    "pulso": _pulso_domain_persist,
     "feed_curator": _feed_curator_domain_persist,
 }
 
@@ -294,6 +330,67 @@ def orchestrate_single_agent(
         return 1
 
 
+def orchestrate_vozes_pulso(
+    week_value: int,
+    session: Any,
+    enable_editorial: bool = True,
+    enable_evidence: bool = True,
+) -> int:
+    """Run VOZES -> PULSO pipeline: collect signals, then cluster and score.
+
+    VOZES collects and classifies social signals, exports them as JSON.
+    PULSO reads the JSON, clusters, scores, and generates the Weekly Pulse.
+
+    Returns 0 on success, 1 on failure.
+    """
+    logger = logging.getLogger("run_agents")
+    import tempfile
+
+    # Step 1: Run VOZES
+    logger.info("=" * 40)
+    logger.info("PIPELINE Step 1/2: Running VOZES (collect + classify)")
+    vozes_code = orchestrate_single_agent(
+        "vozes",
+        period_value=week_value,
+        session=session,
+        enable_editorial=False,  # VOZES is a data agent, no editorial
+        enable_evidence=enable_evidence,
+    )
+    if vozes_code != 0:
+        logger.error("VOZES failed, aborting pipeline")
+        return 1
+
+    # Step 2: Export VOZES signals as JSON for PULSO
+    vozes_class = _load_agent_class("vozes")
+    vozes_agent = vozes_class(week_number=week_value)
+    # Re-run to get the agent with data (orchestrate_single_agent creates its own instance)
+    # Instead, use a temp file for the JSON handoff
+    vozes_json_path = str(
+        Path(tempfile.gettempdir()) / f"vozes-signals-week-{week_value}.json"
+    )
+
+    # The orchestrate_single_agent already ran and persisted to DB.
+    # PULSO can load from DB directly (preferred) or from JSON.
+    # We'll use DB mode since both agents share the same session.
+
+    logger.info("=" * 40)
+    logger.info("PIPELINE Step 2/2: Running PULSO (cluster + score)")
+
+    pulso_code = orchestrate_single_agent(
+        "pulso",
+        period_value=week_value,
+        session=session,
+        enable_editorial=enable_editorial,
+        enable_evidence=enable_evidence,
+    )
+    if pulso_code != 0:
+        logger.error("PULSO failed")
+        return 1
+
+    logger.info("VOZES -> PULSO pipeline completed successfully")
+    return 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Sinal.lab unified agent runner",
@@ -306,15 +403,18 @@ Available agents:
   funding          Investment tracking (VC announcements, funding rounds)
   mercado          LATAM startup mapping and ecosystem intelligence
   index            LATAM Startup Index (comprehensive registry from bulk sources)
-  social_signals   Social Signal Intelligence for AI, Fintech, and Banking
-  feed_curator     Feed Curator — AI editorial curation of social signals
+  vozes            Social voice monitoring, collection, and authority scoring
+  pulso            Social signal clustering, scoring, and weekly pulse
+  social_signals   (deprecated) Use vozes+pulso instead
+  feed_curator     Feed Curator -- AI editorial curation of social signals
+  vozes_pulso      Pipeline: VOZES -> PULSO (collect, classify, cluster, score)
   all              Run all agents sequentially
         """,
     )
     parser.add_argument(
         "agent",
-        choices=list(AGENTS.keys()) + ["all"],
-        help="Agent to run (or 'all')",
+        choices=list(AGENTS.keys()) + ["all", "vozes_pulso"],
+        help="Agent to run (or 'all' or 'vozes_pulso' pipeline)",
     )
     parser.add_argument(
         "--week", type=int, default=None,
@@ -365,49 +465,62 @@ Available agents:
     setup_logging(args.verbose)
     logger = logging.getLogger("run_agents")
 
-    agents_to_run = list(AGENTS.keys()) if args.agent == "all" else [args.agent]
+    # Resolve agent list
+    if args.agent == "vozes_pulso":
+        is_pipeline = True
+        agents_to_run = []  # handled specially
+    elif args.agent == "all":
+        is_pipeline = False
+        agents_to_run = list(AGENTS.keys())
+    else:
+        is_pipeline = False
+        agents_to_run = [args.agent]
+
     exit_codes = []
+    from datetime import datetime
 
-    if args.orchestrate:
-        # In-process mode with editorial pipeline
-        from datetime import datetime
+    if args.week is None:
+        week_val = datetime.now().isocalendar()[1]
+    else:
+        week_val = args.week
+
+    if is_pipeline or args.orchestrate:
+        # In-process mode (required for pipeline, optional for single agents)
         from packages.database.session import get_session
-
-        if args.week is None:
-            week_val = datetime.now().isocalendar()[1]
-        else:
-            week_val = args.week
 
         session = get_session()
         try:
-            for name in agents_to_run:
-                cfg = AGENTS[name]
-                if cfg["period_arg"] == "edition":
-                    period_value = args.edition
-                elif cfg["period_arg"] is not None:
-                    period_value = week_val
-                else:
-                    period_value = 0  # No period concept (e.g. feed_curator)
-
-                code = orchestrate_single_agent(
-                    name,
-                    period_value=period_value,
+            if is_pipeline:
+                # VOZES -> PULSO pipeline
+                code = orchestrate_vozes_pulso(
+                    week_value=week_val,
                     session=session,
                     enable_editorial=not args.no_editorial,
                     enable_evidence=not args.no_evidence,
                 )
                 exit_codes.append(code)
+            else:
+                for name in agents_to_run:
+                    cfg = AGENTS[name]
+                    if cfg["period_arg"] == "edition":
+                        period_value = args.edition
+                    elif cfg["period_arg"] is not None:
+                        period_value = week_val
+                    else:
+                        period_value = 0  # No period concept (e.g. feed_curator)
+
+                    code = orchestrate_single_agent(
+                        name,
+                        period_value=period_value,
+                        session=session,
+                        enable_editorial=not args.no_editorial,
+                        enable_evidence=not args.no_evidence,
+                    )
+                    exit_codes.append(code)
         finally:
             session.close()
     else:
         # Subprocess mode (default, backward-compatible)
-        from datetime import datetime
-
-        if args.week is None:
-            week_val = datetime.now().isocalendar()[1]
-        else:
-            week_val = args.week
-
         for name in agents_to_run:
             cfg = AGENTS[name]
             extra_args = []

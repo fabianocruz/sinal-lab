@@ -23,8 +23,11 @@ from scripts.run_agents import (
     _load_agent_class,
     _funding_domain_persist,
     _mercado_domain_persist,
+    _vozes_domain_persist,
+    _pulso_domain_persist,
     main,
     orchestrate_single_agent,
+    orchestrate_vozes_pulso,
     run_agent,
     setup_logging,
 )
@@ -119,7 +122,10 @@ class TestAgentsDict:
     """Validate AGENTS dict has all required keys for orchestrate mode."""
 
     def test_all_agents_present(self):
-        expected = {"sintese", "radar", "codigo", "funding", "mercado", "index"}
+        expected = {
+            "sintese", "radar", "codigo", "funding", "mercado", "index",
+            "social_signals", "vozes", "pulso", "feed_curator",
+        }
         assert set(AGENTS.keys()) == expected
 
     def test_all_agents_have_orchestrate_keys(self):
@@ -131,12 +137,13 @@ class TestAgentsDict:
 
     def test_slug_patterns_contain_period_placeholder(self):
         for name, cfg in AGENTS.items():
-            assert "{period}" in cfg["slug_pattern"], (
-                f"Agent '{name}' slug_pattern must contain {{period}}"
-            )
+            if cfg["period_arg"] is not None:
+                assert "{period}" in cfg["slug_pattern"], (
+                    f"Agent '{name}' slug_pattern must contain {{period}}"
+                )
 
     def test_period_arg_is_valid(self):
-        valid = {"week", "edition"}
+        valid = {"week", "edition", None}
         for name, cfg in AGENTS.items():
             assert cfg["period_arg"] in valid, (
                 f"Agent '{name}' has invalid period_arg: {cfg['period_arg']}"
@@ -236,6 +243,14 @@ class TestDomainPersistFns:
     def test_mercado_in_registry(self):
         assert "mercado" in DOMAIN_PERSIST_FNS
         assert DOMAIN_PERSIST_FNS["mercado"] is _mercado_domain_persist
+
+    def test_vozes_in_registry(self):
+        assert "vozes" in DOMAIN_PERSIST_FNS
+        assert DOMAIN_PERSIST_FNS["vozes"] is _vozes_domain_persist
+
+    def test_pulso_in_registry(self):
+        assert "pulso" in DOMAIN_PERSIST_FNS
+        assert DOMAIN_PERSIST_FNS["pulso"] is _pulso_domain_persist
 
     def test_radar_not_in_registry(self):
         assert "radar" not in DOMAIN_PERSIST_FNS

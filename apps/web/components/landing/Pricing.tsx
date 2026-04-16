@@ -12,9 +12,10 @@ const PRICING_TIERS = [
       "Newsletter com dados e análises",
       "Índices públicos LATAM",
     ],
-    cta: "Assinar grátis",
-    ctaVariant: "secondary" as const,
-    featured: false,
+    cta: "Comece pelo Briefing grátis",
+    ctaVariant: "primary" as const,
+    featured: true,
+    badge: "Mais popular",
   },
   {
     name: "Pro",
@@ -29,9 +30,9 @@ const PRICING_TIERS = [
       "Dados exportáveis (CSV/API)",
       "Perfis detalhados de 500+ startups",
     ],
-    cta: "Começar Pro",
-    ctaVariant: "primary" as const,
-    featured: true,
+    cta: "Fazer upgrade para Pro",
+    ctaVariant: "secondary" as const,
+    featured: false,
   },
   {
     name: "Founding Member",
@@ -81,9 +82,9 @@ export default function Pricing() {
                 tier.featured ? "border-signal" : "border-[rgba(255,255,255,0.06)]"
               }`}
             >
-              {tier.featured && (
+              {tier.featured && "badge" in tier && (
                 <span className="absolute -top-3 left-7 rounded bg-signal px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[1.5px] text-sinal-black">
-                  Recomendado
+                  {tier.badge}
                 </span>
               )}
 
@@ -127,8 +128,8 @@ export default function Pricing() {
         </div>
 
         <p className="mx-auto mt-8 max-w-[560px] text-center text-[14px] italic text-ash">
-          Os dados que importam são abertos. Sempre serão. A assinatura Pro financia a pesquisa —
-          não tranca o acesso.
+          Os dados que importam são abertos. Sempre serão. A assinatura Pro financia a pesquisa, não
+          tranca o acesso.
         </p>
       </div>
     </section>

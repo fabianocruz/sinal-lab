@@ -78,9 +78,13 @@ function ThemeRow({
   );
 }
 
-// Derive PlatformHeatmapRow data from clusters + their top_posts
+// Derive PlatformHeatmapRow data from clusters + their top_posts.
+// Clusters with no platform data are excluded from the heatmap rather than
+// falsely attributing all signals to Twitter.
 function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
-  return clusters.slice(0, 5).map((cluster) => {
+  const rows: PlatformHeatmapRow[] = [];
+
+  for (const cluster of clusters.slice(0, 5)) {
     const counts: Record<string, number> = {
       twitter: 0,
       reddit: 0,
@@ -93,12 +97,15 @@ function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
       const p = post.platform.toLowerCase();
       if (p in counts) counts[p]++;
     });
-    // Use signal_count as fallback when top_posts are sparse
+
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
     if (total === 0 && cluster.signal_count > 0) {
-      counts.twitter = cluster.signal_count;
+      // No platform data available — skip this cluster instead of falsely
+      // attributing all signals to Twitter.
+      continue;
     }
-    return {
+
+    rows.push({
       theme: cluster.name,
       twitter: counts.twitter,
       reddit: counts.reddit,
@@ -106,8 +113,10 @@ function buildHeatmapData(clusters: SignalCluster[]): PlatformHeatmapRow[] {
       rss: counts.rss,
       web: counts.web,
       youtube: counts.youtube,
-    };
-  });
+    });
+  }
+
+  return rows;
 }
 
 // ---------------------------------------------------------------------------

@@ -46,7 +46,13 @@ export interface WeeklyPulse {
   slug: string;
   accelerating_themes?: Array<{ name: string; score: number; delta: number }>;
   emerging_signals?: Array<{ name: string; score: number; platforms: string[] }>;
-  top_posts?: Array<{ url: string; text: string; author: string; metrics: object }>;
+  top_posts?: Array<{
+    url: string;
+    text: string;
+    author: string;
+    platform?: string;
+    metrics: object;
+  }>;
   top_voices?: Array<{ handle: string; name: string; signal_count: number }>;
   startups_to_watch?: Array<{ slug: string; name: string; reason: string }>;
   sector_implications?: Array<{ sector: string; implication: string }>;
@@ -140,7 +146,9 @@ export const SECTOR_TAG_TO_THEME: Record<string, string> = {
   hiring: "Startup Ops",
   culture: "Startup Ops",
   scaling: "Startup Ops",
-  founder: "Startup Ops",
+  // "founder" alone is too broad — map only specific founder sub-tags
+  "founder advice": "Startup Ops",
+  "founder stories": "Startup Ops",
   // Cybersecurity
   cybersecurity: "Cybersecurity",
   security: "Cybersecurity",

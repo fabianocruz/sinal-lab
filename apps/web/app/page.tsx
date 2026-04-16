@@ -12,16 +12,18 @@ import HowItWorks from "@/components/landing/HowItWorks";
 import Pricing from "@/components/landing/Pricing";
 import Manifesto from "@/components/landing/Manifesto";
 import FAQ from "@/components/landing/FAQ";
-import { homepageJsonLd } from "@/lib/jsonld";
+import StickyMobileCTA from "@/components/landing/StickyMobileCTA";
+import { FAQ_ITEMS } from "@/components/landing/FAQ";
+import { homepageJsonLd, faqPageJsonLd } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
-  title: "Sinal — Inteligência essencial sobre o ecossistema tech LATAM",
+  title: "Sinal: inteligência de mercado tech LATAM, grátis toda terça",
   description:
-    "Toda terça-feira, os dados mais relevantes sobre o ecossistema tech da América Latina — pesquisados por centenas de agentes de IA auditáveis, revisados por humanos, entregues no seu inbox.",
+    "Briefing semanal com dados de funding, tendências e mercado do ecossistema tech da América Latina. Pesquisado por agentes de IA, verificado por humanos. 2.500+ leitores.",
   openGraph: {
-    title: "Sinal — Inteligência essencial sobre o ecossistema tech LATAM",
+    title: "Sinal: inteligência de mercado tech LATAM, grátis toda terça",
     description:
-      "Toda terça-feira, os dados mais relevantes sobre o ecossistema tech da América Latina.",
+      "Briefing semanal com dados de funding, tendências e mercado do ecossistema tech da América Latina. 2.500+ leitores.",
     locale: "pt_BR",
     type: "website",
   },
@@ -45,9 +47,14 @@ export default function HomePage() {
         <FAQ />
       </main>
       <Footer />
+      <StickyMobileCTA />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageJsonLd()) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageJsonLd(FAQ_ITEMS)) }}
       />
     </>
   );
