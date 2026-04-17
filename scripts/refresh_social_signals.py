@@ -53,18 +53,29 @@ def cleanup_old_data(session, dry_run: bool = False) -> dict:
     """
     stats = {}
 
-    # Count records to delete
-    clusters = session.query(SignalCluster).filter(
-        SignalCluster.agent_run_id.like("social_signals%")
-    ).count()
+    # Count records to delete (old social_signals + any vozes/pulso runs)
+    old_agents = ["social_signals%", "vozes%", "pulso%"]
 
-    signals = session.query(SocialSignal).filter(
-        SocialSignal.agent_run_id.like("social_signals%")
-    ).count()
+    clusters = sum(
+        session.query(SignalCluster).filter(
+            SignalCluster.agent_run_id.like(pattern)
+        ).count()
+        for pattern in old_agents
+    )
 
-    pulses = session.query(WeeklyPulse).filter(
-        WeeklyPulse.agent_run_id.like("social_signals%")
-    ).count()
+    signals = sum(
+        session.query(SocialSignal).filter(
+            SocialSignal.agent_run_id.like(pattern)
+        ).count()
+        for pattern in old_agents
+    )
+
+    pulses = sum(
+        session.query(WeeklyPulse).filter(
+            WeeklyPulse.agent_run_id.like(pattern)
+        ).count()
+        for pattern in old_agents
+    )
 
     stats = {
         "clusters": clusters,
@@ -82,23 +93,23 @@ def cleanup_old_data(session, dry_run: bool = False) -> dict:
         return stats
 
     # Delete in order (signals reference clusters via cluster_id)
-    if signals > 0:
-        session.query(SocialSignal).filter(
-            SocialSignal.agent_run_id.like("social_signals%")
-        ).delete(synchronize_session="fetch")
-        logger.info("Deleted %d social signals", signals)
+    for pattern in old_agents:
+        if signals > 0:
+            session.query(SocialSignal).filter(
+                SocialSignal.agent_run_id.like(pattern)
+            ).delete(synchronize_session="fetch")
 
-    if clusters > 0:
-        session.query(SignalCluster).filter(
-            SignalCluster.agent_run_id.like("social_signals%")
-        ).delete(synchronize_session="fetch")
-        logger.info("Deleted %d signal clusters", clusters)
+        if clusters > 0:
+            session.query(SignalCluster).filter(
+                SignalCluster.agent_run_id.like(pattern)
+            ).delete(synchronize_session="fetch")
 
-    if pulses > 0:
-        session.query(WeeklyPulse).filter(
-            WeeklyPulse.agent_run_id.like("social_signals%")
-        ).delete(synchronize_session="fetch")
-        logger.info("Deleted %d weekly pulses", pulses)
+        if pulses > 0:
+            session.query(WeeklyPulse).filter(
+                WeeklyPulse.agent_run_id.like(pattern)
+            ).delete(synchronize_session="fetch")
+
+    logger.info("Deleted %d signals, %d clusters, %d pulses", signals, clusters, pulses)
 
     session.commit()
     logger.info("Cleanup committed")
@@ -110,23 +121,47 @@ def run_pipeline(week: int, dry_run: bool = False) -> int:
 
     Returns 0 on success, 1 on failure.
     """
+    if dry_run:
+        # Dry-run: run VOZES agent directly (no orchestrator, no persist)
+        logger.info("DRY RUN: running VOZES collect + classify (no persist)")
+        try:
+            from apps.agents.vozes.agent import VozesAgent
+
+            agent = VozesAgent(week_number=week)
+            output = agent.run()
+
+            signals = getattr(agent, "_all_signals", [])
+            platforms = {}
+            themes = {}
+            for s in signals:
+                platforms[s.post.platform] = platforms.get(s.post.platform, 0) + 1
+                if s.theme:
+                    themes[s.theme] = themes.get(s.theme, 0) + 1
+
+            logger.info("DRY RUN results:")
+            logger.info("  Total signals: %d", len(signals))
+            logger.info("  Platforms: %s", dict(sorted(platforms.items(), key=lambda x: x[1], reverse=True)))
+            logger.info("  Top themes: %s", dict(sorted(themes.items(), key=lambda x: x[1], reverse=True)[:10]))
+            logger.info("  Confidence: %s", output.confidence.grade)
+            return 0
+        except Exception as e:
+            logger.error("DRY RUN failed: %s", e, exc_info=True)
+            return 1
+
+    # Real run: orchestrate VOZES -> PULSO with persistence
     from scripts.run_agents import orchestrate_vozes_pulso
 
     session = get_session()
     try:
-        if dry_run:
-            # In dry-run, run VOZES only (no persist) to check collection quality
-            from scripts.run_agents import orchestrate_single_agent
+        # Also clean up any previous vozes/pulso content_pieces for this week
+        from packages.database.models.content_piece import ContentPiece
 
-            logger.info("DRY RUN: running VOZES only (no persist)")
-            code = orchestrate_single_agent(
-                "vozes",
-                period_value=week,
-                session=session,
-                enable_editorial=False,
-                enable_evidence=False,
-            )
-            return code
+        for slug in [f"vozes-week-{week}", f"pulso-week-{week}"]:
+            existing = session.query(ContentPiece).filter(ContentPiece.slug == slug).first()
+            if existing:
+                session.delete(existing)
+                logger.info("Deleted existing content_piece: %s", slug)
+        session.commit()
 
         code = orchestrate_vozes_pulso(
             week_value=week,

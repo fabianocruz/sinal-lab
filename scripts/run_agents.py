@@ -360,31 +360,44 @@ def orchestrate_vozes_pulso(
         logger.error("VOZES failed, aborting pipeline")
         return 1
 
-    # Step 2: Export VOZES signals as JSON for PULSO
-    vozes_class = _load_agent_class("vozes")
-    vozes_agent = vozes_class(week_number=week_value)
-    # Re-run to get the agent with data (orchestrate_single_agent creates its own instance)
-    # Instead, use a temp file for the JSON handoff
-    vozes_json_path = str(
-        Path(tempfile.gettempdir()) / f"vozes-signals-week-{week_value}.json"
-    )
-
-    # The orchestrate_single_agent already ran and persisted to DB.
-    # PULSO can load from DB directly (preferred) or from JSON.
-    # We'll use DB mode since both agents share the same session.
-
+    # Step 2: Run PULSO with DB session injected so it can load VOZES signals
     logger.info("=" * 40)
     logger.info("PIPELINE Step 2/2: Running PULSO (cluster + score)")
 
-    pulso_code = orchestrate_single_agent(
-        "pulso",
-        period_value=week_value,
-        session=session,
-        enable_editorial=enable_editorial,
-        enable_evidence=enable_evidence,
-    )
-    if pulso_code != 0:
-        logger.error("PULSO failed")
+    try:
+        from apps.agents.base.orchestrator import orchestrate_agent_run
+        from apps.agents.pulso.agent import PulsoAgent
+
+        pulso_agent = PulsoAgent(week_number=week_value)
+        pulso_agent.set_db_session(session)
+
+        slug = f"pulso-week-{week_value}"
+        domain_fn = DOMAIN_PERSIST_FNS.get("pulso")
+
+        logger.info(
+            "Orchestrating PULSO (slug=%s, editorial=%s, evidence=%s)",
+            slug, enable_editorial, enable_evidence,
+        )
+
+        result = orchestrate_agent_run(
+            pulso_agent,
+            session=session,
+            slug=slug,
+            enable_editorial=enable_editorial,
+            enable_evidence=enable_evidence,
+            persist=True,
+            domain_persist_fn=domain_fn,
+        )
+
+        grade = result.agent_output.confidence.grade
+        logger.info(
+            "PULSO completed: grade=%s, persisted=%s, editorial=%s",
+            grade,
+            result.persisted,
+            "approved" if (result.editorial_result and result.editorial_result.publish_ready) else "pending",
+        )
+    except Exception as e:
+        logger.error("PULSO failed: %s", e, exc_info=True)
         return 1
 
     logger.info("VOZES -> PULSO pipeline completed successfully")
