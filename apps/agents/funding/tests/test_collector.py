@@ -251,7 +251,8 @@ def test_sec_form_d_events_collected(mock_fetch_sec):
     assert "SEC CIK" in sec_event.notes
 
 
-def test_sec_skipped_when_no_sec_source():
+@patch("apps.agents.funding.collector._load_from_funding_rounds_table", return_value=[])
+def test_sec_skipped_when_no_sec_source(mock_load_db):
     """No SEC calls when sec_form_d source is not configured."""
     from apps.agents.funding.collector import collect_all_sources
 
@@ -270,7 +271,8 @@ def test_sec_skipped_when_no_sec_source():
     assert events == []
 
 
-def test_sec_skipped_when_no_initial_events():
+@patch("apps.agents.funding.collector._load_from_funding_rounds_table", return_value=[])
+def test_sec_skipped_when_no_initial_events(mock_load_db):
     """SEC collection skipped when initial RSS/API collection returns nothing."""
     from apps.agents.funding.collector import collect_all_sources
 
@@ -288,8 +290,9 @@ def test_sec_skipped_when_no_initial_events():
     assert events == []
 
 
+@patch("apps.agents.funding.collector._load_from_funding_rounds_table", return_value=[])
 @patch("apps.agents.sources.sec_form_d.fetch_sec_form_d")
-def test_sec_graceful_degradation(mock_fetch_sec):
+def test_sec_graceful_degradation(mock_fetch_sec, mock_load_db):
     """SEC API failure doesn't break other event collection."""
     from apps.agents.funding.collector import collect_all_sources
 

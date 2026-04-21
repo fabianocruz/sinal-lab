@@ -23,7 +23,7 @@ from typing import Optional
 
 from apps.agents.base.llm import LLMClient, strip_code_fences
 from apps.agents.funding.scorer import ScoredFundingEvent
-from apps.agents.funding.synthesizer import format_amount, format_round_type
+from apps.agents.funding.synthesizer import format_amount, format_round_type, normalize_amount_usd
 from apps.agents.base.writing_rules import WRITING_RULES
 
 logger = logging.getLogger(__name__)
@@ -105,21 +105,28 @@ class FundingWriter:
 
         events_summary = self._build_events_summary(scored_events)
         total_raised = sum(
-            e.event.amount_usd for e in scored_events if e.event.amount_usd is not None
+            normalize_amount_usd(e.event.amount_usd) or 0
+            for e in scored_events if e.event.amount_usd is not None
         )
 
         user_prompt = (
-            f"Crie um titulo editorial (maximo 15 palavras) para o relatorio de "
-            f"investimentos da semana {week_number}.\n\n"
+            f"Crie um titulo editorial (maximo 15 palavras) para o CAPITAL FLOW TRACKER "
+            f"da semana {week_number}. Este e o relatorio factual de rodadas, nao analise "
+            f"macro (isso e trabalho do MERCADO).\n\n"
             f"Dados:\n"
             f"- Total de rodadas: {len(scored_events)}\n"
-            f"- Volume total: US$ {total_raised:.1f}M\n\n"
+            f"- Volume total: {format_amount(total_raised)}\n\n"
             f"Rodadas:\n\n{events_summary}\n\n"
             f"Direcoes:\n"
-            f"- Cite valores e setores concretos no titulo\n"
-            f"- Tom analitico e factual, sem hype\n"
+            f"- Angulo FUNDING: contagem/volume/estagios, NAO tese setorial\n"
+            f"- Cite numeros concretos (quantas rodadas, volume agregado, maior deal)\n"
+            f"- NAO use 'sinaliza', 'revela tese', 'reforca apetite' — isso e vocabulario MERCADO\n"
+            f"- Formate como retrato quantitativo da semana\n"
+            f"- Exemplos de bom angulo: 'N rodadas movimentam $X; seed domina', "
+            f"'$Y concentrado em N deals, early-stage cobre M empresas'\n"
+            f"- Tom factual, jornalistico, sem hype\n"
             f"- Escreva em portugues brasileiro\n"
-            f"- Retorne APENAS o titulo, sem aspas, sem formatacao extra"
+            f"- Retorne APENAS o titulo, sem aspas"
         )
 
         result = self._client.generate(
@@ -161,7 +168,8 @@ class FundingWriter:
 
         # Calculate aggregate stats for the prompt
         total_raised = sum(
-            e.event.amount_usd for e in scored_events if e.event.amount_usd is not None
+            normalize_amount_usd(e.event.amount_usd) or 0
+            for e in scored_events if e.event.amount_usd is not None
         )
         events_with_amount = sum(
             1 for e in scored_events if e.event.amount_usd is not None
@@ -173,7 +181,7 @@ class FundingWriter:
             f"Dados agregados:\n"
             f"- Total de rodadas: {len(scored_events)}\n"
             f"- Rodadas com valor divulgado: {events_with_amount}\n"
-            f"- Volume total levantado: US$ {total_raised:.1f}M\n\n"
+            f"- Volume total levantado: {format_amount(total_raised)}\n\n"
             f"Rodadas da semana:\n\n"
             f"{events_summary}\n\n"
             f"Direcoes:\n"

@@ -35,11 +35,29 @@ def format_amount(amount_usd: Optional[float]) -> str:
     if amount_usd is None:
         return "Valor não divulgado"
 
-    if amount_usd >= 1.0:
-        return f"${amount_usd:.1f}M"
-    else:
-        # Less than $1M, show in thousands
-        return f"${amount_usd * 1000:.0f}K"
+    absolute = normalize_amount_usd(amount_usd)
+    if absolute is None:
+        return "Valor não divulgado"
+
+    if absolute >= 1_000_000_000:
+        return f"${absolute / 1_000_000_000:.1f}B"
+    if absolute >= 1_000_000:
+        return f"${absolute / 1_000_000:.1f}M"
+    return f"${absolute / 1000:.0f}K"
+
+
+def normalize_amount_usd(amount_usd: Optional[float]) -> Optional[float]:
+    """Coerce ``amount_usd`` to absolute dollars.
+
+    Storage has two legacy formats in the same column:
+    - Crunchbase dumps and new ingests: absolute USD (e.g. 405_000_000 = $405M)
+    - Legacy RSS title-parser: millions of USD (e.g. 405 = $405M)
+
+    Anything below 1000 is treated as "millions of USD" and scaled up.
+    """
+    if amount_usd is None:
+        return None
+    return amount_usd if amount_usd >= 1000 else amount_usd * 1_000_000
 
 
 def format_round_type(round_type: str) -> str:

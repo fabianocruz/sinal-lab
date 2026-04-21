@@ -21,6 +21,10 @@ from apps.agents.base.provenance import ProvenanceTracker
 
 logger = logging.getLogger(__name__)
 
+# Module-level throttle for GitHub Search API (30 req/min authenticated).
+# Mutable list so nested functions can update the shared timestamp.
+_LAST_SEARCH_CALL: list[float] = [0.0]
+
 
 @dataclass
 class CompanyProfile:
@@ -41,6 +45,7 @@ class CompanyProfile:
     tags: list[str] = field(default_factory=list)
     source_url: str = ""
     source_name: str = ""
+    is_known_entity: bool = False  # True if slug already in DB (enrichment, not new discovery)
 
 
 # --- Location map (LATAM cities) ---
@@ -346,10 +351,18 @@ def collect_from_github(
         base_params = {k: v for k, v in source.params.items() if k != "page"}
 
         page = 1
-        filtered_count = 0
+        filtered_non_startup = 0
+        known_count = 0
         _GITHUB_MAX_RESULTS = 1000  # GitHub Search API hard limit
+        _SEARCH_API_DELAY = 2.1  # Search API is 30 req/min for authenticated users
 
         while True:
+            if page > 1 or _LAST_SEARCH_CALL[0] > 0:
+                elapsed = time.time() - _LAST_SEARCH_CALL[0]
+                if elapsed < _SEARCH_API_DELAY:
+                    time.sleep(_SEARCH_API_DELAY - elapsed)
+            _LAST_SEARCH_CALL[0] = time.time()
+
             params = {**base_params, "page": page}
             response = httpx.get(
                 source.url,
@@ -357,6 +370,14 @@ def collect_from_github(
                 headers=headers,
                 timeout=15.0,
             )
+            if response.status_code == 403:
+                remaining = response.headers.get("X-RateLimit-Remaining", "?")
+                reset = response.headers.get("X-RateLimit-Reset", "?")
+                logger.warning(
+                    "GitHub Search rate-limited (%s, remaining=%s, reset=%s), stopping pagination",
+                    source.name, remaining, reset,
+                )
+                break
             response.raise_for_status()
             data = response.json()
 
@@ -377,25 +398,30 @@ def collect_from_github(
                 if not org_login:
                     continue
 
-                # Skip orgs already in the database
-                if known_slugs and org_login.lower() in known_slugs:
-                    filtered_count += 1
-                    continue
+                slug = org_login.lower()
+                is_known = bool(known_slugs and slug in known_slugs)
 
-                score = score_startup_likelihood(org_login, description)
-                if score < min_startup_score:
-                    filtered_count += 1
-                    continue
+                # Non-startup filter still applies (score < threshold).
+                # Known orgs bypass this — they were already accepted in a prior run.
+                if not is_known:
+                    score = score_startup_likelihood(org_login, description)
+                    if score < min_startup_score:
+                        filtered_non_startup += 1
+                        continue
+
+                if is_known:
+                    known_count += 1
 
                 profile = CompanyProfile(
                     name=_format_display_name(org_login),
-                    slug=org_login.lower(),
+                    slug=slug,
                     description=description,
                     city=city,
                     country=country,
                     github_url=org_url,
                     source_url=org_url,
                     source_name=source.name,
+                    is_known_entity=is_known,
                 )
 
                 profiles.append(profile)
@@ -413,8 +439,16 @@ def collect_from_github(
                 break  # GitHub hard limit
             page += 1
 
-        if filtered_count:
-            logger.info("Filtered out %d non-startup orgs from %s", filtered_count, source.name)
+        if filtered_non_startup:
+            logger.info(
+                "Filtered out %d non-startup orgs from %s",
+                filtered_non_startup, source.name,
+            )
+        if known_count:
+            logger.info(
+                "Marked %d known orgs (enrichment) from %s",
+                known_count, source.name,
+            )
 
     except httpx.TimeoutException:
         logger.error("Timeout fetching GitHub API: %s", source.name)

@@ -16,7 +16,7 @@ from apps.agents.funding.collector import FundingEvent, collect_all_sources
 from apps.agents.funding.config import FUNDING_CONFIG
 from apps.agents.funding.processor import process_events
 from apps.agents.funding.scorer import ScoredFundingEvent, apply_cross_ref_verification, score_events
-from apps.agents.funding.synthesizer import synthesize_funding_report
+from apps.agents.funding.synthesizer import normalize_amount_usd, synthesize_funding_report
 from apps.agents.funding.writer import FundingWriter
 
 logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ class FundingAgent(BaseAgent):
             ],
             "item_count": len(scored_events),
             "funding_total_usd": sum(
-                s.event.amount_usd or 0 for s in scored_events
+                normalize_amount_usd(s.event.amount_usd) or 0 for s in scored_events
             ),
         }
 

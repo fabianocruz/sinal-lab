@@ -246,8 +246,10 @@ class MercadoWriter:
         """
         lines: list[str] = []
 
-        # Total count
-        lines.append(f"Total de empresas descobertas: {len(profiles)}")
+        # Total + new-vs-known breakdown
+        known = sum(1 for s in profiles if getattr(s.profile, "is_known_entity", False))
+        new = len(profiles) - known
+        lines.append(f"Total de empresas mapeadas: {len(profiles)} ({new} novas, {known} atualizadas)")
         lines.append("")
 
         # City breakdown

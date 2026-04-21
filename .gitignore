@@ -77,3 +77,10 @@ SCRATCHPAD.md
 # Branding exports (design tool output, not source code)
 branding/
 .vercel
+
+# Sinal — sensitive/working files
+.mcpregistry_*
+.claude/scheduled_tasks.lock
+*.py.bak
+/backups/
+/data/crunchbase_*.txt

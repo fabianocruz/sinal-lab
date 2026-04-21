@@ -36,6 +36,7 @@ class EvidenceType(str, Enum):
     FUNDING_EVENT = "funding_event"
     COMPANY_PROFILE = "company_profile"
     TWEET = "tweet"
+    SOCIAL_POST = "social_post"
 
 
 @dataclass

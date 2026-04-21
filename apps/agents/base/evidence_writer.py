@@ -161,11 +161,34 @@ def persist_evidence_batch(
     """
     stats: Dict[str, int] = {"inserted": 0, "updated": 0, "skipped": 0}
 
+    # Dedup within the batch by content_hash: the DB has a unique constraint,
+    # and SQLAlchemy's deferred flush means duplicates inside a single batch
+    # bypass the existence check below. Keep the highest-confidence item per hash.
+    seen: Dict[str, EvidenceItem] = {}
+    intra_batch_dupes = 0
     for item in items:
+        prior = seen.get(item.content_hash)
+        if prior is None or item.confidence > prior.confidence:
+            if prior is not None:
+                intra_batch_dupes += 1
+            seen[item.content_hash] = item
+        else:
+            intra_batch_dupes += 1
+    if intra_batch_dupes:
+        logger.info(
+            "Dedupped %d duplicate evidence items within batch of %d",
+            intra_batch_dupes, len(items),
+        )
+        stats["skipped"] += intra_batch_dupes
+
+    for item in seen.values():
         action = persist_evidence_item(
             session, item, collector_run_id=collector_run_id
         )
         stats[action] += 1
+        # Flush after each insert so subsequent queries see the row
+        # (prevents false "not found" when the same hash reappears downstream).
+        session.flush()
 
     session.commit()
 

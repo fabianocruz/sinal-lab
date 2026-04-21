@@ -19,6 +19,7 @@ from apps.agents.funding.collector import FundingEvent
 from apps.agents.mercado.collector import CompanyProfile
 from apps.agents.radar.collector import TrendSignal
 from apps.agents.sintese.collector import FeedItem
+from apps.agents.social_signals.models import SocialPost
 
 # Mapping from TrendSignal.source_type to EvidenceType
 _TREND_TYPE_MAP = {
@@ -150,6 +151,30 @@ def normalize_company_profile(profile: CompanyProfile, agent_name: str) -> Evide
     )
 
 
+def normalize_social_post(post: SocialPost, agent_name: str) -> EvidenceItem:
+    """Convert VOZES SocialPost to EvidenceItem."""
+    title = post.text[:140] if post.text else post.url
+    return EvidenceItem(
+        title=title,
+        url=post.url,
+        source_name=post.source_name or post.platform,
+        evidence_type=EvidenceType.SOCIAL_POST,
+        agent_name=agent_name,
+        content_hash=post.content_hash,
+        published_at=post.published_at,
+        summary=post.text,
+        author=post.author_display_name or post.author_handle,
+        metrics=post.metrics,
+        raw_data={
+            "platform": post.platform,
+            "author_handle": post.author_handle,
+            "author_followers": post.author_followers,
+            "external_url": post.external_url,
+            "image_url": post.image_url,
+        },
+    )
+
+
 def normalize_any(item: Any, agent_name: str) -> EvidenceItem:
     """Auto-detect type and normalize to EvidenceItem.
 
@@ -173,5 +198,7 @@ def normalize_any(item: Any, agent_name: str) -> EvidenceItem:
         return normalize_funding_event(item, agent_name)
     if isinstance(item, CompanyProfile):
         return normalize_company_profile(item, agent_name)
+    if isinstance(item, SocialPost):
+        return normalize_social_post(item, agent_name)
 
     raise ValueError("Unknown item type: {}".format(type(item).__name__))

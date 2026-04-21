@@ -414,8 +414,14 @@ class SinteseWriter:
             f'  "featured_video_url": null\n'
             f'}}\n\n'
             f"Regras:\n"
-            f"- callouts: gere 1-3 callouts (tipo highlight). Cada um deve ser um insight acionavel "
-            f"ou dado marcante da semana.\n"
+            f"- callouts: gere 1-3 callouts (tipo highlight). Cada callout deve ser ANALISE "
+            f"de padrao, contradicao ou implicacao, NAO press release de empresa especifica.\n"
+            f"  * RUIM: 'CloudWalk levanta R$ 5,5 bi em emissao recorde' (parece PR, elogia uma empresa)\n"
+            f"  * BOM: 'Mercado de FIDCs vive paradoxo: R$ 37 bi em atraso regulatorio enquanto "
+            f"    emissoes batem recorde; a proxima exigencia do Bacen pode travar captacao institucional'\n"
+            f"  * Cada callout DEVE responder 'por que isso importa pra quem constroi?'\n"
+            f"  * Cite ao menos 2 dados/empresas quando possivel (evita favorecer 1 empresa)\n"
+            f"  * Tom analitico, com angulo critico — nao celebratorio\n"
             f"- companies_mentioned: liste todas as empresas mencionadas nos titulos e resumos.\n"
             f"- topics: liste os 3-5 temas principais desta edicao.\n"
             f"- featured_video_url: se houver URL de video relevante, inclua-a. Senao, null.\n"

@@ -811,7 +811,7 @@ class IntelligenceHighlight:
     author: str = "Sinal Intelligence"
 
 
-_COLOR_INTELLIGENCE = "#59B4FF"
+_COLOR_INTELLIGENCE = "#FFD959"  # dourado premium — distingue research dos agents
 
 
 def _intelligence_highlight(highlight: IntelligenceHighlight) -> str:

@@ -1,219 +1,197 @@
-"""MERCADO Agent — LATAM startup mapping and ecosystem intelligence.
+"""MERCADO v2 Agent — Market Intelligence Weekly for LATAM tech.
 
-Discovers, profiles, and enriches company data to build a comprehensive
-database of the LATAM tech ecosystem.
+v2 is a READER, not a scraper. It queries:
+- funding_rounds (populated by FUNDING agent)
+- companies (populated by INDEX agent)
+
+And produces a weekly editorial analysis of market movements, organized
+by sector, following the same editorial bar as SINTESE/RADAR.
+
+Scraping responsibility moved to INDEX agent.
 """
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore
 from apps.agents.base.config import AgentCategory
 from apps.agents.base.output import AgentOutput
 from apps.agents.base.provenance import ProvenanceTracker
-from apps.agents.mercado.classifier import classify_all_profiles
-from apps.agents.mercado.collector import CompanyProfile, collect_all_sources, load_known_slugs
-from apps.agents.mercado.config import MERCADO_CONFIG
-from apps.agents.mercado.enricher import enrich_all_profiles
-from apps.agents.mercado.scorer import ScoredCompanyProfile, score_all_profiles
-from apps.agents.mercado.synthesizer import synthesize_ecosystem_snapshot
-from apps.agents.mercado.writer import MercadoWriter
+from apps.agents.mercado.market_event import MarketEvent, ScoredEvent, SectorSection
+from apps.agents.mercado.v2_classifier import build_sections
+from apps.agents.mercado.v2_collector import (
+    collect_funding_events,
+    enrich_events_with_companies,
+)
+from apps.agents.mercado.v2_scorer import score_and_rank_sections
+from apps.agents.mercado.v2_synthesizer import synthesize_market_intel
+from apps.agents.mercado.v2_writer import EditorialMetadata, MercadoV2Writer
 
 logger = logging.getLogger(__name__)
 
 
 class MercadoAgent(BaseAgent):
-    """MERCADO agent for LATAM startup mapping and ecosystem intelligence."""
+    """MERCADO v2 — Market Intelligence Weekly."""
 
     agent_name = "mercado"
-    agent_category = AgentCategory.DATA.value
+    agent_category = AgentCategory.CONTENT.value  # v2 produces editorial, not data
 
-    def __init__(self, week_number: int):
-        """Initialize MERCADO agent.
-
-        Args:
-            week_number: Week number of the year (1-52)
-        """
+    def __init__(self, week_number: int) -> None:
         super().__init__()
         self.week_number = week_number
-        self.config = MERCADO_CONFIG
-        self.dedup = True  # Set to False for ecosystem snapshot mode
         self.provenance = ProvenanceTracker()
-
-        # Generate run_id
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         self.run_id = f"mercado-{timestamp}"
-
-        logger.info(
-            "Initialized MERCADO agent: week=%d, run_id=%s",
-            week_number,
-            self.run_id,
-        )
+        self._sections: list[SectorSection] = []
+        logger.info("Initialized MERCADO v2 agent: week=%d, run_id=%s", week_number, self.run_id)
 
     def collect(self) -> list[Any]:
-        """Collect company profiles from all configured sources.
+        """Collect market events from the database."""
+        logger.info("Starting COLLECT phase (v2: reader mode)")
 
-        Loads existing slugs from the database for cross-run dedup,
-        so only genuinely new companies appear in the report.
+        from packages.database.session import get_session
+        session = get_session()
+        try:
+            # 7-day window is primary (what we report on)
+            events = collect_funding_events(session, days_back=7)
+            events = enrich_events_with_companies(session, events)
 
-        Returns:
-            List of CompanyProfile objects
-        """
-        logger.info("Starting COLLECT phase")
+            # If 7d is too thin, widen to 14d to bootstrap the edition.
+            if len(events) < 5:
+                logger.info("Thin week (%d events in 7d), widening to 14d", len(events))
+                events = collect_funding_events(session, days_back=14)
+                events = enrich_events_with_companies(session, events)
 
-        # Cross-run dedup: skip companies already in the database.
-        # Disable with dedup=False for ecosystem snapshot reports.
-        if self.dedup:
-            known_slugs = load_known_slugs()
-        else:
-            known_slugs = None
-
-        profiles = collect_all_sources(
-            sources=self.config.data_sources,
-            provenance=self.provenance,
-            known_slugs=known_slugs,
-        )
-
-        dedup_msg = f" (dedup against {len(known_slugs)} known)" if known_slugs else " (no dedup)"
-        logger.info("COLLECT phase complete: %d profiles collected%s", len(profiles), dedup_msg)
-        return profiles
+            self.provenance.track(
+                source_url=None,
+                source_name="funding_rounds_db",
+                extraction_method="database",
+            )
+            logger.info("COLLECT complete: %d market events", len(events))
+            return events  # type: ignore[return-value]
+        finally:
+            session.close()
 
     def process(self, raw_data: list[Any]) -> list[Any]:
-        """Process and enrich company profiles.
+        """Group events into editorial sections by sector."""
+        events: list[MarketEvent] = raw_data
+        logger.info("Starting PROCESS phase: %d events", len(events))
 
-        Steps:
-        1. Enrich with GitHub org data, website scraping, WHOIS
-        2. Classify sector based on keywords
-        3. Generate tags
-
-        Args:
-            raw_data: List of raw CompanyProfile objects
-
-        Returns:
-            List of processed and enriched CompanyProfile objects
-        """
-        logger.info("Starting PROCESS phase with %d profiles", len(raw_data))
-
-        profiles: list[CompanyProfile] = raw_data
-
-        # Step 1: Enrich profiles
-        profiles = enrich_all_profiles(profiles)
-
-        # Step 2: Classify sector and generate tags
-        profiles = classify_all_profiles(profiles)
-
-        # Step 3: Enrich tech_stack from Gupy job listings (if source enabled)
-        gupy_source = self.config.get_source_by_name("gupy_jobs")
-        if gupy_source and gupy_source.enabled:
-            from apps.agents.mercado.collector import enrich_from_gupy
-            profiles = enrich_from_gupy(profiles, gupy_source)
-
-        logger.info("PROCESS phase complete: %d profiles processed", len(profiles))
-        return profiles
+        sections = build_sections(events, max_sections=4, min_events_per_section=2)
+        logger.info(
+            "PROCESS complete: %d sections (%s)",
+            len(sections),
+            ", ".join(s.sector_slug for s in sections),
+        )
+        self._sections = sections
+        return sections  # type: ignore[return-value]
 
     def score(self, processed_data: list[Any]) -> list[ConfidenceScore]:
-        """Score company profiles for confidence.
+        """Score events within each section and keep top-N per section."""
+        sections: list[SectorSection] = processed_data
+        logger.info("Starting SCORE phase")
 
-        Args:
-            processed_data: List of processed CompanyProfile objects
+        scored_sections = score_and_rank_sections(sections, max_events_per_section=5)
+        self._sections = scored_sections
 
-        Returns:
-            List of ScoredCompanyProfile objects
-        """
-        logger.info("Starting SCORE phase with %d profiles", len(processed_data))
+        # Aggregate confidence: sources used, average editorial score
+        total_events = sum(len(s.events) for s in scored_sections)
+        if total_events == 0:
+            return [ConfidenceScore(data_quality=0.3, analysis_confidence=0.3)]
 
-        profiles: list[CompanyProfile] = processed_data
-        scored_profiles = score_all_profiles(profiles)
+        all_scored: list[ScoredEvent] = [
+            e for s in scored_sections for e in s.events  # type: ignore[misc]
+        ]
+        avg_score = (
+            sum(e.editorial_score for e in all_scored) / len(all_scored)
+            if all_scored else 0.5
+        )
+        return [ConfidenceScore(
+            data_quality=min(0.95, avg_score + 0.1),
+            analysis_confidence=avg_score,
+            source_count=1,  # single DB source
+            verified=all_scored and all_scored[0].editorial_score >= 0.7,
+        )]
 
-        logger.info("SCORE phase complete: %d profiles scored", len(scored_profiles))
-        return scored_profiles
+    def output(self, processed_data: list[Any], scores: list[Any]) -> AgentOutput:
+        """Generate newsletter Markdown + rich metadata."""
+        sections: list[SectorSection] = self._sections
+        confidence: ConfidenceScore = scores[0] if scores else ConfidenceScore(
+            data_quality=0.3, analysis_confidence=0.3
+        )
+        logger.info("Starting OUTPUT phase: %d sections", len(sections))
 
-    def output(
-        self,
-        processed_data: list[Any],
-        scores: list[Any],
-    ) -> AgentOutput:
-        """Generate ecosystem snapshot report.
-
-        Args:
-            processed_data: List of processed CompanyProfile objects (unused)
-            scores: List of ScoredCompanyProfile objects
-
-        Returns:
-            AgentOutput with Markdown ecosystem snapshot
-        """
-        logger.info("Starting OUTPUT phase")
-
-        scored_profiles: list[ScoredCompanyProfile] = scores
-
-        # Instantiate LLM writer (gracefully degrades if unavailable)
-        writer = MercadoWriter()
-
-        # Generate Markdown report with optional LLM enrichment
-        body_md = synthesize_ecosystem_snapshot(
-            scored_profiles, self.week_number, writer=writer
+        writer = MercadoV2Writer()
+        body_md, editorial_meta = synthesize_market_intel(
+            sections=sections,
+            week_number=self.week_number,
+            writer=writer,
         )
 
-        # Compute aggregate confidence
-        if scored_profiles:
-            avg_dq = sum(s.confidence.data_quality for s in scored_profiles) / len(scored_profiles)
-            avg_ac = sum(s.confidence.analysis_confidence for s in scored_profiles) / len(scored_profiles)
-            aggregate_confidence = ConfidenceScore(
-                data_quality=avg_dq,
-                analysis_confidence=avg_ac,
-                source_count=len(self.provenance.get_sources()),
-                verified=sum(1 for s in scored_profiles if s.confidence.verified) > len(scored_profiles) // 2,
-            )
-        else:
-            aggregate_confidence = ConfidenceScore(
-                data_quality=0.3,
-                analysis_confidence=0.3,
-            )
+        # Headline via LLM
+        title: Optional[str] = None
+        if writer.is_available and sections:
+            try:
+                title = writer.write_headline(sections, self.week_number)
+            except Exception:
+                logger.warning("Headline generation failed", exc_info=True)
+        if not title:
+            total = sum(len(s.events) for s in sections)
+            title = f"Market Intelligence LATAM — Semana {self.week_number}: {total} movimentos"
 
-        # Get source URLs
-        source_urls = self.provenance.get_source_urls()[:20]  # Top 20 sources
-
-        # Generate editorial title via LLM (falls back to template)
-        editorial_title = writer.write_headline(scored_profiles, self.week_number)
-        if not editorial_title:
-            editorial_title = f"MERCADO Report — Semana {self.week_number}/2026"
-
-        # Extract structured per-item data for email rendering and API
-        metadata = {
-            "items": [
-                {
-                    "company_name": s.profile.name,
-                    "company_slug": s.profile.slug or "",
-                    "website": s.profile.website or "",
-                    "sector": s.profile.sector or "",
-                    "city": s.profile.city or "",
-                    "country": s.profile.country,
-                    "source_url": s.profile.source_url,
-                    "source_name": s.profile.source_name,
-                    "github_url": s.profile.github_url or "",
-                    "description": (s.profile.description or "")[:200],
-                    "tech_stack": s.profile.tech_stack[:5],
-                }
-                for s in scored_profiles[:10]
-            ],
-            "item_count": len(scored_profiles),
+        # Build metadata following SINTESE shape
+        section_labels = {
+            f"section_{i + 1}": s.heading for i, s in enumerate(sections)
         }
 
-        # Create output
+        # Flatten events for API/email rendering
+        item_payload: list[dict] = []
+        for s in sections:
+            for scored in s.events:
+                e = scored.event if hasattr(scored, "event") else scored
+                item_payload.append({
+                    "company_name": e.company_name,
+                    "company_slug": e.company_slug,
+                    "sector_slug": s.sector_slug,
+                    "sector_heading": s.heading,
+                    "round_type": e.round_type,
+                    "amount_usd": e.amount_usd,
+                    "country": e.country,
+                    "city": e.city,
+                    "investors": e.investors,
+                    "source_url": e.source_url,
+                    "source_name": e.source_name,
+                    "occurred_at": e.occurred_at.isoformat() if e.occurred_at else None,
+                    "editorial_score": getattr(scored, "editorial_score", None),
+                    "signal_strength": getattr(scored, "signal_strength", None),
+                })
+
+        metadata = {
+            "section_labels": section_labels,
+            "callouts": editorial_meta.callouts if editorial_meta else [],
+            "companies_mentioned": editorial_meta.companies_mentioned if editorial_meta else [],
+            "topics": editorial_meta.topics if editorial_meta else [],
+            "email_subject": editorial_meta.email_subject if editorial_meta else None,
+            "reading_time_minutes": max(1, len(body_md.split()) // 200),
+            "week_number": self.week_number,
+            "items": item_payload,
+            "item_count": len(item_payload),
+        }
+
         output = AgentOutput(
-            title=editorial_title,
+            title=title,
             body_md=body_md,
             agent_name=self.agent_name,
             agent_category=self.agent_category,
             run_id=self.run_id,
-            confidence=aggregate_confidence,
-            sources=source_urls,
-            content_type="DATA_REPORT",
+            confidence=confidence,
+            sources=[],  # DB-sourced; populated separately if needed
+            content_type="NEWSLETTER",
             summary=(
-                f"Semana {self.week_number}: {len(scored_profiles)} organizacoes tech "
-                f"descobertas no ecossistema LATAM."
+                f"Market Intelligence LATAM semana {self.week_number}: "
+                f"{len(item_payload)} movimentos em {len(sections)} setores."
             ),
             metadata=metadata,
         )

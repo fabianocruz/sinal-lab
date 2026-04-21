@@ -39,7 +39,7 @@ class TestEvidenceType:
         assert EvidenceType.ARTICLE.value == "article"
 
     def test_all_types_exist(self) -> None:
-        expected = {"article", "repo", "package", "funding_event", "company_profile", "tweet"}
+        expected = {"article", "repo", "package", "funding_event", "company_profile", "tweet", "social_post"}
         actual = {t.value for t in EvidenceType}
         assert actual == expected
 
