@@ -28,6 +28,11 @@ export interface WaitlistSignupData {
   company?: string;
   role?: string;
   plan?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  referrer?: string;
+  landing_path?: string;
 }
 
 export interface WaitlistSignupResponse {
@@ -58,10 +63,25 @@ export interface PaginatedResponse<T> {
 // ---------------------------------------------------------------------------
 
 export async function submitWaitlist(data: WaitlistSignupData): Promise<WaitlistSignupResponse> {
+  // Attach UTM attribution from localStorage (set on first visit by <UTMCapture />).
+  // Caller-provided fields win over stored values.
+  let utmPayload: WaitlistSignupData = data;
+  if (typeof window !== "undefined") {
+    try {
+      const { readUTMWithContext } = await import("@/lib/utm");
+      const utm = readUTMWithContext();
+      if (utm) {
+        utmPayload = { ...utm, ...data };
+      }
+    } catch {
+      // UTM attach is best-effort.
+    }
+  }
+
   const response = await fetch(`${API_BASE}/api/waitlist`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify(utmPayload),
   });
 
   if (!response.ok) {

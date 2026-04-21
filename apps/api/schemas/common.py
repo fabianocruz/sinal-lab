@@ -40,6 +40,11 @@ class WaitlistSignup(BaseModel):
     role: Optional[str] = Field(None, max_length=50)
     company: Optional[str] = Field(None, max_length=255)
     plan: Optional[str] = Field(None, max_length=50)
+    utm_source: Optional[str] = Field(None, max_length=100)
+    utm_medium: Optional[str] = Field(None, max_length=100)
+    utm_campaign: Optional[str] = Field(None, max_length=200)
+    referrer: Optional[str] = Field(None, max_length=500)
+    landing_path: Optional[str] = Field(None, max_length=500)
 
 
 class WaitlistResponse(BaseModel):

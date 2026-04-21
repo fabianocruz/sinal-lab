@@ -37,7 +37,25 @@ def signup_waitlist(
     current_count = db.query(func.count(User.id)).scalar() or 0
     position = current_count + 1
 
-    metadata = {"plan": body.plan} if body.plan else None
+    metadata: dict = {}
+    if body.plan:
+        metadata["plan"] = body.plan
+
+    acquisition = {
+        k: v for k, v in {
+            "utm_source": body.utm_source,
+            "utm_medium": body.utm_medium,
+            "utm_campaign": body.utm_campaign,
+            "referrer": body.referrer,
+            "landing_path": body.landing_path,
+        }.items() if v
+    }
+    if acquisition:
+        from datetime import datetime, timezone
+        metadata["acquisition"] = {
+            **acquisition,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     user = User(
         id=uuid.uuid4(),
@@ -47,7 +65,7 @@ def signup_waitlist(
         company=body.company,
         waitlist_position=position,
         status="waitlist",
-        metadata_=metadata,
+        metadata_=metadata or None,
     )
     db.add(user)
     db.commit()

@@ -64,36 +64,33 @@ export default function IntelligenceGate({
 
         {/* Gate card */}
         <div className="relative z-10 mt-12 rounded-2xl border border-[rgba(255,255,255,0.06)] bg-sinal-graphite px-8 py-10 text-center">
+          {/* Social proof badge */}
           <div
-            className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full"
-            style={{ backgroundColor: `${accentColor}15` }}
-            aria-hidden="true"
+            className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border px-3 py-1"
+            style={{
+              borderColor: `${accentColor}33`,
+              backgroundColor: `${accentColor}0F`,
+            }}
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect
-                x="4"
-                y="9"
-                width="12"
-                height="9"
-                rx="2"
-                stroke={accentColor}
-                strokeWidth="1.5"
-              />
-              <path
-                d="M7 9V6a3 3 0 116 0v3"
-                stroke={accentColor}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            <span
+              className="block h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: accentColor }}
+              aria-hidden="true"
+            />
+            <span
+              className="font-mono text-[11px] font-semibold uppercase tracking-[1px]"
+              style={{ color: accentColor }}
+            >
+              +2.500 fundadores, CTOs e investidores já leem
+            </span>
           </div>
 
-          <h3 className="mb-2 font-display text-[18px] text-sinal-white">
-            Continue lendo gratuitamente
+          <h3 className="mb-3 font-display text-[22px] leading-tight text-sinal-white">
+            O resto do relatório, mais análise semanal de LATAM no seu email.
           </h3>
-          <p className="mx-auto mb-6 max-w-[380px] text-[14px] leading-relaxed text-ash">
-            Crie sua conta gratuita para acessar o relatorio completo, incluindo dados exclusivos e
-            analise detalhada.
+          <p className="mx-auto mb-6 max-w-[460px] text-[14px] leading-relaxed text-ash">
+            Toda semana, 5 relatórios gerados por AI agents com cobertura de funding rounds, market
+            maps e sinais técnicos. Grátis. Uma edição por semana. Cancela em 1 clique.
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -102,15 +99,20 @@ export default function IntelligenceGate({
               className="rounded-lg px-6 py-3 font-mono text-[13px] font-semibold text-sinal-black transition-opacity hover:opacity-90"
               style={{ backgroundColor: accentColor }}
             >
-              Criar conta gratuita
+              Quero o Sinal Semanal →
             </Link>
             <Link
               href={`/login${callbackParam}`}
               className="rounded-lg border border-[rgba(255,255,255,0.08)] px-6 py-3 font-mono text-[13px] text-sinal-white transition-colors hover:bg-[rgba(255,255,255,0.04)]"
             >
-              Ja tenho conta
+              Já tenho conta
             </Link>
           </div>
+
+          <p className="mt-5 font-mono text-[11px] text-ash">
+            Plata $405M · Cursor $50B · Ualá $195M · Creditas $108M &nbsp;—&nbsp; tudo coberto na
+            edição #55
+          </p>
         </div>
       </div>
     </div>

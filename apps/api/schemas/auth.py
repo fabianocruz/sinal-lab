@@ -7,12 +7,23 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class UTMData(BaseModel):
+    """Acquisition attribution captured client-side and forwarded at signup."""
+
+    utm_source: Optional[str] = Field(None, max_length=100)
+    utm_medium: Optional[str] = Field(None, max_length=100)
+    utm_campaign: Optional[str] = Field(None, max_length=200)
+    referrer: Optional[str] = Field(None, max_length=500)
+    landing_path: Optional[str] = Field(None, max_length=500)
+
+
 class RegisterRequest(BaseModel):
     """Request body for user registration."""
 
     email: str = Field(..., min_length=5, max_length=320)
     password: str = Field(..., min_length=8, max_length=128)
     name: Optional[str] = Field(None, max_length=255)
+    utm: Optional[UTMData] = None
 
 
 class VerifyRequest(BaseModel):
@@ -34,6 +45,7 @@ class OAuthSyncRequest(BaseModel):
     avatar_url: Optional[str] = Field(None, max_length=500)
     provider: str = Field(..., max_length=50)  # "google"
     provider_id: str = Field(..., max_length=255)  # Google sub ID
+    utm: Optional[UTMData] = None
 
 
 class UserResponse(BaseModel):

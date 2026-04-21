@@ -93,6 +93,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // still succeeds (user exists only in JWT until next sync).
       if (account?.provider === "google" && user.email) {
         try {
+          // NOTE: UTM attribution for OAuth signups requires bridging
+          // client-side localStorage to this server-side callback (e.g.
+          // via cookie set by <UTMCapture />). Not implemented yet —
+          // OAuth signups currently arrive without UTM data. Email
+          // registrations carry UTM correctly via SignupForm.
           const res = await fetchWithRetry(`${API_BASE}/api/auth/sync-oauth`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

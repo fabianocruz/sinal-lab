@@ -12,6 +12,7 @@ from apps.api.schemas.auth import (
     OAuthSyncRequest,
     RegisterRequest,
     UserResponse,
+    UTMData,
     VerifyRequest,
 )
 from apps.api.services.email import send_welcome_email
@@ -31,6 +32,36 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     """Verify a plaintext password against a bcrypt hash."""
     return _bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+
+
+def _attach_acquisition(user: User, utm: "UTMData | None" = None) -> None:
+    """Record acquisition attribution in user.metadata_.
+
+    Only writes when UTM data is present. Does not overwrite existing
+    acquisition data (first-touch attribution wins).
+    """
+    if utm is None:
+        return
+    payload = {
+        k: v for k, v in {
+            "utm_source": utm.utm_source,
+            "utm_medium": utm.utm_medium,
+            "utm_campaign": utm.utm_campaign,
+            "referrer": utm.referrer,
+            "landing_path": utm.landing_path,
+        }.items() if v
+    }
+    if not payload:
+        return
+    current = user.metadata_ or {}
+    if current.get("acquisition"):
+        return  # First-touch wins: don't overwrite earlier attribution
+    current = dict(current)
+    current["acquisition"] = {
+        **payload,
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+    }
+    user.metadata_ = current
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
@@ -58,6 +89,7 @@ def register(
             existing.name = body.name or existing.name
             existing.status = "active"
             existing.auth_provider = "email"
+            _attach_acquisition(existing, body.utm)
             db.commit()
             db.refresh(existing)
             background_tasks.add_task(send_welcome_email, existing.email, existing.name)
@@ -73,6 +105,7 @@ def register(
         auth_provider="email",
         status="active",
     )
+    _attach_acquisition(user, body.utm)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -121,6 +154,7 @@ def sync_oauth(
             if existing.auth_provider == "email" and not existing.password_hash:
                 existing.auth_provider = body.provider
                 existing.auth_provider_id = body.provider_id
+            _attach_acquisition(existing, body.utm)
             db.commit()
             db.refresh(existing)
             background_tasks.add_task(send_welcome_email, existing.email, existing.name)
@@ -147,6 +181,7 @@ def sync_oauth(
         last_login_at=now,
         status="active",
     )
+    _attach_acquisition(user, body.utm)
     db.add(user)
     db.commit()
     db.refresh(user)

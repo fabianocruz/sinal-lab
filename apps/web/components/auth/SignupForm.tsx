@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { readUTMWithContext } from "@/lib/utm";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -39,10 +40,16 @@ export default function SignupForm() {
 
     // Step 1: register on the FastAPI backend.
     try {
+      const utm = readUTMWithContext();
       const registerRes = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name || undefined, email, password }),
+        body: JSON.stringify({
+          name: name || undefined,
+          email,
+          password,
+          utm: utm || undefined,
+        }),
       });
 
       if (!registerRes.ok) {
