@@ -255,6 +255,14 @@ FEATURE_HIGHLIGHTS: Dict[int, dict] = {
         "cta_label": "Explorar sinais",
         "color": "#E8FF59",
     },
+    55: {
+        "title": "O landscape do agentic commerce",
+        "summary": "Mapa completo dos protocolos, players e camadas da economia de agentes que transacionam: de MCP a A2A, de Stripe Agents a Shopify Commerce Components. Leitura essencial para quem esta construindo AI agents que vao alem de conversar.",
+        "site_url": "https://codespar.dev/blog/agentic-commerce-landscape",
+        "badge": "Patrocinado por CodeSpar",
+        "cta_label": "Ler o landscape",
+        "color": "#3B82F6",
+    },
 }
 
 

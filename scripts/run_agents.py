@@ -77,13 +77,14 @@ AGENTS = {
     },
     "mercado": {
         "module": "apps.agents.mercado.main",
-        "description": "LATAM startup mapping and ecosystem intelligence",
+        "description": "Market Intelligence Weekly — editorial analysis of LATAM tech ecosystem",
         "class_module": "apps.agents.mercado.agent",
         "class_name": "MercadoAgent",
         "period_arg": "week",
         "slug_pattern": "mercado-week-{period}",
         "output_dir": "apps/agents/mercado/output",
         "filename_pattern": "mercado-week-{period}.md",
+        "skip_evidence": True,  # v2 reads from DB, doesn't produce new evidence items
     },
     "index": {
         "module": "apps.agents.index.main",
@@ -94,6 +95,7 @@ AGENTS = {
         "slug_pattern": "index-week-{period}",
         "output_dir": "apps/agents/index/output",
         "filename_pattern": "index-week-{period}.md",
+        "skip_evidence": True,
     },
     "social_signals": {
         "module": "apps.agents.social_signals.main",
@@ -199,16 +201,12 @@ def _funding_domain_persist(agent: Any, agent_output: Any, session: Any) -> None
 
 
 def _mercado_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
-    """Persist MERCADO-specific data (company profiles)."""
-    from apps.agents.mercado.db_writer import persist_all_profiles
+    """MERCADO v2 is a READER — no domain-specific persistence.
 
-    scored_profiles = getattr(agent, "_scores", [])
-    if scored_profiles:
-        profiles_with_confidence = [
-            (scored.profile, scored.composite_score) for scored in scored_profiles
-        ]
-        stats = persist_all_profiles(session, profiles_with_confidence)
-        logging.getLogger("run_agents").info("Persisted company profiles: %s", stats)
+    Editorial output is persisted by the orchestrator as ContentPiece.
+    Company data writes are now the responsibility of INDEX.
+    """
+    return
 
 
 def _index_domain_persist(agent: Any, agent_output: Any, session: Any) -> None:
@@ -267,6 +265,16 @@ def _load_agent_class(name: str) -> type:
     return getattr(mod, cfg["class_name"])
 
 
+def _next_sintese_edition(session: Any) -> int:
+    """Return max(edition_number)+1 for sintese content_pieces, or 1 if none exist."""
+    from sqlalchemy import text
+    row = session.execute(text(
+        "SELECT MAX((metadata->>'edition_number')::int) FROM content_pieces "
+        "WHERE agent_name = 'sintese' AND metadata ? 'edition_number'"
+    )).scalar()
+    return (row or 0) + 1
+
+
 def orchestrate_single_agent(
     name: str,
     period_value: int,
@@ -300,9 +308,11 @@ def orchestrate_single_agent(
             slug = cfg["slug_pattern"]
         domain_fn = DOMAIN_PERSIST_FNS.get(name)
 
+        agent_evidence = enable_evidence and not cfg.get("skip_evidence", False)
+
         logger.info(
             "Orchestrating %s (slug=%s, editorial=%s, evidence=%s)",
-            name.upper(), slug, enable_editorial, enable_evidence,
+            name.upper(), slug, enable_editorial, agent_evidence,
         )
 
         result = orchestrate_agent_run(
@@ -310,7 +320,7 @@ def orchestrate_single_agent(
             session=session,
             slug=slug,
             enable_editorial=enable_editorial,
-            enable_evidence=enable_evidence,
+            enable_evidence=agent_evidence,
             persist=True,
             domain_persist_fn=domain_fn,
         )
@@ -434,8 +444,8 @@ Available agents:
         help="Week number (for week-based agents)",
     )
     parser.add_argument(
-        "--edition", type=int, default=1,
-        help="Edition number (for sintese agent)",
+        "--edition", type=int, default=None,
+        help="Edition number (for sintese agent). Defaults to max(edition_number)+1 from DB.",
     )
     parser.add_argument(
         "--persist", action="store_true",
@@ -484,7 +494,7 @@ Available agents:
         agents_to_run = []  # handled specially
     elif args.agent == "all":
         is_pipeline = False
-        agents_to_run = list(AGENTS.keys())
+        agents_to_run = [name for name in AGENTS.keys() if name != "social_signals"]
     else:
         is_pipeline = False
         agents_to_run = [args.agent]
@@ -516,7 +526,7 @@ Available agents:
                 for name in agents_to_run:
                     cfg = AGENTS[name]
                     if cfg["period_arg"] == "edition":
-                        period_value = args.edition
+                        period_value = args.edition if args.edition is not None else _next_sintese_edition(session)
                     elif cfg["period_arg"] is not None:
                         period_value = week_val
                     else:
