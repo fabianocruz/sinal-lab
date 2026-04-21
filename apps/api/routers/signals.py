@@ -377,6 +377,11 @@ def list_voices(
     platform: Optional[str] = Query(None, description="Filter by platform"),
     account_type: Optional[str] = Query(None, description="Filter by account type"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    sort_by: str = Query(
+        "recent_activity",
+        description="Sort strategy: 'recent_activity' (default, activity in last 7d "
+        "then authority) or 'authority' (historical only).",
+    ),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -403,15 +408,33 @@ def list_voices(
         query = query.filter(MonitoredAccount.is_active == is_active)
 
     total = query.count()
-    accounts = (
-        query.order_by(desc(MonitoredAccount.authority_score))
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
 
-    # Batch-fetch recent signals (avoids N+1 queries per account)
-    signals_by_handle = _batch_fetch_signals_for_voices(db, accounts)
+    if sort_by == "authority":
+        # Historical authority only (legacy behaviour).
+        accounts = (
+            query.order_by(desc(MonitoredAccount.authority_score))
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+        signals_by_handle = _batch_fetch_signals_for_voices(db, accounts)
+    else:
+        # Default: rank by recent activity (7d) then authority as tiebreaker.
+        # Pull a wider slice, join with activity counts, then slice.
+        all_accounts = (
+            query.order_by(desc(MonitoredAccount.authority_score))
+            .limit(500)  # cap for performance; 500 covers typical leaderboard depth
+            .all()
+        )
+        signals_by_handle = _batch_fetch_signals_for_voices(db, all_accounts)
+        all_accounts.sort(
+            key=lambda a: (
+                len(signals_by_handle.get(a.handle, [])),
+                a.authority_score or 0.0,
+            ),
+            reverse=True,
+        )
+        accounts = all_accounts[offset : offset + limit]
 
     items: List[MonitoredAccountResponse] = []
     for account in accounts:

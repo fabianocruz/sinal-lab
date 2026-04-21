@@ -1,9 +1,17 @@
 import Link from "next/link";
 import type { WeeklyPulse } from "@/lib/signal";
 import { PLATFORM_COLORS, PLATFORM_LABELS } from "@/lib/signal";
+import MarkdownRenderer from "@/components/newsletter/MarkdownRenderer";
 
 interface MemoPanelProps {
   pulse: WeeklyPulse | null;
+  /**
+   * Editorial memo body in Markdown (3-paragraph analysis).
+   * Populated from the PULSO ContentPiece (slug: pulso-week-N).
+   * When absent, the banner renders with the generic summary line.
+   */
+  editorialBodyMd?: string | null;
+  editorialTitle?: string | null;
 }
 
 function SectionHeader({ label, count }: { label: string; count?: number }) {
@@ -33,7 +41,7 @@ function EmptyPulse() {
   );
 }
 
-export default function MemoPanel({ pulse }: MemoPanelProps) {
+export default function MemoPanel({ pulse, editorialBodyMd, editorialTitle }: MemoPanelProps) {
   if (!pulse) {
     return (
       <div id="panel-memo" role="tabpanel" aria-label="Memo Semanal">
@@ -58,9 +66,9 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
 
   return (
     <div id="panel-memo" role="tabpanel" aria-label="Memo Semanal" className="space-y-6">
-      {/* Header card */}
-      <div className="rounded-xl border border-[rgba(232,255,89,0.15)] bg-[rgba(232,255,89,0.04)] px-6 py-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
+      {/* Header card — editorial memo if available, stats line otherwise */}
+      <div className="rounded-xl border border-[rgba(232,255,89,0.15)] bg-[rgba(232,255,89,0.04)] px-6 py-6 md:px-8 md:py-8">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="h-2 w-2 animate-pulse rounded-full bg-signal" aria-hidden="true" />
             <span className="font-mono text-[11px] uppercase tracking-[2px] text-signal">
@@ -71,11 +79,28 @@ export default function MemoPanel({ pulse }: MemoPanelProps) {
             Semana {pulse.week_number} / {pulse.year}
           </span>
         </div>
-        <p className="text-[14px] leading-[1.5] text-silver">
-          Resumo curado dos sinais mais relevantes da semana em tecnologia, financas e startups
-          LATAM, gerado pelo agente{" "}
-          <span className="font-mono text-[11px] text-agent-radar">RADAR</span>.
-        </p>
+        {editorialBodyMd ? (
+          <>
+            {editorialTitle && (
+              <h2 className="mb-4 font-display text-[clamp(20px,2.6vw,28px)] leading-tight text-sinal-white">
+                {editorialTitle}
+              </h2>
+            )}
+            <div className="prose-sinal max-w-[720px]">
+              <MarkdownRenderer content={editorialBodyMd} agentColor="#E8FF59" />
+            </div>
+            <p className="mt-5 border-t border-[rgba(255,255,255,0.06)] pt-4 font-mono text-[11px] text-ash">
+              Analise semanal gerada pelo agente <span className="text-agent-radar">PULSO</span>{" "}
+              &middot; Sinais de Twitter/X, LinkedIn, Bluesky, Reddit e YouTube
+            </p>
+          </>
+        ) : (
+          <p className="text-[14px] leading-[1.5] text-silver">
+            Resumo curado dos sinais mais relevantes da semana em tecnologia, financas e startups
+            LATAM, gerado pelo agente{" "}
+            <span className="font-mono text-[11px] text-agent-radar">RADAR</span>.
+          </p>
+        )}
       </div>
 
       {/* Two-column layout for top sections */}

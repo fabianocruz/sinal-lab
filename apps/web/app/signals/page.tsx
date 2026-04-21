@@ -29,6 +29,7 @@ import {
   fetchSignalClusters,
   fetchSignals,
   fetchLatestPulse,
+  fetchNewsletterBySlug,
   fetchVoices,
   fetchCompanies,
 } from "@/lib/api";
@@ -77,6 +78,14 @@ export default async function SignalsPage({
 
   // Always fetch stats (used in header) and pulse (used in pulse + memo panels)
   const [stats, pulse] = await Promise.all([fetchSignalStats(), fetchLatestPulse()]);
+
+  // Editorial memo (LLM 3-paragraph banner on ?tab=memo) — lazy, only when
+  // the memo tab is active. PULSO persists ContentPiece with slug
+  // `pulso-week-N`. Falls back gracefully when absent.
+  let pulsoMemo = null;
+  if (activeTab === "memo" && pulse?.week_number) {
+    pulsoMemo = await fetchNewsletterBySlug(`pulso-week-${pulse.week_number}`);
+  }
 
   // Fetch data for the active tab only to keep page fast
   const [
@@ -204,7 +213,13 @@ export default async function SignalsPage({
             <TemasPanel clusters={temasClusters} signals={temasSignalsData.items} />
           )}
 
-          {activeTab === "memo" && <MemoPanel pulse={pulse} />}
+          {activeTab === "memo" && (
+            <MemoPanel
+              pulse={pulse}
+              editorialBodyMd={pulsoMemo?.body_md ?? null}
+              editorialTitle={pulsoMemo?.title ?? null}
+            />
+          )}
         </div>
 
         {/* Methodology badge */}

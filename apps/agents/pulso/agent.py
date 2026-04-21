@@ -298,17 +298,25 @@ class PulsoAgent(BaseAgent):
 
         editorial_title = self._generate_title(clusters)
 
+        themed_count = len([s for s in self._all_signals if s.theme])
+        platform_count = len(set(s.post.platform for s in self._all_signals)) if self._all_signals else 0
+
+        # Editorial memo — 3 paragraphs that render as the /signals?tab=memo
+        # banner. Falls back to the stats line when LLM is unavailable.
+        editorial_memo = self._generate_memo(clusters, themed_count, platform_count)
+
         body_sections: List[str] = []
         body_sections.append(
             f"# Pulso Semanal - Semana {self.week_number}\n"
         )
 
-        themed_count = len([s for s in self._all_signals if s.theme])
-        platform_count = len(set(s.post.platform for s in self._all_signals)) if self._all_signals else 0
-        body_sections.append(
-            f"*{themed_count} sinais analisados de {platform_count} plataformas. "
-            f"{len(clusters)} clusters identificados.*\n"
-        )
+        if editorial_memo:
+            body_sections.append(editorial_memo)
+        else:
+            body_sections.append(
+                f"*{themed_count} sinais analisados de {platform_count} plataformas. "
+                f"{len(clusters)} clusters identificados.*\n"
+            )
 
         # Section 1: Temas em Aceleracao
         accelerating = [c for c in clusters if c.narrative_stage == "accelerating"][:5]
@@ -354,6 +362,97 @@ class PulsoAgent(BaseAgent):
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _generate_memo(
+        self,
+        clusters: List[SignalClusterResult],
+        themed_count: int,
+        platform_count: int,
+    ) -> Optional[str]:
+        """Generate a 3-paragraph editorial memo for the Weekly Pulse.
+
+        The memo replaces the generic stats line as the banner content on
+        /signals?tab=memo. Structure:
+          1. Dominant thesis (what's converging)
+          2. Sectoral contrast (what stood out vs last week / vs other sectors)
+          3. What to monitor (emerging signals, not yet dominant)
+
+        Returns None when LLM is unavailable so the caller falls back to a
+        template line.
+        """
+        if not clusters or not self._llm_client.is_available:
+            return None
+
+        # Build cluster context (top 8 by score) with enough detail for the LLM
+        top_clusters = clusters[:8]
+        cluster_lines = []
+        for c in top_clusters:
+            platforms = ", ".join(sorted(c.platforms)) if c.platforms else "?"
+            cluster_lines.append(
+                f"- {c.name}: {c.signal_count} sinais, plataformas={platforms}, "
+                f"stage={c.narrative_stage}, score={c.composite_score:.2f}"
+            )
+        context = "\n".join(cluster_lines)
+
+        # Sample top posts for texture (3 random from top clusters)
+        sample_posts: List[str] = []
+        for c in top_clusters[:3]:
+            if c.signals:
+                top_signal = c.signals[0]
+                text_snippet = (top_signal.post.text or "")[:120].replace("\n", " ")
+                if text_snippet:
+                    sample_posts.append(
+                        f"- [{top_signal.post.platform}] {text_snippet}..."
+                    )
+
+        system = (
+            "Voce e o analista de sinais sociais da plataforma Sinal.lab, especializado em "
+            "identificar teses emergentes no ecossistema tech LATAM antes que virem mainstream.\n\n"
+            "Seu trabalho e escrever o MEMO SEMANAL — 3 paragrafos editoriais que dao contexto "
+            "aos sinais coletados em Twitter, LinkedIn, Bluesky, Reddit e YouTube. Nao e lista "
+            "de clusters; e interpretacao do que os padroes revelam.\n\n"
+            "Estilo editorial:\n"
+            "- Tom analitico, especifico, factual\n"
+            "- Portugues brasileiro (PT-BR)\n"
+            "- NUNCA use em dash (U+2014). Use virgula, dois pontos ou ponto.\n"
+            "- Sem 'vale ressaltar', 'neste contexto', 'e importante destacar'\n"
+            "- Sem 'revolucionario', 'disruptivo', 'game-changer'\n"
+            "- Pergunta-filtro: 'Um CTO pararia de trabalhar para ler isto?'"
+        )
+
+        sample_posts_block = "\n".join(sample_posts) if sample_posts else "(sem amostras)"
+
+        prompt = (
+            f"Escreva o MEMO SEMANAL do PULSO da semana {self.week_number}. "
+            f"3 paragrafos, 300-450 palavras total.\n\n"
+            f"Dados da semana:\n"
+            f"- {themed_count} sinais classificados em {platform_count} plataformas\n"
+            f"- {len(clusters)} clusters identificados\n\n"
+            f"Top clusters:\n{context}\n\n"
+            f"Amostras de posts:\n{sample_posts_block}\n\n"
+            "Estrutura dos 3 paragrafos:\n"
+            "1. TESE DOMINANTE: qual padrao conecta os clusters mais fortes. Cite 2-3 clusters "
+            "concretos e o que eles revelam juntos sobre sentimento do ecossistema.\n"
+            "2. CONTRASTE: onde ha divergencia entre plataformas, setores ou regioes. "
+            "Cite numeros concretos.\n"
+            "3. O QUE MONITORAR: sinal emergente que ainda nao e tese, mas merece atencao "
+            "na proxima semana. Seja especifico.\n\n"
+            "Regras:\n"
+            "- NAO use titulos H1/H2 dentro dos paragrafos\n"
+            "- Pode usar **bold** para destacar nomes/numeros\n"
+            "- NAO inicie com 'Nesta semana', 'A semana N', 'Esta edicao'\n"
+            "- Retorne APENAS os 3 paragrafos em Markdown"
+        )
+
+        result = self._llm_client.generate(
+            user_prompt=prompt,
+            system_prompt=system,
+            max_tokens=900,
+            temperature=0.5,
+        )
+        if result and result.strip():
+            return result.strip()
+        return None
 
     def _generate_title(self, clusters: List[SignalClusterResult]) -> str:
         """Generate an editorial title for the Weekly Pulse."""
@@ -525,7 +624,14 @@ class PulsoAgent(BaseAgent):
         return "\n".join(lines)
 
     def _render_companies(self, clusters: List[SignalClusterResult]) -> str:
-        """Render companies mentioned across all clusters."""
+        """Render companies mentioned across all clusters.
+
+        Entity validation (2026-04-21): cross-references each extracted name
+        against the `companies` table and `funding_rounds.company_name`. Drops:
+        - Names starting with /u/ or @ (social handles, not companies)
+        - Names < 3 chars or uppercase-only codes (e.g. "BN", "TRN")
+        - Names that don't match any known company AND appear < 3 times
+        """
         lines = ["## Startups para Monitorar\n"]
 
         company_total: dict = {}
@@ -533,23 +639,76 @@ class PulsoAgent(BaseAgent):
             for company in cluster.related_companies:
                 name = company["name"]
                 count = company.get("mention_count", 1)
-                if name in company_total:
-                    company_total[name] += count
-                else:
-                    company_total[name] = count
+                company_total[name] = company_total.get(name, 0) + count
 
+        validated = self._validate_company_mentions(company_total)
         sorted_companies = sorted(
-            company_total.items(), key=lambda x: x[1], reverse=True,
+            validated.items(), key=lambda x: x[1], reverse=True,
         )
 
         for i, (name, count) in enumerate(sorted_companies[:15], 1):
             lines.append(f"{i}. **{name}** ({count} mencoes)")
 
         if not sorted_companies:
-            lines.append("*Nenhuma startup identificada nas mencoes.*")
+            lines.append("*Nenhuma startup validada esta semana.*")
 
         lines.append("")
         return "\n".join(lines)
+
+    def _validate_company_mentions(self, mentions: dict) -> dict:
+        """Filter raw entity mentions against known LATAM company database.
+
+        An entity passes validation if EITHER:
+          - slug matches a row in `companies` table, OR
+          - slug matches a `funding_rounds.company_name`, OR
+          - name appears >= 3 times (high-confidence organic mention)
+        """
+        if not mentions:
+            return {}
+
+        # Discard social handles and codes up front
+        clean = {}
+        for name, count in mentions.items():
+            if not name or len(name) < 3:
+                continue
+            if name.startswith(("/u/", "@", "u/", "r/")):
+                continue
+            # Filter all-caps codes shorter than 5 chars (e.g. BN, TRN, FII)
+            if len(name) < 5 and name == name.upper():
+                continue
+            clean[name] = count
+
+        if not clean:
+            return {}
+
+        # Load known slugs/names from DB
+        known_set: set = set()
+        try:
+            from packages.database.session import get_session
+            from packages.database.models.company import Company
+            from packages.database.models.funding_round import FundingRound
+
+            session = get_session()
+            try:
+                for (slug,) in session.query(Company.slug).all():
+                    if slug:
+                        known_set.add(slug.lower())
+                for (cname,) in session.query(FundingRound.company_name).distinct().all():
+                    if cname:
+                        known_set.add(cname.lower())
+            finally:
+                session.close()
+        except Exception as e:
+            logger.warning("Entity validation DB lookup failed: %s", e)
+            # If DB unreachable, keep only high-confidence organic mentions (>=3).
+            return {n: c for n, c in clean.items() if c >= 3}
+
+        validated = {}
+        for name, count in clean.items():
+            norm = name.lower().strip()
+            if norm in known_set or count >= 3:
+                validated[name] = count
+        return validated
 
     def _render_implications(self, clusters: List[SignalClusterResult]) -> str:
         """Render strategic implications section."""

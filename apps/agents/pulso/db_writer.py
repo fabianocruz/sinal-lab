@@ -214,12 +214,16 @@ def _upsert_weekly_pulse(
             count = comp.get("mention_count", 1)
             company_counts[name] = company_counts.get(name, 0) + count
 
-    # Try to enrich with full company names from the companies table
-    enriched_names = _enrich_company_names(session, list(company_counts.keys()))
+    # Entity validation — drop social handles, short codes, and
+    # low-confidence names that don't match any known company.
+    validated = _validate_company_mentions(session, company_counts)
+
+    # Enrich validated names with the canonical form from `companies` table.
+    enriched_names = _enrich_company_names(session, list(validated.keys()))
 
     startups_to_watch = [
         {"name": enriched_names.get(name, name), "mentions": count}
-        for name, count in sorted(company_counts.items(), key=lambda x: x[1], reverse=True)
+        for name, count in sorted(validated.items(), key=lambda x: x[1], reverse=True)
     ][:10]
 
     if existing:
@@ -257,6 +261,65 @@ def _upsert_weekly_pulse(
     )
     session.add(record)
     return "inserted"
+
+
+def _validate_company_mentions(
+    session: Session,
+    mentions: Dict[str, int],
+) -> Dict[str, int]:
+    """Filter raw entity mentions to real companies only.
+
+    Passes validation if EITHER:
+      - name matches a known company (via `companies.slug`/`companies.name`
+        or `funding_rounds.company_name`), OR
+      - name has >= 3 organic mentions (high-confidence signal).
+
+    Always drops:
+      - Social handle prefixes (`/u/`, `@`, `u/`, `r/`)
+      - Tokens < 3 chars
+      - All-caps codes under 5 chars (e.g. BN, TRN, FII)
+    """
+    if not mentions:
+        return {}
+
+    clean: Dict[str, int] = {}
+    for name, count in mentions.items():
+        if not name or len(name) < 3:
+            continue
+        lower = name.lower()
+        if lower.startswith(("/u/", "@", "u/", "r/")):
+            continue
+        if len(name) < 5 and name == name.upper():
+            continue
+        clean[name] = count
+
+    if not clean:
+        return {}
+
+    known: set = set()
+    try:
+        from packages.database.models.company import Company
+        from packages.database.models.funding_round import FundingRound
+
+        for (slug,) in session.query(Company.slug).all():
+            if slug:
+                known.add(slug.lower())
+        for (cname,) in session.query(Company.name).all():
+            if cname:
+                known.add(cname.lower())
+        for (cname,) in session.query(FundingRound.company_name).distinct().all():
+            if cname:
+                known.add(cname.lower())
+    except Exception as e:
+        logger.warning("Entity validation DB lookup failed: %s", e)
+        # Without DB, keep only high-confidence organic mentions.
+        return {n: c for n, c in clean.items() if c >= 3}
+
+    validated: Dict[str, int] = {}
+    for name, count in clean.items():
+        if name.lower() in known or count >= 3:
+            validated[name] = count
+    return validated
 
 
 def _enrich_company_names(
