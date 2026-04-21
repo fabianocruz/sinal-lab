@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { WeeklyPulse } from "@/lib/signal";
-import { PLATFORM_COLORS, PLATFORM_LABELS } from "@/lib/signal";
+import { PLATFORM_COLORS } from "@/lib/signal";
 import MarkdownRenderer from "@/components/newsletter/MarkdownRenderer";
 
 interface MemoPanelProps {
@@ -51,7 +51,6 @@ export default function MemoPanel({ pulse, editorialBodyMd, editorialTitle }: Me
   }
 
   const acceleratingThemes = pulse.accelerating_themes ?? [];
-  const emergingSignals = pulse.emerging_signals ?? [];
   const topPosts = pulse.top_posts ?? [];
   const topVoices = pulse.top_voices ?? [];
   const startupsToWatch = pulse.startups_to_watch ?? [];
@@ -103,70 +102,31 @@ export default function MemoPanel({ pulse, editorialBodyMd, editorialTitle }: Me
         )}
       </div>
 
-      {/* Two-column layout for top sections */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Accelerating themes */}
-        <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-          <SectionHeader label="5 Tendencias" count={acceleratingThemes.length} />
-          {acceleratingThemes.length > 0 ? (
-            <ol className="space-y-3">
-              {acceleratingThemes.slice(0, 5).map((theme, i) => (
-                <li key={theme.name} className="flex items-start gap-3">
-                  <span className="mt-px shrink-0 font-mono text-[11px] text-[#4A4A56]">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[13px] text-sinal-white">{theme.name}</p>
-                    {theme.delta > 0 && (
-                      <p className="font-mono text-[11px] text-signal">
-                        +{Math.round(theme.delta * 100)}% esta semana
-                      </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-[13px] text-ash">Nenhum dado disponivel.</p>
-          )}
-        </div>
-
-        {/* Emerging signals */}
-        <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-          <SectionHeader label="5 Sinais" count={emergingSignals.length} />
-          {emergingSignals.length > 0 ? (
-            <ol className="space-y-3">
-              {emergingSignals.slice(0, 5).map((signal, i) => (
-                <li key={signal.name} className="flex items-start gap-3">
-                  <span className="mt-px shrink-0 font-mono text-[11px] text-[#4A4A56]">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[13px] text-sinal-white">{signal.name}</p>
-                    {signal.platforms.length > 0 && (
-                      <div className="mt-0.5 flex flex-wrap gap-1">
-                        {signal.platforms.map((p) => (
-                          <span
-                            key={p}
-                            className="rounded px-1 py-[1px] font-mono text-[9px] uppercase"
-                            style={{
-                              color: PLATFORM_COLORS[p] ?? "#8A8A96",
-                              backgroundColor: `${PLATFORM_COLORS[p] ?? "#8A8A96"}14`,
-                            }}
-                          >
-                            {PLATFORM_LABELS[p] ?? p}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-[13px] text-ash">Nenhum dado disponivel.</p>
-          )}
-        </div>
+      {/* Accelerating themes — single column, top 8 (Sinais Emergentes removed
+          in favour of the editorial memo above + accelerating themes here) */}
+      <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
+        <SectionHeader label="Temas Acelerando" count={acceleratingThemes.length} />
+        {acceleratingThemes.length > 0 ? (
+          <ol className="space-y-3">
+            {acceleratingThemes.slice(0, 8).map((theme, i) => (
+              <li key={theme.name} className="flex items-start gap-3">
+                <span className="mt-px shrink-0 font-mono text-[11px] text-[#4A4A56]">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-[13px] text-sinal-white">{theme.name}</p>
+                  {theme.delta > 0 && (
+                    <p className="font-mono text-[11px] text-signal">
+                      +{Math.round(theme.delta * 100)}% esta semana
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="text-[13px] text-ash">Nenhum dado disponivel.</p>
+        )}
       </div>
 
       {/* Top posts */}

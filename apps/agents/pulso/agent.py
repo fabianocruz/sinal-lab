@@ -552,12 +552,23 @@ class PulsoAgent(BaseAgent):
         return "\n".join(lines)
 
     def _render_top_posts(self, clusters: List[SignalClusterResult]) -> str:
-        """Render top 10 posts across all clusters."""
+        """Render top 10 posts across all clusters.
+
+        LATAM filter (2026-04-21): drops posts that have zero LATAM signal
+        in text/language/handle. Editorial promise is "Signal Intelligence
+        LATAM" — 20VC/Stratechery/generic global threads were crowding the
+        leaderboard and hiding LATAM voices.
+        """
         lines = ["## Posts mais Relevantes\n"]
 
         all_top: List[dict] = []
         for cluster in clusters:
             all_top.extend(cluster.top_posts)
+
+        # Filter for LATAM relevance; keep full list as fallback if filter
+        # drops everything (rare but possible on thin weeks).
+        latam_posts = [p for p in all_top if _is_latam_post(p)]
+        pool = latam_posts if latam_posts else all_top
 
         def _engagement(p: dict) -> float:
             m = p.get("metrics", {})
@@ -568,9 +579,9 @@ class PulsoAgent(BaseAgent):
                 + m.get("score", 0)
             )
 
-        all_top.sort(key=_engagement, reverse=True)
+        pool.sort(key=_engagement, reverse=True)
 
-        for i, post in enumerate(all_top[:10], 1):
+        for i, post in enumerate(pool[:10], 1):
             author = post.get("author", "")
             platform = post.get("platform", "")
             text = post.get("text", "")[:120]
@@ -581,7 +592,7 @@ class PulsoAgent(BaseAgent):
                 + (f" [link]({url})" if url else "")
             )
 
-        if not all_top:
+        if not pool:
             lines.append("*Nenhum post relevante identificado.*")
 
         lines.append("")
@@ -803,3 +814,53 @@ class PulsoAgent(BaseAgent):
                 for c in clusters[:20]
             ],
         }
+
+
+# --- Module-level helpers ---
+
+# Token set that signals LATAM relevance in text, handle, or source.
+# Kept intentionally narrow to avoid over-triggering on generic Spanish.
+_LATAM_HINTS = frozenset({
+    "latam", "latin america", "america latina", "américa latina",
+    "brasil", "brazil", "brazilian", "brasileir",
+    "mexico", "méxico", "mexican",
+    "argentina", "argentino", "argentine",
+    "colombia", "colombian",
+    "chile", "chilean",
+    "peru", "perú", "peruvian",
+    "uruguai", "uruguay",
+    "pix", "bacen", "anbima", "b3",
+    "nubank", "mercado livre", "mercadolibre", "kavak", "rappi",
+    "plata", "creditas", "cloudwalk", "uala", "pomelo",
+    "latitud", "contxto", "canary", "onevc", "valor capital",
+    "sao paulo", "são paulo", "rio de janeiro", "bogota", "bogotá",
+    "buenos aires", "santiago", "medellin", "medellín", "lima",
+    "ciudad de mexico", "cdmx",
+})
+
+
+def _is_latam_post(post: dict) -> bool:
+    """Return True when the post has any LATAM-relevance signal.
+
+    Checked sources: text, author handle, platform source name, and
+    detected language (pt/es). Intentionally conservative: a single hit
+    is enough because the surrounding cluster already passed topical
+    relevance filters.
+    """
+    haystack_parts: list[str] = []
+    for key in ("text", "author", "handle", "author_handle", "source_name"):
+        value = post.get(key)
+        if isinstance(value, str):
+            haystack_parts.append(value)
+    haystack = " ".join(haystack_parts).lower()
+
+    if not haystack.strip():
+        return False
+
+    # Quick language check: Portuguese/Spanish give strong LATAM bias
+    lang = (post.get("language") or post.get("lang") or "").lower()
+    if lang in {"pt", "pt-br", "pt_br", "es", "es-mx", "es-ar"}:
+        return True
+
+    # Keyword hit
+    return any(hint in haystack for hint in _LATAM_HINTS)

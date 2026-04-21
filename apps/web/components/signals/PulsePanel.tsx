@@ -217,10 +217,11 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
     [userEmail, clusters],
   );
 
-  // Pulse accelerating/emerging are global aggregates (not per-theme).
-  // Only show them when no theme filter is active, to avoid confusion.
+  // Pulse accelerating themes are global aggregates (not per-theme).
+  // Only show when no theme filter is active, to avoid confusion.
+  // `emerging_signals` was retired from the UI — the editorial memo now
+  // covers emerging angles in narrative form.
   const accelerating = activeTheme === "all" ? (pulse?.accelerating_themes ?? []) : [];
-  const emerging = activeTheme === "all" ? (pulse?.emerging_signals ?? []) : [];
 
   // Filter clusters by selected theme, then sort by signal_count
   // Cluster grid pagination — show 12 initially, expand on demand
@@ -315,62 +316,36 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
         })}
       </div>
 
-      {/* Two-column: accelerating + emerging */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Accelerating themes */}
-        <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-          <h3 className="mb-1 font-mono text-[10px] uppercase tracking-[1.5px] text-ash">
-            Temas Acelerando
-          </h3>
-          <p className="mb-4 text-[12px] text-[#4A4A56]">
-            Clusters com maior crescimento esta semana
-          </p>
-          {accelerating.length > 0 ? (
-            <div>
-              {accelerating.slice(0, 5).map((theme, i) => (
-                <ThemeRow
-                  key={theme.name}
-                  name={theme.name}
-                  score={theme.score}
-                  delta={theme.delta}
-                  stage="accelerating"
-                  rank={i + 1}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              message="Nenhum dado disponivel"
-              sub="Gerado pelo agente RADAR semanalmente."
-            />
-          )}
-        </div>
-
-        {/* Emerging signals */}
-        <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
-          <h3 className="mb-1 font-mono text-[10px] uppercase tracking-[1.5px] text-ash">
-            Sinais Emergentes
-          </h3>
-          <p className="mb-4 text-[12px] text-[#4A4A56]">Temas novos detectados nas ultimas 48h</p>
-          {emerging.length > 0 ? (
-            <div>
-              {emerging.slice(0, 5).map((signal, i) => (
-                <ThemeRow
-                  key={signal.name}
-                  name={signal.name}
-                  score={signal.score}
-                  stage="emerging"
-                  rank={i + 1}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              message="Nenhum dado disponivel"
-              sub="Gerado pelo agente RADAR semanalmente."
-            />
-          )}
-        </div>
+      {/* Single column: accelerating themes only.
+          The "Sinais Emergentes" section was removed in favour of focusing
+          the narrative on acceleration. Emerging items still flow through
+          the underlying cluster grid below. */}
+      <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-5">
+        <h3 className="mb-1 font-mono text-[10px] uppercase tracking-[1.5px] text-ash">
+          Temas Acelerando
+        </h3>
+        <p className="mb-4 text-[12px] text-[#4A4A56]">
+          Clusters com maior crescimento esta semana
+        </p>
+        {accelerating.length > 0 ? (
+          <div>
+            {accelerating.slice(0, 8).map((theme, i) => (
+              <ThemeRow
+                key={theme.name}
+                name={theme.name}
+                score={theme.score}
+                delta={theme.delta}
+                stage="accelerating"
+                rank={i + 1}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            message="Nenhum dado disponivel"
+            sub="Gerado pelo agente PULSO semanalmente."
+          />
+        )}
       </div>
 
       {/* Cluster card grid — all filtered clusters with watchlist toggles */}
