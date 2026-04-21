@@ -12,8 +12,42 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { cookies } from "next/headers";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+interface UTMPayload {
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  referrer?: string;
+  landing_path?: string;
+}
+
+/**
+ * Read `sinal_utm` cookie (set by <UTMCapture /> on first visit) and
+ * parse its JSON payload. Returns null when the cookie is missing or
+ * malformed. This is the server-side counterpart to `readUTMWithContext`
+ * (which uses localStorage in the browser).
+ */
+async function readUTMCookie(): Promise<UTMPayload | null> {
+  try {
+    const store = await cookies();
+    const raw = store.get("sinal_utm")?.value;
+    if (!raw) return null;
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const utm: UTMPayload = {};
+    if (parsed.utm_source) utm.utm_source = String(parsed.utm_source).slice(0, 100);
+    if (parsed.utm_medium) utm.utm_medium = String(parsed.utm_medium).slice(0, 100);
+    if (parsed.utm_campaign) utm.utm_campaign = String(parsed.utm_campaign).slice(0, 200);
+    if (parsed.referrer) utm.referrer = String(parsed.referrer).slice(0, 500);
+    if (parsed.landing_path) utm.landing_path = String(parsed.landing_path).slice(0, 500);
+    return Object.keys(utm).length ? utm : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Fetch with a single retry — handles Railway cold-start 502s.
@@ -93,11 +127,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // still succeeds (user exists only in JWT until next sync).
       if (account?.provider === "google" && user.email) {
         try {
-          // NOTE: UTM attribution for OAuth signups requires bridging
-          // client-side localStorage to this server-side callback (e.g.
-          // via cookie set by <UTMCapture />). Not implemented yet —
-          // OAuth signups currently arrive without UTM data. Email
-          // registrations carry UTM correctly via SignupForm.
+          // Bridge client-side UTM (localStorage via <UTMCapture />) to this
+          // server-side callback via the sinal_utm cookie. Cookie is set on
+          // first visit, so even a user who lands 2 weeks ago and signs up
+          // today still carries first-touch attribution.
+          const utm = await readUTMCookie();
           const res = await fetchWithRetry(`${API_BASE}/api/auth/sync-oauth`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -107,6 +141,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               avatar_url: user.image ?? undefined,
               provider: "google",
               provider_id: account.providerAccountId,
+              utm: utm ?? undefined,
             }),
           });
           if (!res.ok) {
