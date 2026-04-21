@@ -357,25 +357,54 @@ class PulsoAgent(BaseAgent):
 
     def _generate_title(self, clusters: List[SignalClusterResult]) -> str:
         """Generate an editorial title for the Weekly Pulse."""
-        if clusters and self._llm_client.is_available:
-            top_themes = [c.name for c in clusters[:3]]
-            prompt = (
-                f"Generate a concise, compelling title (max 80 chars) for a weekly "
-                f"social signal intelligence report covering these top themes: "
-                f"{', '.join(top_themes)}.\n\n"
-                f"The report covers AI, Fintech, and Banking signals from social media.\n"
-                f"Write in Portuguese (Brazil). Do NOT use em dash.\n"
-                f"Reply with ONLY the title."
-            )
-            result = self._llm_client.generate(
-                user_prompt=prompt,
-                system_prompt="You write concise Portuguese titles for tech intelligence reports.",
-                max_tokens=50,
-                temperature=0.5,
-            )
-            if result and result.strip():
-                return result.strip().strip('"')
+        if not clusters or not self._llm_client.is_available:
+            return f"Pulso Semanal - Semana {self.week_number}"
 
+        # Rich context: top clusters with signal count + platforms
+        cluster_lines = []
+        for c in clusters[:5]:
+            platforms = ", ".join(sorted(c.platforms))
+            cluster_lines.append(
+                f"- {c.name}: {c.signal_count} sinais em {platforms}, stage={c.narrative_stage}"
+            )
+        context = "\n".join(cluster_lines)
+
+        system = (
+            "Voce e o analista de sinais sociais da plataforma Sinal.lab, especializado em "
+            "identificar teses emergentes no ecossistema tech LATAM antes que virem mainstream.\n\n"
+            "PULSO cobre sinais sociais: o que CTOs, founders e VCs LATAM estao discutindo em "
+            "Twitter, LinkedIn, Bluesky, Reddit e YouTube. A analise foca em DETECCAO PRECOCE "
+            "de temas que ganham tracao, nao em recapitular noticias.\n\n"
+            "Estilo:\n"
+            "- Tom analitico, especifico, sem hype\n"
+            "- Escreva em portugues brasileiro\n"
+            "- NUNCA use em dash (use virgula, dois pontos ou ponto)\n"
+            "- Evite 'revolucionario', 'disruptivo', 'game-changer'\n"
+            "- Pergunta-filtro: 'Um CTO pararia de trabalhar para ler isto?'"
+        )
+
+        prompt = (
+            f"Crie um titulo editorial (maximo 15 palavras, 80 chars) para o PULSO SEMANAL "
+            f"da semana {self.week_number}. O PULSO analisa o que esta acelerando nas "
+            f"conversas tech LATAM.\n\n"
+            f"Clusters da semana:\n{context}\n\n"
+            "Direcoes:\n"
+            "- Angulo PULSO: tema em aceleracao, sinal emergente, tese cruzando plataformas\n"
+            "- NAO comece com 'Semana N:' nem com 'Pulso Semanal'\n"
+            "- Cite o tema/tese mais relevante, nao liste todos\n"
+            "- Exemplos de bom angulo: 'Agentes de AI viram pauta em LATAM antes dos deals', "
+            "'Open Finance Colombia domina conversas tech esta semana'\n"
+            "- Retorne APENAS o titulo"
+        )
+
+        result = self._llm_client.generate(
+            user_prompt=prompt,
+            system_prompt=system,
+            max_tokens=80,
+            temperature=0.5,
+        )
+        if result and result.strip():
+            return result.strip().strip('"').strip("'")
         return f"Pulso Semanal - Semana {self.week_number}"
 
     def _render_cluster_section(

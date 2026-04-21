@@ -239,8 +239,14 @@ class VozesAgent(BaseAgent):
                 "content": voice_lines,
             })
 
+        editorial_title = self._generate_title(
+            themes=themes,
+            platforms=platforms,
+            signal_count=len(signals),
+        )
+
         return format_markdown_output(
-            title=f"VOZES Collection Report - Week {self.week_number}",
+            title=editorial_title,
             sections=sections,
             agent_name=self.agent_name,
             run_id=self.run_id,
@@ -249,10 +255,65 @@ class VozesAgent(BaseAgent):
             content_type="DATA_REPORT",
             agent_category="data",
             summary=(
-                f"{len(signals)} social signals collected from {len(platforms)} "
-                f"platforms, classified into {len(themes)} themes"
+                f"{len(signals)} sinais sociais de {len(platforms)} plataformas "
+                f"classificados em {len(themes)} temas."
             ),
         )
+
+    def _generate_title(
+        self,
+        themes: dict,
+        platforms: dict,
+        signal_count: int,
+    ) -> str:
+        """Generate an editorial title for the VOZES collection report."""
+        default = f"VOZES Collection Report - Week {self.week_number}"
+        if not themes:
+            return default
+
+        try:
+            from apps.agents.base.llm import LLMClient
+            client = LLMClient()
+        except Exception:
+            return default
+        if not client.is_available:
+            return default
+
+        top_themes = sorted(themes.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_platforms = sorted(platforms.items(), key=lambda x: x[1], reverse=True)[:3]
+        context_themes = ", ".join(f"{t} ({c})" for t, c in top_themes)
+        context_platforms = ", ".join(f"{p} ({c})" for p, c in top_platforms)
+
+        system = (
+            "Voce e o analista de vozes do ecossistema tech LATAM na plataforma Sinal.lab. "
+            "VOZES rastreia quem esta falando o que nas redes sociais: fundadores, CTOs, VCs, "
+            "engenheiros seniores. O output detecta figuras-chave e temas quentes antes que "
+            "virem noticia tradicional.\n\n"
+            "Estilo:\n"
+            "- Tom analitico, factual, sem hype\n"
+            "- Portugues brasileiro\n"
+            "- NUNCA use em dash\n"
+            "- Foque em PADRAO, nao em volume"
+        )
+        prompt = (
+            f"Crie um titulo editorial (maximo 15 palavras) para o relatorio de coleta social "
+            f"VOZES da semana {self.week_number}.\n\n"
+            f"Dados:\n"
+            f"- {signal_count} sinais sociais coletados\n"
+            f"- Temas dominantes: {context_themes}\n"
+            f"- Plataformas: {context_platforms}\n\n"
+            "Direcoes:\n"
+            "- Angulo VOZES: quem/o que esta falando mais, onde converge o foco\n"
+            "- NAO comece com 'VOZES' nem 'Week N'\n"
+            "- Cite tema dominante OU plataforma dominante com contexto\n"
+            "- Retorne APENAS o titulo"
+        )
+        result = client.generate(
+            user_prompt=prompt, system_prompt=system, max_tokens=80, temperature=0.5,
+        )
+        if result and result.strip():
+            return result.strip().strip('"').strip("'")
+        return default
 
     def export_signals_json(self, path: str) -> int:
         """Export classified signals as JSON for PULSO to consume.

@@ -222,8 +222,10 @@ class FeedCuratorAgent(BaseAgent):
             ],
         }
 
+        editorial_title = self._generate_title(curated)
+
         return AgentOutput(
-            title="Feed Curado por Ana Torres",
+            title=editorial_title,
             body_md=body_md,
             agent_name=self.agent_name,
             agent_category=self.agent_category,
@@ -234,6 +236,64 @@ class FeedCuratorAgent(BaseAgent):
             summary=f"{len(curated)} sinais curados de {len(self._raw_signals)} coletados.",
             metadata=metadata,
         )
+
+    def _generate_title(self, curated: List[CuratedItem]) -> str:
+        """Generate editorial title from the top curated items."""
+        default = "Feed Curado por Ana Torres"
+        if not curated:
+            return default
+
+        try:
+            from apps.agents.base.llm import LLMClient
+            client = LLMClient()
+        except Exception:
+            return default
+        if not client.is_available:
+            return default
+
+        # Top 5 items by relevance (curated already sorted)
+        top = curated[:5]
+        items_context = "\n".join(
+            f"- [{c.category}] {c.editorial_headline} ({c.source_platform})"
+            for c in top
+        )
+        cat_counts = _count_categories(curated)
+        cat_line = ", ".join(
+            f"{k} ({v})" for k, v in sorted(cat_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        )
+
+        system = (
+            "Voce e Ana Torres, editora do FEED CURADO da Sinal.lab. Seu trabalho e "
+            "destacar os sinais sociais mais relevantes da semana para fundadores, CTOs "
+            "e VCs LATAM. O FEED e uma selecao editorial dos melhores posts, videos e "
+            "discussoes que cruzaram seu radar.\n\n"
+            "Estilo editorial:\n"
+            "- Tom editorial, factual, assinado\n"
+            "- Cite temas concretos, nao meta-descricao ('Feed Curado')\n"
+            "- Portugues brasileiro\n"
+            "- NUNCA use em dash\n"
+            "- Sem hype, sem clichês"
+        )
+        prompt = (
+            f"Crie um titulo editorial (maximo 15 palavras) para o FEED CURADO desta semana. "
+            f"O feed destaca {len(curated)} sinais dos melhores posts/videos/discussoes do "
+            f"ecossistema tech LATAM.\n\n"
+            f"Top 5 itens selecionados:\n{items_context}\n\n"
+            f"Distribuicao por categoria: {cat_line}\n\n"
+            "Direcoes:\n"
+            "- NAO comece com 'Feed Curado' ou 'Esta semana'\n"
+            "- Angulo: qual tema ou debate domina a selecao desta semana\n"
+            "- Foque no conteudo, nao no processo editorial\n"
+            "- Exemplos: 'AI agents em producao dividem opinioes no LinkedIn BR', "
+            "'Discussoes sobre Open Finance superam AI esta semana'\n"
+            "- Retorne APENAS o titulo"
+        )
+        result = client.generate(
+            user_prompt=prompt, system_prompt=system, max_tokens=80, temperature=0.5,
+        )
+        if result and result.strip():
+            return result.strip().strip('"').strip("'")
+        return default
 
 
 def _count_categories(items: List[CuratedItem]) -> dict:
