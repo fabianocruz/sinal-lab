@@ -24,6 +24,7 @@ from apps.agents.pulso.config import (
     CLUSTERING_DISTANCE_THRESHOLD,
     CLUSTER_NAME_BLOCKLIST,
     EMBEDDING_DISTANCE_THRESHOLD,
+    LABEL_OVERLAP_THRESHOLD,
     MAX_CLUSTER_SIZE,
     MERGE_SIMILARITY_THRESHOLD,
     MIN_CLUSTER_SIZE,
@@ -596,10 +597,110 @@ def _build_cluster_results(
     # Merge clusters with similar centroids or identical slugs
     results = _merge_similar_clusters(results)
 
+    # Label-similarity merge: catches LLM-generated synonyms that slipped
+    # past the centroid pass (e.g. "Operações de Startups com IA" vs
+    # "Gestão e Operações de Startups com IA")
+    results = _merge_similar_labels(results)
+
     # Sort by signal count descending
     results.sort(key=lambda c: c.signal_count, reverse=True)
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Label-similarity merge — handles LLM-generated synonyms
+# ---------------------------------------------------------------------------
+
+# Tokens ignored when measuring label overlap (low information in PT tech context)
+_LABEL_STOPWORDS = frozenset({
+    "de", "da", "do", "das", "dos", "e", "em", "a", "o", "para", "com",
+    "que", "na", "no", "nas", "nos", "um", "uma", "uns", "umas",
+    "startups", "startup",  # dominant in this domain, carries no signal
+    "tech", "sinais", "sinal",
+})
+
+
+def _label_tokens(name: str) -> set:
+    """Extract meaningful tokens from a cluster name for overlap comparison."""
+    lowered = unicodedata.normalize("NFKD", name.lower())
+    lowered = "".join(c for c in lowered if not unicodedata.combining(c))
+    tokens = {
+        t.strip(" .,:;()[]/")
+        for t in lowered.replace(",", " ").split()
+    }
+    return {t for t in tokens if t and len(t) > 2 and t not in _LABEL_STOPWORDS}
+
+
+def _merge_similar_labels(
+    clusters: List[SignalClusterResult],
+    overlap_threshold: float = LABEL_OVERLAP_THRESHOLD,
+) -> List[SignalClusterResult]:
+    """Merge clusters whose labels share >= overlap_threshold meaningful tokens.
+
+    Fallback layer for when centroid similarity missed synonym pairs. Keeps
+    the cluster with more signals as the primary; its label and slug win.
+    """
+    if len(clusters) <= 1:
+        return clusters
+
+    # Sort by signal count desc so the "primary" for each merge group is
+    # the most-represented cluster
+    working = sorted(clusters, key=lambda c: c.signal_count, reverse=True)
+    token_cache = {id(c): _label_tokens(c.name) for c in working}
+
+    merged_into: Dict[int, int] = {}
+    for i, primary in enumerate(working):
+        if i in merged_into:
+            continue
+        tokens_i = token_cache[id(primary)]
+        if not tokens_i:
+            continue
+        for j in range(i + 1, len(working)):
+            if j in merged_into:
+                continue
+            tokens_j = token_cache[id(working[j])]
+            if not tokens_j:
+                continue
+            smaller = min(len(tokens_i), len(tokens_j))
+            shared = len(tokens_i & tokens_j)
+            if smaller and (shared / smaller) >= overlap_threshold:
+                merged_into[j] = i
+
+    if not merged_into:
+        return clusters
+
+    groups: Dict[int, List[int]] = defaultdict(list)
+    for j, i in merged_into.items():
+        groups[i].append(j)
+
+    result: List[SignalClusterResult] = []
+    for idx, cluster in enumerate(working):
+        if idx in merged_into:
+            continue
+        if idx not in groups:
+            result.append(cluster)
+            continue
+
+        all_signals = list(cluster.signals)
+        for child_idx in groups[idx]:
+            all_signals.extend(working[child_idx].signals)
+
+        merged = SignalClusterResult(
+            name=cluster.name,
+            slug=cluster.slug,
+            theme=cluster.theme,
+            sub_theme=cluster.sub_theme,
+            signals=all_signals,
+        )
+        merged.compute_platform_distribution()
+        result.append(merged)
+
+    logger.info(
+        "Label-merge collapsed %d clusters: %d -> %d",
+        len(merged_into), len(working), len(result),
+    )
+    return result
 
 
 # ---------------------------------------------------------------------------

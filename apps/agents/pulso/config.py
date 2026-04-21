@@ -333,7 +333,23 @@ MAX_CLUSTER_SIZE = 80  # was 150
 MIN_CLUSTER_SIZE = 5
 
 # Cosine similarity threshold for merging similar clusters.
-MERGE_SIMILARITY_THRESHOLD = 0.85
+# Lowered from 0.85 to 0.70 — prod showed 15 near-duplicate "Operações
+# de Startups com IA / Gestão de Startups / Desafios de Fundadores"
+# clusters with ~650 signals each. Centroids were ~0.75 similar but
+# didn't merge under the old threshold.
+MERGE_SIMILARITY_THRESHOLD = 0.70
+
+# Token-overlap threshold for the label-similarity merge pass that runs
+# after centroid merge. Clusters whose Portuguese labels share this
+# fraction of meaningful tokens are collapsed. Catches cases where the
+# centroid similarity falls below MERGE_SIMILARITY_THRESHOLD but the
+# LLM-generated labels are effectively synonyms.
+# Set to 0.5: "Operações de Startups com IA" vs "Gestão e Operações de
+# Startups" share "operacoes" out of {automacao, operacoes} and
+# {gestao, operacoes} respectively, a 1/2 overlap, so they collapse.
+# Genuine distinct topics like "Open Finance" vs "Operações de Startups"
+# share 0/2 and stay separate.
+LABEL_OVERLAP_THRESHOLD = 0.5
 
 # ---------------------------------------------------------------------------
 # Cluster name blocklist
