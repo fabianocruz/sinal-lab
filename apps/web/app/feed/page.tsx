@@ -6,7 +6,8 @@ import FeedItem from "@/components/feed/FeedItem";
 import FeedFilterBar from "@/components/feed/FeedFilterBar";
 import TrendingSidebar from "@/components/feed/TrendingSidebar";
 import Pagination from "@/components/newsletter/Pagination";
-import { fetchCuratedFeed, fetchSignalClusters } from "@/lib/api";
+import { fetchCuratedFeed, fetchNewsletterBySlug, fetchSignalClusters } from "@/lib/api";
+import FeedEditorialBanner from "@/components/feed/FeedEditorialBanner";
 
 // ---------------------------------------------------------------------------
 // ISR — refresh every 60 seconds (feed updates frequently)
@@ -49,14 +50,17 @@ export default async function FeedPage({
   const offset = (page - 1) * PAGE_SIZE;
   const theme = searchParams.theme ?? "";
 
-  // Fetch curated feed and clusters in parallel
-  const [feedData, clustersData] = await Promise.all([
+  // Fetch curated feed, clusters, and editorial banner in parallel
+  const [feedData, clustersData, editorial] = await Promise.all([
     fetchCuratedFeed({
       theme: theme || undefined,
       limit: PAGE_SIZE,
       offset,
     }),
     fetchSignalClusters({ limit: 20 }),
+    // Banner editorial ("editor's pick this week") — FEED_CURATOR persists a
+    // ContentPiece with slug `feed-curated` containing the weekly intro.
+    fetchNewsletterBySlug("feed-curated"),
   ]);
 
   const items = feedData.items;
@@ -90,6 +94,17 @@ export default async function FeedPage({
         </div>
 
         <div className="mx-auto max-w-container px-6 md:px-10">
+          {/* ----------------------------------------------------------------
+              Editorial banner — "editor's pick this week" (LLM-generated)
+          ----------------------------------------------------------------- */}
+          {editorial && editorial.body_md && (
+            <FeedEditorialBanner
+              title={editorial.title}
+              bodyMd={editorial.body_md}
+              publishedAt={editorial.published_at}
+            />
+          )}
+
           {/* ----------------------------------------------------------------
               Filter bar — theme pills only
           ----------------------------------------------------------------- */}

@@ -177,26 +177,14 @@ class FeedCuratorAgent(BaseAgent):
             data_quality=0.3, analysis_confidence=0.3,
         )
 
-        # Build Markdown
-        lines: List[str] = [
-            "# Feed Curado\n",
-            f"*{len(curated)} itens selecionados de {len(self._raw_signals)} sinais.*\n",
-        ]
-
-        for i, item in enumerate(curated, 1):
-            lines.append(f"## {i}. {item.editorial_headline}")
-            lines.append(f"**{item.category}** | Score: {item.relevance_score}/100")
-            lines.append(f"\n{item.editorial_context}\n")
-
-            if item.source_url:
-                lines.append(f"[Fonte: {item.source_platform}]({item.source_url})")
-
-            if item.embed_type:
-                lines.append(f"\n*Embed: {item.embed_type}*")
-
-            lines.append("")
-
-        body_md = "\n".join(lines)
+        # Body is the editorial intro that renders as a banner on /feed.
+        # The actual item stream lives in `curated_feed_items` and is fetched
+        # separately by the frontend; repeating items here would be duplicate.
+        intro_md = self._generate_intro(curated)
+        body_md = intro_md or (
+            f"*{len(curated)} itens selecionados de {len(self._raw_signals)} sinais. "
+            f"Atualizado semanalmente.*"
+        )
 
         # Build metadata
         source_urls = [c.source_url for c in curated if c.source_url]
@@ -236,6 +224,68 @@ class FeedCuratorAgent(BaseAgent):
             summary=f"{len(curated)} sinais curados de {len(self._raw_signals)} coletados.",
             metadata=metadata,
         )
+
+    def _generate_intro(self, curated: List[CuratedItem]) -> Optional[str]:
+        """Generate a 2-3 paragraph editorial intro that banners /feed.
+
+        Signed by the Ana Torres persona. Returns None when LLM is
+        unavailable or generation fails, so callers can fall back to a
+        template line.
+        """
+        if not curated:
+            return None
+
+        try:
+            from apps.agents.base.llm import LLMClient
+            client = LLMClient()
+        except Exception:
+            return None
+        if not client.is_available:
+            return None
+
+        top = curated[:5]
+        items_context = "\n".join(
+            f"- [{c.category}] {c.editorial_headline} ({c.source_platform})"
+            for c in top
+        )
+        cat_counts = _count_categories(curated)
+        cat_line = ", ".join(
+            f"{k} ({v})" for k, v in sorted(cat_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        )
+
+        system = (
+            "Voce e Ana Torres, editora do FEED CURADO da Sinal.lab. Seu trabalho e "
+            "destacar os sinais sociais mais relevantes da semana para fundadores, CTOs "
+            "e VCs LATAM. Escreve em primeira pessoa, tom editorial, analitico.\n\n"
+            "Regras:\n"
+            "- Portugues brasileiro, tom direto, sem hype\n"
+            "- NUNCA use em dash (U+2014)\n"
+            "- NAO use 'nesta semana', 'vale ressaltar', 'e importante destacar'\n"
+            "- Cite temas e numeros concretos\n"
+            "- Assinatura e automatica, NAO adicione 'Ana Torres' no final"
+        )
+        prompt = (
+            f"Escreva a INTRO EDITORIAL (2 a 3 paragrafos, 150-250 palavras total) do FEED "
+            f"CURADO desta semana. O feed tem {len(curated)} itens selecionados de "
+            f"{len(self._raw_signals)} sinais coletados.\n\n"
+            f"Top 5 destaques da semana:\n{items_context}\n\n"
+            f"Distribuicao por categoria: {cat_line}\n\n"
+            "Direcoes:\n"
+            "- Paragrafo 1: Qual tema ou debate conecta os destaques? Abra com a tese.\n"
+            "- Paragrafo 2: Cite 2-3 destaques concretos com 'por que importa pra quem constroi'\n"
+            "- Paragrafo 3 (opcional): Contraste, padrao observado ou implicacao setorial\n"
+            "- NAO liste todos os itens; o /feed ja mostra cada card\n"
+            "- Retorne APENAS o corpo em Markdown (sem titulo H1, sem bloco de codigo)"
+        )
+        result = client.generate(
+            user_prompt=prompt,
+            system_prompt=system,
+            max_tokens=600,
+            temperature=0.5,
+        )
+        if result and result.strip():
+            return result.strip()
+        return None
 
     def _generate_title(self, curated: List[CuratedItem]) -> str:
         """Generate editorial title from the top curated items."""
