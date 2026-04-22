@@ -126,6 +126,7 @@ AGENTS = {
         "slug_pattern": "pulso-week-{period}",
         "output_dir": "apps/agents/pulso/output",
         "filename_pattern": "pulso-week-{period}.md",
+        "skip_evidence": True,  # consumes pre-processed VOZES signals
     },
     "feed_curator": {
         "module": "apps.agents.feed_curator.main",
@@ -306,6 +307,14 @@ def orchestrate_single_agent(
         else:
             agent = agent_class()
             slug = cfg["slug_pattern"]
+
+        # Agents that read from the DB (PULSO loads VOZES signals, etc.)
+        # need an explicit session setter. The orchestrator already passes
+        # the session as a kwarg, but a handful of agents expose a
+        # dedicated setter that precedes collect().
+        if hasattr(agent, "set_db_session"):
+            agent.set_db_session(session)
+
         domain_fn = DOMAIN_PERSIST_FNS.get(name)
 
         agent_evidence = enable_evidence and not cfg.get("skip_evidence", False)
@@ -384,9 +393,14 @@ def orchestrate_vozes_pulso(
         slug = f"pulso-week-{week_value}"
         domain_fn = DOMAIN_PERSIST_FNS.get("pulso")
 
+        # Respect AGENTS[pulso].skip_evidence (PULSO consumes pre-processed
+        # VOZES output, so the raw ProcessedSignal type has no
+        # normalize_any handler). Keeps parity with orchestrate_single_agent.
+        pulso_evidence = enable_evidence and not AGENTS["pulso"].get("skip_evidence", False)
+
         logger.info(
             "Orchestrating PULSO (slug=%s, editorial=%s, evidence=%s)",
-            slug, enable_editorial, enable_evidence,
+            slug, enable_editorial, pulso_evidence,
         )
 
         result = orchestrate_agent_run(
@@ -394,7 +408,7 @@ def orchestrate_vozes_pulso(
             session=session,
             slug=slug,
             enable_editorial=enable_editorial,
-            enable_evidence=enable_evidence,
+            enable_evidence=pulso_evidence,
             persist=True,
             domain_persist_fn=domain_fn,
         )
