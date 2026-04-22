@@ -457,6 +457,31 @@ def _esc(text: str) -> str:
     return html_mod.escape(text, quote=True)
 
 
+def _render_inline_md(text: str, link_color: str = "#59B4FF") -> str:
+    """Render a minimal Markdown subset inline: **bold**, *italic*, and
+    [label](url) links. Everything else is HTML-escaped first, so the
+    output is safe to drop into an email template.
+
+    Intentionally narrow: lead paragraphs and blockquotes only need these
+    three constructs. Lists/headings belong to other renderers.
+    """
+    escaped = html_mod.escape(text, quote=True)
+
+    # Links first so the URL capture isn't clobbered by bold/italic rules.
+    def _link_sub(match: "re.Match[str]") -> str:
+        label, url = match.group(1), match.group(2)
+        return (
+            f'<a href="{html_mod.escape(url, quote=True)}" '
+            f'style="color:{link_color}; text-decoration:underline;">'
+            f"{label}</a>"
+        )
+
+    escaped = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", _link_sub, escaped)
+    escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", escaped)
+    return escaped
+
+
 def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     """Converte cor hex para rgba com opacidade especificada.
 
@@ -597,9 +622,24 @@ def _editorial_lead(subtitle: str, lead_text: str) -> str:
     paragraphs = [p.strip() for p in lead_text.split("\n\n") if p.strip()]
     lead_html = ""
     for p in paragraphs:
-        lead_html += f"""\
+        if p.startswith(">"):
+            # Strip leading '>' markers (possibly on multiple lines) and
+            # render as a styled blockquote with inline markdown support.
+            quote_lines = []
+            for line in p.splitlines():
+                stripped = line.lstrip()
+                if stripped.startswith(">"):
+                    stripped = stripped[1:].lstrip()
+                quote_lines.append(stripped)
+            quote_text = " ".join(quote_lines).strip()
+            lead_html += f"""\
+  <blockquote style="margin:0 0 20px 0; padding:18px 20px; border-left:3px solid {_COLOR_SINTESE}; background-color:rgba(232,255,89,0.04); border-radius:6px; font-family: {_FONT_SERIF}; font-size: 15px; color: {_COLOR_BODY}; line-height: 1.65;">
+    {_render_inline_md(quote_text, link_color=_COLOR_SINTESE)}
+  </blockquote>"""
+        else:
+            lead_html += f"""\
   <p style="font-family: {_FONT_SERIF}; font-size: 17px; color: {_COLOR_BODY}; line-height: 1.7; margin: 0 0 16px 0;">
-    {_esc(p)}
+    {_render_inline_md(p, link_color=_COLOR_SINTESE)}
   </p>"""
 
     return f"""\
