@@ -138,6 +138,17 @@ def compose_newsletter(edition: int, outputs: Dict[str, dict]) -> str:
     return "\n\n".join(sections)
 
 
+def _format_subject(edition: int, subj: str) -> str:
+    """Compose final subject without duplicating the 'Sinal Semanal #N' prefix
+    when the source already includes it."""
+    prefix = f"Sinal Semanal #{edition}"
+    cleaned = subj.strip()
+    if cleaned.lower().startswith(prefix.lower()):
+        # Already prefixed (with or without trailing ':'). Return as-is, normalized.
+        return cleaned.lstrip(":").strip() if cleaned == prefix else cleaned
+    return f"{prefix}: {cleaned}"
+
+
 def _resolve_email_subject(
     edition: int,
     frontmatter: dict,
@@ -150,7 +161,7 @@ def _resolve_email_subject(
     # 1. Frontmatter email_subject (best case: .md has YAML frontmatter)
     subj = frontmatter.get("email_subject", "")
     if subj:
-        return f"Sinal Semanal #{edition}: {subj}"
+        return _format_subject(edition, subj)
 
     # 2. DB metadata fallback (orchestrator persists email_subject there)
     try:
@@ -166,7 +177,7 @@ def _resolve_email_subject(
             db_subj = meta.get("email_subject", "")
             if db_subj:
                 session.close()
-                return f"Sinal Semanal #{edition}: {db_subj}"
+                return _format_subject(edition, db_subj)
         session.close()
     except Exception:
         logger.debug("Could not read email_subject from DB", exc_info=True)
@@ -174,7 +185,7 @@ def _resolve_email_subject(
     # 3. Frontmatter title
     title = frontmatter.get("title", "")
     if title:
-        return f"Sinal Semanal #{edition}: {title}"
+        return _format_subject(edition, title)
 
     # 4. Generic fallback
     return f"Sinal Semanal #{edition}"
@@ -201,6 +212,11 @@ INTELLIGENCE_REPORTS: Dict[str, dict] = {
     "embedded-finance-deep-research-2026": {
         "title": "Embedded Finance: Deep Market Intelligence Report 2026",
         "summary": "O mapa completo de embedded finance na America Latina: players, infraestrutura, regulacao e oportunidades para fintechs e plataformas que integram servicos financeiros.",
+        "author": "Sinal Intelligence",
+    },
+    "agentic-commerce-chargeback-intelligence-report-2026": {
+        "title": "Quando Agentes de IA Comecam a Comprar, Quem Responde pelo Chargeback?",
+        "summary": "Trust Orchestration, alocacao de responsabilidade e o futuro das disputas no agentic commerce. Mapeamento dos protocolos emergentes (Visa Trusted Agent, Mastercard Agent Pay, Google AP2, Stripe ACP), os gaps evidenciarios nas regras atuais e implicacoes para merchants, PSPs e issuers em LATAM.",
         "author": "Sinal Intelligence",
     },
 }
@@ -240,6 +256,13 @@ ARTICLE_HIGHLIGHTS: Dict[int, dict] = {
         "summary": "Pagamentos, nota fiscal, logistica, banking, ERPs, messaging e crypto. 379+ tools tipadas para conectar AI agents com a infraestrutura real de negocios no Brasil. MIT license.",
         "author": "CodeSpar",
         "site_url": "https://github.com/codespar/mcp-dev-brasil",
+    },
+    56: {
+        "title": "E-commerce brasileiro em 46 linhas de TypeScript",
+        "summary": "Pix + NF-e + WhatsApp + Melhor Envio. Tudo. Em menos codigo do que muito botao de checkout.",
+        "author": "Fabiano Cruz",
+        "site_url": "https://sinal.tech/artigos/e-commerce-brasileiro-em-46-linhas-de-typescript",
+        "cover_url": "https://q1anrx64yh9vfjwf.public.blob.vercel-storage.com/covers/artigos/e-commerce-brasileiro-em-46-linhas-de-typescript-v2-take1-YUKcQKKXUfRV9crUiC4EK52R34w3vN.png",
     },
 }
 
@@ -507,9 +530,15 @@ def publish_briefing_email(
     subject = _resolve_email_subject(edition, sintese_fm)
 
     # Build highlights for this edition
-    intel_highlight = _build_intelligence_highlight(
-        "https://sinal.tech/intelligence/healthtech-ai-mapa-completo-mercado-global"
+    # Per-edition Intelligence report (defaults to healthtech if not mapped)
+    INTELLIGENCE_PER_EDITION = {
+        56: "https://sinal.tech/intelligence/agentic-commerce-chargeback-intelligence-report-2026",
+    }
+    intel_url = INTELLIGENCE_PER_EDITION.get(
+        edition,
+        "https://sinal.tech/intelligence/healthtech-ai-mapa-completo-mercado-global",
     )
+    intel_highlight = _build_intelligence_highlight(intel_url)
     article_highlight = _build_article_highlight(edition)
     feature_highlight = _build_feature_highlight(edition)
 

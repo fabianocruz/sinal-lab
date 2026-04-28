@@ -925,9 +925,7 @@ def _article_highlight(highlight: ArticleHighlight) -> str:
     cover_html = ""
     if highlight.cover_url:
         cover_html = f"""\
-    <a href="{_esc(highlight.site_url)}" style="text-decoration: none;">
-      <img src="{_esc(highlight.cover_url)}" alt="{_esc(highlight.title)}" width="480" style="max-width:100%; height:auto; border-radius:8px; display:block; margin-bottom:16px;" />
-    </a>"""
+    <img src="{_esc(highlight.cover_url)}" alt="{_esc(highlight.title)}" width="480" style="max-width:100%; height:auto; border-radius:8px; display:block; margin:0 0 16px 0;" />"""
     return f"""\
 <!-- ===== ARTICLE HIGHLIGHT ===== -->
 <tr>
@@ -1228,9 +1226,9 @@ def build_newsletter_email_html(
         _editorial_lead(data.subtitle, data.editorial_lead),
     ]
 
-    # Intelligence + Feature highlights — above hero articles for visibility
-    if intelligence:
-        parts.append(_intelligence_highlight(intelligence))
+    # Article highlight (artigo autoral) + Feature — acima dos hero articles
+    if article:
+        parts.append(_article_highlight(article))
     if feature:
         parts.append(_feature_highlight(feature))
 
@@ -1257,9 +1255,9 @@ def build_newsletter_email_html(
             _read_more_cta(edition_url, total_articles - articles_shown)
         )
 
-    # Article highlight (artigo autoral, antes dos agent cards)
-    if article:
-        parts.append(_article_highlight(article))
+    # Intelligence highlight (relatório de pesquisa, antes dos agent cards)
+    if intelligence:
+        parts.append(_intelligence_highlight(intelligence))
 
     # Cards de agentes secundários
     if agent_cards:

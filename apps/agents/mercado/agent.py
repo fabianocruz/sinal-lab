@@ -108,10 +108,15 @@ class MercadoAgent(BaseAgent):
             sum(e.editorial_score for e in all_scored) / len(all_scored)
             if all_scored else 0.5
         )
+        unique_sources = len({
+            getattr(e.event, "source_name", None) or getattr(e.event, "source_url", None)
+            for e in all_scored
+            if getattr(e.event, "source_name", None) or getattr(e.event, "source_url", None)
+        })
         return [ConfidenceScore(
             data_quality=min(0.95, avg_score + 0.1),
             analysis_confidence=avg_score,
-            source_count=1,  # single DB source
+            source_count=max(1, unique_sources),
             verified=all_scored and all_scored[0].editorial_score >= 0.7,
         )]
 
@@ -180,6 +185,11 @@ class MercadoAgent(BaseAgent):
             "item_count": len(item_payload),
         }
 
+        source_urls = sorted({
+            item["source_url"] for item in item_payload
+            if item.get("source_url")
+        })
+
         output = AgentOutput(
             title=title,
             body_md=body_md,
@@ -187,7 +197,7 @@ class MercadoAgent(BaseAgent):
             agent_category=self.agent_category,
             run_id=self.run_id,
             confidence=confidence,
-            sources=[],  # DB-sourced; populated separately if needed
+            sources=source_urls,
             content_type="NEWSLETTER",
             summary=(
                 f"Market Intelligence LATAM semana {self.week_number}: "
