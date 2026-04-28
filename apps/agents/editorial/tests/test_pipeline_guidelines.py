@@ -119,12 +119,12 @@ class TestPipelineWithGuidelines:
         layer_names = [lr.layer_name for lr in result.layer_results]
         assert "guidelines" in layer_names
 
-    def test_pipeline_without_guidelines_unchanged(self) -> None:
-        """Default pipeline should NOT include guidelines layer."""
+    def test_default_pipeline_includes_guidelines(self) -> None:
+        """Default pipeline now includes guidelines layer (registered in chain)."""
         pipeline = EditorialPipeline()
         output = _make_output()
         result = pipeline.review(output)
 
         layer_names = [lr.layer_name for lr in result.layer_results]
-        assert "guidelines" not in layer_names
-        assert len(layer_names) == 6  # Original 6 layers
+        assert "guidelines" in layer_names
+        assert len(layer_names) == 7  # 6 review layers + sintese_final

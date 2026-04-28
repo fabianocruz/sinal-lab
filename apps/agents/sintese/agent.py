@@ -88,7 +88,7 @@ class SinteseAgent(BaseAgent):
         )
 
         writer = SinteseWriter()
-        newsletter_md, sections = synthesize_newsletter(
+        newsletter_md, sections, editorial_summaries = synthesize_newsletter(
             scored_items=scored_items,
             edition_number=self.edition_number,
             writer=writer,
@@ -140,7 +140,10 @@ class SinteseAgent(BaseAgent):
                     "title": s.item.title,
                     "url": s.item.url,
                     "source_name": s.item.source_name,
-                    "summary": (s.item.summary or "")[:200],
+                    "summary": (
+                        editorial_summaries.get(s.item.url)
+                        or (s.item.summary or "")[:200]
+                    ),
                     "composite_score": round(s.composite_score, 3),
                     "image_url": getattr(s.item, "image_url", None),
                     "video_url": getattr(s.item, "video_url", None),

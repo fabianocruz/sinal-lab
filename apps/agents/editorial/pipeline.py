@@ -16,6 +16,7 @@ import logging
 from typing import Any, Callable, Optional
 
 from apps.agents.base.output import AgentOutput
+from apps.agents.editorial.layers.guidelines import run_guidelines
 from apps.agents.editorial.layers.pesquisa import run_pesquisa
 from apps.agents.editorial.layers.seo import run_seo
 from apps.agents.editorial.layers.sintese_final import run_sintese_final
@@ -69,6 +70,7 @@ class EditorialPipeline:
             ("pesquisa", run_pesquisa),
             ("validacao", run_validacao),
             ("verificacao", run_verificacao),
+            ("guidelines", run_guidelines),
             ("vies", run_vies),
             ("seo", run_seo),
             # sintese_final is invoked directly in review() with prior_layer_results

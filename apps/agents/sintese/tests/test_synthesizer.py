@@ -206,7 +206,7 @@ class TestSynthesizeNewsletter:
             )
             for i in range(25)
         ]
-        newsletter, sections = synthesize_newsletter(items, edition_number=42)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=42)
 
         assert "# Sinal Semanal #42" in newsletter
         assert "SINTESE" in newsletter
@@ -221,25 +221,25 @@ class TestSynthesizeNewsletter:
                 composite=0.9,
             ),
         ]
-        newsletter, sections = synthesize_newsletter(items)
+        newsletter, sections, _ = synthesize_newsletter(items)
         assert "Important AI Breakthrough" in newsletter
         assert "https://example.com/ai" in newsletter
 
     def test_includes_footer(self):
         items = [make_scored_item(composite=0.8)]
-        newsletter, sections = synthesize_newsletter(items)
+        newsletter, sections, _ = synthesize_newsletter(items)
         assert "Sinal.lab" in newsletter
         assert "Inteligencia aberta" in newsletter
 
     def test_empty_items(self):
-        newsletter, sections = synthesize_newsletter([])
+        newsletter, sections, _ = synthesize_newsletter([])
         assert "# Sinal Semanal" in newsletter
         assert "0 destaques" in newsletter
 
     def test_edition_date_formatting(self):
         items = [make_scored_item(composite=0.8)]
         date = datetime(2026, 2, 16, tzinfo=timezone.utc)
-        newsletter, sections = synthesize_newsletter(items, edition_date=date)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_date=date)
         assert "16/02/2026" in newsletter
 
 
@@ -290,7 +290,7 @@ class TestSynthesizeNewsletterWithLLM:
         # Section content returns None to keep sections template-based
         writer.write_section_content.return_value = None
 
-        newsletter, sections = synthesize_newsletter(items, edition_number=42, writer=writer)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=42, writer=writer)
 
         assert "A semana foi dominada por avancos em inteligencia artificial." in newsletter
         # Template intro should NOT be present
@@ -309,7 +309,7 @@ class TestSynthesizeNewsletterWithLLM:
             )
         writer.write_section_content.side_effect = section_side_effect
 
-        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         assert "LLM editorial commentary for section." in newsletter
         assert "Rewritten summary for AI Article 0." in newsletter
@@ -318,7 +318,7 @@ class TestSynthesizeNewsletterWithLLM:
         items = self._make_items()
         writer = self._make_writer(available=False)
 
-        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Should use template intro
         assert "Esta semana reunimos" in newsletter
@@ -328,7 +328,7 @@ class TestSynthesizeNewsletterWithLLM:
     def test_falls_back_to_template_when_writer_is_none(self):
         items = self._make_items()
 
-        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=None)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=1, writer=None)
 
         # Should use template intro (default behavior)
         assert "Esta semana reunimos" in newsletter
@@ -338,7 +338,7 @@ class TestSynthesizeNewsletterWithLLM:
         writer = self._make_writer(available=True, intro_return=None)
         writer.write_section_content.return_value = None
 
-        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Template intro should be used as fallback
         assert "Esta semana reunimos" in newsletter
@@ -348,7 +348,7 @@ class TestSynthesizeNewsletterWithLLM:
         writer = self._make_writer(available=True, intro_return=None)
         writer.write_section_content.return_value = None  # Simulates LLM failure
 
-        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Template section format: blockquote summaries from RSS
         assert "Summary about AI topic" in newsletter
@@ -362,7 +362,7 @@ class TestSynthesizeNewsletterWithLLM:
         )
         writer.write_section_content.return_value = None  # All sections fail
 
-        newsletter, sections = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter, sections, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # LLM intro present
         assert "LLM intro succeeded." in newsletter
@@ -373,9 +373,9 @@ class TestSynthesizeNewsletterWithLLM:
         """select_top_items and group_by_category work the same with/without writer."""
         items = self._make_items(count=20)
 
-        newsletter_without, _ = synthesize_newsletter(items, edition_number=1, writer=None)
+        newsletter_without, _, _ = synthesize_newsletter(items, edition_number=1, writer=None)
         writer = self._make_writer(available=False)
-        newsletter_with, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
+        newsletter_with, _, _ = synthesize_newsletter(items, edition_number=1, writer=writer)
 
         # Same structure: same title, same section count
         assert "# Sinal Semanal #1" in newsletter_without
@@ -484,7 +484,7 @@ class TestSynthesizeNewsletterNoDuplicateImages:
             for i in range(6)
         ]
 
-        newsletter, _ = synthesize_newsletter(items, edition_number=1)
+        newsletter, _, _ = synthesize_newsletter(items, edition_number=1)
 
         assert newsletter.count(shared_image) <= 1
 
@@ -501,7 +501,7 @@ class TestSynthesizeNewsletterNoDuplicateImages:
             for i in range(5)
         ]
 
-        newsletter, _ = synthesize_newsletter(items, edition_number=1)
+        newsletter, _, _ = synthesize_newsletter(items, edition_number=1)
 
         for i in range(5):
             assert newsletter.count(f"https://cdn.example.com/img{i}.jpg") == 1
@@ -596,20 +596,21 @@ class TestFormatItemMarkdown:
 
 
 class TestSynthesizeNewsletterReturnType:
-    """Verify synthesize_newsletter returns (str, list[NewsletterSection]) tuple."""
+    """Verify synthesize_newsletter returns (str, list[NewsletterSection], dict) tuple."""
 
     def test_synthesize_newsletter_returns_tuple(self):
-        """Return value must be a 2-tuple of (str, list)."""
+        """Return value must be a 3-tuple of (str, list, dict)."""
         items = [make_scored_item(composite=0.8)]
         result = synthesize_newsletter(items, edition_number=1)
 
         assert isinstance(result, tuple)
-        assert len(result) == 2
+        assert len(result) == 3
+        assert isinstance(result[2], dict)
 
     def test_synthesize_newsletter_first_element_is_string(self):
         """First element of the tuple is the newsletter Markdown string."""
         items = [make_scored_item(composite=0.8)]
-        markdown, sections = synthesize_newsletter(items, edition_number=1)
+        markdown, sections, _ = synthesize_newsletter(items, edition_number=1)
 
         assert isinstance(markdown, str)
         assert len(markdown) > 0
@@ -625,7 +626,7 @@ class TestSynthesizeNewsletterReturnType:
             )
             for i in range(3)
         ]
-        markdown, sections = synthesize_newsletter(items, edition_number=1)
+        markdown, sections, _ = synthesize_newsletter(items, edition_number=1)
 
         assert isinstance(sections, list)
 
@@ -640,14 +641,14 @@ class TestSynthesizeNewsletterReturnType:
                 composite=0.9,
             )
         ]
-        markdown, sections = synthesize_newsletter(items, edition_number=1)
+        markdown, sections, _ = synthesize_newsletter(items, edition_number=1)
 
         for section in sections:
             assert isinstance(section, NewsletterSection)
 
     def test_synthesize_newsletter_empty_returns_empty_sections(self):
         """With no items, sections list should be empty."""
-        markdown, sections = synthesize_newsletter([], edition_number=1)
+        markdown, sections, _ = synthesize_newsletter([], edition_number=1)
 
         assert isinstance(sections, list)
         assert sections == []

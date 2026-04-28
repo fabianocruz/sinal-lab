@@ -15,15 +15,27 @@ from apps.agents.editorial.pipeline import EditorialPipeline
 
 
 def _make_output(**overrides) -> AgentOutput:
-    """Create a well-formed AgentOutput."""
+    """Create a well-formed AgentOutput.
+
+    Body content must satisfy guidelines layer criteria:
+    has_data (numbers + sources), actionable (decision-relevant),
+    latam_angle (Brazil/LATAM context), aligns_territory (fintech/AI).
+    """
     defaults = {
-        "title": "Sinal Semanal #42",
+        "title": "Sinal Semanal #42 — Pix institucional cresce 47% e fintechs ajustam open finance",
         "body_md": (
             "# Sinal Semanal #42\n\n"
-            "This week we cover the latest in LATAM tech. "
-            "Multiple startups announced funding rounds. "
-            "The ecosystem continues to grow with new developer tools. "
-            "AI adoption is accelerating across the region. " * 5
+            "Esta semana o Pix institucional alcançou R$ 312 bilhões em volume mensal, "
+            "alta de 47% no Brasil segundo dados do Banco Central. Para CTOs de fintechs "
+            "brasileiras, três decisões ficam óbvias: (1) revisar limites de rate limiting "
+            "nos endpoints de Pix antes do pico de novembro; (2) priorizar observabilidade "
+            "de fraude com latência sub-200ms; (3) avaliar custo de open finance com 12 "
+            "instituições conectadas. No México, a CNBV publicou 8 novas regras de KYC para "
+            "stablecoins; na Colômbia, Bre-B (Pix colombiano) entrou em produção com 4 bancos.\n\n"
+            "O ecossistema de developer tools cresceu 22% em adoção LATAM segundo o Stack "
+            "Overflow Survey 2026, com Claude Code e Cursor liderando entre desenvolvedores "
+            "brasileiros (38% e 27% respectivamente). Fundadores devem reavaliar seu stack: "
+            "ferramentas de AI agentic já economizam 14 horas/semana por engenheiro sênior. " * 2
         ),
         "agent_name": "sintese",
         "run_id": "sintese-20260215-pipe01",
@@ -38,7 +50,10 @@ def _make_output(**overrides) -> AgentOutput:
             "https://news.ycombinator.com/rss",
             "https://github.com/trending",
         ],
-        "summary": "Weekly digest covering LATAM tech ecosystem trends.",
+        "summary": (
+            "Pix institucional alcança R$ 312 bilhões e fintechs LATAM revisam open finance. "
+            "Análise para CTOs no Brasil, México e Colômbia."
+        ),
     }
     defaults.update(overrides)
     return AgentOutput(**defaults)
@@ -54,8 +69,8 @@ class TestPipelineHappyPath:
 
         assert result.publish_ready is True
         assert result.blocker_count == 0
-        assert len(result.layer_results) == 6  # all 6 layers
-        assert result.content_title == "Sinal Semanal #42"
+        assert len(result.layer_results) == 7  # 6 review layers + sintese_final
+        assert result.content_title.startswith("Sinal Semanal #42")
         assert result.agent_name == "sintese"
 
     def test_all_six_layers_run(self):
@@ -64,7 +79,10 @@ class TestPipelineHappyPath:
         result = pipeline.review(output)
 
         layer_names = [lr.layer_name for lr in result.layer_results]
-        assert layer_names == ["pesquisa", "validacao", "verificacao", "vies", "seo", "sintese_final"]
+        assert layer_names == [
+            "pesquisa", "validacao", "verificacao",
+            "guidelines", "vies", "seo", "sintese_final",
+        ]
 
     def test_all_layers_pass(self):
         pipeline = EditorialPipeline()
@@ -125,8 +143,8 @@ class TestPipelineHaltOnBlocker:
         output = _make_output(title="")
         result = pipeline.review(output)
 
-        # All 6 layers should run even with blockers (5 chain + sintese_final)
-        assert len(result.layer_results) == 6
+        # All 7 layers should run even with blockers (6 chain + sintese_final)
+        assert len(result.layer_results) == 7
         assert result.publish_ready is False
 
 
@@ -231,7 +249,10 @@ class TestPipelineEdgeCases:
     def test_get_layer_names(self):
         pipeline = EditorialPipeline()
         names = pipeline.get_layer_names()
-        assert names == ["pesquisa", "validacao", "verificacao", "vies", "seo", "sintese_final"]
+        assert names == [
+            "pesquisa", "validacao", "verificacao",
+            "guidelines", "vies", "seo", "sintese_final",
+        ]
 
 
 class TestDataAgentWarning:

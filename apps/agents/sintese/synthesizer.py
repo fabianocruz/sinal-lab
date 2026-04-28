@@ -206,7 +206,7 @@ def synthesize_newsletter(
     edition_number: int = 1,
     edition_date: Optional[datetime] = None,
     writer: Optional["SinteseWriter"] = None,
-) -> tuple[str, list[NewsletterSection]]:
+) -> tuple[str, list[NewsletterSection], dict[str, str]]:
     """Produce the full newsletter draft in Markdown.
 
     When a writer is provided and available, generates LLM-powered editorial
@@ -221,7 +221,8 @@ def synthesize_newsletter(
         writer: Optional LLM editorial writer for enhanced content.
 
     Returns:
-        Tuple of (newsletter Markdown, list of sections used).
+        Tuple of (newsletter Markdown, list of sections used, editorial summaries
+        keyed by item URL — only items whose section had an LLM summary).
     """
     if not edition_date:
         edition_date = datetime.now(timezone.utc)
@@ -265,6 +266,7 @@ def synthesize_newsletter(
     # Sections: try LLM per section, fallback to template
     item_index = 1
     seen_image_urls: set[str] = set()
+    editorial_summaries: dict[str, str] = {}
     for section in sections:
         lines.append(f"## {section.heading}")
         lines.append("")
@@ -278,9 +280,11 @@ def synthesize_newsletter(
             lines.append(section_content.intro)
             lines.append("")
             for i, scored_item in enumerate(section.items):
+                summary = section_content.summaries[i]
+                editorial_summaries[scored_item.item.url] = summary
                 lines.append(format_item_markdown(
                     scored_item, item_index,
-                    summary_override=section_content.summaries[i],
+                    summary_override=summary,
                     seen_image_urls=seen_image_urls,
                 ))
                 item_index += 1
@@ -312,4 +316,4 @@ def synthesize_newsletter(
         "*Inteligencia aberta para quem constroi.*"
     )
 
-    return "\n".join(lines), sections
+    return "\n".join(lines), sections, editorial_summaries
