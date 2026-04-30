@@ -161,7 +161,10 @@ def run_agent_subprocess(agent_name: str, week: int, persist: bool = True) -> No
     env["PYTHONPATH"] = str(_PROJECT_ROOT)
 
     logger.info("Running: %s", " ".join(cmd))
-    result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=600)
+    # Timeout 1800s (30min): social_signals collects from 45 sources sync (~6min)
+    # and persists with similarity search against thousands of historical signals
+    # (slow until pgvector extension is enabled). 600s was too tight in prod.
+    result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=1800)
 
     if result.returncode != 0:
         logger.error("Agent %s failed (exit %d): %s", agent_name, result.returncode, result.stderr[-500:] if result.stderr else "")

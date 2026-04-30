@@ -94,11 +94,20 @@ def _analyze_cluster_timing(
     Returns:
         First mover dict, or None if no signals have timestamps.
     """
-    # Filter signals with valid timestamps
-    timed_signals = [
-        s for s in cluster.signals
-        if s.post.published_at is not None
-    ]
+    # Filter signals with valid timestamps. Some collectors (RSS) emit
+    # published_at as ISO string instead of datetime; coerce here to keep
+    # sorting comparable across sources.
+    timed_signals: list[ProcessedSignal] = []
+    for s in cluster.signals:
+        ts = s.post.published_at
+        if ts is None:
+            continue
+        if isinstance(ts, str):
+            try:
+                s.post.published_at = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        timed_signals.append(s)
 
     if not timed_signals:
         return None
