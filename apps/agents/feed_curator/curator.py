@@ -57,7 +57,7 @@ def load_recent_signals(
     session: Any,
     limit: int = 100,
 ) -> List[Dict[str, Any]]:
-    """Load the most recent social signals from the database.
+    """Load the most recent social signals that have not been curated yet.
 
     Args:
         session: SQLAlchemy session.
@@ -68,11 +68,18 @@ def load_recent_signals(
     """
     from sqlalchemy import desc
 
+    from packages.database.models.curated_feed_item import CuratedFeedItem
     from packages.database.models.social_signal import SocialSignal
+
+    # Exclude signals whose content_hash already exists in curated_feed_items.
+    # Without this filter the curator just re-presents already-curated content
+    # to the LLM and ends up returning UPDATEs on the same items every run.
+    already_curated = session.query(CuratedFeedItem.content_hash).subquery()
 
     rows = (
         session.query(SocialSignal)
         .filter(SocialSignal.theme.isnot(None))
+        .filter(~SocialSignal.content_hash.in_(already_curated))
         .order_by(desc(SocialSignal.published_at))
         .limit(limit)
         .all()
