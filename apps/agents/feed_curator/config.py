@@ -21,9 +21,9 @@ class FeedCuratorConfig:
 
     version: str = "0.1.0"
     persona_name: str = "Ana Torres"
-    schedule_hours: int = 4
+    schedule_hours: int = 6
     default_input_limit: int = 100
-    default_output_limit: int = 20
+    default_output_limit: int = 5
     valid_categories: List[str] = field(default_factory=lambda: [
         "AI",
         "Fintech",

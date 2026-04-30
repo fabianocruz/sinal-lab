@@ -178,7 +178,7 @@ JOBS: Dict[str, Job] = {
     ),
     "feed": Job(
         name="FEED",
-        interval_seconds=2 * 3600,  # 2 hours
+        interval_seconds=6 * 3600,  # 6 hours (curates 5 items/run = ~20/day)
         run_fn=run_feed,
         description="Feed curation",
     ),
