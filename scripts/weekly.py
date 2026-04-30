@@ -634,6 +634,267 @@ def cmd_broadcast(edition: int, intelligence: Optional[str], article: Optional[s
 
 
 # ---------------------------------------------------------------------------
+# Commands: LLM-backed suggestions (suggest-title, suggest-subject,
+# rewrite-hook, suggest-removals). All output-only — they never modify
+# the DB. Apply with set-title / set-subject / remove-item if you like
+# what you see.
+# ---------------------------------------------------------------------------
+
+_SUGGEST_SYSTEM = """You are a senior editor for Sinal.lab, a LATAM tech \
+intelligence newsletter for founders, CTOs, and senior engineers. The voice \
+is sharp, opinionated, operational. The audience reads Portuguese fluently \
+and is comfortable with technical English; mix is fine. Avoid em dashes \
+(—); use commas, colons, or periods to separate ideas."""
+
+
+def _llm_or_die() -> "LLMClient":  # type: ignore
+    from apps.agents.base.llm import LLMClient
+    client = LLMClient()
+    if not client.is_available:
+        print("  ANTHROPIC_API_KEY missing or anthropic SDK not installed.")
+        sys.exit(1)
+    return client
+
+
+def cmd_suggest_title(edition: int, count: int = 3, week: Optional[int] = None) -> int:
+    """Ask Claude for N alternative titles for the sintese piece."""
+    week = _resolve_week(edition, week)
+    session = _get_session()
+    try:
+        from packages.database.models.content_piece import ContentPiece
+        sintese = session.query(ContentPiece).filter_by(slug=f"sinal-semanal-{edition}").first()
+        if not sintese:
+            print(f"  No sintese for edition #{edition}.")
+            return 1
+
+        meta = sintese.metadata_ or {}
+        items = meta.get("items") or []
+        item_titles = "\n".join(
+            f"- {(it.get('title') or '')[:120]}"
+            for it in items[:18] if it.get("title")
+        )
+        # Use the first ~3000 chars of body as editorial lead context.
+        lead = (sintese.body_md or "")[:3000]
+
+        client = _llm_or_die()
+        user_prompt = (
+            f"Edition #{edition}, week {week}.\n\n"
+            f"Current title: {sintese.title}\n\n"
+            f"Lead paragraph(s) of the edition:\n{lead}\n\n"
+            f"Item headlines covered in this edition:\n{item_titles}\n\n"
+            f"Propose {count} alternative titles for this edition. Each title should:\n"
+            f"- lead with substance, not with a single company name (avoid 'Nubank does X' framings)\n"
+            f"- connect 2-3 of the strongest tensions in the edition\n"
+            f"- be under 130 characters\n"
+            f"- not promote any specific company\n\n"
+            f"Output format:\n"
+            f"## Option 1\n<title>\n*Why:* one sentence on what this title leads with and what it omits.\n\n"
+            f"## Option 2\n...\n\n"
+            f"Be specific. No preamble."
+        )
+        print(f"  Asking Claude for {count} title options...\n")
+        out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
+                              max_tokens=1500, temperature=0.6)
+        if not out:
+            print("  LLM call failed.")
+            return 1
+        print(out)
+        print(f"\n  To apply: weekly set-title --edition {edition} --title \"...\"")
+        return 0
+    finally:
+        session.close()
+
+
+def cmd_suggest_subject(edition: int, count: int = 3, week: Optional[int] = None) -> int:
+    """Ask Claude for N alternative email subjects."""
+    week = _resolve_week(edition, week)
+    session = _get_session()
+    try:
+        from packages.database.models.content_piece import ContentPiece
+        sintese = session.query(ContentPiece).filter_by(slug=f"sinal-semanal-{edition}").first()
+        if not sintese:
+            print(f"  No sintese for edition #{edition}.")
+            return 1
+
+        meta = sintese.metadata_ or {}
+        current_subj = meta.get("email_subject", "")
+        lead = (sintese.body_md or "")[:2000]
+
+        client = _llm_or_die()
+        user_prompt = (
+            f"Edition #{edition}.\n\n"
+            f"Current title: {sintese.title}\n"
+            f"Current subject: {current_subj or '(none)'}\n\n"
+            f"Lead of the edition:\n{lead}\n\n"
+            f"Propose {count} alternative email subjects. Constraints:\n"
+            f"- prefix 'Sinal Semanal #{edition}: ' is added automatically by the renderer\n"
+            f"  so DO NOT include it in your suggestions\n"
+            f"- the subject text after the prefix should be under 70 characters so the\n"
+            f"  full subject (with prefix) stays under ~90 chars\n"
+            f"- ideal mobile preview shows the first ~30-40 chars after the prefix —\n"
+            f"  put the strongest hook there\n"
+            f"- avoid promoting a single company; lead with a tension or a number\n\n"
+            f"Output format:\n"
+            f"## Option 1\n<subject text without prefix>\n*chars (without prefix):* N\n\n"
+            f"## Option 2\n...\n\n"
+            f"Be specific. No preamble."
+        )
+        print(f"  Asking Claude for {count} subject options...\n")
+        out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
+                              max_tokens=1000, temperature=0.6)
+        if not out:
+            print("  LLM call failed.")
+            return 1
+        print(out)
+        print(f"\n  To apply: weekly set-subject --edition {edition} --subject \"...\"")
+        return 0
+    finally:
+        session.close()
+
+
+def cmd_rewrite_hook(piece: str, item: int, count: int = 3) -> int:
+    """Ask Claude to rewrite the opening hook of a specific blockquote.
+
+    Useful when the LLM-generated commentary opens with the same formula
+    multiple times (e.g. 'Para founders LATAM, ...'). Keeps the substance,
+    varies the lead.
+    """
+    session = _get_session()
+    try:
+        from packages.database.models.content_piece import ContentPiece
+        p = session.query(ContentPiece).filter_by(slug=piece).first()
+        if not p:
+            print(f"  Piece not found: {piece}")
+            return 1
+        body = p.body_md or ""
+
+        # Find the blockquote tied to item N: pattern "**N. [...]**\n*Fonte: ...*\n> ..."
+        pattern = re.compile(
+            rf"\*\*{item}\. \[([^\]]+)\]\([^)]+\)\*\*\s*\n"
+            rf"(?:\*[^\n]+\*\s*\n)?"
+            rf"(> [^\n]+)",
+            re.MULTILINE,
+        )
+        m = pattern.search(body)
+        if not m:
+            print(f"  Item #{item} (with blockquote) not found in {piece}")
+            return 1
+        item_title = m.group(1)
+        current_quote = m.group(2)
+
+        # Sample 2 neighboring blockquotes for tone context
+        all_quotes = re.findall(r"^> [^\n]+", body, re.MULTILINE)
+        try:
+            cur_idx = all_quotes.index(current_quote)
+            neighbors = []
+            if cur_idx > 0:
+                neighbors.append(all_quotes[cur_idx - 1])
+            if cur_idx + 1 < len(all_quotes):
+                neighbors.append(all_quotes[cur_idx + 1])
+        except ValueError:
+            neighbors = []
+
+        client = _llm_or_die()
+        user_prompt = (
+            f"Piece: {piece}, item #{item}.\n"
+            f"Item title: {item_title}\n\n"
+            f"Current blockquote (to rewrite):\n{current_quote}\n\n"
+            + (f"Neighbor blockquotes (for tone):\n" + "\n".join(neighbors) + "\n\n"
+               if neighbors else "")
+            + f"Rewrite this blockquote {count} different ways. Constraints:\n"
+            f"- keep the SAME factual claims and analytical conclusion\n"
+            f"- vary the OPENING hook — do not start with 'Para founders/CTOs/fundadores'\n"
+            f"- alternative openers to try: a number, a comparison, a counterintuitive\n"
+            f"  claim, an operational consequence, a question, a contrast with a known\n"
+            f"  case\n"
+            f"- preserve length (within ±20%)\n"
+            f"- single line, no internal blank lines\n"
+            f"- start with '> ' (Markdown blockquote)\n\n"
+            f"Output format:\n"
+            f"## Option 1\n<blockquote starting with '> '>\n*Hook:* one phrase naming the rhetorical move used\n\n"
+            f"## Option 2\n...\n\n"
+            f"No preamble."
+        )
+        print(f"  Asking Claude for {count} rewrite options...\n")
+        out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
+                              max_tokens=1500, temperature=0.7)
+        if not out:
+            print("  LLM call failed.")
+            return 1
+        print(out)
+        print(f"\n  To apply, replace the blockquote in {piece}'s body_md manually")
+        print(f"  (no automation yet — paste your chosen option in psql or via a quick UPDATE).")
+        return 0
+    finally:
+        session.close()
+
+
+def cmd_suggest_removals(edition: int, week: Optional[int] = None) -> int:
+    """Ask Claude which items to consider cutting from the edition."""
+    week = _resolve_week(edition, week)
+    session = _get_session()
+    try:
+        from packages.database.models.content_piece import ContentPiece
+        sintese = session.query(ContentPiece).filter_by(slug=f"sinal-semanal-{edition}").first()
+        if not sintese:
+            print(f"  No sintese for edition #{edition}.")
+            return 1
+        meta = sintese.metadata_ or {}
+        items = meta.get("items") or []
+        if not items:
+            print(f"  Sintese has no items in metadata.")
+            return 1
+
+        # Prior edition context: items + title for follow-up detection
+        prev = session.query(ContentPiece).filter_by(slug=f"sinal-semanal-{edition - 1}").first()
+        prev_block = ""
+        if prev and prev.metadata_:
+            prev_titles = [(it.get("title") or "")[:100]
+                           for it in (prev.metadata_.get("items") or [])
+                           if it.get("title")]
+            prev_block = (
+                f"\n## Prior edition #{edition - 1} items (for follow-up detection)\n"
+                + "\n".join(f"- {t}" for t in prev_titles[:25]) + "\n"
+            )
+
+        item_lines = []
+        for i, it in enumerate(items, start=1):
+            title = (it.get("title") or "(no title)")[:140]
+            source = it.get("source") or ""
+            url = it.get("url") or ""
+            item_lines.append(f"{i}. {title}  [source={source}, url={url}]")
+        items_block = "\n".join(item_lines)
+
+        client = _llm_or_die()
+        user_prompt = (
+            f"Edition #{edition}, week {week}. {len(items)} items currently in sintese.\n\n"
+            f"## Current items\n{items_block}\n"
+            + prev_block
+            + f"\n\nIdentify items that are weak fits for THIS edition and worth removing. "
+            f"Reasons might include: (a) duplicates a topic from the prior edition without "
+            f"adding new substance, (b) tangential to LATAM tech / founders / CTOs / engineers, "
+            f"(c) promotional or PR-like, (d) thin on facts.\n\n"
+            f"Sintese typically holds 12-16 items. Don't suggest cuts just to hit a number — "
+            f"only flag items that genuinely don't earn their slot.\n\n"
+            f"Output format:\n"
+            f"## Items to consider cutting\n"
+            f"- **#K** [title] — one-sentence reason. Suggested action: cut / rewrite as follow-up / keep but renumber.\n\n"
+            f"If everything earns its slot, say so plainly. No preamble."
+        )
+        print(f"  Asking Claude to review {len(items)} items...\n")
+        out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
+                              max_tokens=1500, temperature=0.4)
+        if not out:
+            print("  LLM call failed.")
+            return 1
+        print(out)
+        print(f"\n  To apply: weekly remove-item --edition {edition} --piece sinal-semanal-{edition} --item K")
+        return 0
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
 # Argparse plumbing
 # ---------------------------------------------------------------------------
 
@@ -702,6 +963,24 @@ def main() -> int:
     p_bcast.add_argument("--intelligence", type=str, default=None, help="Intelligence report URL")
     p_bcast.add_argument("--article", type=str, default=None, help="Article highlight URL (informational)")
 
+    # LLM-backed suggestions (output-only, never modify the DB)
+    p_st = sub.add_parser("suggest-title", help="Ask Claude for N alternative titles")
+    _add_edition(p_st)
+    p_st.add_argument("--count", type=int, default=3, help="Number of options to generate")
+
+    p_ss = sub.add_parser("suggest-subject", help="Ask Claude for N alternative email subjects")
+    _add_edition(p_ss)
+    p_ss.add_argument("--count", type=int, default=3, help="Number of options to generate")
+
+    p_rh = sub.add_parser("rewrite-hook",
+                          help="Ask Claude to rewrite the opening of a blockquote")
+    p_rh.add_argument("--piece", type=str, required=True, help="Slug of the piece")
+    p_rh.add_argument("--item", type=int, required=True, help="Item number with the blockquote")
+    p_rh.add_argument("--count", type=int, default=3, help="Number of rewrite options")
+
+    p_sr = sub.add_parser("suggest-removals", help="Ask Claude which items to consider cutting")
+    _add_edition(p_sr)
+
     args = parser.parse_args()
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -739,6 +1018,14 @@ def main() -> int:
         return cmd_sync_prod(args.edition, args.week, dry_run=not args.execute)
     if cmd == "broadcast":
         return cmd_broadcast(args.edition, args.intelligence, args.article, args.week)
+    if cmd == "suggest-title":
+        return cmd_suggest_title(args.edition, count=args.count, week=args.week)
+    if cmd == "suggest-subject":
+        return cmd_suggest_subject(args.edition, count=args.count, week=args.week)
+    if cmd == "rewrite-hook":
+        return cmd_rewrite_hook(args.piece, args.item, count=args.count)
+    if cmd == "suggest-removals":
+        return cmd_suggest_removals(args.edition, args.week)
 
     parser.print_help()
     return 2

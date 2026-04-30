@@ -70,6 +70,27 @@ title or subject suggestions.
 
 Costs ~$0.10 and ~30s per call. Run once before publishing.
 
+### 4b. (Optional) Targeted LLM suggestions
+When QA review flags something specific, ask Claude for proposals:
+
+```bash
+# Propose 3 alternative titles for the sintese
+python scripts/weekly.py suggest-title --edition 57
+
+# Propose 3 alternative email subjects (with character counts)
+python scripts/weekly.py suggest-subject --edition 57
+
+# Identify items that are weak fits and worth cutting (uses prior-edition context)
+python scripts/weekly.py suggest-removals --edition 57
+
+# Rewrite a single blockquote, varying the opening hook
+python scripts/weekly.py rewrite-hook --piece radar-week-19 --item 5
+```
+
+Each is ~$0.05 and ~10s. They print options and never modify the DB —
+apply with `set-title` / `set-subject` / `remove-item` if you like what
+you see. `rewrite-hook` is read-only; copy the chosen option manually.
+
 ### 5. Edit individual pieces
 Manual fixes that come out of QA review.
 
