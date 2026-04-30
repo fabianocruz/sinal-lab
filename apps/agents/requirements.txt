@@ -10,3 +10,7 @@ anthropic>=0.40.0
 
 # Cover image generation (overlay compositor)
 Pillow>=10.0.0
+
+# Fuzzy company name matching in funding/processor.py
+fuzzywuzzy>=0.18.0
+python-Levenshtein>=0.20.0  # speeds up fuzzywuzzy 10x+

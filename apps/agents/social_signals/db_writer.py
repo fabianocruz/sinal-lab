@@ -260,8 +260,43 @@ def _upsert_signal_cluster(
     )
     session.add(record)
 
-    if centroid_embedding:
+    # Force the INSERT to flush now so we can catch UniqueViolation here
+    # (rare case: query.first() returned None but the row exists — happens
+    # when SQLAlchemy session cache is stale or when another process
+    # inserted between query and add). Fall back to UPDATE.
+    from sqlalchemy.exc import IntegrityError
+    try:
         session.flush()
+    except IntegrityError:
+        session.rollback()
+        existing = session.query(SignalCluster).filter_by(slug=slug).first()
+        if existing is None:
+            raise  # genuine conflict, not a stale-cache miss
+        existing.name = cluster.name
+        existing.theme = cluster.theme
+        existing.sub_theme = cluster.sub_theme
+        existing.description = cluster.description or existing.description
+        existing.signal_count = cluster.signal_count
+        existing.composite_score = composite
+        existing.dimensions = dimensions_dict
+        existing.narrative_stage = cluster.narrative_stage
+        existing.top_voices = top_voices
+        existing.top_posts = top_posts
+        existing.related_companies = related_companies
+        existing.last_active_at = now
+        existing.agent_run_id = agent_run_id
+        existing.updated_at = now
+        flag_modified(existing, "dimensions")
+        flag_modified(existing, "top_voices")
+        flag_modified(existing, "top_posts")
+        flag_modified(existing, "related_companies")
+        if centroid_embedding:
+            existing.centroid_embedding_json = centroid_embedding
+            flag_modified(existing, "centroid_embedding_json")
+            _update_pgvector_column(session, str(existing.id), centroid_embedding, "signal_clusters")
+        return str(existing.id)
+
+    if centroid_embedding:
         _update_pgvector_column(session, str(cluster_id), centroid_embedding, "signal_clusters")
 
     return str(cluster_id)

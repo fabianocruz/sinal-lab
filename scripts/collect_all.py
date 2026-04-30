@@ -103,23 +103,9 @@ def run_funding_scrapers() -> None:
         logger.info("Funding scrapers: %d inserted, %d skipped", inserted, skipped)
 
 
-def run_funding_coresignal() -> None:
-    """Collect funding events from Coresignal API (costs credits, run sparingly)."""
-    from scripts.collect_funding import collect_from_coresignal, persist_events
-    events = collect_from_coresignal(days_back=30, max_companies=10)
-    if events:
-        inserted, skipped = persist_events(events)
-        logger.info("Coresignal funding: %d inserted, %d skipped", inserted, skipped)
-
-
 def run_signals() -> None:
     """Collect social signals (Twitter, Bluesky, RSS)."""
     run_agent_subprocess("social_signals", week=_current_week(), persist=True)
-
-
-def run_companies() -> None:
-    """Discover companies via GitHub (free). Coresignal runs separately."""
-    run_agent_subprocess("mercado", week=_current_week(), persist=True)
 
 
 def run_feed() -> None:
@@ -184,23 +170,11 @@ JOBS: Dict[str, Job] = {
         run_fn=run_funding_scrapers,
         description="Funding scrapers (NeoFeed, Bloomberg, RSS)",
     ),
-    "funding_coresignal": Job(
-        name="FUNDING_API",
-        interval_seconds=24 * 3600,  # 24 hours (costs credits)
-        run_fn=run_funding_coresignal,
-        description="Coresignal funding API (10 companies/cycle)",
-    ),
     "signals": Job(
         name="SIGNALS",
         interval_seconds=6 * 3600,  # 6 hours
         run_fn=run_signals,
         description="Social signals (Twitter, Bluesky, RSS)",
-    ),
-    "companies": Job(
-        name="COMPANIES",
-        interval_seconds=24 * 3600,  # 24 hours (GitHub only, free)
-        run_fn=run_companies,
-        description="Company discovery (GitHub)",
     ),
     "feed": Job(
         name="FEED",
