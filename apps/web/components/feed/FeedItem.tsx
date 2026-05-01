@@ -1,5 +1,6 @@
 import type { CuratedFeedItem } from "@/lib/signal";
 import { THEME_COLORS } from "@/lib/signal";
+import FeedItemThumbnail from "./FeedItemThumbnail";
 
 const FALLBACK_CATEGORY_COLOR = "#9A9AA8";
 
@@ -73,25 +74,10 @@ export default function FeedItem({ item }: FeedItemProps) {
       aria-label={`${item.editorial_headline} — ${item.author_display_name || item.author_handle}`}
     >
       <div className="flex gap-4">
-        {/* Thumbnail — left side, only when available */}
-        {hasThumbnail && (
-          <a
-            href={item.original_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0"
-            tabIndex={-1}
-            aria-hidden="true"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={item.thumbnail_url!}
-              alt=""
-              className="h-24 w-40 rounded-lg object-cover"
-              loading="lazy"
-            />
-          </a>
-        )}
+        {/* Thumbnail — left side, only when available. Client component
+            so we can hide the slot when the image 403s (Reddit hotlink,
+            dead CDN URLs, etc.) instead of leaving a hollow rectangle. */}
+        {hasThumbnail && <FeedItemThumbnail src={item.thumbnail_url!} href={item.original_url} />}
 
         <div className="min-w-0 flex-1">
           {/* Category + platform + time */}

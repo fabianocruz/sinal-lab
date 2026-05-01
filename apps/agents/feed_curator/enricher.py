@@ -79,18 +79,35 @@ def extract_image_from_html(html_text: str) -> Optional[str]:
         return None
 
     # Look for all <img src="http..."> tags (either ' or " quotes) and
-    # return the first one that isn't an obvious tracking pixel or icon.
+    # return the first one that isn't an obvious tracking pixel or icon
+    # or a host that we know returns 403 to non-Reddit referrers.
     skip_patterns = [
         "1x1", "pixel.gif", "pixel.png", "blank.gif", "spacer.gif", "tracker",
     ]
+    # Hosts that block hotlinking / always 403 from non-origin requests.
+    # external-preview.redd.it requires Reddit-internal cookies and rejects
+    # everything else with 403 — saving those URLs leaves broken <img> tags
+    # in the feed.
+    skip_hosts = (
+        "external-preview.redd.it",
+        "preview.redd.it",
+    )
     for match in re.finditer(
         r'<img[^>]+src=["\'](https?://[^"\']+)["\']',
         html_text,
         re.IGNORECASE,
     ):
         url = match.group(1)
+        # Decode HTML entities (e.g. &amp; -> &) so the URL is usable.
+        url = (
+            url.replace("&amp;", "&")
+               .replace("&quot;", '"')
+               .replace("&#39;", "'")
+        )
         lower = url.lower()
         if any(skip in lower for skip in skip_patterns):
+            continue
+        if any(host in lower for host in skip_hosts):
             continue
         return url
     return None
