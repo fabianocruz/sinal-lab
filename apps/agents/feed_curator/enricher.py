@@ -62,6 +62,40 @@ def detect_embed(url: str) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
+def extract_image_from_html(html_text: str) -> Optional[str]:
+    """Extract the first absolute http(s) <img src> from inline HTML.
+
+    Reddit and many RSS-fed sources embed a preview image directly in the
+    post body using <img src="..."> tags. When og:image fetching fails
+    (Reddit blocks scrapers, paywalls, etc), this is a reliable fallback.
+
+    Args:
+        html_text: A blob of text that may contain HTML.
+
+    Returns:
+        First absolute image URL found, or None.
+    """
+    if not html_text:
+        return None
+
+    # Look for all <img src="http..."> tags (either ' or " quotes) and
+    # return the first one that isn't an obvious tracking pixel or icon.
+    skip_patterns = [
+        "1x1", "pixel.gif", "pixel.png", "blank.gif", "spacer.gif", "tracker",
+    ]
+    for match in re.finditer(
+        r'<img[^>]+src=["\'](https?://[^"\']+)["\']',
+        html_text,
+        re.IGNORECASE,
+    ):
+        url = match.group(1)
+        lower = url.lower()
+        if any(skip in lower for skip in skip_patterns):
+            continue
+        return url
+    return None
+
+
 def extract_og_image(url: str, timeout: float = 5.0) -> Optional[str]:
     """Fetch a URL and extract the og:image meta tag.
 
@@ -130,6 +164,7 @@ def extract_og_image(url: str, timeout: float = 5.0) -> Optional[str]:
 def enrich_items(
     items: List["CuratedItem"],
     fetch_thumbnails: bool = True,
+    session: Optional[object] = None,
 ) -> List["CuratedItem"]:
     """Enrich curated items with embed detection and og:image thumbnails.
 
@@ -142,11 +177,31 @@ def enrich_items(
         items: List of CuratedItem instances to enrich.
         fetch_thumbnails: If True, fetch og:image for non-embed URLs.
             Set to False in tests or when speed is critical.
+        session: Optional SQLAlchemy session. When provided, the enricher
+            falls back to scanning the ORIGINAL signal.text (HTML) for
+            <img> tags when og:image fails — most useful for Reddit and
+            RSS sources that block scrapers but embed previews inline.
 
     Returns:
         The same list of items, now enriched.
     """
     from apps.agents.feed_curator.curator import CuratedItem  # noqa: F811
+
+    # Lazy load: only if a session is provided AND we'll actually need it.
+    raw_texts_by_hash: dict = {}
+    if session is not None:
+        try:
+            from packages.database.models.social_signal import SocialSignal
+            hashes = [it.content_hash for it in items if it.content_hash]
+            if hashes:
+                rows = (
+                    session.query(SocialSignal.content_hash, SocialSignal.text)
+                    .filter(SocialSignal.content_hash.in_(hashes))
+                    .all()
+                )
+                raw_texts_by_hash = {ch: txt for ch, txt in rows if txt}
+        except Exception as exc:
+            logger.debug("Could not load raw signal texts for enrichment: %s", exc)
 
     for item in items:
         # Detect embeds — check source_url first, then scan source_text for video links.
@@ -166,9 +221,20 @@ def enrich_items(
                 if video_id:
                     item.thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
 
-        # Fetch og:image for items without a thumbnail
+        # Fetch og:image for items without a thumbnail. Try og:image on the
+        # source URL first, then fall back to scanning the source_text for an
+        # inline <img> (Reddit/RSS feeds embed preview images directly).
         if fetch_thumbnails and not item.thumbnail_url and item.source_url:
             item.thumbnail_url = extract_og_image(item.source_url)
+        if not item.thumbnail_url and item.source_text:
+            item.thumbnail_url = extract_image_from_html(item.source_text)
+        # Last resort: pull the original (HTML-bearing) text from the matching
+        # social_signals row. source_text is LLM-cleaned and usually has no
+        # <img> tags; the raw signal text often does (Reddit RSS especially).
+        if not item.thumbnail_url and item.content_hash in raw_texts_by_hash:
+            item.thumbnail_url = extract_image_from_html(
+                raw_texts_by_hash[item.content_hash]
+            )
 
     enriched_count = sum(
         1 for item in items

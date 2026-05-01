@@ -118,11 +118,14 @@ class FeedCuratorAgent(BaseAgent):
             llm_client=self._llm_client,
         )
 
-        # Step 3: Enrichment (thumbnails, embeds)
+        # Step 3: Enrichment (thumbnails, embeds). Pass the DB session so the
+        # enricher can fall back to social_signals.text (HTML, with <img>)
+        # when og:image fetch fails — Reddit RSS embeds previews inline.
         if curated:
             curated = enrich_items(
                 curated,
                 fetch_thumbnails=self.fetch_thumbnails,
+                session=self._db_session,
             )
 
         self._curated_items = curated
