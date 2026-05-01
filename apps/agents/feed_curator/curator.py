@@ -59,6 +59,13 @@ def load_recent_signals(
 ) -> List[Dict[str, Any]]:
     """Load the most recent social signals that have not been curated yet.
 
+    Filters out obvious noise so the LLM sees mostly editorial-grade content:
+    - already-curated content_hashes (we'd just re-curate them)
+    - login/signup wall pages scraped from LinkedIn
+    - Reddit AutoModerator / generic daily-discussion threads
+    - empty or very short bodies
+    - signals without a published_at (usually scrape errors)
+
     Args:
         session: SQLAlchemy session.
         limit: Maximum number of signals to load.
@@ -66,21 +73,45 @@ def load_recent_signals(
     Returns:
         List of dicts with signal data for LLM input.
     """
-    from sqlalchemy import desc
+    from sqlalchemy import desc, func
 
     from packages.database.models.curated_feed_item import CuratedFeedItem
     from packages.database.models.social_signal import SocialSignal
 
-    # Exclude signals whose content_hash already exists in curated_feed_items.
-    # Without this filter the curator just re-presents already-curated content
-    # to the LLM and ends up returning UPDATEs on the same items every run.
+    # Patterns we have seen produce useless LLM input. Each match (case-insensitive)
+    # in the first ~200 chars of `text` rejects the signal.
+    NOISE_PATTERNS = [
+        "sign in | linkedin",
+        "agree & join linkedin",
+        "discover new opportunities",
+        "daily crypto discussion",
+        "daily discussion thread",
+        "weekly thread",
+        "i will not promote",
+        "[deleted]",
+        "[removed]",
+    ]
+    NOISE_AUTHORS = [
+        "automoderator",
+    ]
+    MIN_TEXT_LENGTH = 80
+
     already_curated = session.query(CuratedFeedItem.content_hash).subquery()
 
-    rows = (
+    query = (
         session.query(SocialSignal)
         .filter(SocialSignal.theme.isnot(None))
         .filter(~SocialSignal.content_hash.in_(already_curated))
-        .order_by(desc(SocialSignal.published_at))
+        .filter(SocialSignal.published_at.isnot(None))
+        .filter(func.char_length(SocialSignal.text) >= MIN_TEXT_LENGTH)
+    )
+    for pattern in NOISE_PATTERNS:
+        query = query.filter(~func.lower(SocialSignal.text).contains(pattern))
+    for author in NOISE_AUTHORS:
+        query = query.filter(func.lower(SocialSignal.author_handle) != author)
+
+    rows = (
+        query.order_by(desc(SocialSignal.published_at))
         .limit(limit)
         .all()
     )
