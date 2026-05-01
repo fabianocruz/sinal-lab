@@ -32,5 +32,8 @@ COPY scripts/ /app/scripts/
 # Ensure Python can find our packages
 ENV PYTHONPATH=/app
 
-# Railway injects PORT at runtime; default to 8000 for local dev
-CMD uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Railway injects PORT at runtime; default to 8000 for local dev.
+# `exec` makes uvicorn the PID 1 so SIGTERM from Railway hits the app
+# directly (graceful shutdown). JSON-form is required for proper signal
+# handling but doesn't expand env vars, so we wrap in sh -c.
+CMD ["sh", "-c", "exec uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
