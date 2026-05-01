@@ -681,7 +681,10 @@ def list_curated_feed(
     """List curated feed items with optional category filtering and pagination.
 
     Returns editorially curated signals with headlines, context, thumbnails,
-    and embed information. Items are ordered by relevance_score descending.
+    and embed information. Items are ordered by curated_at descending so the
+    newest curation appears first ("CURADO EM TEMPO REAL"). curated_at can
+    be NULL on legacy rows; fall back to created_at, then relevance_score
+    as a final tiebreaker.
     Accepts both `category` and `theme` query params (theme is an alias).
     """
     filter_category = category or theme
@@ -692,7 +695,10 @@ def list_curated_feed(
 
     total = query.count()
     items = (
-        query.order_by(desc(CuratedFeedItem.relevance_score))
+        query.order_by(
+            desc(func.coalesce(CuratedFeedItem.curated_at, CuratedFeedItem.created_at)),
+            desc(CuratedFeedItem.relevance_score),
+        )
         .offset(offset)
         .limit(limit)
         .all()
