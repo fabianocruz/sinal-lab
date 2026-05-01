@@ -96,24 +96,65 @@ def load_recent_signals(
     ]
     MIN_TEXT_LENGTH = 80
 
+    # We split the input batch into two pools and merge them so a single
+    # noisy news cycle on Reddit/HN doesn't push every Twitter/blog signal
+    # off the LLM's input. Reddit/HN posts often lack hotlinkable thumbnails,
+    # so capping their share keeps the visual quality of /feed reasonable.
+    LOW_MEDIA_HOSTS = ("reddit.com", "news.ycombinator.com")
+    LOW_MEDIA_FRACTION = 0.30  # at most 30% of the batch from these hosts
+
     already_curated = session.query(CuratedFeedItem.content_hash).subquery()
 
-    query = (
-        session.query(SocialSignal)
-        .filter(SocialSignal.theme.isnot(None))
-        .filter(~SocialSignal.content_hash.in_(already_curated))
-        .filter(SocialSignal.published_at.isnot(None))
-        .filter(func.char_length(SocialSignal.text) >= MIN_TEXT_LENGTH)
-    )
-    for pattern in NOISE_PATTERNS:
-        query = query.filter(~func.lower(SocialSignal.text).contains(pattern))
-    for author in NOISE_AUTHORS:
-        query = query.filter(func.lower(SocialSignal.author_handle) != author)
+    def _base_query():
+        q = (
+            session.query(SocialSignal)
+            .filter(SocialSignal.theme.isnot(None))
+            .filter(~SocialSignal.content_hash.in_(already_curated))
+            .filter(SocialSignal.published_at.isnot(None))
+            .filter(func.char_length(SocialSignal.text) >= MIN_TEXT_LENGTH)
+        )
+        for pattern in NOISE_PATTERNS:
+            q = q.filter(~func.lower(SocialSignal.text).contains(pattern))
+        for author in NOISE_AUTHORS:
+            q = q.filter(func.lower(SocialSignal.author_handle) != author)
+        return q
 
-    rows = (
-        query.order_by(desc(SocialSignal.published_at))
-        .limit(limit)
+    # Build two filters: one matches low-media hosts (URL contains any host),
+    # the other excludes them. SQLAlchemy or_/and_ on a list of LIKE clauses.
+    from sqlalchemy import or_
+
+    low_media_filter = or_(*[
+        SocialSignal.post_url.ilike(f"%{host}%") for host in LOW_MEDIA_HOSTS
+    ])
+
+    low_media_cap = max(1, int(limit * LOW_MEDIA_FRACTION))
+    rich_media_target = limit - low_media_cap
+
+    rich_rows = (
+        _base_query()
+        .filter(~low_media_filter)
+        .order_by(desc(SocialSignal.published_at))
+        .limit(rich_media_target)
         .all()
+    )
+    low_rows = (
+        _base_query()
+        .filter(low_media_filter)
+        .order_by(desc(SocialSignal.published_at))
+        .limit(low_media_cap)
+        .all()
+    )
+
+    # Merge while keeping recency: combined sort by published_at desc.
+    rows = sorted(
+        list(rich_rows) + list(low_rows),
+        key=lambda r: r.published_at,
+        reverse=True,
+    )
+
+    logger.info(
+        "Loaded %d signals (rich=%d, low_media=%d, cap=%d)",
+        len(rows), len(rich_rows), len(low_rows), low_media_cap,
     )
 
     signals = []
@@ -131,7 +172,6 @@ def load_recent_signals(
             "authority_score": row.authority_score,
         })
 
-    logger.info("Loaded %d signals from database", len(signals))
     return signals
 
 

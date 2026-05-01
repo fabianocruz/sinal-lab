@@ -74,6 +74,13 @@ CURATOR_USER_PROMPT_TEMPLATE = (
     "SKIP: sports bets, political predictions, generic news, spam. "
     "PRIORITIZE: funding rounds, product launches, technical insights, "
     "regulatory changes, LATAM-specific news.\n\n"
+    "VISUAL QUALITY: prefer signals from sources that typically include "
+    "images or video (TechCrunch, Bloomberg, news sites, blogs with hero "
+    "images, Twitter/X with media, YouTube). Reddit and Hacker News posts "
+    "rarely render with thumbnails on /feed; only pick those when the "
+    "underlying story is genuinely exceptional and not covered by a "
+    "richer source in the batch. Aim for at most 1 of {limit} items from "
+    "reddit.com or news.ycombinator.com.\n\n"
     "Return a JSON array. Each object must also include the original "
     '"content_hash" field so I can match it back to the source signal.\n\n'
     "Signals:\n{signals_json}"
