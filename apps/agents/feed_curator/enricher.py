@@ -238,10 +238,17 @@ def enrich_items(
                 if video_id:
                     item.thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
 
-        # Fetch og:image for items without a thumbnail. Try og:image on the
-        # source URL first, then fall back to scanning the source_text for an
-        # inline <img> (Reddit/RSS feeds embed preview images directly).
-        if fetch_thumbnails and not item.thumbnail_url and item.source_url:
+        # Fetch og:image for items without a thumbnail. Skip Reddit URLs:
+        # their og:image is external-preview.redd.it which blocks hotlinking,
+        # and the JSON API rate-limits anonymous IPs aggressively. Reddit
+        # items will fall through to the source_text / signal.text scan or
+        # render text-only on /feed.
+        if (
+            fetch_thumbnails
+            and not item.thumbnail_url
+            and item.source_url
+            and "reddit.com" not in item.source_url
+        ):
             item.thumbnail_url = extract_og_image(item.source_url)
         if not item.thumbnail_url and item.source_text:
             item.thumbnail_url = extract_image_from_html(item.source_text)
