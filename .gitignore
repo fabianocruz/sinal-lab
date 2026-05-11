@@ -81,6 +81,8 @@ branding/
 # Sinal — sensitive/working files
 .mcpregistry_*
 .claude/scheduled_tasks.lock
+.claude/settings.json
+.claude/settings.local.json
 *.py.bak
 /backups/
 /data/crunchbase_*.txt
