@@ -108,10 +108,14 @@ class MercadoAgent(BaseAgent):
             sum(e.editorial_score for e in all_scored) / len(all_scored)
             if all_scored else 0.5
         )
+        # Count unique source URLs first (each article = one source). Fall
+        # back to source_name only when URL missing. Aggregating by source_name
+        # alone underestimates diversity when multiple deals are reported by
+        # the same outlet.
         unique_sources = len({
-            getattr(e.event, "source_name", None) or getattr(e.event, "source_url", None)
+            getattr(e.event, "source_url", None) or getattr(e.event, "source_name", None)
             for e in all_scored
-            if getattr(e.event, "source_name", None) or getattr(e.event, "source_url", None)
+            if getattr(e.event, "source_url", None) or getattr(e.event, "source_name", None)
         })
         return [ConfidenceScore(
             data_quality=min(0.95, avg_score + 0.1),

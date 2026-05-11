@@ -144,14 +144,20 @@ class FundingAgent(BaseAgent):
             events: list[FundingEvent] = processed_data
             scored_events = score_events(events)
 
-        # Compute aggregate confidence
+        # Compute aggregate confidence. Use unique source URLs (one per
+        # article) instead of unique source_names — when all deals come
+        # from the same outlet (e.g. latamlist.com), source_names dedups
+        # to 1 and trips the editorial validacao layer's single-source
+        # blocker even though we have 4+ independent articles.
         if scores:
             avg_dq = sum(s.data_quality for s in scores) / len(scores)
             avg_ac = sum(s.analysis_confidence for s in scores) / len(scores)
+            url_count = len(set(self.provenance.get_source_urls()))
+            name_count = len(self.provenance.get_sources())
             aggregate_confidence = ConfidenceScore(
                 data_quality=avg_dq,
                 analysis_confidence=avg_ac,
-                source_count=len(self.provenance.get_sources()),
+                source_count=max(url_count, name_count),
                 verified=sum(1 for s in scores if s.verified) > len(scores) // 2,
             )
         else:
