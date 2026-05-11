@@ -45,14 +45,14 @@ LOCAL_URL = os.getenv("DATABASE_URL")
 PROD_URL = os.getenv("PROD_DATABASE_URL") or os.getenv("DATABASE_PUBLIC_URL")
 
 SLUGS_TO_SYNC = [
-    "sinal-semanal-56",
-    "radar-week-18",
-    "codigo-week-18",
-    "funding-semanal-18",
-    "mercado-week-18",
+    "sinal-semanal-57",
+    "radar-week-19",
+    "codigo-week-19",
+    "funding-semanal-19",
+    "mercado-week-19",
 ]
 
-COMPANY_SLUGS_TO_SYNC: list[str] = []  # no new companies for ed 56
+COMPANY_SLUGS_TO_SYNC: list[str] = []  # no new companies for ed 57
 
 
 def _content_to_dict(p: ContentPiece) -> dict[str, Any]:

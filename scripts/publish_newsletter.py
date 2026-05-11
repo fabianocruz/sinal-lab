@@ -286,6 +286,14 @@ FEATURE_HIGHLIGHTS: Dict[int, dict] = {
         "cta_label": "Ler o landscape",
         "color": "#3B82F6",
     },
+    57: {
+        "title": "O Sinal entre as edições",
+        "summary": "Funding rounds, lançamentos de produto, mudanças regulatórias e debates técnicos do dia, curados pela Ana Torres e contextualizados para quem constrói tech em LATAM. Para quando uma edição por semana não basta.",
+        "site_url": "https://sinal.tech/feed",
+        "badge": "Atualizado a cada hora",
+        "cta_label": "Abrir o /feed",
+        "color": "#59FFB4",
+    },
 }
 
 
