@@ -56,6 +56,12 @@ def get_newsletters_without_covers(conn, limit: int = 200):
     for row in rows:
         meta = json.loads(row[5]) if row[5] else {}
         lede = row[2] or ""
+
+        # Build a richer briefing for the art director: editorial lead
+        # paragraph (up to 600 chars) + headlines of the 3 most distinctive
+        # items from the edition. This gives the prompt LLM enough specifics
+        # to pick a hero visual instead of falling back on generic financial
+        # imagery (coins, charts, payment terminals).
         if not lede and row[7]:
             for line in row[7].split("\n"):
                 stripped = line.strip()
@@ -67,8 +73,20 @@ def get_newsletters_without_covers(conn, limit: int = 200):
                     and not stripped.startswith(">")
                     and len(stripped) > 30
                 ):
-                    lede = stripped[:200]
+                    lede = stripped[:600]
                     break
+
+        # Append top item titles so the prompt has concrete hero candidates.
+        items = meta.get("items") or []
+        if items:
+            item_lines = []
+            for it in items[:3]:
+                t = (it.get("title") or it.get("editorial_headline") or "").strip()
+                if t:
+                    item_lines.append(t[:120])
+            if item_lines:
+                lede = (lede + "\n\nKey items: " + " | ".join(item_lines))[:1200]
+
         if not lede:
             lede = row[1]
 
