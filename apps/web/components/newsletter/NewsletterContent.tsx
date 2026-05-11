@@ -27,7 +27,8 @@ const AGENT_BG_ALPHA: Record<string, string> = {
 
 export default function NewsletterContent({ newsletter }: NewsletterContentProps) {
   const { status } = useSession();
-  const isAuthenticated = status === "authenticated";
+  const isDev = process.env.NODE_ENV === "development";
+  const isAuthenticated = isDev || status === "authenticated";
 
   const agentColor = AGENT_HEX[newsletter.agent];
   const persona = AGENT_PERSONAS[newsletter.agent];
