@@ -16,7 +16,8 @@ export default function DownloadButton({
   accentColor = "#59B4FF",
 }: DownloadButtonProps) {
   const { status } = useSession();
-  const isAuthenticated = status === "authenticated";
+  const isDev = process.env.NODE_ENV === "development";
+  const isAuthenticated = isDev || status === "authenticated";
   const pathname = usePathname();
   const callbackParam = pathname ? `?callbackUrl=${encodeURIComponent(pathname)}` : "";
 

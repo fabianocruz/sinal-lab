@@ -12,11 +12,31 @@ interface IntelligenceGateProps {
   previewWords?: number;
 }
 
-/** Truncate markdown to approximately `wordLimit` words, preserving word boundaries. */
+/** Truncate markdown to approximately `wordLimit` words, preserving newlines
+ * and markdown structure. We count words across the whole string but slice
+ * on the original text so paragraph breaks, headings and lists stay intact.
+ */
 function truncateToWords(text: string, wordLimit: number): string {
-  const words = text.split(/\s+/);
-  if (words.length <= wordLimit) return text;
-  return words.slice(0, wordLimit).join(" ");
+  // Walk the original string, counting words (sequences of non-whitespace).
+  // Slice when the count reaches the limit so that newlines and other
+  // whitespace are preserved exactly as in the source.
+  let count = 0;
+  let inWord = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const isWs = /\s/.test(ch);
+    if (!isWs && !inWord) {
+      inWord = true;
+      count++;
+      if (count > wordLimit) {
+        // Back off to the end of the previous word.
+        return text.slice(0, i).trimEnd();
+      }
+    } else if (isWs) {
+      inWord = false;
+    }
+  }
+  return text;
 }
 
 /**
@@ -32,8 +52,9 @@ export default function IntelligenceGate({
   const { status } = useSession();
   const pathname = usePathname();
   const callbackParam = pathname ? `?callbackUrl=${encodeURIComponent(pathname)}` : "";
+  const isDev = process.env.NODE_ENV === "development";
 
-  if (status === "authenticated") {
+  if (isDev || status === "authenticated") {
     return (
       <div className="prose-sinal">
         <MarkdownRenderer content={content} agentColor={accentColor} />
