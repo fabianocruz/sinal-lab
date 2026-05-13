@@ -219,6 +219,11 @@ INTELLIGENCE_REPORTS: Dict[str, dict] = {
         "summary": "Trust Orchestration, alocacao de responsabilidade e o futuro das disputas no agentic commerce. Mapeamento dos protocolos emergentes (Visa Trusted Agent, Mastercard Agent Pay, Google AP2, Stripe ACP), os gaps evidenciarios nas regras atuais e implicacoes para merchants, PSPs e issuers em LATAM.",
         "author": "Sinal Intelligence",
     },
+    "ai-native-services-2026": {
+        "title": "Service-as-Software: o proximo grande mercado de IA sera vender trabalho, nao software",
+        "summary": "105 empresas AI-native de servicos mapeadas em 9 verticais, Top 50 ranking, 16 oportunidades acionaveis para a America Latina. A tese: empresas que vendem trabalho concluido (nao ferramentas) capturam pools de gasto profissional na ordem de trilhoes e estao captando capital em ritmo recorde.",
+        "author": "Sinal Intelligence",
+    },
 }
 
 
@@ -424,7 +429,7 @@ def publish_newsletter(
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
         intelligence=intelligence, article=article_highlight,
-        feature=feature_highlight, max_hero_articles=8,
+        feature=feature_highlight, max_hero_articles=5,
     )
 
     # Always save HTML to standard output directory
@@ -541,6 +546,7 @@ def publish_briefing_email(
     # Per-edition Intelligence report (defaults to healthtech if not mapped)
     INTELLIGENCE_PER_EDITION = {
         56: "https://sinal.tech/intelligence/agentic-commerce-chargeback-intelligence-report-2026",
+        58: "https://sinal.tech/intelligence/ai-native-services-2026",
     }
     intel_url = INTELLIGENCE_PER_EDITION.get(
         edition,
@@ -554,7 +560,7 @@ def publish_briefing_email(
     html_email = build_newsletter_email(
         sintese_body, agent_cards=agent_cards, edition_url=edition_url,
         intelligence=intel_highlight, article=article_highlight,
-        feature=feature_highlight, max_hero_articles=8,
+        feature=feature_highlight, max_hero_articles=5,
     )
 
     # Save preview HTML
