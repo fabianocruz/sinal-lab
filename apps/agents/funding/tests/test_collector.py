@@ -640,3 +640,108 @@ class TestLLMFundingExtractorBudget:
         extractor.extract("Startup capta rodada seed", "US$ 6,5 milhões")
 
         assert extractor.calls_used == 1
+
+
+# ---------------------------------------------------------------------------
+# HTML sources (VC blogs that serve rendered HTML instead of RSS)
+# ---------------------------------------------------------------------------
+
+from datetime import datetime, timezone
+
+
+@patch("apps.agents.funding.collector._load_from_funding_rounds_table", return_value=[])
+@patch("apps.agents.sources.web_scraper.scrape_article_listing")
+class TestHtmlSourceCollection:
+    """collect_all_sources dispatches source_type='html' to the scraper."""
+
+    def _html_source(self):
+        return DataSourceConfig(
+            name="maya_capital",
+            source_type="html",
+            url="https://maya.capital/blog",
+            params={"max_items": 5, "fetch_content": True},
+        )
+
+    def test_html_source_produces_events(self, mock_scrape, mock_db):
+        from apps.agents.funding.collector import collect_all_sources
+
+        mock_scrape.return_value = [
+            {
+                "title": "Sharpi levanta US$ 4M em rodada Série A",
+                "url": "https://maya.capital/blog/sharpi.html",
+                "published_at": datetime(2026, 8, 10, tzinfo=timezone.utc),
+                "summary": "Rodada liderada por Maya Capital",
+                "source_name": "maya_capital",
+                "content_hash": "abc",
+            },
+        ]
+        provenance = ProvenanceTracker()
+
+        events = collect_all_sources(
+            [self._html_source()], provenance, "funding", "test-run"
+        )
+
+        assert len(events) == 1
+        assert events[0].company_name == "Sharpi"
+        assert events[0].source_name == "maya_capital"
+        assert events[0].announced_date == date(2026, 8, 10)
+        assert events[0].extraction_method == EXTRACTION_METHOD_REGEX
+        assert mock_scrape.call_count == 1
+        assert provenance.records[0].extraction_method == "scraper"
+
+    def test_html_items_without_funding_are_dropped(self, mock_scrape, mock_db):
+        from apps.agents.funding.collector import collect_all_sources
+
+        mock_scrape.return_value = [
+            {
+                "title": "Nosso time cresceu: conheça os novos sócios",
+                "url": "https://maya.capital/blog/time.html",
+                "published_at": None,
+                "summary": "Novidades internas do fundo.",
+                "source_name": "maya_capital",
+                "content_hash": "def",
+            },
+        ]
+
+        events = collect_all_sources(
+            [self._html_source()], ProvenanceTracker(), "funding", "test-run"
+        )
+
+        assert events == []
+
+    def test_html_scrape_failure_is_isolated(self, mock_scrape, mock_db):
+        """A broken blog must not abort the whole collection run."""
+        from apps.agents.funding.collector import collect_all_sources
+
+        mock_scrape.side_effect = RuntimeError("site down")
+
+        events = collect_all_sources(
+            [self._html_source()], ProvenanceTracker(), "funding", "test-run"
+        )
+
+        assert events == []
+
+    def test_rss_sources_still_use_fetch_feed(self, mock_scrape, mock_db):
+        """Regression: RSS sources are untouched by the HTML branch."""
+        from apps.agents.funding.collector import collect_all_sources
+
+        rss_source = DataSourceConfig(
+            name="latamlist", source_type="rss", url="https://latamlist.com/feed/"
+        )
+
+        with patch("apps.agents.funding.collector.fetch_feed") as mock_feed:
+            mock_feed.return_value = [
+                FundingEvent(
+                    company_name="Avenia",
+                    round_type="series_a",
+                    source_url="https://latamlist.com/avenia",
+                    source_name="latamlist",
+                ),
+            ]
+            events = collect_all_sources(
+                [rss_source], ProvenanceTracker(), "funding", "test-run"
+            )
+
+        assert [e.company_name for e in events] == ["Avenia"]
+        mock_scrape.assert_not_called()
+        mock_feed.assert_called_once()
