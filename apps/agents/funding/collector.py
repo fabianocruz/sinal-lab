@@ -415,7 +415,16 @@ class LLMFundingExtractor:
 
     def __post_init__(self) -> None:
         if self.client is None:
-            self.client = LLMClient(LLMConfig(max_tokens=400, temperature=0.0))
+            # Structured extraction (company/amount/round_type/investors)
+            # doesn't need Opus-tier reasoning; Haiku is a fraction of the
+            # cost at equivalent quality for this mechanical task.
+            self.client = LLMClient(
+                LLMConfig(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=400,
+                    temperature=0.0,
+                )
+            )
 
     @property
     def is_available(self) -> bool:
