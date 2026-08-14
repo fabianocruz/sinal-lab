@@ -113,6 +113,16 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
         params={"countries": "BR,MX,AR,CO,CL,PE,UY", "days_ago": 7},
     ),
 
+    # --- Grok Live Search (xAI) — live web search for LATAM rounds ---
+    # Reaches deals that never appear in the configured feeds. Skips
+    # itself with a warning when XAI_API_KEY is not set.
+    DataSourceConfig(
+        name="grok_live_search", source_type="api",
+        url="https://api.x.ai/v1/responses",
+        api_key_env="XAI_API_KEY", rate_limit_per_minute=5,
+        params={"model": "grok-4.3", "days_back": 7},
+    ),
+
     # --- Crunchbase Basic API (free tier: 200 req/day) ---
     DataSourceConfig(
         name="crunchbase_funding_latam", source_type="api",

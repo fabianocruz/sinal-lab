@@ -32,6 +32,10 @@ from apps.agents.base.config import DataSourceConfig
 from apps.agents.base.llm import LLMClient, LLMConfig, strip_code_fences
 from apps.agents.base.provenance import ProvenanceTracker
 from apps.agents.sources.dedup import compute_composite_hash, deduplicate_by_hash
+from apps.agents.sources.funding_normalize import (
+    coerce_amount,
+    normalize_round_type_token,
+)
 from apps.agents.sources.http import create_http_client
 from apps.agents.sources.rss import parse_feed_date as _parse_feed_date_dt
 
@@ -297,29 +301,6 @@ _FUNDING_SIGNAL_PATTERNS: tuple = (
 
 _FUNDING_SIGNAL_RE = re.compile("|".join(_FUNDING_SIGNAL_PATTERNS), re.IGNORECASE)
 
-# Round types the LLM is allowed to return (anything else becomes "unknown").
-_VALID_ROUND_TYPES = frozenset(
-    {
-        "pre_seed",
-        "seed",
-        "series_a",
-        "series_b",
-        "series_c",
-        "series_d",
-        "series_e",
-        "series_f",
-        "series_g",
-        "venture",
-        "angel",
-        "bridge",
-        "extension",
-        "debt",
-        "grant",
-        "ipo",
-        "unknown",
-    }
-)
-
 _LLM_EXTRACTION_SYSTEM_PROMPT = (
     "Você extrai dados estruturados de notícias sobre investimento em startups. "
     "Responde SEMPRE com um único objeto JSON, sem texto ao redor e sem markdown."
@@ -364,46 +345,6 @@ def looks_like_funding_news(title: str, body: str = "") -> bool:
     return bool(_FUNDING_SIGNAL_RE.search(haystack))
 
 
-def _coerce_amount(raw: Any) -> Optional[float]:
-    """Coerce an LLM-provided amount into a positive float, or None."""
-    if raw is None or isinstance(raw, bool):
-        return None
-    if isinstance(raw, (int, float)):
-        value = float(raw)
-        return value if value > 0 else None
-    if isinstance(raw, str):
-        digits = re.sub(r"[^\d.]", "", raw.replace(",", "."))
-        # Keep only the first decimal separator (e.g. "6.500.000" -> "6.500000")
-        parts = digits.split(".")
-        if len(parts) > 2:
-            digits = parts[0] + "".join(parts[1:])
-        try:
-            value = float(digits)
-        except ValueError:
-            return None
-        return value if value > 0 else None
-    return None
-
-
-def _normalize_llm_round_type(raw: Any) -> str:
-    """Map an LLM round_type string onto the canonical vocabulary."""
-    if not isinstance(raw, str) or not raw.strip():
-        return "unknown"
-
-    normalized = raw.strip().lower().replace("-", "_").replace(" ", "_")
-    normalized = re.sub(r"_(round|rodada|ronda)$", "", normalized)
-    normalized = normalized.replace("é", "e")
-
-    match = re.match(r"^(?:series|serie)_([a-g])$", normalized)
-    if match:
-        return f"series_{match.group(1)}"
-
-    if normalized in ("preseed",):
-        return "pre_seed"
-
-    return normalized if normalized in _VALID_ROUND_TYPES else "unknown"
-
-
 def _parse_llm_extraction(raw_response: str) -> Optional[Dict[str, Any]]:
     """Parse and validate the LLM's JSON extraction payload.
 
@@ -428,8 +369,8 @@ def _parse_llm_extraction(raw_response: str) -> Optional[Dict[str, Any]]:
     if len(company_name) < 2:
         return None
 
-    amount = _coerce_amount(data.get("amount"))
-    round_type = _normalize_llm_round_type(data.get("round_type"))
+    amount = coerce_amount(data.get("amount"))
+    round_type = normalize_round_type_token(data.get("round_type"))
     if amount is None and round_type == "unknown":
         logger.debug("LLM extraction too incomplete for %s, dropping", company_name)
         return None
@@ -769,6 +710,60 @@ def fetch_html_source(
     return events
 
 
+def fetch_grok_source(
+    source: DataSourceConfig,
+    provenance: ProvenanceTracker,
+) -> List[FundingEvent]:
+    """Collect funding rounds via Grok Live Search (xAI Responses API).
+
+    Complements the feed-based sources: Grok searches the live web, so
+    it reaches deals that never show up in the configured RSS feeds.
+    Skips itself with a warning when XAI_API_KEY is missing.
+
+    Args:
+        source: Data source configuration for the Grok source.
+        provenance: Provenance tracker.
+
+    Returns:
+        List of FundingEvent objects. Empty list on any failure.
+    """
+    from apps.agents.sources.grok_search import fetch_grok_funding_rounds
+
+    try:
+        with create_http_client() as client:
+            grok_events = fetch_grok_funding_rounds(source, client)
+    except Exception as e:
+        logger.warning(
+            "Grok Live Search failed for %s (graceful degradation): %s", source.name, e
+        )
+        return []
+
+    events: List[FundingEvent] = []
+    for grok_event in grok_events:
+        is_usd = grok_event.currency == "USD"
+        event = FundingEvent(
+            company_name=grok_event.company_name,
+            round_type=grok_event.round_type,
+            source_url=grok_event.source_url or "",
+            source_name=source.name,
+            amount_usd=grok_event.amount if is_usd else None,
+            amount_local=grok_event.amount if not is_usd else None,
+            currency=grok_event.currency,
+            announced_date=grok_event.announced_date,
+            lead_investors=grok_event.investors,
+            extraction_method=EXTRACTION_METHOD_GROK,
+        )
+        events.append(event)
+        provenance.track(
+            source_url=event.source_url,
+            source_name=source.name,
+            extraction_method="api",
+        )
+
+    logger.info("Collected %d funding events from %s", len(events), source.name)
+    return events
+
+
 def _load_from_funding_rounds_table(days_back: int = 14) -> List[FundingEvent]:
     """Load pre-collected funding events from the funding_rounds DB table.
 
@@ -886,6 +881,8 @@ def collect_all_sources(
             all_events.extend(events)
         elif source.source_type == "html":
             all_events.extend(fetch_html_source(source, provenance, extractor=extractor))
+        elif source.source_type == "api" and "grok" in source.name:
+            all_events.extend(fetch_grok_source(source, provenance))
         elif source.source_type == "api" and "crunchbase" in source.name:
             from apps.agents.sources.crunchbase import fetch_funding_rounds
 
