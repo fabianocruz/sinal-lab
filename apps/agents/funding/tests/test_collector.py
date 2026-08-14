@@ -358,3 +358,285 @@ def test_company_names_limited_to_20(mock_fetch_sec):
     assert mock_fetch_sec.called
     company_names_arg = mock_fetch_sec.call_args[0][2]  # 3rd positional arg
     assert len(company_names_arg) <= 20
+
+
+# ---------------------------------------------------------------------------
+# LLM fallback extraction (regex miss -> keyword prefilter -> LLM)
+# ---------------------------------------------------------------------------
+
+import json
+
+from apps.agents.base.llm import LLMClient
+from apps.agents.funding.collector import (
+    EXTRACTION_METHOD_LLM,
+    EXTRACTION_METHOD_REGEX,
+    LLMFundingExtractor,
+    looks_like_funding_news,
+)
+
+
+def _mock_llm(response=None, side_effect=None, available=True):
+    """Build a mock LLMClient with a canned generate() response."""
+    client = MagicMock(spec=LLMClient)
+    client.is_available = available
+    if side_effect is not None:
+        client.generate.side_effect = side_effect
+    else:
+        client.generate.return_value = response
+    return client
+
+
+def _llm_payload(**overrides):
+    """Build a valid LLM extraction JSON payload."""
+    payload = {
+        "is_funding_event": True,
+        "company_name": "Zenpli",
+        "amount": 6_500_000,
+        "currency": "USD",
+        "round_type": "seed",
+        "investors": ["Maya Capital", "Race Capital"],
+    }
+    payload.update(overrides)
+    return json.dumps(payload)
+
+
+class TestLooksLikeFundingNews:
+    """Keyword pre-filter that gates (expensive) LLM extraction."""
+
+    @pytest.mark.parametrize("title", [
+        "Zenpli raises $6.5M to expand across LATAM",
+        "Fintech brasileira capta R$ 30 milhões em rodada seed",
+        "Startup mexicana cierra ronda de inversión de US$ 12 millones",
+        "Kaszek lidera aporte na Creditas",
+        "CloudWalk announces Series C funding",
+    ])
+    def test_funding_titles_pass(self, title):
+        assert looks_like_funding_news(title) is True
+
+    @pytest.mark.parametrize("title", [
+        "Apple lança novo iPhone com chip proprietário",
+        "How we scaled Postgres to 10 million rows",
+        "Conheça os 10 melhores frameworks de 2026",
+    ])
+    def test_unrelated_titles_rejected(self, title):
+        assert looks_like_funding_news(title) is False
+
+    def test_body_is_considered(self):
+        """Signal may live only in the body, not the title."""
+        assert looks_like_funding_news(
+            "Novidades da semana",
+            "A empresa levantou US$ 4 milhões em rodada seed liderada por Canary.",
+        ) is True
+
+    def test_empty_inputs(self):
+        assert looks_like_funding_news("", "") is False
+
+
+class TestParseFundingEventLLMFallback:
+    """parse_funding_event: regex first, LLM fallback second."""
+
+    def test_regex_match_skips_llm(self):
+        """(a) Regex path still works and never spends an LLM call."""
+        client = _mock_llm(response=_llm_payload())
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Creditas levanta US$ 15M em rodada Série A",
+            link="https://example.com/creditas",
+            summary="Rodada liderada por Kaszek",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is not None
+        assert event.amount_usd == 15.0
+        assert event.round_type == "series_a"
+        assert event.extraction_method == EXTRACTION_METHOD_REGEX
+        client.generate.assert_not_called()
+
+    def test_prefilter_rejects_without_llm_call(self):
+        """(b) Regex miss + irrelevant item -> None, no LLM call (cost control)."""
+        client = _mock_llm(response=_llm_payload())
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Como usamos Rust para reduzir latência em 40%",
+            link="https://example.com/rust",
+            summary="Um estudo de caso de engenharia de plataforma.",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is None
+        client.generate.assert_not_called()
+
+    def test_llm_extracts_event_regex_missed(self):
+        """(c) Regex miss + prefilter pass + valid LLM output -> structured event."""
+        client = _mock_llm(response=_llm_payload())
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Zenpli, de identidade digital, anuncia captação para crescer no México",
+            link="https://example.com/zenpli",
+            summary="A startup fechou uma rodada seed de US$ 6,5 milhões.",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is not None
+        assert event.company_name == "Zenpli"
+        assert event.amount_usd == 6_500_000
+        assert event.round_type == "seed"
+        assert event.lead_investors == ["Maya Capital", "Race Capital"]
+        assert event.extraction_method == EXTRACTION_METHOD_LLM
+        assert event.source_url == "https://example.com/zenpli"
+        client.generate.assert_called_once()
+
+    def test_llm_rejects_false_positive(self):
+        """(d) LLM says it is not a funding event -> None."""
+        client = _mock_llm(response=_llm_payload(is_funding_event=False))
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Fundo levanta debate sobre valuation de startups",
+            link="https://example.com/opinion",
+            summary="Análise sobre rodadas e múltiplos no mercado LATAM.",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is None
+        client.generate.assert_called_once()
+
+    def test_llm_error_does_not_crash(self):
+        """(e) LLM raising must degrade to None, not break collection."""
+        client = _mock_llm(side_effect=RuntimeError("api exploded"))
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Startup argentina capta investimento para expansão regional",
+            link="https://example.com/arg",
+            summary="A rodada foi liderada por um fundo local.",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is None
+
+    def test_llm_invalid_json_returns_none(self):
+        client = _mock_llm(response="desculpe, não consegui extrair nada")
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Startup chilena capta rodada para expandir",
+            link="https://example.com/cl",
+            summary="Detalhes não foram divulgados.",
+        )
+
+        assert parse_funding_event(entry, "test_source", extractor=extractor) is None
+
+    def test_llm_output_in_code_fences_is_parsed(self):
+        client = _mock_llm(response="```json\n" + _llm_payload() + "\n```")
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Zenpli anuncia captação seed",
+            link="https://example.com/zenpli",
+            summary="Rodada seed de US$ 6,5 milhões.",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is not None
+        assert event.company_name == "Zenpli"
+
+    def test_llm_incomplete_payload_returns_none(self):
+        """Company only (no amount, unknown round) is not useful -> None."""
+        client = _mock_llm(response=_llm_payload(
+            amount=None, round_type="unknown", investors=[],
+        ))
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Startup peruana capta rodada de valor não revelado",
+            link="https://example.com/pe",
+            summary="O aporte não teve valor divulgado.",
+        )
+
+        assert parse_funding_event(entry, "test_source", extractor=extractor) is None
+
+    def test_llm_missing_company_returns_none(self):
+        client = _mock_llm(response=_llm_payload(company_name=""))
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Rodada seed movimenta o ecossistema, capta atenção de fundos",
+            link="https://example.com/x",
+            summary="Investimento de US$ 3 milhões.",
+        )
+
+        assert parse_funding_event(entry, "test_source", extractor=extractor) is None
+
+    def test_round_type_only_is_enough(self):
+        """company + round_type (no amount) is still a usable signal."""
+        client = _mock_llm(response=_llm_payload(amount=None, round_type="Series B"))
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Zenpli fecha rodada Série B sem revelar valores",
+            link="https://example.com/zenpli-b",
+            summary="A captação contou com investidores existentes.",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is not None
+        assert event.round_type == "series_b"
+        assert event.amount_usd is None
+
+    def test_local_currency_goes_to_amount_local(self):
+        client = _mock_llm(response=_llm_payload(amount=30_000_000, currency="BRL"))
+        extractor = LLMFundingExtractor(client=client)
+        entry = MockEntry(
+            title="Fintech carioca capta R$ 30 milhões em rodada",
+            link="https://example.com/brl",
+            summary="Aporte liderado por fundo local.",
+        )
+
+        event = parse_funding_event(entry, "test_source", extractor=extractor)
+
+        assert event is not None
+        assert event.currency == "BRL"
+        assert event.amount_local == 30_000_000
+        assert event.amount_usd is None
+
+    def test_no_extractor_keeps_legacy_behaviour(self):
+        """Without an extractor, a regex miss is dropped exactly as before."""
+        entry = MockEntry(
+            title="Startup capta rodada seed de US$ 2 milhões",
+            link="https://example.com/legacy",
+            summary="Rodada liderada por fundo local.",
+        )
+
+        assert parse_funding_event(entry, "test_source") is None
+
+
+class TestLLMFundingExtractorBudget:
+    """The extractor caps LLM spend per run."""
+
+    def test_budget_limits_calls(self):
+        client = _mock_llm(response=_llm_payload())
+        extractor = LLMFundingExtractor(client=client, max_calls=1)
+
+        first = extractor.extract("Startup capta rodada seed", "US$ 6,5 milhões")
+        second = extractor.extract("Outra startup capta rodada seed", "US$ 2 milhões")
+
+        assert first is not None
+        assert second is None
+        assert client.generate.call_count == 1
+
+    def test_unavailable_client_never_called(self):
+        client = _mock_llm(response=_llm_payload(), available=False)
+        extractor = LLMFundingExtractor(client=client)
+
+        assert extractor.extract("Startup capta rodada seed", "US$ 6,5 milhões") is None
+        assert extractor.is_available is False
+        client.generate.assert_not_called()
+
+    def test_calls_used_is_tracked(self):
+        client = _mock_llm(response=_llm_payload())
+        extractor = LLMFundingExtractor(client=client, max_calls=5)
+
+        extractor.extract("Startup capta rodada seed", "US$ 6,5 milhões")
+
+        assert extractor.calls_used == 1

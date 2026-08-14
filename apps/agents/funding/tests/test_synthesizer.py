@@ -86,3 +86,61 @@ def test_synthesize_empty_report():
     report = synthesize_funding_report([], week_number=7)
 
     assert "Sem rodadas relevantes" in report or "Nenhuma rodada" in report
+
+def _scored(company, round_type, amount, score=0.7):
+    """Build a ScoredFundingEvent with a plausible confidence."""
+    return ScoredFundingEvent(
+        event=FundingEvent(
+            company_name=company,
+            round_type=round_type,
+            source_url=f"http://test.com/{company.lower()}",
+            source_name="test",
+            amount_usd=amount,
+            announced_date=date.today(),
+        ),
+        confidence=ConfidenceScore(data_quality=score, analysis_confidence=score),
+        composite_score=score,
+    )
+
+
+class TestMixedAmountConventions:
+    """Amounts arrive both as millions (legacy regex) and absolute (DB/LLM).
+
+    Grouping must classify both correctly instead of treating every
+    absolute amount as a large round.
+    """
+
+    def test_absolute_small_round_is_not_large(self):
+        report = synthesize_funding_report(
+            [_scored("Smallco", "seed", 1_200_000)], week_number=7
+        )
+
+        assert "## Seed & Pre-Seed" in report
+        assert "## Series A+" not in report
+        assert "$1.2M" in report
+
+    def test_absolute_large_round_is_large(self):
+        report = synthesize_funding_report(
+            [_scored("Bigco", "series_b", 40_000_000)], week_number=7
+        )
+
+        assert "## Series A+" in report
+        assert "$40.0M" in report
+
+    def test_legacy_millions_still_grouped_as_before(self):
+        report = synthesize_funding_report(
+            [_scored("Legacyco", "series_a", 12.0), _scored("Tinyco", "seed", 1.0)],
+            week_number=7,
+        )
+
+        assert "## Series A+" in report
+        assert "## Seed & Pre-Seed" in report
+
+    def test_template_intro_totals_are_normalized(self):
+        """Template fallback must not print 'US$ 41200000.0M'."""
+        report = synthesize_funding_report(
+            [_scored("Bigco", "series_b", 40_000_000), _scored("Legacyco", "series_a", 12.0)],
+            week_number=7,
+        )
+
+        assert "US$ 52.0M" in report
