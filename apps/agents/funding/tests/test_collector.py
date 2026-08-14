@@ -745,3 +745,101 @@ class TestHtmlSourceCollection:
         assert [e.company_name for e in events] == ["Avenia"]
         mock_scrape.assert_not_called()
         mock_feed.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Grok Live Search source
+# ---------------------------------------------------------------------------
+
+
+@patch("apps.agents.funding.collector._load_from_funding_rounds_table", return_value=[])
+@patch("apps.agents.sources.grok_search.fetch_grok_funding_rounds")
+class TestGrokSourceCollection:
+    """collect_all_sources dispatches the grok_live_search API source."""
+
+    def _grok_source(self):
+        return DataSourceConfig(
+            name="grok_live_search",
+            source_type="api",
+            url="https://api.x.ai/v1/responses",
+            api_key_env="XAI_API_KEY",
+            params={"model": "grok-4.3", "days_back": 7},
+        )
+
+    def test_grok_events_become_funding_events(self, mock_fetch, mock_db):
+        from apps.agents.funding.collector import EXTRACTION_METHOD_GROK, collect_all_sources
+        from apps.agents.sources.grok_search import GrokFundingEvent
+
+        mock_fetch.return_value = [
+            GrokFundingEvent(
+                company_name="Kesh",
+                source_name="grok_live_search",
+                amount=110_000_000.0,
+                currency="USD",
+                round_type="series_b",
+                investors=["Grupo Leste"],
+                source_url="https://example.com/kesh",
+                announced_date=date(2026, 8, 6),
+                country="BR",
+            ),
+        ]
+        provenance = ProvenanceTracker()
+
+        events = collect_all_sources(
+            [self._grok_source()], provenance, "funding", "test-run"
+        )
+
+        assert len(events) == 1
+        event = events[0]
+        assert event.company_name == "Kesh"
+        assert event.amount_usd == 110_000_000.0
+        assert event.round_type == "series_b"
+        assert event.lead_investors == ["Grupo Leste"]
+        assert event.announced_date == date(2026, 8, 6)
+        assert event.extraction_method == EXTRACTION_METHOD_GROK
+        assert provenance.records[0].extraction_method == "api"
+
+    def test_local_currency_goes_to_amount_local(self, mock_fetch, mock_db):
+        from apps.agents.funding.collector import collect_all_sources
+        from apps.agents.sources.grok_search import GrokFundingEvent
+
+        mock_fetch.return_value = [
+            GrokFundingEvent(
+                company_name="Fintech BR",
+                source_name="grok_live_search",
+                amount=30_000_000.0,
+                currency="BRL",
+                round_type="seed",
+                source_url="https://example.com/br",
+            ),
+        ]
+
+        events = collect_all_sources(
+            [self._grok_source()], ProvenanceTracker(), "funding", "test-run"
+        )
+
+        assert events[0].amount_local == 30_000_000.0
+        assert events[0].amount_usd is None
+        assert events[0].currency == "BRL"
+
+    def test_no_results_is_not_an_error(self, mock_fetch, mock_db):
+        from apps.agents.funding.collector import collect_all_sources
+
+        mock_fetch.return_value = []
+
+        events = collect_all_sources(
+            [self._grok_source()], ProvenanceTracker(), "funding", "test-run"
+        )
+
+        assert events == []
+
+    def test_grok_failure_is_isolated(self, mock_fetch, mock_db):
+        from apps.agents.funding.collector import collect_all_sources
+
+        mock_fetch.side_effect = RuntimeError("xAI down")
+
+        events = collect_all_sources(
+            [self._grok_source()], ProvenanceTracker(), "funding", "test-run"
+        )
+
+        assert events == []
