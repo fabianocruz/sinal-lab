@@ -708,6 +708,67 @@ def fetch_feed(
         return []
 
 
+def fetch_html_source(
+    source: DataSourceConfig,
+    provenance: ProvenanceTracker,
+    extractor: Optional[LLMFundingExtractor] = None,
+) -> List[FundingEvent]:
+    """Scrape a VC blog / news index that serves HTML instead of RSS.
+
+    Several LATAM VC blogs (Canary, Maya Capital, Valor Capital,
+    monashees) dropped their feeds — their old feed URLs now return a
+    rendered page, which feedparser silently parses into zero entries.
+    This path fetches the index, extracts post links, and runs the same
+    regex-then-LLM extraction used for RSS items.
+
+    Args:
+        source: Data source configuration with source_type="html".
+        provenance: Provenance tracker.
+        extractor: Optional budgeted LLM extractor for regex misses.
+
+    Returns:
+        List of FundingEvent objects. Empty list on any failure.
+    """
+    from apps.agents.sources.web_scraper import scrape_article_listing
+
+    logger.info("Scraping HTML listing: %s", source.name)
+
+    try:
+        with create_http_client() as client:
+            articles = scrape_article_listing(source, client)
+    except Exception as e:
+        logger.warning(
+            "HTML scrape failed for %s (graceful degradation): %s", source.name, e
+        )
+        return []
+
+    events: List[FundingEvent] = []
+    for article in articles:
+        published_at = article.get("published_at")
+        event = build_funding_event(
+            title=article.get("title", ""),
+            body=article.get("summary") or "",
+            url=article.get("url", ""),
+            source_name=source.name,
+            announced_date=published_at.date() if published_at else None,
+            extractor=extractor,
+        )
+        if event is None:
+            continue
+        events.append(event)
+        provenance.track(
+            source_url=event.source_url,
+            source_name=source.name,
+            extraction_method="scraper",
+        )
+
+    logger.info(
+        "Collected %d funding events from %s (%d articles scraped)",
+        len(events), source.name, len(articles),
+    )
+    return events
+
+
 def _load_from_funding_rounds_table(days_back: int = 14) -> List[FundingEvent]:
     """Load pre-collected funding events from the funding_rounds DB table.
 
@@ -823,6 +884,8 @@ def collect_all_sources(
         elif source.source_type == "rss":
             events = fetch_feed(source, provenance, agent_name, run_id, extractor=extractor)
             all_events.extend(events)
+        elif source.source_type == "html":
+            all_events.extend(fetch_html_source(source, provenance, extractor=extractor))
         elif source.source_type == "api" and "crunchbase" in source.name:
             from apps.agents.sources.crunchbase import fetch_funding_rounds
 
