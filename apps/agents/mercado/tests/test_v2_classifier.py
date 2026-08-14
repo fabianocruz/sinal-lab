@@ -148,6 +148,15 @@ class TestBuildSectionsNormalWeek:
 
         assert [s.sector_slug for s in sections] == ["fintech", "ai"]
 
+    def test_agent_process_phase_keeps_a_single_event(self) -> None:
+        """End-to-end guard for the reported "0 movimentos" symptom."""
+        from apps.agents.mercado.agent import MercadoAgent
+
+        sections = MercadoAgent(week_number=33).process([_event()])
+
+        assert len(sections) >= 1
+        assert sum(len(s.events) for s in sections) == 1
+
     def test_max_sections_is_respected(self) -> None:
         events = []
         for sector in ("Fintech", "AI", "DevTools", "Marketplace", "HealthTech"):
