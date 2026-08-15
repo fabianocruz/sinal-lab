@@ -121,6 +121,37 @@ def get_admin_user(
     return user
 
 
+def optional_admin_user(
+    authorization: str = Header(None),
+    x_admin_email: str = Header(None),
+    x_admin_secret: str = Header(None),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Like get_admin_user, but returns None instead of raising when the
+    caller is not an authenticated admin.
+
+    Useful for *public* endpoints that expose an elevated view to the team
+    (e.g. previewing unpublished content) without breaking anonymous callers
+    or API-key callers, which legitimately send an unrelated
+    ``Authorization: Bearer sk_live_...`` header.
+
+    Never raises: any missing/invalid/non-admin credential resolves to None,
+    so the caller decides how to degrade (typically: serve the public view).
+    """
+    if not authorization and not (x_admin_email and x_admin_secret):
+        return None
+
+    try:
+        return get_admin_user(
+            authorization=authorization,
+            x_admin_email=x_admin_email,
+            x_admin_secret=x_admin_secret,
+            db=db,
+        )
+    except HTTPException:
+        return None
+
+
 def _hash_api_key(raw_key: str) -> str:
     """Compute SHA-256 hex digest of a raw API key."""
     return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
