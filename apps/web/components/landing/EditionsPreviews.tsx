@@ -9,6 +9,7 @@ const STRIP_GRADIENTS: Record<AgentKey, string> = {
   codigo: "linear-gradient(90deg, #59B4FF, #C459FF)",
   funding: "linear-gradient(90deg, #FF8A59, #C459FF)",
   mercado: "linear-gradient(90deg, #C459FF, #E8FF59)",
+  social_signals: "linear-gradient(90deg, #FF59B4, #C459FF)",
 };
 
 const FALLBACK_EDITIONS = [

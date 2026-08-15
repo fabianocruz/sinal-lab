@@ -211,9 +211,10 @@ export const AGENT_HEX: Record<AgentKey, string> = {
   codigo: "#59B4FF",
   funding: "#FF8A59",
   mercado: "#C459FF",
+  social_signals: "#FF59B4",
 };
 
-/** Rich mock data used in tests — covers all 5 agents, 7 editions, bodies >100 chars. */
+/** Rich mock data used in tests — covers all 6 agents, 8 editions, bodies >100 chars. */
 export const MOCK_NEWSLETTERS: Newsletter[] = [
   {
     slug: "briefing-47-paradoxo-modelo-gratuito",
@@ -329,6 +330,22 @@ export const MOCK_NEWSLETTERS: Newsletter[] = [
     likes: 18,
     gradientIndex: 1,
     body: "As primeiras empresas latino-americanas a colocar AI agents em producao estao compartilhando licoes valiosas. O consenso emergente e claro: agents sao muito mais dificeis de operar do que chatbots simples. A complexidade de orquestracao, monitoramento de alucinacoes e gestao de custos de inferencia exige uma maturidade operacional que poucos times possuem hoje.",
+    sources: [],
+    metadata: null,
+  },
+  {
+    slug: "briefing-40-sinais-sociais-fintech",
+    edition: 40,
+    date: "23 Dez 2025",
+    dateISO: "2025-12-23",
+    title: "O que as redes sociais revelam sobre a proxima onda fintech",
+    subtitle: "TAMBEM: sinais emergentes em AI e banking · monitoramento continuo de comunidades",
+    agent: "social_signals",
+    agentLabel: "SOCIAL",
+    dqScore: null,
+    likes: 6,
+    gradientIndex: 2,
+    body: "O monitoramento continuo de redes sociais revela padroes de adocao que antecedem em semanas os dados formais de mercado. Comunidades tecnicas no Brasil e Mexico ja discutem abertamente casos de uso de AI aplicados a credito e pagamentos, sinalizando demanda antes mesmo do lancamento oficial de produtos. Esses sinais emergentes complementam o trabalho dos demais agentes de dados do Sinal.",
     sources: [],
     metadata: null,
   },

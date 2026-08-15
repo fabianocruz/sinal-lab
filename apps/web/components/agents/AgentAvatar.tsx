@@ -7,6 +7,7 @@ const AVATAR_BG: Record<AgentKey, string> = {
   codigo: "rgba(89,180,255,0.15)",
   funding: "rgba(255,138,89,0.15)",
   mercado: "rgba(196,89,255,0.15)",
+  social_signals: "rgba(255,89,180,0.15)",
 };
 
 /** Border colors at 20% opacity, keyed by agent. */
@@ -16,6 +17,7 @@ const AVATAR_BORDER: Record<AgentKey, string> = {
   codigo: "rgba(89,180,255,0.20)",
   funding: "rgba(255,138,89,0.20)",
   mercado: "rgba(196,89,255,0.20)",
+  social_signals: "rgba(255,89,180,0.20)",
 };
 
 /** Pixel dimensions per size variant. */

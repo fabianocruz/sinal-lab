@@ -12,6 +12,7 @@ const BADGE_BG: Record<AgentKey, string> = {
   codigo: "rgba(89,180,255,0.10)",
   funding: "rgba(255,138,89,0.10)",
   mercado: "rgba(196,89,255,0.10)",
+  social_signals: "rgba(255,89,180,0.10)",
 };
 
 /**

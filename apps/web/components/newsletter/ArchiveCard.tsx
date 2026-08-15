@@ -110,6 +110,7 @@ function AgentAvatar({ agent, initial }: AgentAvatarProps) {
     codigo: "rgba(89,180,255,0.15)",
     funding: "rgba(255,138,89,0.15)",
     mercado: "rgba(196,89,255,0.15)",
+    social_signals: "rgba(255,89,180,0.15)",
   };
 
   return (

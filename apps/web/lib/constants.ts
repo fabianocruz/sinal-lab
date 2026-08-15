@@ -40,6 +40,14 @@ export const AGENT_PERSONAS = {
     description: "Inteligência de mercado regional",
     avatarPath: "/agents/valentina-rojas.jpg",
   },
+  social_signals: {
+    name: "Lucas Chen",
+    role: "Analista de Sinais Sociais",
+    agentCode: "SOCIAL",
+    color: "#FF59B4",
+    description: "Rastreia sinais emergentes em redes sociais para AI, Fintech e Banking",
+    avatarPath: "/agents/lucas-chen.jpg",
+  },
 } as const;
 
 export type AgentKey = keyof typeof AGENT_PERSONAS;
@@ -51,4 +59,5 @@ export const AGENT_COLORS: Record<AgentKey, string> = {
   codigo: "agent-codigo",
   funding: "agent-funding",
   mercado: "agent-mercado",
+  social_signals: "agent-social_signals",
 };
