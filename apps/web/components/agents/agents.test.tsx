@@ -227,7 +227,7 @@ describe("AgentTeam", () => {
   it("test_agentteam_renders_subheading_text", () => {
     render(<AgentTeam />);
 
-    expect(screen.getByText(/Cinco personalidades especializadas/)).toBeInTheDocument();
+    expect(screen.getByText(/Seis personalidades especializadas/)).toBeInTheDocument();
   });
 
   it("test_agentteam_renders_equipe_section_label", () => {
@@ -268,12 +268,12 @@ describe("AgentTeam", () => {
     });
   });
 
-  it("test_agentteam_renders_five_agent_cards", () => {
+  it("test_agentteam_renders_all_agent_cards", () => {
     render(<AgentTeam />);
 
-    // Each AgentCard uses role="article" with an aria-label
+    // Each AgentCard uses role="article" with an aria-label — one per persona.
     const cards = screen.getAllByRole("article");
-    expect(cards).toHaveLength(5);
+    expect(cards).toHaveLength(Object.keys(AGENT_PERSONAS).length);
   });
 
   it("test_agentteam_section_has_equipe_id", () => {
