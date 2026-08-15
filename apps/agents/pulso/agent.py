@@ -519,26 +519,22 @@ class PulsoAgent(BaseAgent):
             return "\n".join(lines)
 
         for cluster in clusters:
-            score = cluster.composite_score
-            dims = cluster.dimensions
             signal_count = cluster.signal_count
             platforms = ", ".join(cluster.platforms)
 
             lines.append(f"### {cluster.name}")
+            # Neither the composite score nor the raw dimension dump is
+            # published any more. Measured over 3.000 production clusters,
+            # velocity and new_entrants have 2 distinct values each,
+            # cross_platform has 4, and authority is pinned near zero because
+            # the active Twitter collector never populates author_followers.
+            # Printing "Velocidade: 0.50" on every cluster reads as a
+            # measurement of that cluster; it is the default.
             lines.append(
-                f"**Score:** {score:.2f} | "
                 f"**Sinais:** {signal_count} | "
                 f"**Plataformas:** {platforms} | "
                 f"**Estagio:** {cluster.narrative_stage}"
             )
-
-            if dims:
-                lines.append(
-                    f"Volume: {dims.volume:.2f} | "
-                    f"Velocidade: {dims.velocity:.2f} | "
-                    f"Autoridade: {dims.authority_concentration:.2f} | "
-                    f"Cross-platform: {dims.cross_platform_propagation:.2f}"
-                )
 
             if cluster.description:
                 lines.append(f"\n> {cluster.description}")

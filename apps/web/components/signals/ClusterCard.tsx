@@ -13,20 +13,6 @@ interface ClusterCardProps {
   onWatch?: (slug: string) => void;
 }
 
-function scoreBar(score: number) {
-  // score is 0–1; render as a narrow progress bar
-  const pct = Math.round(Math.min(Math.max(score, 0), 1) * 100);
-  return (
-    <div className="h-[3px] w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-      <div
-        className="h-full rounded-full bg-signal transition-all duration-500"
-        style={{ width: `${pct}%` }}
-        aria-label={`Score: ${pct}%`}
-      />
-    </div>
-  );
-}
-
 function stripHtml(text: string): string {
   return text
     .replace(/<[^>]+>/g, "")
@@ -37,9 +23,6 @@ function stripHtml(text: string): string {
 export default function ClusterCard({ cluster, isWatched = false, onWatch }: ClusterCardProps) {
   const stageColor = STAGE_COLORS[cluster.narrative_stage] ?? "#8A8A96";
   const stageLabel = STAGE_LABELS[cluster.narrative_stage] ?? cluster.narrative_stage;
-
-  const scoreValue = Math.round(cluster.composite_score * 100);
-  const scoreColor = scoreValue >= 70 ? "#59FFB4" : scoreValue >= 50 ? "#E8FF59" : "#8A8A96";
 
   // Unique platforms from top_posts
   const platforms = [...new Set(cluster.top_posts.map((p) => p.platform))].slice(0, 4);
@@ -105,10 +88,11 @@ export default function ClusterCard({ cluster, isWatched = false, onWatch }: Clu
             <FirstMoverCard firstMover={cluster.first_mover} clusterName={cluster.name} />
           )}
 
-          {/* Composite score bar */}
-          <div className="mb-4 mt-4">{scoreBar(cluster.composite_score)}</div>
-
-          {/* Bottom stats */}
+          {/* Bottom stats. The composite score used to be published here as a
+              0-100 number and a progress bar. It is not shown any more: 45% of
+              its weight comes from dimensions that are constant across the
+              corpus, so it ranked nothing. Volume is measured, so volume is
+              what we show. */}
           <div className="mt-auto flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] pt-3">
             {/* Signal count */}
             <div className="flex flex-col items-start">
@@ -117,20 +101,6 @@ export default function ClusterCard({ cluster, isWatched = false, onWatch }: Clu
               </span>
               <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
                 Sinais
-              </span>
-            </div>
-
-            {/* Score */}
-            <div className="flex flex-col items-end">
-              <span
-                className="font-mono text-[14px] font-semibold leading-none"
-                style={{ color: scoreColor }}
-                title="Score composto: volume, velocidade, autoridade, propagacao entre plataformas"
-              >
-                {scoreValue}
-              </span>
-              <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.5px] text-[#4A4A56]">
-                Score
               </span>
             </div>
 

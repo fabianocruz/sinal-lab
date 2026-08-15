@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-export type SignalsTab = "pulse" | "voices" | "empresas" | "temas" | "memo";
+export type SignalsTab = "pulse" | "voices" | "memo";
 
 interface Tab {
   key: SignalsTab;

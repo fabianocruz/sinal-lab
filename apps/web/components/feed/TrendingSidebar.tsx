@@ -8,22 +8,10 @@ interface TrendingSidebarProps {
 
 const ACCENT_ROTATION = ["#59FFB4", "#E8FF59", "#59B4FF", "#FF8A59", "#C459FF"];
 
-function ScoreBar({ score, accent }: { score: number; accent: string }) {
-  const pct = Math.round(Math.min(Math.max(score, 0), 1) * 100);
-  return (
-    <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-      <div
-        className="h-full rounded-full"
-        style={{ width: `${pct}%`, backgroundColor: accent }}
-        aria-hidden="true"
-      />
-    </div>
-  );
-}
-
 export default function TrendingSidebar({ clusters }: TrendingSidebarProps) {
-  // Sort by composite_score descending, take top 5
-  const top = [...clusters].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5);
+  // Ranked by signal volume, not by composite_score: 45% of that score's
+  // weight comes from dimensions that are constant across the corpus.
+  const top = [...clusters].sort((a, b) => b.signal_count - a.signal_count).slice(0, 5);
 
   if (top.length === 0) {
     return (
@@ -51,7 +39,7 @@ export default function TrendingSidebar({ clusters }: TrendingSidebarProps) {
         </h3>
       </div>
 
-      <ol className="space-y-3" aria-label="Top clusters por score">
+      <ol className="space-y-3" aria-label="Top clusters por volume de sinais">
         {top.map((cluster, idx) => {
           const stageColor = STAGE_COLORS[cluster.narrative_stage] ?? "#9A9AA8";
           const stageLabel = STAGE_LABELS[cluster.narrative_stage] ?? cluster.narrative_stage;
@@ -82,15 +70,8 @@ export default function TrendingSidebar({ clusters }: TrendingSidebarProps) {
                   {cluster.name}
                 </p>
 
-                {/* Score bar */}
-                <ScoreBar score={cluster.composite_score} accent={accent} />
-
-                {/* Meta: score + signal count */}
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-[#4A4A56]">
-                    Score{" "}
-                    <span className="text-ash">{(cluster.composite_score * 100).toFixed(0)}</span>
-                  </span>
+                {/* Meta: signal count */}
+                <div className="mt-2 flex items-center justify-end">
                   <span className="font-mono text-[10px] text-[#4A4A56]">
                     <span className="text-ash">{cluster.signal_count}</span> sinais
                   </span>

@@ -137,7 +137,9 @@ AGENTS = {
         "slug_pattern": "feed-curated",
         "output_dir": "apps/agents/feed_curator/output",
         "filename_pattern": "feed-curated.md",
-        "skip_content_piece": True,  # Feed items go to curated_feed_items, not content_pieces
+        # No "skip_content_piece" key: nothing ever read it. The behaviour it
+        # described is enforced in feed_curator/main.py, which simply does not
+        # create a ContentPiece.
     },
 }
 
