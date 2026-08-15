@@ -191,12 +191,24 @@ def _upsert_signal_cluster(
     Returns:
         UUID string of the upserted cluster (for linking signals).
     """
+    from apps.agents.base.cluster_identity import find_cluster_by_membership
     from packages.database.models.signal_cluster import SignalCluster
 
     slug = f"{cluster.slug}-{year}-w{week_number:02d}"
     now = datetime.now(timezone.utc)
 
-    existing = session.query(SignalCluster).filter_by(slug=slug).first()
+    # Identity comes from the signals the cluster holds, not from the label
+    # the LLM produced this run. Without this, a re-worded name means a new
+    # slug and therefore an INSERT, which is how one bucket became ~27 rows
+    # a week. Fall back to the slug lookup so a cluster whose membership is
+    # not yet recorded still updates in place.
+    content_hashes = {
+        h for h in (getattr(s, "content_hash", None) for s in cluster.signals) if h
+    }
+    existing = find_cluster_by_membership(session, content_hashes, year, week_number)
+    matched_by_membership = existing is not None
+    if existing is None:
+        existing = session.query(SignalCluster).filter_by(slug=slug).first()
 
     dimensions_dict = cluster.dimensions.to_dict() if cluster.dimensions else {}
     composite = cluster.composite_score
@@ -209,7 +221,13 @@ def _upsert_signal_cluster(
     centroid_embedding: Optional[List[float]] = getattr(cluster, "_centroid_embedding", None)
 
     if existing:
-        existing.name = cluster.name
+        # When the match came from membership, the name and slug already in
+        # the database are the ones the site has been showing and linking to.
+        # Keep them: a cluster that renames itself every 6h is the same
+        # instability in a different place, and the /signals/cluster/<slug>
+        # URL would break on every run.
+        if not matched_by_membership:
+            existing.name = cluster.name
         existing.theme = cluster.theme
         existing.sub_theme = cluster.sub_theme
         existing.description = cluster.description or existing.description
@@ -223,7 +241,11 @@ def _upsert_signal_cluster(
         existing.last_active_at = now
         existing.agent_run_id = agent_run_id
         existing.updated_at = now
+        # Refresh the identity fingerprint so the next run compares against
+        # this run's membership, letting a cluster drift as the week fills.
+        existing.signal_hashes = sorted(content_hashes)
 
+        flag_modified(existing, "signal_hashes")
         flag_modified(existing, "dimensions")
         flag_modified(existing, "top_voices")
         flag_modified(existing, "top_posts")
@@ -248,6 +270,7 @@ def _upsert_signal_cluster(
         composite_score=composite,
         dimensions=dimensions_dict,
         narrative_stage=cluster.narrative_stage,
+        signal_hashes=sorted(content_hashes),
         first_seen_at=now,
         last_active_at=now,
         top_voices=top_voices,
