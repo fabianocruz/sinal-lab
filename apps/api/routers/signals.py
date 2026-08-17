@@ -11,6 +11,7 @@ Response format for paginated endpoints:
 Run: pytest apps/api/tests/test_signals.py -v
 """
 
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -24,7 +25,6 @@ from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
 from apps.agents.social_signals.config import (
-    CLUSTER_NAME_BLOCKLIST,
     CLUSTER_NAME_BLOCKLIST_RE,
     MIN_CLUSTER_COMPOSITE_SCORE,
 )
@@ -229,6 +229,104 @@ class SignalStatsResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Cluster presentation guards
+# ---------------------------------------------------------------------------
+
+# A "description" is supposed to be an LLM summary of the cluster. When that
+# summarisation fails the writer falls back to the raw text of one post, so
+# spam ends up describing a trend. These guards drop that content at the API
+# boundary rather than teaching every consumer to distrust the field.
+
+_HASHTAG_RE = re.compile(r"#\w+")
+_WHITESPACE_RE = re.compile(r"\s+")
+
+#: A post carrying at least this many hashtags is promotional, not signal.
+MAX_HASHTAGS_BEFORE_SPAM = 4
+
+#: Prefix length used to decide that a description is a verbatim post quote.
+_QUOTE_MATCH_CHARS = 80
+
+
+def _normalize_text(text: Optional[str]) -> str:
+    """Lowercase and collapse whitespace for comparison purposes."""
+    return _WHITESPACE_RE.sub(" ", (text or "")).strip().lower()
+
+
+def _is_promotional(text: Optional[str]) -> bool:
+    """True when text reads as hashtag spam rather than as signal."""
+    return len(_HASHTAG_RE.findall(text or "")) >= MAX_HASHTAGS_BEFORE_SPAM
+
+
+def _is_verbatim_post(description: Optional[str], top_posts: Optional[List[Dict[str, Any]]]) -> bool:
+    """True when the description is just one of the posts, quoted raw.
+
+    That is the shape the failed-summarisation fallback produces, and it is
+    what puts "Please Like And Subscribe" in the position of an analysis.
+    """
+    norm_desc = _normalize_text(description)
+    if len(norm_desc) < 20:
+        return False
+    head = norm_desc[:_QUOTE_MATCH_CHARS]
+    for post in top_posts or []:
+        if not isinstance(post, dict):
+            continue
+        norm_post = _normalize_text(post.get("text"))
+        if not norm_post:
+            continue
+        if head in norm_post or norm_post[:_QUOTE_MATCH_CHARS] in norm_desc:
+            return True
+    return False
+
+
+def _sanitize_cluster(response: SignalClusterResponse) -> SignalClusterResponse:
+    """Strip content that would misrepresent scraped noise as analysis.
+
+    Drops promotional posts from ``top_posts`` and blanks a ``description``
+    that is spam or a verbatim quote. ClusterCard already renders name and
+    theme alone when description is null.
+    """
+    if response.top_posts:
+        response.top_posts = [
+            p
+            for p in response.top_posts
+            if not (isinstance(p, dict) and _is_promotional(p.get("text")))
+        ]
+    if _is_promotional(response.description) or _is_verbatim_post(
+        response.description, response.top_posts
+    ):
+        response.description = None
+    return response
+
+
+def _cluster_sort_key(cluster: SignalCluster) -> tuple:
+    """Rank clusters by the two numbers that actually vary.
+
+    composite_score is not usable for ranking: 45% of its weight comes from
+    dimensions that are constant across the corpus, so the top 100 clusters
+    span 0.04 of it. Volume and recency are measured, not defaulted.
+    """
+    timestamp = cluster.last_active_at or cluster.created_at
+    return (cluster.signal_count or 0, timestamp.timestamp() if timestamp else 0.0)
+
+
+def _dedupe_clusters(clusters: List[SignalCluster]) -> List[SignalCluster]:
+    """Collapse clusters that are the same bucket under a re-generated name.
+
+    The upsert key is a slug of the LLM-generated label, so a fresh label
+    means an INSERT instead of an UPDATE and the same bucket lands in the
+    table once per run. Keep the highest-volume, most recent copy of each
+    name so the grid stops showing a cluster twice.
+    """
+    best_by_name: Dict[str, SignalCluster] = {}
+    for cluster in clusters:
+        key = _normalize_text(cluster.name)
+        incumbent = best_by_name.get(key)
+        if incumbent is None or _cluster_sort_key(cluster) > _cluster_sort_key(incumbent):
+            best_by_name[key] = cluster
+    return list(best_by_name.values())
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -262,8 +360,20 @@ def list_signals(
         query = query.filter(SocialSignal.text.ilike(f"%{search}%"))
 
     total = query.count()
+    # published_at is NULL on rows the collector failed to date (usually scrape
+    # errors). Postgres sorts NULLS FIRST on DESC, which pushed exactly those
+    # broken rows to the top of page 1. Fall back to collected_at so undated
+    # signals sort by when we saw them instead of ahead of everything.
     signals = (
-        query.order_by(desc(SocialSignal.published_at))
+        query.order_by(
+            desc(
+                func.coalesce(
+                    SocialSignal.published_at,
+                    SocialSignal.collected_at,
+                    SocialSignal.created_at,
+                )
+            )
+        )
         .offset(offset)
         .limit(limit)
         .all()
@@ -306,20 +416,25 @@ def list_clusters(
     if min_score and min_score > 0:
         query = query.filter(SignalCluster.composite_score >= min_score)
 
-    # Exclude clusters with generic/noise names.
-    # Fetch all matching rows and filter in Python with pre-compiled regex.
-    # This avoids N individual SQL NOT ILIKE clauses and works with both
-    # PostgreSQL and SQLite (tests).
-    all_matching = (
-        query.order_by(desc(SignalCluster.composite_score))
-        .all()
-    )
-    filtered = [c for c in all_matching if not CLUSTER_NAME_BLOCKLIST_RE.search(c.name or "")]
+    # Exclude clusters with generic/noise names, plus the residual bucket:
+    # rows with an empty theme are where unclassified signals land, so it
+    # ranked #1 while describing nothing. Filter in Python with a pre-compiled
+    # regex to avoid N SQL NOT ILIKE clauses and to work on SQLite (tests).
+    all_matching = query.all()
+    filtered = [
+        c
+        for c in all_matching
+        if not CLUSTER_NAME_BLOCKLIST_RE.search(c.name or "") and (c.theme or "").strip()
+    ]
+    filtered = _dedupe_clusters(filtered)
+    filtered.sort(key=_cluster_sort_key, reverse=True)
     total = len(filtered)
     clusters = filtered[offset : offset + limit]
 
     return {
-        "items": [SignalClusterResponse.model_validate(c) for c in clusters],
+        "items": [
+            _sanitize_cluster(SignalClusterResponse.model_validate(c)) for c in clusters
+        ],
         "total": total,
         "limit": limit,
         "offset": offset,
@@ -335,7 +450,7 @@ def get_cluster_by_slug(slug: str, db: Session = Depends(get_db)):
     # Block clusters matching name blocklist (same filter as list endpoint)
     if CLUSTER_NAME_BLOCKLIST_RE.search(cluster.name or ""):
         raise HTTPException(status_code=404, detail=f"Cluster '{slug}' not found")
-    return cluster
+    return _sanitize_cluster(SignalClusterResponse.model_validate(cluster))
 
 
 @router.get("/pulse")
@@ -388,15 +503,14 @@ def list_voices(
 ):
     """List monitored accounts (voices) with recent signals.
 
-    Each voice is enriched with up to 3 recent signals. Matching strategy:
+    Each voice is enriched with up to 3 recent signals it actually authored:
         1. Exact author_handle match (same handle on both sides)
-        2. Sector-tag fallback: find signals whose theme matches any of
-           the voice's sector_tags (e.g. voice with tags ["fintech", "ai"]
-           matches signals with theme "AI" or "Fintech")
+        2. display_name containment, which bridges the handle mismatch where
+           monitored accounts come from Crunchbase (handle="sam-altman") but
+           signals come from Twitter (author_handle="sama")
 
-    This solves the handle mismatch problem where monitored accounts come
-    from Crunchbase (handle="sam-altman") but signals come from Twitter
-    (author_handle="sama").
+    Voices with no attributable signal return an empty ``recent_signals``.
+    We never attach a post to an account we cannot tie to its author.
     """
     query = db.query(MonitoredAccount)
 
@@ -473,10 +587,9 @@ def _batch_fetch_signals_for_voices(
     Matching strategy (applied in priority order):
         1. Exact author_handle match
         2. display_name containment (cross-platform)
-        3. Sector-tag -> theme fallback
 
-    Uses at most 3 DB queries total (one per strategy) instead of
-    N queries per account.
+    Both strategies match on the signal's own author fields. Uses at most
+    2 DB queries total (one per strategy) instead of N queries per account.
     """
     if not accounts:
         return {}
@@ -540,134 +653,13 @@ def _batch_fetch_signals_for_voices(
                 result[account.handle] = matching[:per_voice_limit]
                 matched_handles.add(account.handle)
 
-    # --- Strategy 3: sector_tags -> theme fallback ------------------------
-    tag_to_theme = {
-        "fintech": "Fintech", "ai": "AI", "banking": "AI in Banking",
-        "healthtech": "HealthTech", "devtools": "DevTools", "crypto": "Fintech",
-        "saas": "AI", "investor": "Funding", "vc": "VC",
-        "exec": "AI", "executive": "AI", "founder": "Startup Ops",
-        "thought_leader": "AI", "company": "Fintech",
-    }
-    # Collect all needed themes across remaining unmatched accounts
-    unmatched_tag_accounts = [
-        a for a in accounts if a.handle not in matched_handles
-    ]
-    all_themes: set = set()
-    account_themes: Dict[str, set] = {}
-    for account in unmatched_tag_accounts:
-        themes_for_account: set = set()
-        for tag in (account.sector_tags or []):
-            mapped = tag_to_theme.get(tag.lower())
-            if mapped:
-                themes_for_account.add(mapped)
-                all_themes.add(mapped)
-        account_themes[account.handle] = themes_for_account
-
-    if all_themes:
-        theme_signals = (
-            db.query(SocialSignal)
-            .filter(SocialSignal.theme.in_(list(all_themes)))
-            .order_by(desc(SocialSignal.published_at))
-            .limit(batch_limit)
-            .all()
-        )
-
-        # Group by theme for fast lookup
-        by_theme: Dict[str, List[Any]] = defaultdict(list)
-        for sig in theme_signals:
-            if sig.theme:
-                by_theme[sig.theme].append(sig)
-
-        for account in unmatched_tag_accounts:
-            themes = account_themes.get(account.handle, set())
-            if not themes:
-                continue
-            matching = []
-            seen_ids: set = set()
-            for theme in themes:
-                for sig in by_theme.get(theme, []):
-                    if sig.id not in seen_ids:
-                        matching.append(sig)
-                        seen_ids.add(sig.id)
-                    if len(matching) >= per_voice_limit:
-                        break
-                if len(matching) >= per_voice_limit:
-                    break
-            if matching:
-                result[account.handle] = matching[:per_voice_limit]
-
+    # NOTE: a third strategy used to live here, attaching signals to an account
+    # whenever the signal's `theme` matched a hardcoded map of the account's
+    # `sector_tags`. That is not an authorship link — it put arbitrary posts
+    # (e.g. from r/StartupMind) under the name and bio of identifiable people.
+    # Accounts with no signal we can actually attribute now return nothing;
+    # VoicesPanel already renders an empty state for that case.
     return result
-
-
-def _find_recent_signals_for_voice(
-    db: Session,
-    account: MonitoredAccount,
-    signal_limit: int = 3,
-) -> list:
-    """Find recent signals relevant to a monitored account.
-
-    Strategy:
-        1. Exact author_handle match
-        2. Sector-tag fallback (theme ILIKE any tag)
-
-    Args:
-        db: Database session.
-        account: The monitored account to match against.
-        signal_limit: Max signals to return per voice.
-
-    Returns:
-        List of SocialSignal records (may be empty).
-    """
-    # Strategy 1: exact handle match (same platform)
-    by_handle = (
-        db.query(SocialSignal)
-        .filter(SocialSignal.author_handle == account.handle)
-        .order_by(desc(SocialSignal.published_at))
-        .limit(signal_limit)
-        .all()
-    )
-    if by_handle:
-        return by_handle
-
-    # Strategy 2: display_name containment (cross-platform)
-    display_name = (account.display_name or "").strip()
-    if display_name and len(display_name) > 3:
-        by_name = (
-            db.query(SocialSignal)
-            .filter(SocialSignal.author_display_name.ilike(f"%{display_name}%"))
-            .order_by(desc(SocialSignal.published_at))
-            .limit(signal_limit)
-            .all()
-        )
-        if by_name:
-            return by_name
-
-    # Strategy 3: match by sector_tags -> signal theme
-    # Map common account tags to signal themes
-    tag_to_theme = {
-        "fintech": "Fintech", "ai": "AI", "banking": "AI in Banking",
-        "healthtech": "HealthTech", "devtools": "DevTools", "crypto": "Fintech",
-        "saas": "AI", "investor": "Funding", "vc": "VC",
-        "exec": "AI", "executive": "AI", "founder": "Startup Ops",
-        "thought_leader": "AI", "company": "Fintech",
-    }
-    tags = account.sector_tags or []
-    theme_conditions = []
-    for tag in tags:
-        mapped = tag_to_theme.get(tag.lower())
-        if mapped:
-            theme_conditions.append(SocialSignal.theme == mapped)
-
-    if not theme_conditions:
-        return []
-
-    return (
-        db.query(SocialSignal)
-        .filter(or_(*theme_conditions))
-        .order_by(desc(SocialSignal.published_at))
-        .limit(signal_limit)
-        .all()
-    )
 
 
 @router.get("/feed")

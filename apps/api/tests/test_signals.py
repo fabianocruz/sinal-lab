@@ -622,16 +622,20 @@ def test_voices_include_recent_signals_by_handle(client, sample_voices, sample_s
     assert founder_voice["recent_signals"][0]["platform"] == "twitter"
 
 
-def test_voices_include_recent_signals_by_sector_tags(client, db_session, sample_signals):
-    """Test voices without handle match fall back to sector_tags matching."""
-    # Create a voice with sector_tags but no matching author_handle in signals
+def test_voices_never_attribute_signals_by_sector_tags(client, db_session, sample_signals):
+    """A shared topic is not authorship: never attach a post we cannot attribute.
+
+    This used to assert the opposite. The sector_tags -> theme fallback put
+    arbitrary posts under the name and bio of identifiable people, which is
+    the one failure mode here with external reputational cost.
+    """
     account = MonitoredAccount(
         id=uuid.uuid4(),
         platform="crunchbase",
         handle="sam-altman",  # Does NOT match any signal author_handle
-        display_name="Sam Altman",
+        display_name="Sam Altman",  # Does NOT match any author_display_name
         account_type="founder",
-        sector_tags=["ai"],  # Should match signals with theme="AI"
+        sector_tags=["ai"],  # Signals with theme="AI" exist, and must NOT match
         authority_score=0.95,
         is_active=True,
         created_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
@@ -646,9 +650,7 @@ def test_voices_include_recent_signals_by_sector_tags(client, db_session, sample
     assert data["total"] == 1
     voice = data["items"][0]
     assert voice["handle"] == "sam-altman"
-    # Should have recent signals matched by sector_tags -> theme "AI"
-    assert len(voice["recent_signals"]) > 0
-    assert any("AI" in (sig.get("text") or "") for sig in voice["recent_signals"])
+    assert voice["recent_signals"] == []
 
 
 def test_voices_recent_signals_empty_when_no_match(client, db_session):
@@ -889,3 +891,216 @@ def test_watchlist_email_required(client, db_session):
     """Test that the email query param is required for listing."""
     response = client.get("/api/signals/watchlist")
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Honesty guards — undated signals, duplicate clusters, scraped noise
+# ---------------------------------------------------------------------------
+
+
+def test_undated_signals_do_not_hijack_page_one(client, db_session):
+    """Signals with no published_at must not outrank dated ones.
+
+    Postgres sorts NULLS FIRST on DESC, so ordering by published_at alone put
+    exactly the rows the collector failed to date — usually scrape errors — at
+    the top of page 1. They now fall back to collected_at.
+    """
+    undated = SocialSignal(
+        id=uuid.uuid4(),
+        platform="twitter",
+        post_url="https://x.com/undated",
+        author_handle="broken_scrape",
+        text="Scraped without a date",
+        content_hash="hash_undated",
+        published_at=None,
+        collected_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    dated = SocialSignal(
+        id=uuid.uuid4(),
+        platform="twitter",
+        post_url="https://x.com/dated",
+        author_handle="working_scrape",
+        text="Scraped with a date",
+        content_hash="hash_dated",
+        published_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+        collected_at=datetime(2026, 3, 20, 11, 0, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 3, 20, 11, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 20, 11, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add_all([undated, dated])
+    db_session.commit()
+
+    data = client.get("/api/signals").json()
+
+    assert data["items"][0]["author_handle"] == "working_scrape"
+
+
+def test_clusters_exclude_empty_theme_residual_bucket(client, db_session):
+    """Clusters with no theme are the unclassified bucket, not a trend."""
+    residual = SignalCluster(
+        id=uuid.uuid4(),
+        name="Outros Sinais",
+        slug="outros-sinais",
+        theme=None,
+        description="Residual bucket",
+        signal_count=999,
+        composite_score=0.99,
+        narrative_stage="emerging",
+        week_number=12,
+        year=2026,
+        created_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(residual)
+    db_session.commit()
+
+    data = client.get("/api/signals/clusters").json()
+
+    assert data["total"] == 0
+    assert data["items"] == []
+
+
+def test_clusters_dedupe_same_bucket_across_runs(client, db_session):
+    """The same bucket re-inserted under a fresh slug appears once.
+
+    The upsert key is a slug of the LLM-generated name, so a re-labelled
+    cluster INSERTs instead of UPDATEs and the grid showed it twice.
+    """
+    common = dict(
+        name="Desenvolvimento e experimentacao com modelos de IA",
+        theme="AI",
+        composite_score=0.5,
+        narrative_stage="emerging",
+        year=2026,
+    )
+    older = SignalCluster(
+        id=uuid.uuid4(),
+        slug="desenvolvimento-e-experimentacao-com-modelos-de-ia",
+        signal_count=40,
+        week_number=17,
+        created_at=datetime(2026, 4, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 20, 10, 0, 0, tzinfo=timezone.utc),
+        **common,
+    )
+    newer = SignalCluster(
+        id=uuid.uuid4(),
+        slug="desenvolvimento-e-experimentacao-com-modelos-de-ia-2",
+        signal_count=40,
+        week_number=18,
+        created_at=datetime(2026, 4, 27, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 27, 10, 0, 0, tzinfo=timezone.utc),
+        **common,
+    )
+    db_session.add_all([older, newer])
+    db_session.commit()
+
+    data = client.get("/api/signals/clusters").json()
+
+    assert data["total"] == 1
+    # Ties on volume are broken by recency, so the newer copy survives.
+    assert data["items"][0]["week_number"] == 18
+
+
+def test_clusters_ranked_by_signal_count_not_composite_score(client, db_session):
+    """Volume and recency are measured; composite_score is mostly defaults."""
+    low_volume_high_score = SignalCluster(
+        id=uuid.uuid4(),
+        name="High score low volume",
+        slug="high-score-low-volume",
+        theme="AI",
+        signal_count=3,
+        composite_score=0.95,
+        narrative_stage="emerging",
+        week_number=12,
+        year=2026,
+        created_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    high_volume_low_score = SignalCluster(
+        id=uuid.uuid4(),
+        name="Low score high volume",
+        slug="low-score-high-volume",
+        theme="AI",
+        signal_count=90,
+        composite_score=0.30,
+        narrative_stage="emerging",
+        week_number=12,
+        year=2026,
+        created_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add_all([low_volume_high_score, high_volume_low_score])
+    db_session.commit()
+
+    data = client.get("/api/signals/clusters?min_score=0").json()
+
+    assert data["items"][0]["slug"] == "low-score-high-volume"
+
+
+def test_cluster_description_dropped_when_it_is_a_raw_post(client, db_session):
+    """A verbatim post quote is not a summary — blank it rather than publish it."""
+    spam_text = (
+        "Work Life as a Investment Banker. Viral Trending TikTok. "
+        "#shorts Please Like And Subscribe"
+    )
+    cluster = SignalCluster(
+        id=uuid.uuid4(),
+        name="Investment Banking",
+        slug="investment-banking",
+        theme="Fintech",
+        description=spam_text,
+        signal_count=10,
+        composite_score=0.5,
+        narrative_stage="emerging",
+        top_posts=[{"platform": "tiktok", "text": spam_text}],
+        week_number=12,
+        year=2026,
+        created_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(cluster)
+    db_session.commit()
+
+    data = client.get("/api/signals/clusters").json()
+
+    assert data["items"][0]["description"] is None
+    # And the detail endpoint applies the same guard.
+    detail = client.get("/api/signals/clusters/investment-banking").json()
+    assert detail["description"] is None
+
+
+def test_cluster_drops_hashtag_spam_from_top_posts(client, db_session):
+    """Posts stuffed with hashtags are promotion, not signal."""
+    cluster = SignalCluster(
+        id=uuid.uuid4(),
+        name="Crypto Chatter",
+        slug="crypto-chatter",
+        theme="Fintech",
+        description="A genuine summary of what these accounts are discussing.",
+        signal_count=10,
+        composite_score=0.5,
+        narrative_stage="emerging",
+        top_posts=[
+            {"platform": "twitter", "text": "Real analysis of the sector"},
+            {
+                "platform": "twitter",
+                "text": "BUY NOW #crypto #moon #shitcoin #pump #100x",
+            },
+        ],
+        week_number=12,
+        year=2026,
+        created_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 20, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(cluster)
+    db_session.commit()
+
+    data = client.get("/api/signals/clusters").json()
+    posts = data["items"][0]["top_posts"]
+
+    assert len(posts) == 1
+    assert posts[0]["text"] == "Real analysis of the sector"
+    # A real summary survives the guard.
+    assert data["items"][0]["description"].startswith("A genuine summary")

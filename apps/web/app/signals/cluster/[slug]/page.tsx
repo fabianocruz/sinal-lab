@@ -38,8 +38,6 @@ export default async function ClusterDetailPage({ params }: ClusterDetailPagePro
 
   const stageColor = STAGE_COLORS[cluster.narrative_stage] ?? "#8A8A96";
   const stageLabel = STAGE_LABELS[cluster.narrative_stage] ?? cluster.narrative_stage;
-  const scorePercent = Math.round(cluster.composite_score * 100);
-
   const dimensionEntries = Object.entries(cluster.dimensions ?? {}).sort(([, a], [, b]) => b - a);
 
   return (
@@ -86,34 +84,16 @@ export default async function ClusterDetailPage({ params }: ClusterDetailPagePro
 
           {/* Two-column layout: score breakdown + top voices */}
           <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Composite score + dimensions */}
+            {/* Dimensions. The composite score used to headline this card as a
+                48px number. It is not published any more: 45% of its weight
+                comes from dimensions that are constant across the corpus, and
+                the top 100 clusters span 0.04 of it. */}
             <div className="rounded-xl border border-sinal-slate bg-sinal-graphite p-6">
-              <h2 className="mb-1 font-mono text-[11px] uppercase tracking-[1.5px] text-ash">
-                Score Composto
+              <h2 className="mb-4 font-mono text-[11px] uppercase tracking-[1.5px] text-ash">
+                Dimensoes Medidas
               </h2>
-              <div
-                className="mb-4 font-display text-[48px] leading-none"
-                style={{ color: stageColor }}
-              >
-                {scorePercent}
-              </div>
-
-              {/* Progress bar */}
-              <div className="mb-6 h-[4px] w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${scorePercent}%`, backgroundColor: stageColor }}
-                />
-              </div>
-
-              {/* Dimension radar chart */}
               {dimensionEntries.length > 0 && (
-                <div>
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[1px] text-[#4A4A56]">
-                    Dimensoes
-                  </p>
-                  <DimensionRadar dimensions={cluster.dimensions} accentColor={stageColor} />
-                </div>
+                <DimensionRadar dimensions={cluster.dimensions} accentColor={stageColor} />
               )}
             </div>
 
@@ -217,18 +197,6 @@ export default async function ClusterDetailPage({ params }: ClusterDetailPagePro
                 </div>
                 <div className="mt-1 font-mono text-[9px] uppercase tracking-[1px] text-[#4A4A56]">
                   Sinais
-                </div>
-              </div>
-              <div className="w-px bg-sinal-slate" />
-              <div className="text-center">
-                <div
-                  className="font-display text-[24px] leading-none"
-                  style={{ color: stageColor }}
-                >
-                  {scorePercent}
-                </div>
-                <div className="mt-1 font-mono text-[9px] uppercase tracking-[1px] text-[#4A4A56]">
-                  Score
                 </div>
               </div>
               <div className="w-px bg-sinal-slate" />

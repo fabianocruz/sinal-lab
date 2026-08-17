@@ -24,6 +24,7 @@ const config: Config = {
           codigo: "#59B4FF",
           funding: "#FF8A59",
           mercado: "#C459FF",
+          social_signals: "#FF59B4",
         },
       },
       fontFamily: {

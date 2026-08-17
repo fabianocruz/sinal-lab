@@ -356,9 +356,12 @@ export default function PulsePanel({ pulse, clusters }: PulsePanelProps) {
               <h3 className="mb-1 font-mono text-[10px] uppercase tracking-[1.5px] text-ash">
                 Clusters de Tendencias
               </h3>
+              {/* Not "esta semana": the endpoint is not week-scoped and the
+                  client does not ask for one, so this list spans every week
+                  still in the table. Count what is actually shown. */}
               <p className="text-[12px] text-[#4A4A56]">
                 {filteredClusters.length} cluster{filteredClusters.length !== 1 ? "s" : ""}{" "}
-                detectado{filteredClusters.length !== 1 ? "s" : ""} esta semana
+                ativo{filteredClusters.length !== 1 ? "s" : ""}
               </p>
             </div>
           </div>

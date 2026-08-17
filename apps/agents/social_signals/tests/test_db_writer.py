@@ -717,3 +717,130 @@ def test_persist_social_signals_idempotent_on_second_run(db_session):
     assert db_session.query(SocialSignal).count() == 1
     assert db_session.query(SignalCluster).count() == 1
     assert db_session.query(WeeklyPulse).count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Cluster identity — a bucket is what it contains, not what the LLM called it
+# ---------------------------------------------------------------------------
+
+
+def _persist_run(db_session, name: str, slug: str, signals, run_id: str) -> str:
+    """Persist one agent run: cluster row plus its signals, linked.
+
+    Mirrors what persist_social_signals_data does — the cluster is upserted
+    first, then each signal is written carrying that cluster's id.
+    """
+    from apps.agents.social_signals.db_writer import (
+        _upsert_signal_cluster,
+        _upsert_social_signal,
+    )
+
+    cluster = _make_cluster(name=name, slug=slug, signals=signals)
+    cluster_db_id = _upsert_signal_cluster(
+        db_session, cluster, week_number=17, year=2026, agent_run_id=run_id
+    )
+    for signal in signals:
+        _upsert_social_signal(
+            db_session, signal, agent_run_id=run_id, cluster_db_id=cluster_db_id
+        )
+    db_session.commit()
+    return cluster_db_id
+
+
+def _signals(n: int, offset: int = 0):
+    return [
+        _make_signal(url=f"https://twitter.com/founder/status/{i + offset}")
+        for i in range(n)
+    ]
+
+
+def test_relabelled_cluster_updates_instead_of_inserting(db_session):
+    """The same signals under a new LLM name must not create a second row.
+
+    This is the root cause of ~277 cluster rows a week for ~10 real
+    clusters: the upsert key was a slug of a name regenerated every run.
+    """
+    signals = _signals(10)
+
+    first = _persist_run(
+        db_session, "Operacoes e Crescimento de Startups", "operacoes-crescimento", signals, "run-1"
+    )
+    second = _persist_run(
+        db_session, "Comunidade de Fundadores e Operacoes", "comunidade-fundadores", signals, "run-2"
+    )
+
+    assert first == second, "same signals must resolve to the same cluster row"
+    assert db_session.query(SignalCluster).count() == 1
+
+
+def test_relabelled_cluster_keeps_its_published_name_and_slug(db_session):
+    """Identity is stable: the site keeps linking to the same URL and title."""
+    signals = _signals(10)
+
+    _persist_run(db_session, "Operacoes e Crescimento", "operacoes-crescimento", signals, "run-1")
+    _persist_run(db_session, "Nome Totalmente Diferente", "nome-diferente", signals, "run-2")
+
+    row = db_session.query(SignalCluster).one()
+    assert row.name == "Operacoes e Crescimento"
+    assert row.slug == "operacoes-crescimento-2026-w17"
+
+
+def test_relabelled_cluster_still_refreshes_its_metrics(db_session):
+    """Keeping the name must not freeze the numbers."""
+    signals = _signals(10)
+    _persist_run(db_session, "Primeiro Nome", "primeiro-nome", signals, "run-1")
+
+    grown = signals + _signals(6, offset=100)
+    _persist_run(db_session, "Segundo Nome", "segundo-nome", grown, "run-2")
+
+    row = db_session.query(SignalCluster).one()
+    assert row.signal_count == 16
+    assert row.agent_run_id == "run-2"
+
+
+def test_cluster_growing_during_the_week_is_still_the_same_cluster(db_session):
+    """The signal pool grows between runs; a superset is not a new bucket."""
+    base = _signals(10)
+    _persist_run(db_session, "Cluster A", "cluster-a", base, "run-1")
+    _persist_run(db_session, "Cluster A rotulado outra vez", "cluster-a-2", base + _signals(5, offset=200), "run-2")
+
+    assert db_session.query(SignalCluster).count() == 1
+
+
+def test_genuinely_different_clusters_are_not_merged(db_session):
+    """Disjoint signals must stay separate rows."""
+    _persist_run(db_session, "Fintech LATAM", "fintech-latam", _signals(10), "run-1")
+    _persist_run(db_session, "DevTools LATAM", "devtools-latam", _signals(10, offset=500), "run-1")
+
+    assert db_session.query(SignalCluster).count() == 2
+
+
+def test_small_overlap_does_not_merge_clusters(db_session):
+    """A few shared posts is not the same bucket — the floor guards this."""
+    shared = _signals(3)
+    _persist_run(db_session, "Cluster A", "cluster-a", shared + _signals(9, offset=300), "run-1")
+    _persist_run(db_session, "Cluster B", "cluster-b", shared + _signals(9, offset=600), "run-2")
+
+    assert db_session.query(SignalCluster).count() == 2
+
+
+def test_different_weeks_still_create_separate_clusters(db_session):
+    """Week boundaries keep history intact even for identical signals."""
+    from apps.agents.social_signals.db_writer import (
+        _upsert_signal_cluster,
+        _upsert_social_signal,
+    )
+
+    signals = _signals(10)
+    cluster = _make_cluster(name="Mesmo Cluster", slug="mesmo-cluster", signals=signals)
+
+    id_w17 = _upsert_signal_cluster(db_session, cluster, week_number=17, year=2026, agent_run_id="r1")
+    for s in signals:
+        _upsert_social_signal(db_session, s, agent_run_id="r1", cluster_db_id=id_w17)
+    db_session.commit()
+
+    id_w18 = _upsert_signal_cluster(db_session, cluster, week_number=18, year=2026, agent_run_id="r2")
+    db_session.commit()
+
+    assert id_w17 != id_w18
+    assert db_session.query(SignalCluster).count() == 2

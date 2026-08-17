@@ -7,8 +7,6 @@ import ExportButton from "@/components/signals/ExportButton";
 import TabNav from "@/components/signals/TabNav";
 import PulsePanel from "@/components/signals/PulsePanel";
 import VoicesPanel from "@/components/signals/VoicesPanel";
-import EmpresasPanel from "@/components/signals/EmpresasPanel";
-import TemasPanel from "@/components/signals/TemasPanel";
 import MemoPanel from "@/components/signals/MemoPanel";
 import PersonaSelector from "@/components/signals/PersonaSelector";
 import type { SignalsTab } from "@/components/signals/TabNav";
@@ -31,7 +29,6 @@ import {
   fetchLatestPulse,
   fetchNewsletterBySlug,
   fetchVoices,
-  fetchCompanies,
 } from "@/lib/api";
 
 export const revalidate = 300;
@@ -48,17 +45,10 @@ export const metadata: Metadata = {
   },
 };
 
-const VALID_TABS: SignalsTab[] = ["pulse", "voices", "empresas", "temas", "memo"];
-
-// Legacy tab keys from old URLs — redirect to their replacements
-const TAB_ALIASES: Record<string, SignalsTab> = {
-  startups: "empresas",
-  banking: "temas",
-};
+const VALID_TABS: SignalsTab[] = ["pulse", "voices", "memo"];
 
 function resolveTab(value: string | undefined): SignalsTab {
   if (!value) return "pulse";
-  if (TAB_ALIASES[value]) return TAB_ALIASES[value];
   if (VALID_TABS.includes(value as SignalsTab)) return value as SignalsTab;
   return "pulse";
 }
@@ -88,16 +78,9 @@ export default async function SignalsPage({
   }
 
   // Fetch data for the active tab only to keep page fast
-  const [
-    clustersData,
-    voicesData,
-    voicesSignalsData,
-    temasSignalsData,
-    companiesData,
-    empresasSignalsData,
-  ] = await Promise.all([
-    // Pulse and Temas tabs need clusters — fetch all for theme filtering
-    activeTab === "pulse" || activeTab === "temas"
+  const [clustersData, voicesData, voicesSignalsData] = await Promise.all([
+    // Pulse tab needs clusters
+    activeTab === "pulse"
       ? fetchSignalClusters({ limit: 100 })
       : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
 
@@ -113,25 +96,9 @@ export default async function SignalsPage({
     activeTab === "voices"
       ? fetchSignals({ limit: 100 })
       : Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
-
-    // Temas tab — all signals (TemasPanel filters client-side by theme)
-    activeTab === "temas"
-      ? fetchSignals({ limit: 50 })
-      : Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
-
-    // Empresas tab — known companies
-    activeTab === "empresas"
-      ? fetchCompanies({ limit: 200 })
-      : Promise.resolve({ items: [], total: 0, limit: 200, offset: 0 }),
-
-    // Empresas tab — signals for matching (parallel with companies)
-    activeTab === "empresas"
-      ? fetchSignals({ limit: 200 })
-      : Promise.resolve({ items: [], total: 0, limit: 200, offset: 0 }),
   ]);
 
   const pulseClusters = activeTab === "pulse" ? clustersData.items : [];
-  const temasClusters = activeTab === "temas" ? clustersData.items : [];
 
   return (
     <>
@@ -162,21 +129,26 @@ export default async function SignalsPage({
           </div>
         </div>
 
-        {/* Persona selector + optional active banner */}
-        <div className="mx-auto max-w-container px-6 md:px-10 pb-4">
-          <Suspense fallback={null}>
-            <PersonaSelector activePersona={activePersona} />
-          </Suspense>
-          {activePersona !== "all" && (
-            <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-[rgba(232,255,89,0.15)] bg-[rgba(232,255,89,0.04)] px-4 py-2.5">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-signal" aria-hidden="true" />
-              <p className="text-[12px] text-silver">
-                Mostrando sinais relevantes para{" "}
-                <span className="font-semibold text-signal">{PERSONA_LABELS[activePersona]}</span>
-              </p>
-            </div>
-          )}
-        </div>
+        {/* Persona selector + active banner. Only rendered on the Voices tab:
+            persona reordering is implemented in VoicesPanel and nowhere else,
+            so on any other tab the control changed nothing while the banner
+            claimed the page was personalised. */}
+        {activeTab === "voices" && (
+          <div className="mx-auto max-w-container px-6 md:px-10 pb-4">
+            <Suspense fallback={null}>
+              <PersonaSelector activePersona={activePersona} />
+            </Suspense>
+            {activePersona !== "all" && (
+              <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-[rgba(232,255,89,0.15)] bg-[rgba(232,255,89,0.04)] px-4 py-2.5">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-signal" aria-hidden="true" />
+                <p className="text-[12px] text-silver">
+                  Mostrando vozes relevantes para{" "}
+                  <span className="font-semibold text-signal">{PERSONA_LABELS[activePersona]}</span>
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab navigation — Client Component */}
         <div className="mx-auto max-w-container px-6 md:px-10">
@@ -203,14 +175,6 @@ export default async function SignalsPage({
                 persona={activePersona}
               />
             </Suspense>
-          )}
-
-          {activeTab === "empresas" && (
-            <EmpresasPanel companies={companiesData.items} signals={empresasSignalsData.items} />
-          )}
-
-          {activeTab === "temas" && (
-            <TemasPanel clusters={temasClusters} signals={temasSignalsData.items} />
           )}
 
           {activeTab === "memo" && (

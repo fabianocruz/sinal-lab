@@ -12,14 +12,32 @@ import {
 // Canonical labels in Portuguese for each dimension key
 const DIMENSION_LABELS: Record<string, string> = {
   volume: "Volume",
-  velocity: "Velocidade",
-  authority: "Autoridade",
-  cross_platform: "Cross-Platform",
   sentiment: "Sentimento",
-  new_entrants: "Novos Entrantes",
+  sentiment_shift: "Sentimento",
   maturity: "Maturidade",
+  narrative_maturity: "Maturidade",
   commercial: "Comercial",
+  commercial_signals: "Comercial",
 };
+
+/**
+ * Dimensions that do not carry information and must not be plotted.
+ *
+ * Measured over 3.000 production clusters: velocity and new_entrants have
+ * 2 distinct values each, cross_platform has 4, and authority has 244 values
+ * all pinned near zero because the threshold is > 0.5 and the active Twitter
+ * collector never populates author_followers. Plotting a constant as an axis
+ * reads as a measurement, so these stay out until they are actually measured.
+ */
+const UNMEASURED_DIMENSIONS = new Set([
+  "velocity",
+  "new_entrants",
+  "authority",
+  "cross_platform",
+]);
+
+/** A radar needs at least 3 axes to be a shape rather than a line. */
+const MIN_RADAR_AXES = 3;
 
 interface DimensionRadarProps {
   dimensions: Record<string, number>;
@@ -55,20 +73,20 @@ export default function DimensionRadar({
   // Build data array: use known keys in a fixed order, fall back to raw key names
   const orderedKeys = [
     "volume",
-    "velocity",
-    "authority",
-    "cross_platform",
     "sentiment",
-    "new_entrants",
+    "sentiment_shift",
     "maturity",
+    "narrative_maturity",
     "commercial",
+    "commercial_signals",
   ];
 
-  // Include keys from the data that aren't in our ordered list
+  // Include keys from the data that aren't in our ordered list, then drop the
+  // ones that are constant across the corpus.
   const allKeys = [
     ...orderedKeys.filter((k) => k in dimensions),
     ...Object.keys(dimensions).filter((k) => !orderedKeys.includes(k)),
-  ];
+  ].filter((k) => !UNMEASURED_DIMENSIONS.has(k));
 
   const data = allKeys.map((key) => ({
     dimension: key,
@@ -76,7 +94,7 @@ export default function DimensionRadar({
     value: Math.min(Math.max(Number(dimensions[key]) || 0, 0), 1),
   }));
 
-  if (data.length === 0) {
+  if (data.length < MIN_RADAR_AXES) {
     return (
       <div className="flex items-center justify-center py-8">
         <p className="font-mono text-[12px] text-ash">Sem dados de dimensoes</p>

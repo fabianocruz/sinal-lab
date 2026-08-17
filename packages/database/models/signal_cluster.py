@@ -55,6 +55,12 @@ class SignalCluster(UUIDMixin, TimestampMixin, Base):
     related_companies: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
     # [{slug, name}]
 
+    # Identity: the content_hashes of the signals this cluster is made of.
+    # A cluster is what it contains, not what the LLM called it on this run,
+    # so the next run recognises the same bucket under a different label.
+    # NULL on rows written before migration 014.
+    signal_hashes: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+
     # Embeddings
     centroid_embedding_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     # JSON array of floats (1536 dimensions). Centroid of all signal embeddings in cluster.

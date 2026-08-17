@@ -20,6 +20,7 @@ const AGENT_COLOR_MAP: Record<string, string> = {
   "#59B4FF": "bg-agent-codigo",
   "#FF8A59": "bg-agent-funding",
   "#C459FF": "bg-agent-mercado",
+  "#FF59B4": "bg-agent-social_signals",
 };
 
 export default function SobrePage() {
