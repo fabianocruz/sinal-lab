@@ -13,7 +13,7 @@ class TestLLMConfig:
 
     def test_default_values(self):
         config = LLMConfig()
-        assert config.model == "claude-sonnet-4-5-20250929"
+        assert config.model == "claude-opus-5"
         assert config.max_tokens == 1024
         assert config.temperature == 0.7
         assert config.api_key_env == "ANTHROPIC_API_KEY"
@@ -182,7 +182,7 @@ class TestLLMClientGenerate:
         call_kwargs = mock_anthropic_cls.return_value.messages.create.call_args[1]
         assert call_kwargs["model"] == "test-model"
         assert call_kwargs["max_tokens"] == 256
-        assert call_kwargs["temperature"] == 0.5
+        assert "temperature" not in call_kwargs
 
     def test_generate_overrides_per_call(self):
         mock_response = MagicMock()
@@ -199,7 +199,34 @@ class TestLLMClientGenerate:
 
         call_kwargs = mock_anthropic_cls.return_value.messages.create.call_args[1]
         assert call_kwargs["max_tokens"] == 500
-        assert call_kwargs["temperature"] == 0.3
+        # temperature is accepted for backward compatibility but never
+        # forwarded: the API removed sampling params (400 on Opus 4.7+).
+        assert "temperature" not in call_kwargs
+
+    def test_generate_disables_thinking_and_omits_sampling(self):
+        """Opus 5 thinks by default and thinking spends max_tokens.
+
+        Callers size max_tokens for visible text only (titles use 30-80
+        tokens), so the client must disable thinking explicitly and must
+        never send sampling params.
+        """
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text="Response")]
+
+        mock_anthropic_cls = MagicMock()
+        mock_anthropic_cls.return_value.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}), \
+             patch("apps.agents.base.llm.anthropic") as mock_module:
+            mock_module.Anthropic = mock_anthropic_cls
+            client = LLMClient()
+            client.generate("prompt", temperature=0.9)
+
+        call_kwargs = mock_anthropic_cls.return_value.messages.create.call_args[1]
+        assert call_kwargs["thinking"] == {"type": "disabled"}
+        assert "temperature" not in call_kwargs
+        assert "top_p" not in call_kwargs
+        assert "top_k" not in call_kwargs
 
     def test_generate_returns_none_on_empty_response(self):
         mock_response = MagicMock()
