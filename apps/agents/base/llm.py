@@ -46,8 +46,11 @@ logger = logging.getLogger(__name__)
 class LLMConfig:
     """Configuration for the LLM client."""
 
-    model: str = "claude-opus-4-6"
+    model: str = "claude-opus-5"
     max_tokens: int = 1024
+    # Deprecated: sampling params were removed from the API (400 on
+    # Opus 4.7+). Kept so existing LLMConfig(temperature=...) call
+    # sites keep working; never sent on the wire.
     temperature: float = 0.7
     api_key_env: str = "ANTHROPIC_API_KEY"
 
@@ -82,7 +85,10 @@ class LLMClient:
             user_prompt: The user message to send.
             system_prompt: Optional system prompt for editorial voice.
             max_tokens: Override config max_tokens for this call.
-            temperature: Override config temperature for this call.
+            temperature: Deprecated and ignored. Sampling params were
+                removed from the API (400 on Opus 4.7+); accepted only
+                so existing call sites keep working. For editorial
+                variety, steer via the prompt instead.
 
         Returns:
             Generated text string, or None on any failure.
@@ -95,7 +101,10 @@ class LLMClient:
             response = client.messages.create(
                 model=self._config.model,
                 max_tokens=max_tokens or self._config.max_tokens,
-                temperature=temperature if temperature is not None else self._config.temperature,
+                # Opus 5 thinks by default and thinking spends max_tokens.
+                # Callers size max_tokens for visible text only (titles
+                # use 30-80 tokens), so thinking must stay off.
+                thinking={"type": "disabled"},
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
