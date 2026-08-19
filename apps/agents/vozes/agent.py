@@ -309,7 +309,7 @@ class VozesAgent(BaseAgent):
             "- Retorne APENAS o titulo"
         )
         result = client.generate(
-            user_prompt=prompt, system_prompt=system, max_tokens=80, temperature=0.5,
+            user_prompt=prompt, system_prompt=system, max_tokens=120,
         )
         if result and result.strip():
             return result.strip().strip('"').strip("'")

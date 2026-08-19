@@ -62,7 +62,6 @@ class FeedCuratorAgent(BaseAgent):
         self._db_session: Optional[Any] = None
         self._llm_client = LLMClient(LLMConfig(
             max_tokens=4096,
-            temperature=0.3,
         ))
         self._curated_items: List[CuratedItem] = []
         self._raw_signals: List[dict] = []
@@ -284,7 +283,6 @@ class FeedCuratorAgent(BaseAgent):
             user_prompt=prompt,
             system_prompt=system,
             max_tokens=600,
-            temperature=0.5,
         )
         if result and result.strip():
             return result.strip()
@@ -342,7 +340,7 @@ class FeedCuratorAgent(BaseAgent):
             "- Retorne APENAS o titulo"
         )
         result = client.generate(
-            user_prompt=prompt, system_prompt=system, max_tokens=80, temperature=0.5,
+            user_prompt=prompt, system_prompt=system, max_tokens=120,
         )
         if result and result.strip():
             return result.strip().strip('"').strip("'")

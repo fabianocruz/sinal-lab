@@ -429,8 +429,7 @@ class SocialSignalsAgent(BaseAgent):
             result = self._llm_client.generate(
                 user_prompt=prompt,
                 system_prompt="You write concise Portuguese titles for tech intelligence reports.",
-                max_tokens=50,
-                temperature=0.5,
+                max_tokens=80,
             )
             if result and result.strip():
                 return result.strip().strip('"')
@@ -650,7 +649,6 @@ class SocialSignalsAgent(BaseAgent):
                     "a LATAM tech intelligence report. Be specific and actionable."
                 ),
                 max_tokens=500,
-                temperature=0.5,
             )
 
             if result and result.strip():

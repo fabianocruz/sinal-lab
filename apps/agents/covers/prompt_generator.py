@@ -103,7 +103,6 @@ class CoverPromptGenerator:
             user_prompt=user_prompt,
             system_prompt=system_prompt,
             max_tokens=512,
-            temperature=0.8,
         )
 
         if not result or not result.strip():
@@ -155,7 +154,6 @@ class CoverPromptGenerator:
             user_prompt=user_prompt,
             system_prompt=system_prompt,
             max_tokens=512,
-            temperature=0.8,
         )
 
         if not result or not result.strip():

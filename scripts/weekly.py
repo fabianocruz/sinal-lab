@@ -228,7 +228,6 @@ def cmd_qa_review(edition: int, week: Optional[int] = None) -> int:
             user_prompt=user_prompt,
             system_prompt=QA_REVIEW_SYSTEM_PROMPT,
             max_tokens=2500,
-            temperature=0.3,
         )
         if not result:
             print("  LLM call failed (check logs above).")
@@ -694,7 +693,7 @@ def cmd_suggest_title(edition: int, count: int = 3, week: Optional[int] = None) 
         )
         print(f"  Asking Claude for {count} title options...\n")
         out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
-                              max_tokens=1500, temperature=0.6)
+                              max_tokens=1500)
         if not out:
             print("  LLM call failed.")
             return 1
@@ -741,7 +740,7 @@ def cmd_suggest_subject(edition: int, count: int = 3, week: Optional[int] = None
         )
         print(f"  Asking Claude for {count} subject options...\n")
         out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
-                              max_tokens=1000, temperature=0.6)
+                              max_tokens=1000)
         if not out:
             print("  LLM call failed.")
             return 1
@@ -817,7 +816,7 @@ def cmd_rewrite_hook(piece: str, item: int, count: int = 3) -> int:
         )
         print(f"  Asking Claude for {count} rewrite options...\n")
         out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
-                              max_tokens=1500, temperature=0.7)
+                              max_tokens=1500)
         if not out:
             print("  LLM call failed.")
             return 1
@@ -883,7 +882,7 @@ def cmd_suggest_removals(edition: int, week: Optional[int] = None) -> int:
         )
         print(f"  Asking Claude to review {len(items)} items...\n")
         out = client.generate(user_prompt=user_prompt, system_prompt=_SUGGEST_SYSTEM,
-                              max_tokens=1500, temperature=0.4)
+                              max_tokens=1500)
         if not out:
             print("  LLM call failed.")
             return 1

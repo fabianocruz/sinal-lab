@@ -372,7 +372,7 @@ class TestWriteHeadline:
         assert "São Paulo" in user_prompt or "Sao Paulo" in user_prompt
         assert "Fintech" in user_prompt
 
-    def test_uses_max_tokens_64(self):
+    def test_uses_max_tokens_96(self):
         mock_client = MagicMock()
         mock_client.is_available = True
         mock_client.generate.return_value = "Titulo"
@@ -381,4 +381,4 @@ class TestWriteHeadline:
         writer.write_headline([make_scored_profile()], week_number=1)
 
         call_kwargs = mock_client.generate.call_args[1]
-        assert call_kwargs.get("max_tokens") == 64
+        assert call_kwargs.get("max_tokens") == 96
