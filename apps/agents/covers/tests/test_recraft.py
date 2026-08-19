@@ -43,7 +43,10 @@ def test_generate_returns_images_on_success(mock_http_client):
     assert results[0].image_bytes == b"\x89PNG fake image bytes"
 
 
-def test_generate_returns_empty_when_unavailable():
+def test_generate_returns_empty_when_unavailable(monkeypatch):
+    # api_key="" cai no fallback de env var; sem o delenv um ambiente
+    # com RECRAFT_API_KEY faria o teste chamar a API real.
+    monkeypatch.delenv("RECRAFT_API_KEY", raising=False)
     client = RecraftClient(api_key="")
     assert client.generate("A prompt") == []
     assert not client.is_available

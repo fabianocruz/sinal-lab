@@ -308,7 +308,7 @@ class TestScoreItems:
     def test_editorial_keywords_recognized(self):
         """Items matching editorial territory keywords should pass the filter."""
         items = [
-            make_item(title="Open banking portabilidade no Brasil"),
+            make_item(title="Open finance e Pix avançam na portabilidade de crédito no Brasil"),
             make_item(title="Tokenização de real world assets com blockchain"),
         ]
         scored = score_items(items)
@@ -359,9 +359,10 @@ class TestNegativeKeywords:
         )
         assert score_topic_relevance(item) == 0.0
 
-    def test_min_topic_score_is_040(self):
-        """MIN_TOPIC_SCORE should be 0.40 to filter low-relevance content."""
-        assert MIN_TOPIC_SCORE == 0.40
+    def test_min_topic_score_pins_editorial_bar(self):
+        """Pin the editorial bar (raised to 0.55 in 030ac53) so a
+        change here is always a deliberate editorial decision."""
+        assert MIN_TOPIC_SCORE == 0.55
 
     def test_single_editorial_keyword_scores_035(self):
         """A single editorial keyword match (not in TOPIC_KEYWORDS) gives 0.35."""

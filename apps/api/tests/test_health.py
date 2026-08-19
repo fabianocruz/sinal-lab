@@ -2,9 +2,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-
 from apps.api.main import app
 from apps.api.deps import get_db
 
@@ -17,7 +14,7 @@ def client():
 
 def test_health_check_success(client):
     """Test health check with database connected."""
-    response = client.get("/api/health")
+    response = client.get("/health")
 
     assert response.status_code == 200
     data = response.json()
@@ -29,7 +26,7 @@ def test_health_check_success(client):
 
 def test_health_check_includes_timestamp(client):
     """Test that health check includes ISO timestamp."""
-    response = client.get("/api/health")
+    response = client.get("/health")
 
     assert response.status_code == 200
     data = response.json()
@@ -41,7 +38,7 @@ def test_health_check_includes_timestamp(client):
 
 def test_health_check_database_connectivity(client):
     """Test database connectivity status is reported."""
-    response = client.get("/api/health")
+    response = client.get("/health")
 
     assert response.status_code == 200
     data = response.json()
@@ -51,13 +48,17 @@ def test_health_check_database_connectivity(client):
 
 def test_health_check_with_database_failure():
     """Test health check when database connection fails."""
-    # Create a mock DB session that always fails
+    # dispose() on an in-memory engine doesn't break future connections
+    # (SQLAlchemy just opens a fresh one), so fail at execute() instead.
+    class FailingSession:
+        def execute(self, *args, **kwargs):
+            raise RuntimeError("database unavailable")
+
+        def close(self):
+            pass
+
     def get_failing_db():
-        # Create an in-memory SQLite database that we immediately close
-        engine = create_engine("sqlite:///:memory:")
-        engine.dispose()  # Close it immediately
-        SessionLocal = sessionmaker(bind=engine)
-        db = SessionLocal()
+        db = FailingSession()
         try:
             yield db
         finally:
@@ -67,7 +68,7 @@ def test_health_check_with_database_failure():
     app.dependency_overrides[get_db] = get_failing_db
 
     client = TestClient(app)
-    response = client.get("/api/health")
+    response = client.get("/health")
 
     # Clean up
     app.dependency_overrides.clear()
@@ -81,7 +82,7 @@ def test_health_check_with_database_failure():
 
 def test_health_check_response_schema(client):
     """Test health check response matches expected schema."""
-    response = client.get("/api/health")
+    response = client.get("/health")
 
     assert response.status_code == 200
     data = response.json()

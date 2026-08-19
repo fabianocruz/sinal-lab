@@ -1,12 +1,13 @@
 """Editorial pipeline orchestrator for Sinal.lab.
 
-Runs AgentOutput through 6 sequential editorial layers:
+Runs AgentOutput through 7 sequential editorial layers:
     1. PESQUISA — provenance validation
     2. VALIDACAO — data quality cross-referencing
     3. VERIFICACAO — structural fact-checking
-    4. VIES — bias detection (Batch 2)
-    5. SEO — search optimization (Batch 2)
-    6. SINTESE_FINAL — editorial assembly (Batch 2)
+    4. GUIDELINES — editorial guidelines compliance
+    5. VIES — bias detection (Batch 2)
+    6. SEO — search optimization (Batch 2)
+    7. SINTESE_FINAL — editorial assembly (Batch 2)
 
 Halts on blocker flags. Returns EditorialResult with accumulated
 layer results and a publish_ready determination.
@@ -61,9 +62,9 @@ class EditorialPipeline:
         self._layers: list[tuple[str, LayerFn]] = self._build_layer_chain()
 
     def _build_layer_chain(self) -> list[tuple[str, LayerFn]]:
-        """Assemble the ordered list of 6 editorial layers.
+        """Assemble the ordered list of editorial layers.
 
-        Layer 6 (SINTESE_FINAL) is handled specially in review()
+        The final layer (SINTESE_FINAL) is handled specially in review()
         because it needs access to all prior layer results.
         """
         layers: list[tuple[str, LayerFn]] = [

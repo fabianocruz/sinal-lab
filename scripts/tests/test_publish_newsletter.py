@@ -350,9 +350,10 @@ class TestPublishNewsletter:
         assert default_path.exists()
         assert html_path.exists()
 
+    @patch("builtins.input", return_value="ENVIAR")
     @patch("scripts.publish_newsletter.send_broadcast")
     def test_sends_broadcast_with_correct_subject(
-        self, mock_broadcast, tmp_output_dir: Path
+        self, mock_broadcast, mock_input, tmp_output_dir: Path
     ):
         mock_broadcast.return_value = True
 
@@ -366,9 +367,10 @@ class TestPublishNewsletter:
         call_args = mock_broadcast.call_args
         assert call_args[0][1] == "Sinal Semanal #8: onde o dinheiro esta indo em 2026"
 
+    @patch("builtins.input", return_value="ENVIAR")
     @patch("scripts.publish_newsletter.send_broadcast")
     def test_subject_falls_back_to_title_without_email_subject(
-        self, mock_broadcast, tmp_path: Path
+        self, mock_broadcast, mock_input, tmp_path: Path
     ):
         """When email_subject is absent, subject uses title from frontmatter."""
         md_no_email_subject = """\
@@ -394,9 +396,10 @@ Lead editorial paragraph.
         call_args = mock_broadcast.call_args
         assert call_args[0][1] == "Sinal Semanal #8: AI redefine a semana"
 
+    @patch("builtins.input", return_value="ENVIAR")
     @patch("scripts.publish_newsletter.send_broadcast")
     def test_subject_generic_without_title_or_email_subject(
-        self, mock_broadcast, tmp_path: Path
+        self, mock_broadcast, mock_input, tmp_path: Path
     ):
         """When neither email_subject nor title exist, subject is generic."""
         md_no_title = """\
@@ -421,9 +424,10 @@ Lead editorial paragraph.
         call_args = mock_broadcast.call_args
         assert call_args[0][1] == "Sinal Semanal #8"
 
+    @patch("builtins.input", return_value="ENVIAR")
     @patch("scripts.publish_newsletter.send_broadcast")
     def test_composes_from_available_outputs_only(
-        self, mock_broadcast, tmp_path: Path
+        self, mock_broadcast, mock_input, tmp_path: Path
     ):
         """Only SINTESE output exists; publisher should still work."""
         output_dir = tmp_path / "apps" / "agents" / "sintese" / "output"
@@ -441,6 +445,16 @@ Lead editorial paragraph.
 
         # Should succeed without error even with missing agent outputs
         mock_broadcast.assert_called_once()
+
+    @patch("builtins.input", return_value="nao")
+    @patch("scripts.publish_newsletter.send_broadcast")
+    def test_broadcast_cancelled_without_enviar_confirmation(
+        self, mock_broadcast, mock_input, tmp_output_dir: Path
+    ):
+        """The ENVIAR gate must block the broadcast on any other input."""
+        publish_newsletter(edition=8, week=8, project_root=tmp_output_dir)
+
+        mock_broadcast.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

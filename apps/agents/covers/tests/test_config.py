@@ -66,14 +66,17 @@ def test_system_prompt_contains_key_directives():
     assert "150 words" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "NEVER" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "Latin America" in ART_DIRECTOR_SYSTEM_PROMPT
-    assert "GOLDEN RULE" in ART_DIRECTOR_SYSTEM_PROMPT
+    assert "SPECIFICITY OVER GENERALITY" in ART_DIRECTOR_SYSTEM_PROMPT
     assert "realistic_image" in ART_DIRECTOR_SYSTEM_PROMPT
 
 
-def test_system_prompt_has_sector_examples():
-    for sector in ["Banking/Fintech", "Healthcare", "Logistics", "AI/ML",
-                    "E-commerce", "Regulation", "DevTools"]:
-        assert sector in ART_DIRECTOR_SYSTEM_PROMPT
+def test_system_prompt_has_example_and_enforcement_blocks():
+    """The prompt teaches by example: GOOD/BAD lists plus the
+    anti-cliche and geographic fidelity enforcement sections."""
+    assert "GOOD examples" in ART_DIRECTOR_SYSTEM_PROMPT
+    assert "BAD examples" in ART_DIRECTOR_SYSTEM_PROMPT
+    assert "ANTI-CLICHÉ ENFORCEMENT" in ART_DIRECTOR_SYSTEM_PROMPT
+    assert "GEOGRAPHIC FIDELITY" in ART_DIRECTOR_SYSTEM_PROMPT
 
 
 def test_default_agent_color_is_white():

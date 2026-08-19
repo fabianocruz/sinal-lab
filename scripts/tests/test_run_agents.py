@@ -278,22 +278,14 @@ class TestDomainPersistFns:
         mock_persist.assert_not_called()
 
     @patch("apps.agents.mercado.db_writer.persist_all_profiles")
-    def test_mercado_persist_calls_persist_all_profiles(self, mock_persist):
-        mock_persist.return_value = {"inserted": 2}
+    def test_mercado_persist_is_noop_for_v2_reader(self, mock_persist):
+        """MERCADO v2 reads funding_rounds/companies; company writes
+        belong to INDEX, so domain persist must never write profiles."""
         agent = Mock()
         scored = Mock()
         scored.profile = Mock()
         scored.composite_score = 0.75
         agent._scores = [scored]
-
-        _mercado_domain_persist(agent, Mock(), Mock())
-
-        mock_persist.assert_called_once()
-
-    @patch("apps.agents.mercado.db_writer.persist_all_profiles")
-    def test_mercado_persist_skips_empty(self, mock_persist):
-        agent = Mock()
-        agent._scores = []
 
         _mercado_domain_persist(agent, Mock(), Mock())
 
@@ -519,9 +511,12 @@ class TestMainOrchestrateMode:
 
         main()
 
-        assert mock_orch.call_count == len(AGENTS)
+        # "all" runs every agent except social_signals, which is
+        # orchestrated separately (cron SIGNALS job / async runner).
+        expected = set(AGENTS.keys()) - {"social_signals"}
+        assert mock_orch.call_count == len(expected)
         called_names = [call[0][0] for call in mock_orch.call_args_list]
-        assert set(called_names) == set(AGENTS.keys())
+        assert set(called_names) == expected
 
 
 # ---------------------------------------------------------------------------

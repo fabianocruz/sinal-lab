@@ -73,7 +73,11 @@ describe("submitWaitlist", () => {
     expect(url).toContain("/api/waitlist");
     expect(init?.method).toBe("POST");
     expect((init?.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
-    expect(init?.body).toBe(JSON.stringify(payload));
+    // submitWaitlist attaches UTM attribution; landing_path comes from
+    // window.location.pathname ("/" under jsdom).
+    const body = JSON.parse(init?.body as string);
+    expect(body).toMatchObject(payload);
+    expect(body.landing_path).toBe("/");
   });
 
   it("returns the parsed response on success", async () => {
@@ -84,14 +88,15 @@ describe("submitWaitlist", () => {
     expect(result).toEqual(successBody);
   });
 
-  it("sends only email when optional fields are omitted", async () => {
+  it("sends only email plus UTM attribution when optional fields are omitted", async () => {
     vi.mocked(fetch).mockResolvedValue(mockResponse(successBody));
 
     const minimalPayload: WaitlistSignupData = { email: "minimal@example.com" };
     await submitWaitlist(minimalPayload);
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
-    expect(init?.body).toBe(JSON.stringify(minimalPayload));
+    const body = JSON.parse(init?.body as string);
+    expect(body).toEqual({ landing_path: "/", email: "minimal@example.com" });
   });
 
   it("throws with error detail message when response is not ok", async () => {

@@ -133,9 +133,13 @@ Venture capital dominou a semana.
 *Fonte: aws*
 > Novos modelos disponiveis na America Latina.
 """
-        html = build_newsletter_email(rich_md, edition_url=SAMPLE_EDITION_URL)
+        # max_hero_articles fixado em 5 (o default subiu para 8): o alvo do
+        # teste e o CTA quando ha truncagem, nao o valor do default.
+        html = build_newsletter_email(
+            rich_md, edition_url=SAMPLE_EDITION_URL, max_hero_articles=5
+        )
 
-        # Com 6 artigos e max_hero_articles=5 (default), deve haver 1 artigo excedente
+        # Com 6 artigos e max_hero_articles=5, deve haver 1 artigo excedente
         # e o CTA deve aparecer com a edition_url
         assert "sinal-semanal-7" in html
         assert "artigos" in html or "artigo" in html
@@ -180,6 +184,7 @@ Semana movimentada em toda a America Latina.
             rich_md,
             agent_cards=[SAMPLE_CARD],
             edition_url=edition_url,
+            max_hero_articles=5,
         )
 
         # Agent card presente

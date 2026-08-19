@@ -31,7 +31,10 @@ def test_upload_returns_url_on_success(mock_http_client):
     assert result.pathname == "covers/radar/ed30-v1.png"
 
 
-def test_upload_returns_none_when_unavailable():
+def test_upload_returns_none_when_unavailable(monkeypatch):
+    # token="" cai no fallback de env var; sem o delenv um ambiente com
+    # BLOB_READ_WRITE_TOKEN faria o teste subir um arquivo real.
+    monkeypatch.delenv("BLOB_READ_WRITE_TOKEN", raising=False)
     uploader = BlobUploader(token="")
     assert uploader.upload(b"data", "file.png") is None
     assert not uploader.is_available

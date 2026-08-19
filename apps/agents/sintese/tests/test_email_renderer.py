@@ -513,8 +513,10 @@ class TestHtmlHelpers:
         assert "funding-semanal-10" in html
 
     def test_share_cta_renders(self):
+        # O card de share evoluiu para o bloco de feedback NPS.
         html = _share_cta()
-        assert "Esta newsletter foi" in html
+        assert "NPS FEEDBACK" in html
+        assert "/feedback?score=" in html
         assert "sinal.tech/assinar" in html
         assert _COLOR_CONTAINER in html
 
@@ -778,15 +780,16 @@ class TestIntelligenceHighlight:
         radar_pos = html.index("RADAR")
         assert intel_pos < radar_pos
 
-    def test_intelligence_appears_before_articles(self):
-        """Intelligence highlight is placed before the article list."""
+    def test_intelligence_appears_after_articles(self):
+        """Intelligence highlight comes after the hero articles
+        (and before agent cards — covered by the test above)."""
         data = parse_newsletter_markdown(MINIMAL_MARKDOWN)
         hl = self._make_highlight()
         html = build_newsletter_email_html(data, intelligence=hl)
         intel_pos = html.index("INTELLIGENCE")
         # "Zapia capta" is the first article rendered in the hero
         article_pos = html.index("Zapia capta")
-        assert intel_pos < article_pos
+        assert article_pos < intel_pos
 
     def test_intelligence_renders_summary_html_escaped(self):
         """Summary with HTML special characters is rendered safely."""
