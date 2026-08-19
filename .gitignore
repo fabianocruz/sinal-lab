@@ -85,4 +85,9 @@ branding/
 .claude/settings.local.json
 *.py.bak
 /backups/
-/data/crunchbase_*.txt
+
+# Local working data (dumps, scraper output, console logs, previews)
+/data/
+.playwright-mcp/
+/email_preview_*.html
+/newsletter-listing.png
