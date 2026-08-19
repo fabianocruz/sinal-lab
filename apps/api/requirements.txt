@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+slowapi
 pydantic
 pydantic-settings
 email-validator

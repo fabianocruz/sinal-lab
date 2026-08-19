@@ -10,10 +10,14 @@ import sys
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from apps.api.config import get_settings
+from apps.api.ratelimit import limiter
 from apps.api.routers import admin_api_keys, admin_content, agents, auth, companies, content, covers, developers, editorial, export, feedback, health, signals, waitlist
 
 settings = get_settings()
@@ -25,6 +29,24 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Rate limiting (default limit on every route; stricter per-route
+# limits live on the signup endpoints; /health is exempt)
+app.state.limiter = limiter
+
+
+def _rate_limit_exceeded(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": f"Rate limit exceeded: {exc.detail}",
+            "code": "RATE_LIMITED",
+        },
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded)
+app.add_middleware(SlowAPIMiddleware)
 
 # CORS
 app.add_middleware(

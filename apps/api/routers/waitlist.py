@@ -2,11 +2,13 @@
 
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from apps.api.config import get_settings
 from apps.api.deps import get_db
+from apps.api.ratelimit import limiter
 from apps.api.schemas.common import WaitlistCountResponse, WaitlistResponse, WaitlistSignup
 from apps.api.services.email_validation import validate_email
 from apps.api.services.resend_audience import add_contact_to_audience
@@ -16,7 +18,9 @@ router = APIRouter(prefix="/waitlist", tags=["waitlist"])
 
 
 @router.post("", response_model=WaitlistResponse)
+@limiter.limit(get_settings().rate_limit_signup)
 def signup_waitlist(
+    request: Request,
     body: WaitlistSignup,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),

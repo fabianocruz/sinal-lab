@@ -7,12 +7,14 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from apps.api.deps import get_db
+from apps.api.ratelimit import limiter
 from apps.api.schemas.common import HealthResponse
 
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health", response_model=HealthResponse)
+@limiter.exempt
 def health_check(db: Session = Depends(get_db)):
     """Check API health and database connectivity."""
     db_status = "unknown"
