@@ -9,7 +9,10 @@ in apps.agents.sintese.email_renderer.
 """
 
 import logging
+import time
 from typing import List, Optional
+
+import httpx
 
 from apps.api.services.email_template import build_brand_html
 from apps.agents.sintese.email_renderer import (
@@ -21,6 +24,9 @@ from apps.agents.sintese.email_renderer import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Seconds to wait before each retry of POST /broadcasts/{id}/send after a 422.
+_SEND_RETRY_DELAYS: tuple = (3.0, 8.0)
 
 
 def markdown_to_html(markdown_content: str) -> str:
@@ -190,8 +196,6 @@ def send_broadcast(
     }
 
     try:
-        import httpx
-
         # Step 1: Create broadcast
         create_response = httpx.post(
             "https://api.resend.com/broadcasts",
@@ -211,16 +215,51 @@ def send_broadcast(
             logger.error("Resend Broadcasts API returned no broadcast ID")
             return False
 
-        # Step 2: Send broadcast
-        send_response = httpx.post(
-            f"https://api.resend.com/broadcasts/{broadcast_id}/send",
-            headers=headers,
-            timeout=15.0,
-        )
-        send_response.raise_for_status()
-        logger.info("Newsletter broadcast sent via Resend (ID: %s)", broadcast_id)
-        return True
+        # Step 2: Send broadcast. Resend answers /send with an undocumented
+        # 422 when the draft is not ready yet (seen on edition 65, seconds
+        # after creation, with a 375-contact audience). The draft survives a
+        # refused /send and a queued broadcast refuses further /send calls,
+        # so retrying cannot double-send.
+        send_url = f"https://api.resend.com/broadcasts/{broadcast_id}/send"
+        attempts = 1 + len(_SEND_RETRY_DELAYS)
+        for attempt in range(1, attempts + 1):
+            if attempt > 1:
+                time.sleep(_SEND_RETRY_DELAYS[attempt - 2])
+            send_response = httpx.post(send_url, headers=headers, timeout=15.0)
+            if send_response.status_code == 422:
+                logger.warning(
+                    "Resend refused /send for broadcast %s (attempt %d/%d): %s",
+                    broadcast_id, attempt, attempts, _resend_error_message(send_response),
+                )
+                continue
+            send_response.raise_for_status()
+            logger.info("Newsletter broadcast sent via Resend (ID: %s)", broadcast_id)
+            return True
 
+        logger.error(
+            "Broadcast %s still refused after %d attempts. The draft is intact: "
+            "open it in the Resend dashboard (Broadcasts) and click Send.",
+            broadcast_id, attempts,
+        )
+        return False
+
+    except httpx.HTTPStatusError as e:
+        logger.error(
+            "Failed to send broadcast via Resend: %s | %s",
+            e, _resend_error_message(e.response),
+        )
+        return False
     except Exception as e:
         logger.error("Failed to send broadcast via Resend: %s", e)
         return False
+
+
+def _resend_error_message(response: httpx.Response) -> str:
+    """Pull Resend's human-readable message out of an error response."""
+    try:
+        message = response.json().get("message")
+        if message:
+            return str(message)
+    except (ValueError, AttributeError):
+        pass
+    return (response.text or "")[:300] or f"HTTP {response.status_code} with empty body"
