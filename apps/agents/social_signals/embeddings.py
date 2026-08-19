@@ -54,34 +54,46 @@ def _has_openai_key() -> bool:
     return bool(os.getenv("OPENAI_API_KEY", "").strip())
 
 
-def _prepare_embedding_text(signal: ProcessedSignal) -> str:
-    """Build text input for embedding from a ProcessedSignal.
+def build_embedding_text(
+    text: str,
+    theme: Optional[str] = None,
+    sub_theme: Optional[str] = None,
+) -> str:
+    """Build the cleaned text input for embedding a signal.
 
     Combines post text with theme/sub_theme labels and cleans noise
-    (URLs, mentions, hashtags) to produce a clean embedding input.
+    (URLs, mentions, hashtags). Shared by the live pipeline and the
+    backfill script so both embed the exact same representation.
 
     Args:
-        signal: A classified ProcessedSignal.
+        text: Raw post text.
+        theme: Optional classified theme label.
+        sub_theme: Optional classified sub-theme label.
 
     Returns:
         Cleaned text string ready for embedding.
     """
-    parts = [signal.post.text]
-    if signal.theme:
-        parts.append(f"Theme: {signal.theme}")
-    if signal.sub_theme:
-        parts.append(f"Sub-theme: {signal.sub_theme}")
+    parts = [text]
+    if theme:
+        parts.append(f"Theme: {theme}")
+    if sub_theme:
+        parts.append(f"Sub-theme: {sub_theme}")
 
-    text = " ".join(parts)
+    combined = " ".join(parts)
     # Remove URLs
-    text = re.sub(r"https?://\S+", "", text)
+    combined = re.sub(r"https?://\S+", "", combined)
     # Remove @mentions and #hashtags (keep the word after)
-    text = re.sub(r"[@#](\w+)", r"\1", text)
+    combined = re.sub(r"[@#](\w+)", r"\1", combined)
     # Collapse whitespace
-    text = re.sub(r"\s+", " ", text).strip()
+    combined = re.sub(r"\s+", " ", combined).strip()
 
     # Truncate to ~8000 chars (approx 2000 tokens, well within 8191 limit)
-    return text[:8000]
+    return combined[:8000]
+
+
+def _prepare_embedding_text(signal: ProcessedSignal) -> str:
+    """Build text input for embedding from a ProcessedSignal."""
+    return build_embedding_text(signal.post.text, signal.theme, signal.sub_theme)
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +215,37 @@ def _generate_tfidf_embeddings(texts: List[str]) -> List[List[float]]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+def embed_texts(texts: List[str]) -> Optional[List[List[float]]]:
+    """Embed raw texts via OpenAI, with NO fallback.
+
+    For callers that must never store degraded vectors (e.g. the
+    backfill script): returns None when OpenAI is unavailable instead
+    of silently producing TF-IDF or zero vectors.
+
+    Args:
+        texts: Cleaned text strings (see build_embedding_text).
+
+    Returns:
+        One 1536-float vector per text, or None if OpenAI is not
+        configured or any batch fails.
+    """
+    if not texts:
+        return []
+    if not _OPENAI_AVAILABLE or not _has_openai_key():
+        return None
+
+    all_embeddings: List[List[float]] = []
+    for i in range(0, len(texts), BATCH_SIZE):
+        batch_result = _call_openai_embeddings(texts[i : i + BATCH_SIZE])
+        if batch_result is None:
+            return None
+        all_embeddings.extend(batch_result)
+
+    if len(all_embeddings) != len(texts):
+        return None
+    return all_embeddings
 
 
 def generate_embeddings(

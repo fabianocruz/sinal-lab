@@ -8,6 +8,10 @@ python-dotenv>=1.0,<2.0
 # LLM integration (optional — agents degrade gracefully without it)
 anthropic>=0.40.0
 
+# Real embeddings for social_signals similarity/clustering
+# (text-embedding-3-small; without key the module degrades to zeros)
+openai>=1.50.0
+
 # Cover image generation (overlay compositor)
 Pillow>=10.0.0
 
