@@ -1031,12 +1031,12 @@ def _feature_highlight(highlight: FeatureHighlight) -> str:
 
 
 def _share_cta() -> str:
-    """Seção CTA de compartilhamento (padrão do briefing).
+    """Seção de feedback NPS + link de assinatura.
 
     Uso::
 
         html = _share_cta()
-        # Retorna <tr> com card 'Esta newsletter foi util?' + link sinal.tech/assinar
+        # Retorna <tr> com botoes NPS 0-10 + link sinal.tech/assinar
     """
     # NPS feedback URL base — score appended as query param
     api_base = "https://sinalapi-prod.up.railway.app/api/feedback"

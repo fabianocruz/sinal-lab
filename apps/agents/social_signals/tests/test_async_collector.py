@@ -121,22 +121,34 @@ class TestRunWithTimeout:
 class TestAsyncCollectAll:
     """Test the async orchestrator that runs all platform collectors in parallel."""
 
-    @pytest.mark.asyncio
-    async def test_empty_sources_returns_empty(self) -> None:
-        """No sources configured returns empty list (polymarket/sc_research may still run)."""
-        provenance = _make_provenance()
-
-        # Mock both optional collectors to return empty
+    @pytest.fixture(autouse=True)
+    def _quiet_builtin_collectors(self):
+        """async_collect_all always attempts these built-in collectors;
+        neutralize them so tests never touch real APIs (Polymarket,
+        sc-research, YouTube, TikTok)."""
         with patch(
             "apps.agents.social_signals.async_collector._collect_polymarket_sync",
             return_value=[],
         ), patch(
             "apps.agents.social_signals.async_collector._collect_sc_research_sync",
             return_value=[],
+        ), patch(
+            "apps.agents.social_signals.async_collector._collect_youtube_sync",
+            return_value=[],
+        ), patch(
+            "apps.agents.social_signals.async_collector._collect_tiktok_sync",
+            return_value=[],
         ):
-            posts = await async_collect_all(
-                sources=[], provenance=provenance,
-            )
+            yield
+
+    @pytest.mark.asyncio
+    async def test_empty_sources_returns_empty(self) -> None:
+        """No sources configured returns empty list (built-in collectors mocked)."""
+        provenance = _make_provenance()
+
+        posts = await async_collect_all(
+            sources=[], provenance=provenance,
+        )
         assert posts == []
 
     @pytest.mark.asyncio
@@ -155,12 +167,6 @@ class TestAsyncCollectAll:
         ), patch(
             "apps.agents.social_signals.async_collector._collect_reddit_sync",
             return_value=reddit_posts,
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_polymarket_sync",
-            return_value=[],
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_sc_research_sync",
-            return_value=[],
         ):
             posts = await async_collect_all(
                 sources=[twitter_src, reddit_src],
@@ -185,12 +191,6 @@ class TestAsyncCollectAll:
         with patch(
             "apps.agents.social_signals.async_collector._collect_twitter_sync",
             return_value=[post1, post2],
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_polymarket_sync",
-            return_value=[],
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_sc_research_sync",
-            return_value=[],
         ):
             posts = await async_collect_all(
                 sources=[src1, src2],
@@ -217,12 +217,6 @@ class TestAsyncCollectAll:
         ), patch(
             "apps.agents.social_signals.async_collector._collect_reddit_sync",
             return_value=reddit_posts,
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_polymarket_sync",
-            return_value=[],
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_sc_research_sync",
-            return_value=[],
         ):
             posts = await async_collect_all(
                 sources=[twitter_src, reddit_src],
@@ -253,12 +247,6 @@ class TestAsyncCollectAll:
         ), patch(
             "apps.agents.social_signals.async_collector._collect_rss_sync",
             return_value=rss_posts,
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_polymarket_sync",
-            return_value=[],
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_sc_research_sync",
-            return_value=[],
         ):
             start = time.monotonic()
             posts = await async_collect_all(
@@ -283,12 +271,6 @@ class TestAsyncCollectAll:
         with patch(
             "apps.agents.social_signals.async_collector._collect_twitter_sync",
             return_value=[_make_post()],
-        ) as mock_twitter, patch(
-            "apps.agents.social_signals.async_collector._collect_polymarket_sync",
-            return_value=[],
-        ), patch(
-            "apps.agents.social_signals.async_collector._collect_sc_research_sync",
-            return_value=[],
         ):
             posts = await async_collect_all(
                 sources=[disabled],
@@ -309,10 +291,12 @@ class TestAsyncCollectAll:
 class TestAgentAsyncIntegration:
     """Test that the agent's collect() uses async with sync fallback."""
 
-    def test_agent_has_use_async_flag(self) -> None:
-        """Agent class has use_async = True by default."""
+    def test_agent_defaults_to_sync_collection(self) -> None:
+        """use_async stays False until async_collector catches up with
+        collector.py's filters (ed08c99) — flipping it back must be
+        a deliberate decision."""
         from apps.agents.social_signals.agent import SocialSignalsAgent
-        assert SocialSignalsAgent.use_async is True
+        assert SocialSignalsAgent.use_async is False
 
     @patch("apps.agents.social_signals.agent.collect_all")
     @patch("apps.agents.social_signals.agent.SocialSignalsAgent._collect_async")
@@ -323,6 +307,7 @@ class TestAgentAsyncIntegration:
         from apps.agents.social_signals.agent import SocialSignalsAgent
 
         agent = SocialSignalsAgent(week_number=1)
+        agent.use_async = True  # class default is False; test the async route
         mock_async.return_value = [_make_post("async_post")]
 
         posts = agent.collect()
@@ -340,6 +325,7 @@ class TestAgentAsyncIntegration:
         from apps.agents.social_signals.agent import SocialSignalsAgent
 
         agent = SocialSignalsAgent(week_number=1)
+        agent.use_async = True  # class default is False; test the fallback
         mock_async.return_value = None  # Async failed
         mock_sync.return_value = [_make_post("sync_post")]
 

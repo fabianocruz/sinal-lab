@@ -43,14 +43,18 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
-
-
 @pytest.fixture(autouse=True)
 def setup_database():
-    """Create tables before each test, drop after."""
+    """Create tables and install the get_db override per test.
+
+    The override must be (re)installed here, not at module import:
+    other test files clear app.dependency_overrides on teardown, which
+    would wipe a module-level override before these tests run.
+    """
     Base.metadata.create_all(bind=TEST_ENGINE)
+    app.dependency_overrides[get_db] = override_get_db
     yield
+    app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=TEST_ENGINE)
 
 

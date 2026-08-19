@@ -87,9 +87,10 @@ class SocialSignalsAgent(BaseAgent):
     def collect(self) -> List[Any]:
         """Fetch posts from all configured social media sources.
 
-        When use_async is True (default), runs all platform collectors in
-        parallel via asyncio.to_thread(). Falls back to sequential sync
-        collection if async fails.
+        When use_async is True (currently off by default — see the
+        class attribute), runs all platform collectors in parallel via
+        asyncio.to_thread(). Falls back to sequential sync collection
+        if async fails.
 
         Returns:
             List of SocialPost items, deduplicated by content_hash.

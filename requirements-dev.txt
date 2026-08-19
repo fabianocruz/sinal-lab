@@ -1,0 +1,6 @@
+# Development/test dependencies — not needed in production images.
+# Install into the project venv: .venv/bin/python -m pip install -r requirements-dev.txt
+# Run the suite with the venv Python (3.12), never the system python3:
+#   .venv/bin/python -m pytest apps/ packages/ scripts/tests -q
+pytest>=9.1
+pytest-asyncio>=1.0

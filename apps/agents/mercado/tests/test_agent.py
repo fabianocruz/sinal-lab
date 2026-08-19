@@ -1,10 +1,52 @@
-"""End-to-end tests for MERCADO agent."""
+"""End-to-end tests for MERCADO v2 agent.
+
+MERCADO v2 is a READER: it queries funding_rounds/companies (populated
+by FUNDING and INDEX) and produces a weekly editorial analysis. These
+tests mock the database collectors and force the LLM writer offline so
+every phase runs its deterministic fallback path.
+"""
+
+from datetime import date
+from unittest.mock import PropertyMock, patch
 
 import pytest
-from unittest.mock import patch, Mock
 
 from apps.agents.mercado.agent import MercadoAgent
-from apps.agents.mercado.collector import CompanyProfile
+from apps.agents.mercado.market_event import MarketEvent, ScoredEvent
+from apps.agents.mercado.v2_writer import MercadoV2Writer
+
+
+def _make_event(
+    name: str,
+    slug: str,
+    sector: str = "Fintech",
+    amount: float = 10_000_000.0,
+    **overrides,
+) -> MarketEvent:
+    fields = dict(
+        company_name=name,
+        company_slug=slug,
+        event_type="funding_round",
+        occurred_at=date(2026, 2, 10),
+        sector=sector,
+        country="Brasil",
+        city="São Paulo",
+        amount_usd=amount,
+        round_type="Series A",
+        source_url=f"https://news.example.dev/{slug}",
+        source_name="latamlist",
+    )
+    fields.update(overrides)
+    return MarketEvent(**fields)
+
+
+@pytest.fixture
+def offline_writer():
+    """Force the LLM writer offline so outputs use deterministic fallbacks."""
+    with patch.object(
+        MercadoV2Writer, "is_available", new_callable=PropertyMock, return_value=False
+    ):
+        yield
 
 
 @pytest.fixture
@@ -20,193 +62,174 @@ def test_agent_initialization(mercado_agent):
     assert mercado_agent.run_id.startswith("mercado-")
 
 
-@patch("apps.agents.mercado.agent.collect_all_sources")
-def test_collect_phase(mock_collect, mercado_agent):
-    """Test collect phase returns CompanyProfile list."""
-    # Mock collector to return sample profiles
-    sample_profiles = [
-        CompanyProfile(
-            name="Nubank",
-            slug="nubank",
-            description="Digital bank",
-            city="São Paulo",
-            country="Brasil",
-            source_url="https://github.com/nubank",
-            source_name="github_sao_paulo",
-        ),
-        CompanyProfile(
-            name="Stone",
-            slug="stone",
-            description="Payment platform",
-            city="São Paulo",
-            country="Brasil",
-            source_url="https://github.com/stone",
-            source_name="github_sao_paulo",
-        ),
-    ]
-    mock_collect.return_value = sample_profiles
+@patch("apps.agents.mercado.agent.enrich_events_with_companies")
+@patch("apps.agents.mercado.agent.collect_funding_events")
+@patch("packages.database.session.get_session")
+def test_collect_phase(mock_get_session, mock_collect, mock_enrich, mercado_agent):
+    """Collect reads funding events from the DB via the v2 collector."""
+    events = [_make_event(f"Empresa {i}", f"empresa-{i}") for i in range(5)]
+    mock_collect.return_value = events
+    mock_enrich.side_effect = lambda session, evs: evs
+
+    result = mercado_agent.collect()
+
+    assert len(result) == 5
+    assert isinstance(result[0], MarketEvent)
+    mock_collect.assert_called_once_with(
+        mock_get_session.return_value, days_back=7
+    )
+
+
+@patch("apps.agents.mercado.agent.enrich_events_with_companies")
+@patch("apps.agents.mercado.agent.collect_funding_events")
+@patch("packages.database.session.get_session")
+def test_collect_widens_window_on_thin_week(
+    mock_get_session, mock_collect, mock_enrich, mercado_agent
+):
+    """Fewer than 5 events in 7 days re-collects with a 14-day window."""
+    thin_week = [_make_event("Solo", "solo")]
+    wide_week = [_make_event("Solo", "solo"), _make_event("Outra", "outra")]
+    mock_collect.side_effect = [thin_week, wide_week]
+    mock_enrich.side_effect = lambda session, evs: evs
 
     result = mercado_agent.collect()
 
     assert len(result) == 2
-    assert isinstance(result[0], CompanyProfile)
-    assert mock_collect.called
+    assert mock_collect.call_count == 2
+    assert mock_collect.call_args_list[1].kwargs["days_back"] == 14
 
 
-def test_process_phase(mercado_agent):
-    """Test process phase enriches and classifies profiles."""
-    raw_profiles = [
-        CompanyProfile(
-            name="TestCo",
-            slug="testco",
-            description="Digital payment platform for SMBs",  # Should be classified as Fintech
-            city="São Paulo",
-            country="Brasil",
-            source_url="https://github.com/testco",
-            source_name="github_sao_paulo",
-        ),
+def test_process_phase_groups_events_into_sections(mercado_agent):
+    """Process groups events by editorial sector bucket."""
+    events = [
+        _make_event("PagueBem", "paguebem", sector="Fintech"),
+        _make_event("CreditoJa", "creditoja", sector="Fintech"),
     ]
 
-    processed = mercado_agent.process(raw_profiles)
+    sections = mercado_agent.process(events)
 
-    assert len(processed) > 0
-    # Check classification happened
-    assert processed[0].sector == "Fintech"
-    # Check tags were generated
-    assert len(processed[0].tags) > 0
+    assert len(sections) == 1
+    assert sections[0].sector_slug == "fintech"
+    assert len(sections[0].events) == 2
+
+
+def test_process_phase_drops_sectors_below_minimum(mercado_agent):
+    """Buckets with fewer than 2 events are dropped from the edition."""
+    sections = mercado_agent.process([_make_event("Sozinha", "sozinha")])
+
+    assert sections == []
 
 
 def test_score_phase(mercado_agent):
-    """Test score phase returns ScoredCompanyProfile list."""
-    profiles = [
-        CompanyProfile(
-            name="TestCo",
-            slug="testco",
-            description="Test company",
-            sector="SaaS",
-            city="São Paulo",
-            country="Brasil",
-            source_url="https://github.com/testco",
-            source_name="github_sao_paulo",
-        ),
-    ]
+    """Score ranks events per section and aggregates confidence."""
+    sections = mercado_agent.process([
+        _make_event("PagueBem", "paguebem"),
+        _make_event("CreditoJa", "creditoja"),
+    ])
 
-    scores = mercado_agent.score(profiles)
+    scores = mercado_agent.score(sections)
 
-    assert len(scores) > 0
-    assert hasattr(scores[0], "confidence")
-    assert hasattr(scores[0], "composite_score")
+    assert len(scores) == 1
+    assert 0.0 <= scores[0].data_quality <= 1.0
+    assert 0.0 <= scores[0].analysis_confidence <= 1.0
+    assert scores[0].source_count >= 1
+    # Sections now hold ScoredEvents with editorial relevance
+    for section in mercado_agent._sections:
+        for scored in section.events:
+            assert isinstance(scored, ScoredEvent)
+            assert 0.0 <= scored.editorial_score <= 1.0
 
 
-def test_output_phase(mercado_agent):
-    """Test output phase generates AgentOutput."""
-    profiles = [
-        CompanyProfile(
-            name="BigCorp",
-            slug="bigcorp",
-            description="Leading fintech platform",
-            sector="Fintech",
-            city="São Paulo",
-            country="Brasil",
-            tech_stack=["Python", "React"],
-            github_url="https://github.com/bigcorp",
-            source_url="https://github.com/bigcorp",
-            source_name="github_sao_paulo",
-        ),
-    ]
+def test_score_phase_with_no_sections(mercado_agent):
+    """Empty week still yields a (low) confidence score."""
+    scores = mercado_agent.score([])
 
-    scores = mercado_agent.score(profiles)
-    output = mercado_agent.output(profiles, scores)
+    assert len(scores) == 1
+    assert scores[0].data_quality == 0.3
+    assert scores[0].analysis_confidence == 0.3
 
-    assert len(output.title) > 10  # LLM-generated or fallback title
-    assert len(output.body_md) > 0
+
+def test_output_phase(offline_writer, mercado_agent):
+    """Output produces newsletter Markdown + metadata from sections."""
+    sections = mercado_agent.process([
+        _make_event("BigCorp", "bigcorp", amount=50_000_000.0),
+        _make_event("OtherCo", "otherco", amount=8_000_000.0),
+    ])
+    scores = mercado_agent.score(sections)
+
+    output = mercado_agent.output(sections, scores)
+
     assert output.agent_name == "mercado"
-    assert output.content_type == "DATA_REPORT"
+    assert output.content_type == "NEWSLETTER"
+    assert "BigCorp" in output.body_md
+    assert "OtherCo" in output.body_md
+    # Offline writer → deterministic fallback title
+    assert output.title.startswith("Market Intelligence LATAM")
+    assert output.metadata["item_count"] == 2
+    assert output.metadata["week_number"] == 7
+    assert len(output.sources) == 2
 
 
-@patch("apps.agents.mercado.agent.collect_all_sources")
-def test_full_agent_run(mock_collect, mercado_agent):
-    """Test complete agent run end-to-end."""
-    # Mock collector
+@patch("apps.agents.mercado.agent.enrich_events_with_companies")
+@patch("apps.agents.mercado.agent.collect_funding_events")
+@patch("packages.database.session.get_session")
+def test_full_agent_run(
+    mock_get_session, mock_collect, mock_enrich, offline_writer, mercado_agent
+):
+    """Complete run end-to-end: collect -> process -> score -> output."""
     mock_collect.return_value = [
-        CompanyProfile(
-            name="TestStartup",
-            slug="teststartup",
-            description="Digital bank for entrepreneurs",
-            city="São Paulo",
-            country="Brasil",
-            tech_stack=["Python", "Django"],
-            github_url="https://github.com/teststartup",
-            source_url="https://github.com/teststartup",
-            source_name="github_sao_paulo",
-        ),
+        _make_event(f"Fintech {i}", f"fintech-{i}") for i in range(5)
     ]
+    mock_enrich.side_effect = lambda session, evs: evs
 
-    # Run agent
     result = mercado_agent.run()
 
-    # Verify output
     assert result is not None
-    assert len(result.title) > 10  # LLM-generated or fallback title
-    assert "TestStartup" in result.body_md
-    # Note: sources won't be tracked when using mocked collector
+    assert "Fintech 0" in result.body_md
     assert result.confidence.composite > 0
+    assert result.metadata["item_count"] == 5
 
 
-def test_agent_run_with_no_profiles(mercado_agent):
-    """Test agent run with empty profile list."""
-    with patch("apps.agents.mercado.agent.collect_all_sources", return_value=[]):
-        result = mercado_agent.run()
-
-        # Should still produce output (empty report)
-        assert result is not None
-        assert len(result.body_md) > 0
-        assert "Sem novas startups" in result.body_md
-
-
-@patch("apps.agents.mercado.agent.collect_all_sources")
-def test_agent_run_multiple_cities(mock_collect, mercado_agent):
-    """Test agent run with profiles from multiple cities."""
-    # Mock collector with profiles from different cities
-    mock_collect.return_value = [
-        CompanyProfile(
-            name="SP Corp",
-            slug="sp-corp",
-            description="Fintech platform",
-            sector="Fintech",
-            city="São Paulo",
-            country="Brasil",
-            source_url="https://github.com/sp-corp",
-            source_name="github_sao_paulo",
-        ),
-        CompanyProfile(
-            name="RJ Startup",
-            slug="rj-startup",
-            description="Healthtech app",
-            sector="HealthTech",
-            city="Rio de Janeiro",
-            country="Brasil",
-            source_url="https://github.com/rj-startup",
-            source_name="github_rio",
-        ),
-        CompanyProfile(
-            name="MX Company",
-            slug="mx-company",
-            description="Edtech platform",
-            sector="Edtech",
-            city="Mexico City",
-            country="Mexico",
-            source_url="https://github.com/mx-company",
-            source_name="github_mexico_city",
-        ),
-    ]
+@patch("apps.agents.mercado.agent.enrich_events_with_companies")
+@patch("apps.agents.mercado.agent.collect_funding_events")
+@patch("packages.database.session.get_session")
+def test_agent_run_with_no_events(
+    mock_get_session, mock_collect, mock_enrich, offline_writer, mercado_agent
+):
+    """Empty funding week produces the explicit low-volume report."""
+    mock_collect.return_value = []
+    mock_enrich.side_effect = lambda session, evs: evs
 
     result = mercado_agent.run()
 
-    # Verify multi-city report contains all cities and companies
-    assert "São Paulo" in result.body_md
-    assert "Rio de Janeiro" in result.body_md
-    assert "Mexico City" in result.body_md
-    assert "SP Corp" in result.body_md
-    assert "RJ Startup" in result.body_md
-    assert "MX Company" in result.body_md
+    assert result is not None
+    assert "Semana sem volume suficiente" in result.body_md
+    # Both the 7d and the widened 14d window were tried
+    assert mock_collect.call_count == 2
+
+
+@patch("apps.agents.mercado.agent.enrich_events_with_companies")
+@patch("apps.agents.mercado.agent.collect_funding_events")
+@patch("packages.database.session.get_session")
+def test_agent_run_multiple_sectors(
+    mock_get_session, mock_collect, mock_enrich, offline_writer, mercado_agent
+):
+    """Events across sectors and countries all land in the report."""
+    mock_collect.return_value = [
+        _make_event("SP Fintech", "sp-fintech", sector="Fintech"),
+        _make_event("MX Fintech", "mx-fintech", sector="Fintech",
+                    city="Mexico City", country="Mexico"),
+        _make_event("RJ Health", "rj-health", sector="HealthTech",
+                    city="Rio de Janeiro"),
+        _make_event("BA Health", "ba-health", sector="HealthTech",
+                    city="Buenos Aires", country="Argentina"),
+        _make_event("SP Edtech", "sp-edtech", sector="Edtech"),
+    ]
+    mock_enrich.side_effect = lambda session, evs: evs
+
+    result = mercado_agent.run()
+
+    for company in ["SP Fintech", "MX Fintech", "RJ Health", "BA Health", "SP Edtech"]:
+        assert company in result.body_md
+    for city in ["São Paulo", "Mexico City", "Rio de Janeiro", "Buenos Aires"]:
+        assert city in result.body_md

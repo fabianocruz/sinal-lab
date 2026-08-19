@@ -143,6 +143,13 @@ class TestFetchYoutubeComments:
 
 
 class TestCollectFromYoutube:
+    @pytest.fixture(autouse=True)
+    def _no_youtube_api_key(self, monkeypatch):
+        """collect_from_youtube short-circuits to the real YouTube Data
+        API when YOUTUBE_API_KEY is set; remove it so these tests
+        exercise the Monid path they mock."""
+        monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+
     @patch("apps.agents.sources.monid.is_available", return_value=False)
     def test_no_api_key_returns_empty(self, mock_avail):
         prov = ProvenanceTracker()

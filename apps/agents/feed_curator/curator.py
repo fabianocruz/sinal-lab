@@ -73,7 +73,7 @@ def load_recent_signals(
     Returns:
         List of dicts with signal data for LLM input.
     """
-    from sqlalchemy import desc, func
+    from sqlalchemy import desc, func, or_
 
     from packages.database.models.curated_feed_item import CuratedFeedItem
     from packages.database.models.social_signal import SocialSignal
@@ -116,32 +116,39 @@ def load_recent_signals(
         for pattern in NOISE_PATTERNS:
             q = q.filter(~func.lower(SocialSignal.text).contains(pattern))
         for author in NOISE_AUTHORS:
-            q = q.filter(func.lower(SocialSignal.author_handle) != author)
+            # NULL author_handle must survive: lower(NULL) != x is NULL
+            # in SQL, which would silently drop authorless signals.
+            q = q.filter(
+                or_(
+                    SocialSignal.author_handle.is_(None),
+                    func.lower(SocialSignal.author_handle) != author,
+                )
+            )
         return q
 
     # Build two filters: one matches low-media hosts (URL contains any host),
     # the other excludes them. SQLAlchemy or_/and_ on a list of LIKE clauses.
-    from sqlalchemy import or_
-
     low_media_filter = or_(*[
         SocialSignal.post_url.ilike(f"%{host}%") for host in LOW_MEDIA_HOSTS
     ])
 
     low_media_cap = max(1, int(limit * LOW_MEDIA_FRACTION))
-    rich_media_target = limit - low_media_cap
 
-    rich_rows = (
-        _base_query()
-        .filter(~low_media_filter)
-        .order_by(desc(SocialSignal.published_at))
-        .limit(rich_media_target)
-        .all()
-    )
+    # The cap limits the low-media SHARE; it does not reserve slots.
+    # Fetch low-media first, then let rich media fill whatever remains
+    # so an empty Reddit/HN pool never under-fills the batch.
     low_rows = (
         _base_query()
         .filter(low_media_filter)
         .order_by(desc(SocialSignal.published_at))
         .limit(low_media_cap)
+        .all()
+    )
+    rich_rows = (
+        _base_query()
+        .filter(~low_media_filter)
+        .order_by(desc(SocialSignal.published_at))
+        .limit(limit - len(low_rows))
         .all()
     )
 

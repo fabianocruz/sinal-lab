@@ -617,7 +617,11 @@ class TestLoadRecentSignals:
         session,
         content_hash: str,
         theme: str = "AI",
-        text: str = "Test text",
+        # load_recent_signals drops bodies shorter than MIN_TEXT_LENGTH (80).
+        text: str = (
+            "Startup brasileira anuncia rodada de investimento para expandir "
+            "sua plataforma de infraestrutura de pagamentos na America Latina."
+        ),
         platform: str = "twitter",
         author_handle: str = "user1",
         post_url: str = "https://twitter.com/user/1",
@@ -721,6 +725,10 @@ class TestLoadRecentSignals:
             post_url="https://twitter.com/anon/1",
             theme="AI",
             author_handle=None,
+            text=(
+                "Post anonimo sobre infraestrutura de dados na America Latina "
+                "com detalhes suficientes para passar o filtro de tamanho minimo."
+            ),
             published_at=datetime.now(timezone.utc),
         )
         session.add(signal)

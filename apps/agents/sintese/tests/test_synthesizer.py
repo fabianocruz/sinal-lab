@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from apps.agents.sintese.collector import FeedItem
 from apps.agents.sintese.scorer import ScoredItem
 from apps.agents.sintese.synthesizer import (
+    MAX_PER_ENTITY,
     categorize_item,
     select_top_items,
     group_by_category,
@@ -134,7 +135,7 @@ class TestSelectTopItems:
             for i in range(6)
         ]
         selected = select_top_items(items, count=10)
-        assert len(selected) == 2  # MAX_PER_ENTITY = 2
+        assert len(selected) == MAX_PER_ENTITY
 
     def test_entity_cap_different_entities_unaffected(self):
         """Entity cap for one company doesn't block others."""
@@ -147,8 +148,8 @@ class TestSelectTopItems:
         ]
         selected = select_top_items(items, count=10)
         titles = [s.item.title for s in selected]
-        assert len(selected) == 4  # 2 EFEX + 1 KAVAK + 1 VTEX
-        assert sum(1 for t in titles if "EFEX" in t) == 2
+        assert len(selected) == MAX_PER_ENTITY + 2  # capped EFEX + KAVAK + VTEX
+        assert sum(1 for t in titles if "EFEX" in t) == MAX_PER_ENTITY
 
     def test_entity_cap_with_source_cap_combined(self):
         """Both caps apply simultaneously."""
@@ -161,7 +162,7 @@ class TestSelectTopItems:
             make_scored_item(title="KAVAK news", url="https://y.com/4", source_name="other", composite=0.87),
         ]
         selected = select_top_items(items, count=10)
-        assert len(selected) == 3  # 2 EFEX (entity cap) + 1 KAVAK
+        assert len(selected) == MAX_PER_ENTITY + 1  # capped EFEX + KAVAK
 
 
 class TestGroupByCategory:

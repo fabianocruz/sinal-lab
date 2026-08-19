@@ -65,7 +65,10 @@ class TestBase:
 
     def test_table_count(self, engine):
         inspector = inspect(engine)
-        assert len(inspector.get_table_names()) == 17
+        # sqlite_sequence is SQLite bookkeeping for AUTOINCREMENT,
+        # not one of our models.
+        created = set(inspector.get_table_names()) - {"sqlite_sequence"}
+        assert created == set(Base.metadata.tables.keys())
 
 
 class TestCompany:

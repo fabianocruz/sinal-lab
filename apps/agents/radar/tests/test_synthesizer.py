@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from apps.agents.radar.collector import TrendSignal
 from apps.agents.radar.classifier import ClassifiedSignal
 from apps.agents.radar.synthesizer import (
+    MAX_PER_ENTITY,
     momentum_indicator,
     select_top_signals,
     group_by_topic,
@@ -112,7 +113,7 @@ class TestSelectTopSignals:
             for i in range(6)
         ]
         selected = select_top_signals(signals, count=10)
-        assert len(selected) == 2
+        assert len(selected) == MAX_PER_ENTITY
 
     def test_entity_cap_different_entities_unaffected(self):
         """Entity cap for one company doesn't block others."""
@@ -124,8 +125,8 @@ class TestSelectTopSignals:
         ]
         selected = select_top_signals(signals, count=10)
         titles = [s.signal.title for s in selected]
-        assert len(selected) == 3  # 2 EFEX + 1 KAVAK
-        assert sum(1 for t in titles if "EFEX" in t) == 2
+        assert len(selected) == MAX_PER_ENTITY + 1  # capped EFEX + KAVAK
+        assert sum(1 for t in titles if "EFEX" in t) == MAX_PER_ENTITY
 
     def test_entity_cap_with_source_cap_combined(self):
         """Both caps apply simultaneously."""
@@ -136,7 +137,7 @@ class TestSelectTopSignals:
             make_classified(title="KAVAK news", url="https://y.com/4", source_name="other", momentum_score=0.87),
         ]
         selected = select_top_signals(signals, count=10)
-        assert len(selected) == 3  # 2 EFEX (entity cap) + 1 KAVAK
+        assert len(selected) == MAX_PER_ENTITY + 1  # capped EFEX + KAVAK
 
 
 class TestGroupByTopic:

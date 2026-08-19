@@ -459,14 +459,18 @@ describe("SignupForm", () => {
           expect.objectContaining({
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: "Fabiano Cruz",
-              email: "fabiano@example.com",
-              password: "strong-pass-123",
-            }),
           }),
         );
       });
+      // Registration attaches UTM attribution; landing_path comes from
+      // window.location.pathname ("/" under jsdom).
+      const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+      expect(body).toMatchObject({
+        name: "Fabiano Cruz",
+        email: "fabiano@example.com",
+        password: "strong-pass-123",
+      });
+      expect(body.utm).toMatchObject({ landing_path: "/" });
     });
 
     it("test_signupform_calls_signin_credentials_after_successful_registration", async () => {

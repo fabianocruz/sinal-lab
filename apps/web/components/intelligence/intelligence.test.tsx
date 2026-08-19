@@ -133,7 +133,7 @@ describe("IntelligenceGate — unauthenticated", () => {
       typeof useSession
     >);
     render(<IntelligenceGate content="Conteudo aqui." />);
-    expect(screen.getByText(/Continue lendo gratuitamente/i)).toBeInTheDocument();
+    expect(screen.getByText(/O resto do relatório/i)).toBeInTheDocument();
   });
 
   it("renders sign-up link for unauthenticated users", () => {
@@ -141,7 +141,7 @@ describe("IntelligenceGate — unauthenticated", () => {
       typeof useSession
     >);
     render(<IntelligenceGate content="Conteudo aqui." />);
-    expect(screen.getByText(/Criar conta gratuita/i)).toBeInTheDocument();
+    expect(screen.getByText(/Quero o Sinal Semanal/i)).toBeInTheDocument();
   });
 
   it("renders login link for unauthenticated users", () => {
@@ -149,7 +149,7 @@ describe("IntelligenceGate — unauthenticated", () => {
       typeof useSession
     >);
     render(<IntelligenceGate content="Conteudo aqui." />);
-    expect(screen.getByText(/Ja tenho conta/i)).toBeInTheDocument();
+    expect(screen.getByText(/Já tenho conta/i)).toBeInTheDocument();
   });
 });
 

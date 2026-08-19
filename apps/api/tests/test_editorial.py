@@ -59,12 +59,13 @@ def sample_content(db_session):
             title="Draft Article 1",
             content_type="DATA_REPORT",
             agent_name="sintese",
-            body_markdown="# Test content",
             body_md="# Test content",
             confidence_dq=0.75,
             confidence_ac=0.70,
             review_status="draft",
-            publish_ready=False,
+            # Explicit created_at: SQLite has second resolution, so
+            # ordering tests need deterministic timestamps.
+            created_at=datetime(2026, 2, 10, 10, 0, 0, tzinfo=timezone.utc),
         ),
         ContentPiece(
             id=uuid.uuid4(),
@@ -72,12 +73,11 @@ def sample_content(db_session):
             title="Article in Review",
             content_type="TREND_ANALYSIS",
             agent_name="radar",
-            body_markdown="# Review content",
             body_md="# Review content",
             confidence_dq=0.80,
             confidence_ac=0.75,
             review_status="review",
-            publish_ready=False,
+            created_at=datetime(2026, 2, 12, 10, 0, 0, tzinfo=timezone.utc),
         ),
         ContentPiece(
             id=uuid.uuid4(),
@@ -85,12 +85,11 @@ def sample_content(db_session):
             title="Published Article",
             content_type="DATA_REPORT",
             agent_name="sintese",
-            body_markdown="# Published content",
             body_md="# Published content",
             confidence_dq=0.85,
             confidence_ac=0.80,
             review_status="published",
-            publish_ready=True,
+            created_at=datetime(2026, 2, 14, 10, 0, 0, tzinfo=timezone.utc),
             published_at=datetime(2026, 2, 15, 10, 0, 0, tzinfo=timezone.utc),
         ),
     ]
@@ -282,8 +281,9 @@ def test_review_content_pipeline_executes(client, sample_content):
     assert response.status_code == 200
     data = response.json()
 
-    # Should run all 6 layers
-    assert data["layers_run"] == 6
+    # Should run all 7 layers (pesquisa, validacao, verificacao,
+    # guidelines, vies, seo + sintese_final)
+    assert data["layers_run"] == 7
 
     # Should have an overall grade (A, B, C, or D)
     assert data["overall_grade"] in ["A", "B", "C", "D"]
