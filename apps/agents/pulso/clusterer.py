@@ -253,8 +253,7 @@ def label_cluster(
                 "'diversos', 'variados', 'tendencias gerais'. "
                 "Reply in Brazilian Portuguese only. Reply with a short label only."
             ),
-            max_tokens=30,
-            temperature=0.2,
+            max_tokens=48,
         )
 
         if result and result.strip():
@@ -304,8 +303,7 @@ def describe_cluster(
                 "intelligence platform. Be concise and specific. "
                 "Reply in Brazilian Portuguese only."
             ),
-            max_tokens=80,
-            temperature=0.3,
+            max_tokens=120,
         )
 
         if result and result.strip():

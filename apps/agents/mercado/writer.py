@@ -116,7 +116,7 @@ class MercadoWriter:
         result = self._client.generate(
             user_prompt=user_prompt,
             system_prompt=SYSTEM_PROMPT,
-            max_tokens=64,
+            max_tokens=96,
         )
 
         if not result or not result.strip():

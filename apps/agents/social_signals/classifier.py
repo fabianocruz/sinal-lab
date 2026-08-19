@@ -216,8 +216,7 @@ def _classify_with_llm(text: str, client: LLMClient) -> Tuple[str, str]:
     result = client.generate(
         user_prompt=prompt,
         system_prompt="You are a fintech/AI topic classifier. Reply only with theme|sub_theme.",
-        max_tokens=50,
-        temperature=0.0,
+        max_tokens=80,
     )
 
     if not result:
@@ -318,7 +317,6 @@ def _extract_with_llm(text: str, client: LLMClient) -> List[EntityMention]:
         user_prompt=prompt,
         system_prompt="You extract named entities. Reply only with name|type lines.",
         max_tokens=200,
-        temperature=0.0,
     )
 
     if not result:
@@ -381,8 +379,7 @@ def compute_sentiment(text: str, llm_client: Optional[LLMClient] = None) -> floa
         result = llm_client.generate(
             user_prompt=prompt,
             system_prompt="You are a sentiment analyzer. Reply only with a number.",
-            max_tokens=10,
-            temperature=0.0,
+            max_tokens=16,
         )
         if result:
             try:

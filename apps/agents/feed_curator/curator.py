@@ -227,7 +227,6 @@ def curate_via_llm(
 
     client = llm_client or LLMClient(LLMConfig(
         max_tokens=4096,
-        temperature=0.3,
     ))
 
     if not client.is_available:
@@ -251,7 +250,6 @@ def curate_via_llm(
         user_prompt=user_prompt,
         system_prompt=CURATOR_SYSTEM_PROMPT,
         max_tokens=4096,
-        temperature=0.3,
     )
 
     if not raw_response:

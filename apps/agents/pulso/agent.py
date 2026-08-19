@@ -448,7 +448,6 @@ class PulsoAgent(BaseAgent):
             user_prompt=prompt,
             system_prompt=system,
             max_tokens=900,
-            temperature=0.5,
         )
         if result and result.strip():
             return result.strip()
@@ -499,8 +498,7 @@ class PulsoAgent(BaseAgent):
         result = self._llm_client.generate(
             user_prompt=prompt,
             system_prompt=system,
-            max_tokens=80,
-            temperature=0.5,
+            max_tokens=120,
         )
         if result and result.strip():
             return result.strip().strip('"').strip("'")
@@ -747,7 +745,6 @@ class PulsoAgent(BaseAgent):
                     "a LATAM tech intelligence report. Be specific and actionable."
                 ),
                 max_tokens=500,
-                temperature=0.5,
             )
 
             if result and result.strip():
