@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     api_env: str = "development"
     cors_origins: str = "http://localhost:3000"
 
+    # Rate limiting (slowapi notation: "N/second|minute|hour|day")
+    rate_limit_default: str = "120/minute"
+    rate_limit_signup: str = "10/minute"
+
     # Newsletter (Resend)
     resend_api_key: str = ""
     resend_from_email: str = "news@sinal.tech"

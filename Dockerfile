@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r /app/requirements-agents.txt
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn[standard] \
+    slowapi \
     "pydantic[email]" \
     pydantic-settings \
     python-dotenv \
@@ -36,4 +37,7 @@ ENV PYTHONPATH=/app
 # `exec` makes uvicorn the PID 1 so SIGTERM from Railway hits the app
 # directly (graceful shutdown). JSON-form is required for proper signal
 # handling but doesn't expand env vars, so we wrap in sh -c.
-CMD ["sh", "-c", "exec uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# --workers 2: survive one worker dying and use both vCPUs.
+# --proxy-headers + --forwarded-allow-ips: trust Railway's proxy so
+# request.client carries the real caller IP (rate limiting keys on it).
+CMD ["sh", "-c", "exec uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers --forwarded-allow-ips '*'"]

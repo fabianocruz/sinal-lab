@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime, timezone
 
 import bcrypt as _bcrypt
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header, Request
 from sqlalchemy.orm import Session
 
+from apps.api.config import get_settings
 from apps.api.deps import get_db
+from apps.api.ratelimit import limiter
 from apps.api.schemas.auth import (
     OAuthSyncRequest,
     RegisterRequest,
@@ -65,7 +67,9 @@ def _attach_acquisition(user: User, utm: "UTMData | None" = None) -> None:
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
+@limiter.limit(get_settings().rate_limit_signup)
 def register(
+    request: Request,
     body: RegisterRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
