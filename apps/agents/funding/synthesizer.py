@@ -19,8 +19,11 @@ logger = logging.getLogger(__name__)
 # Minimum score to include in report
 MIN_SCORE_FOR_REPORT = 0.3
 
-# Amount thresholds for grouping (in USD millions)
-LARGE_ROUND_THRESHOLD = 5.0  # $5M+
+# Amount threshold for grouping, in absolute USD. Always compare it against
+# normalize_amount_usd(event.amount_usd), never the raw column: the same
+# column holds both millions (legacy regex extraction) and absolute values
+# (DB, Crunchbase, LLM extraction).
+LARGE_ROUND_THRESHOLD = 5_000_000.0  # $5M+
 
 
 def format_amount(amount_usd: Optional[float]) -> str:
@@ -58,6 +61,16 @@ def normalize_amount_usd(amount_usd: Optional[float]) -> Optional[float]:
     if amount_usd is None:
         return None
     return amount_usd if amount_usd >= 1000 else amount_usd * 1_000_000
+
+
+def _is_large_round(amount_usd: Optional[float]) -> bool:
+    """True when the (normalized) amount clears the large-round threshold.
+
+    Missing amounts are never "large" — they fall into the seed/other
+    buckets so nothing is silently dropped from the report.
+    """
+    absolute = normalize_amount_usd(amount_usd)
+    return absolute is not None and absolute >= LARGE_ROUND_THRESHOLD
 
 
 def format_round_type(round_type: str) -> str:
@@ -167,11 +180,13 @@ def synthesize_funding_report(
         lines.append(llm_intro)
     else:
         # Template fallback: aggregate narrative (must NOT start with *)
-        total_raised = sum(s.event.amount_usd for s in filtered if s.event.amount_usd)
+        total_raised = sum(
+            normalize_amount_usd(s.event.amount_usd) or 0.0 for s in filtered
+        )
         source_count = len(set(s.event.source_name for s in filtered))
         lines.append(
             f"{len(filtered)} rodadas registradas na America Latina, "
-            f"somando US$ {total_raised:.1f}M de {source_count} "
+            f"somando US$ {total_raised / 1_000_000:.1f}M de {source_count} "
             f"{'fonte' if source_count == 1 else 'fontes'}."
         )
     lines.append("")
@@ -181,7 +196,7 @@ def synthesize_funding_report(
     # Top 3 highlights (largest rounds)
     top_3 = sorted(
         [s for s in filtered if s.event.amount_usd is not None],
-        key=lambda x: x.event.amount_usd,
+        key=lambda x: normalize_amount_usd(x.event.amount_usd) or 0.0,
         reverse=True,
     )[:3]
 
@@ -223,9 +238,9 @@ def synthesize_funding_report(
     groups = group_by_round_type(filtered)
 
     # Series A+ (large rounds)
-    large_rounds = [s for s in filtered if s.event.amount_usd and s.event.amount_usd >= LARGE_ROUND_THRESHOLD]
+    large_rounds = [s for s in filtered if _is_large_round(s.event.amount_usd)]
     if large_rounds:
-        lines.append(f"## Series A+ (${LARGE_ROUND_THRESHOLD:.0f}M+)")
+        lines.append(f"## Series A+ (${LARGE_ROUND_THRESHOLD / 1_000_000:.0f}M+)")
         lines.append("")
 
         for scored in large_rounds:
@@ -246,7 +261,7 @@ def synthesize_funding_report(
     seed_rounds = [
         s for s in filtered
         if s.event.round_type in ("seed", "pre_seed")
-        and (s.event.amount_usd is None or s.event.amount_usd < LARGE_ROUND_THRESHOLD)
+        and not _is_large_round(s.event.amount_usd)
     ]
     if seed_rounds:
         lines.append("## Seed & Pre-Seed")
@@ -270,7 +285,7 @@ def synthesize_funding_report(
     other_rounds = [
         s for s in filtered
         if s.event.round_type not in ("seed", "pre_seed")
-        and (s.event.amount_usd is None or s.event.amount_usd < LARGE_ROUND_THRESHOLD)
+        and not _is_large_round(s.event.amount_usd)
     ]
     if other_rounds:
         lines.append("## Outros Investimentos")

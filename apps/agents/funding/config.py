@@ -1,15 +1,39 @@
-"""Configuration for the FUNDING agent — data sources and parameters."""
+"""Configuration for the FUNDING agent — data sources and parameters.
+
+Source types:
+    - ``rss``: RSS/Atom feed parsed with feedparser.
+    - ``html``: blog index page scraped with
+      ``sources.web_scraper.scrape_article_listing`` (fallback for VC
+      blogs that dropped their feeds).
+    - ``api``: dedicated client module per source.
+"""
 
 from apps.agents.base.config import AgentCategory, AgentConfig, AgentPersona, DataSourceConfig
+
+
+def _html_blog_params() -> dict:
+    """Default scraping params for HTML blog indexes.
+
+    Returns a fresh dict per source so configs never share mutable state.
+    Keeps the crawl small: one index request + up to 8 article requests
+    per source, per weekly run.
+    """
+    return {"max_items": 8, "fetch_content": True}
+
 
 # LATAM VC firms and investment news sources (RSS/Atom feeds)
 FUNDING_SOURCES: list[DataSourceConfig] = [
     # --- Brazilian VCs ---
     DataSourceConfig(name="kaszek", source_type="rss", url="https://kaszek.com/feed/"),
-    DataSourceConfig(name="monashees", source_type="rss", url="https://www.monashees.com.br/feed/", enabled=False),  # SSL handshake timeout
-    DataSourceConfig(name="valor_capital", source_type="rss", url="https://valorcapitalgroup.com/feed/", enabled=False),  # Returns HTML, not RSS
-    DataSourceConfig(name="canary", source_type="rss", url="https://canary.vc/blog/rss.xml", enabled=False),  # Returns HTML, not RSS
-    DataSourceConfig(name="maya_capital", source_type="rss", url="https://maya.capital/blog/rss", enabled=False),  # Returns HTML, not RSS
+    # The four sources below serve rendered HTML where a feed used to be.
+    # URLs verified 2026-08-13: valor_capital and maya_capital expose a
+    # server-rendered post list; canary and monashees are JS-only shells
+    # today (0 posts extracted) but are kept enabled so they resume
+    # automatically if the sites start rendering their content again.
+    DataSourceConfig(name="monashees", source_type="html", url="https://www.monashees.com/", params=_html_blog_params()),
+    DataSourceConfig(name="valor_capital", source_type="html", url="https://valorcapitalgroup.com/writing-listing/", params=_html_blog_params()),
+    DataSourceConfig(name="canary", source_type="html", url="https://www.canary.com.br/", params=_html_blog_params()),
+    DataSourceConfig(name="maya_capital", source_type="html", url="https://maya.capital/blog", params=_html_blog_params()),
     DataSourceConfig(name="domo_invest", source_type="rss", url="https://domo.vc/feed/", enabled=False),  # 0 entries (empty feed)
     DataSourceConfig(name="astella", source_type="rss", url="https://www.astellapartners.com/feed/", enabled=False),  # DNS resolution failed
 
@@ -87,6 +111,16 @@ FUNDING_SOURCES: list[DataSourceConfig] = [
         api_key_env="DEALROOM_API_KEY", rate_limit_per_minute=10,
         enabled=False,  # Enable when API key is available
         params={"countries": "BR,MX,AR,CO,CL,PE,UY", "days_ago": 7},
+    ),
+
+    # --- Grok Live Search (xAI) — live web search for LATAM rounds ---
+    # Reaches deals that never appear in the configured feeds. Skips
+    # itself with a warning when XAI_API_KEY is not set.
+    DataSourceConfig(
+        name="grok_live_search", source_type="api",
+        url="https://api.x.ai/v1/responses",
+        api_key_env="XAI_API_KEY", rate_limit_per_minute=5,
+        params={"model": "grok-4.3", "days_back": 7},
     ),
 
     # --- Crunchbase Basic API (free tier: 200 req/day) ---

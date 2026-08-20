@@ -56,7 +56,9 @@ EDITORIAL_SECTORS: list[tuple[str, str, list[str]]] = [
     ),
 ]
 
-# Fallback bucket for events that don't match any specific sector
+# Fallback bucket. Collects two kinds of events:
+# 1. events that don't match any specific sector;
+# 2. events from sector buckets too thin to earn their own section.
 DEFAULT_BUCKET = ("cross", "Sinais Gerais do Ecossistema", [])
 
 
@@ -93,18 +95,49 @@ def build_sections(
     max_sections: int = 4,
     min_events_per_section: int = 2,
 ) -> list[SectorSection]:
-    """Build editorial sections, dropping buckets with too few events.
+    """Build editorial sections from classified events.
+
+    A sector bucket only earns its own section once it has
+    ``min_events_per_section`` events — a sector section with a single
+    deal reads like filler. Thin buckets are *merged* into the general
+    bucket instead of being discarded, so a non-empty input always
+    produces at least one non-empty section (a week with one big round
+    is still a week with news). Only the ``max_sections`` cap can drop
+    events, and it drops the lightest sections first.
 
     Args:
         events: All collected events.
         max_sections: Maximum sections to include (default 4).
-        min_events_per_section: Minimum events per section to include it.
+        min_events_per_section: Minimum events for a sector to get its
+            own section.
 
     Returns:
         List of SectorSection, ordered by total editorial weight
-        (sum of amount_usd + count).
+        (count + capital). Empty list only when ``events`` is empty.
     """
+    if not events:
+        return []
+
     groups = group_by_sector(events)
+
+    # Split buckets into "own section" vs "merge into the general bucket"
+    qualifying: dict[str, list[MarketEvent]] = {}
+    general_bucket: list[MarketEvent] = list(groups.get(DEFAULT_BUCKET[0], []))
+
+    for slug, bucket_events in groups.items():
+        if slug == DEFAULT_BUCKET[0]:
+            continue
+        if len(bucket_events) >= min_events_per_section:
+            qualifying[slug] = bucket_events
+        else:
+            general_bucket.extend(bucket_events)
+
+    # The general bucket is emitted whenever it has anything in it: a
+    # real deal is never worth dropping just because its sector was
+    # quiet this week. It still competes for the max_sections slots on
+    # weight, so it is the first to be cut on a busy week.
+    if general_bucket:
+        qualifying[DEFAULT_BUCKET[0]] = general_bucket
 
     # Map display names
     display_by_slug = {s: d for s, d, _ in EDITORIAL_SECTORS}
@@ -112,26 +145,20 @@ def build_sections(
 
     # Build sections with scoring
     sections_with_weight: list[tuple[float, SectorSection]] = []
-    for slug, bucket_events in groups.items():
-        if len(bucket_events) < min_events_per_section:
-            continue
-        # Weight = count + log of total capital (rough proxy)
+    for slug, bucket_events in qualifying.items():
+        # Weight = count + capital proxy ($100M ≈ one extra deal)
         total_usd = sum(e.amount_usd or 0 for e in bucket_events)
         weight = len(bucket_events) + (total_usd / 100_000_000)
 
-        section = SectorSection(
-            sector_slug=slug,
-            heading=display_by_slug.get(slug, slug.title()),
-            events=[],  # populated by scorer
-        )
-        sections_with_weight.append((weight, section))
+        sections_with_weight.append((
+            weight,
+            SectorSection(
+                sector_slug=slug,
+                heading=display_by_slug.get(slug, slug.title()),
+                events=list(bucket_events),  # type: ignore[arg-type]
+            ),
+        ))
 
     # Keep top N by weight
     sections_with_weight.sort(key=lambda x: x[0], reverse=True)
-    top = [s for _w, s in sections_with_weight[:max_sections]]
-
-    # Attach raw events back (scorer will score + filter per section)
-    for section in top:
-        section.events = [e for e in groups[section.sector_slug]]  # type: ignore[assignment]
-
-    return top
+    return [section for _weight, section in sections_with_weight[:max_sections]]

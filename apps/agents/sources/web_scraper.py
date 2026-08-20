@@ -4,11 +4,20 @@ Fetches and extracts content from web pages, newsletter archives,
 and blog post listings. Uses httpx for HTTP and html.parser for
 HTML parsing (no BeautifulSoup dependency).
 
+Two listing scrapers are provided:
+
+- ``scrape_newsletter_archive``: newsletter archives, where article URLs
+  follow well-known shapes (``/p/``, ``/issue/``, ``/2026/08/`` ...).
+- ``scrape_article_listing``: generic blog indexes (VC blogs, corporate
+  news pages) where URLs are plain slugs at any depth. Used as the
+  fallback for sources that serve HTML where an RSS feed is expected.
+
 Usage:
-    from apps.agents.sources.web_scraper import scrape_page, scrape_newsletter_archive
+    from apps.agents.sources.web_scraper import scrape_page, scrape_article_listing
 
     text = scrape_page("https://example.com/article", client)
     posts = scrape_newsletter_archive(source_config, client)
+    posts = scrape_article_listing(source_config, client)
 """
 
 import hashlib
@@ -17,6 +26,7 @@ import re
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -150,6 +160,158 @@ class _ArticleLinkExtractor(HTMLParser):
             if match:
                 return f"{match.group(1)}{href}"
         return f"{self.base_url}/{href.lstrip('/')}"
+
+
+class _BlogLinkExtractor(HTMLParser):
+    """Extract post links from a generic blog index page.
+
+    Unlike :class:`_ArticleLinkExtractor` (which matches known newsletter
+    URL shapes), this parser keeps every same-domain link whose last path
+    segment looks like a post slug. That is the only signal available on
+    VC blogs, where post URLs are plain slugs at the site root
+    (``/why-we-invested-in-nexu/``) or under an arbitrary folder
+    (``blog/why-we-invested-in-sharpi.html``).
+    """
+
+    #: Listing/taxonomy paths that are never individual posts.
+    _EXCLUDED_PATH_PARTS = (
+        "/tag/", "/tags/", "/category/", "/categories/", "/author/",
+        "/page/", "/wp-content/", "/wp-json/", "/feed/", "/search/",
+    )
+
+    #: Anchor text shorter than this is treated as a generic CTA
+    #: ("Read more", "Leia mais") and replaced by the URL slug.
+    _MIN_TITLE_LENGTH = 15
+
+    #: A <time> element further than this many tags from a post link is
+    #: assumed to belong to another card and is ignored.
+    _MAX_TIME_DISTANCE = 12
+
+    def __init__(self, base_url: str) -> None:
+        super().__init__()
+        self.base_url = base_url
+        self.base_host = _normalize_host(urlparse(base_url).netloc)
+        self._articles: List[Dict[str, Any]] = []
+        self._times: List[tuple] = []  # (tag_position, datetime string)
+        self._seen_urls: set = set()
+        self._current: Optional[Dict[str, Any]] = None
+        self._tag_position: int = 0
+
+    @property
+    def articles(self) -> List[Dict[str, Any]]:
+        """Extracted posts, each with url, title and datetime."""
+        return self._associate_datetimes()
+
+    def handle_starttag(self, tag: str, attrs: List[tuple]) -> None:
+        self._tag_position += 1
+        attr_dict = dict(attrs)
+
+        if tag == "time":
+            datetime_attr = (attr_dict.get("datetime") or "").strip()
+            if datetime_attr:
+                self._times.append((self._tag_position, datetime_attr))
+
+        if tag == "a" and self._current is None:
+            href = (attr_dict.get("href") or "").strip()
+            if not href:
+                return
+            full_url = urljoin(self.base_url, href)
+            if self._is_post_url(full_url):
+                self._current = {
+                    "url": full_url,
+                    "title": "",
+                    "position": self._tag_position,
+                }
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "a" or self._current is None:
+            return
+
+        url = self._current["url"]
+        if url not in self._seen_urls:
+            self._seen_urls.add(url)
+            self._articles.append({
+                "url": url,
+                "title": self._resolve_title(self._current["title"], url),
+                "position": self._current["position"],
+            })
+        self._current = None
+
+    def handle_data(self, data: str) -> None:
+        if self._current is not None:
+            self._current["title"] += data
+
+    def _associate_datetimes(self) -> List[Dict[str, Any]]:
+        """Attach each <time> to its nearest post link.
+
+        Blog cards put the date either before or after the post link, so
+        proximity (in tags parsed) is the only reliable signal. Each
+        <time> is consumed by at most one post.
+        """
+        results: List[Dict[str, Any]] = []
+        used: set = set()
+
+        for article in self._articles:
+            best_index: Optional[int] = None
+            best_distance = self._MAX_TIME_DISTANCE + 1
+
+            for index, (position, _value) in enumerate(self._times):
+                if index in used:
+                    continue
+                distance = abs(position - article["position"])
+                if distance < best_distance:
+                    best_distance = distance
+                    best_index = index
+
+            datetime_value: Optional[str] = None
+            if best_index is not None:
+                used.add(best_index)
+                datetime_value = self._times[best_index][1]
+
+            results.append({
+                "url": article["url"],
+                "title": article["title"],
+                "datetime": datetime_value,
+            })
+
+        return results
+
+    def _is_post_url(self, url: str) -> bool:
+        """Heuristic: same-domain URL whose last segment is a post slug."""
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        if _normalize_host(parsed.netloc) != self.base_host:
+            return False
+
+        path = parsed.path
+        if not path or path == "/":
+            return False
+        if any(part in path.lower() for part in self._EXCLUDED_PATH_PARTS):
+            return False
+
+        slug = re.sub(r"\.(html?|php|aspx)$", "", path.rstrip("/").rsplit("/", 1)[-1])
+        # Real post slugs are multi-word ("why-we-invested-in-nexu");
+        # section pages are single words ("team", "portfolio").
+        return slug.count("-") >= 2
+
+    def _resolve_title(self, anchor_text: str, url: str) -> str:
+        """Use the anchor text, or derive a title from the URL slug."""
+        title = re.sub(r"\s+", " ", anchor_text).strip()
+        if len(title) >= self._MIN_TITLE_LENGTH:
+            return title
+
+        slug = re.sub(
+            r"\.(html?|php|aspx)$", "", urlparse(url).path.rstrip("/").rsplit("/", 1)[-1]
+        )
+        derived = slug.replace("-", " ").replace("_", " ").strip()
+        return derived[:1].upper() + derived[1:] if derived else title
+
+
+def _normalize_host(netloc: str) -> str:
+    """Lowercase a host and drop the leading ``www.`` for comparison."""
+    host = netloc.lower().split(":")[0]
+    return host[4:] if host.startswith("www.") else host
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +453,81 @@ def scrape_newsletter_archive(
     Returns:
         List of article dicts. Empty list on error.
     """
+    return _scrape_listing_page(source, client, _extract_article_links)
+
+
+def extract_article_listing_links(
+    html_content: str,
+    base_url: str,
+) -> List[Dict[str, Any]]:
+    """Extract post links from a generic blog index page.
+
+    Keeps same-domain links whose last path segment looks like a post
+    slug, deduplicates by URL, and derives a title from the slug when
+    the anchor text is a generic CTA ("Read more").
+
+    Args:
+        html_content: Raw HTML of the listing page.
+        base_url: URL the page was fetched from (used to resolve
+            relative links and to scope links to the same domain).
+
+    Returns:
+        List of dicts with keys: url, title, datetime (optional).
+        Empty list if parsing fails.
+    """
+    try:
+        extractor = _BlogLinkExtractor(base_url)
+        extractor.feed(html_content)
+        return extractor.articles
+    except Exception as e:
+        logger.warning("Blog link extraction failed for %s: %s", base_url, e)
+        return []
+
+
+def scrape_article_listing(
+    source: DataSourceConfig,
+    client: httpx.Client,
+) -> List[Dict[str, Any]]:
+    """Scrape a blog index page and extract its posts.
+
+    HTML fallback for sources whose "feed" URL serves a rendered page
+    instead of RSS/Atom (typical of VC blogs). Returns the same dict
+    shape as :func:`scrape_newsletter_archive`.
+
+    Args:
+        source: DataSourceConfig with url pointing to the blog index.
+            params may contain:
+            - max_items (int): Maximum posts to keep (default 10).
+            - fetch_content (bool): Whether to fetch each post page for
+              summary text (default True).
+        client: Configured httpx.Client.
+
+    Returns:
+        List of article dicts. Empty list on error or when the page has
+        no recognisable posts.
+    """
+    return _scrape_listing_page(source, client, extract_article_listing_links)
+
+
+def _scrape_listing_page(
+    source: DataSourceConfig,
+    client: httpx.Client,
+    link_extractor: Any,
+) -> List[Dict[str, Any]]:
+    """Fetch a listing page, extract links, and build article dicts.
+
+    Shared by :func:`scrape_newsletter_archive` and
+    :func:`scrape_article_listing`; they differ only in the link
+    extraction heuristic.
+
+    Args:
+        source: DataSourceConfig with the listing URL and params.
+        client: Configured httpx.Client.
+        link_extractor: Callable (html, base_url) -> list of link dicts.
+
+    Returns:
+        List of article dicts. Empty list on any failure.
+    """
     if not source.url:
         logger.warning("Web scraper source %s has no URL, skipping", source.name)
         return []
@@ -309,8 +546,7 @@ def scrape_newsletter_archive(
         )
         return []
 
-    # Extract article links
-    articles = _extract_article_links(response.text, source.url)
+    articles = link_extractor(response.text, source.url)
     if not articles:
         logger.info("No article links found on %s (%s)", source.name, source.url)
         return []
@@ -327,11 +563,9 @@ def scrape_newsletter_archive(
 
     results: List[Dict[str, Any]] = []
     for article in articles:
-        title = article["title"].strip()
         url = article["url"]
-
         # Clean up title (remove extra whitespace)
-        title = re.sub(r"\s+", " ", title)
+        title = re.sub(r"\s+", " ", article["title"].strip())
 
         # Skip entries with very short or empty titles
         if len(title) < 5:
