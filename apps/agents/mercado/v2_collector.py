@@ -24,6 +24,18 @@ from packages.database.models.funding_round import FundingRound
 logger = logging.getLogger(__name__)
 
 
+# RSS ingestion writes hundreds of rows per week that carry a headline but no
+# amount and no verified source (confidence below this). They are not funding
+# events MERCADO can reason about, and they leak into the report as
+# "unknown valor nao divulgado" bullets pointing at unrelated articles.
+NOISE_CONFIDENCE_THRESHOLD = 0.5
+
+
+def is_noise_round(r: FundingRound) -> bool:
+    """A round with no amount AND low confidence is RSS noise, not a deal."""
+    return r.amount_usd is None and (r.confidence or 0.0) < NOISE_CONFIDENCE_THRESHOLD
+
+
 def collect_funding_events(
     session: Session,
     days_back: int = 7,
@@ -46,7 +58,11 @@ def collect_funding_events(
     )
 
     events: list[MarketEvent] = []
+    skipped_noise = 0
     for r in rounds:
+        if is_noise_round(r):
+            skipped_noise += 1
+            continue
         lead_investors = r.lead_investors or []
         participants = r.participants or []
         investors = lead_investors + [p for p in participants if p not in lead_investors]
@@ -78,7 +94,10 @@ def collect_funding_events(
             },
         ))
 
-    logger.info("Collected %d funding events (last %d days)", len(events), days_back)
+    logger.info(
+        "Collected %d funding events (last %d days), skipped %d amount-less low-confidence rows",
+        len(events), days_back, skipped_noise,
+    )
     return events
 
 

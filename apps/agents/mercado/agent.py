@@ -14,6 +14,7 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 
+from apps.agents.base.env import int_from_env
 from apps.agents.base.base_agent import BaseAgent
 from apps.agents.base.confidence import ConfidenceScore
 from apps.agents.base.config import AgentCategory
@@ -30,6 +31,9 @@ from apps.agents.mercado.v2_synthesizer import synthesize_market_intel
 from apps.agents.mercado.v2_writer import EditorialMetadata, MercadoV2Writer
 
 logger = logging.getLogger(__name__)
+
+MERCADO_DAYS_BACK_ENV = "MERCADO_DAYS_BACK"
+DEFAULT_MERCADO_DAYS_BACK = 7
 
 
 class MercadoAgent(BaseAgent):
@@ -54,14 +58,17 @@ class MercadoAgent(BaseAgent):
         from packages.database.session import get_session
         session = get_session()
         try:
-            # 7-day window is primary (what we report on)
-            events = collect_funding_events(session, days_back=7)
+            # 7-day window is primary (what we report on); MERCADO_DAYS_BACK
+            # overrides it (e.g. 30 after a publishing gap).
+            days_back = int_from_env(MERCADO_DAYS_BACK_ENV, DEFAULT_MERCADO_DAYS_BACK)
+            events = collect_funding_events(session, days_back=days_back)
             events = enrich_events_with_companies(session, events)
 
-            # If 7d is too thin, widen to 14d to bootstrap the edition.
-            if len(events) < 5:
-                logger.info("Thin week (%d events in 7d), widening to 14d", len(events))
-                events = collect_funding_events(session, days_back=14)
+            # If the window is too thin, widen to 14d to bootstrap the edition.
+            widened = max(days_back, 2 * DEFAULT_MERCADO_DAYS_BACK)
+            if len(events) < 5 and widened > days_back:
+                logger.info("Thin week (%d events in %dd), widening to %dd", len(events), days_back, widened)
+                events = collect_funding_events(session, days_back=widened)
                 events = enrich_events_with_companies(session, events)
 
             self.provenance.track(
