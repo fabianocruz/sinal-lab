@@ -548,6 +548,7 @@ def publish_briefing_email(
         56: "https://sinal.tech/intelligence/agentic-commerce-chargeback-intelligence-report-2026",
         58: "https://sinal.tech/intelligence/ai-native-services-2026",
         65: "https://sinal.tech/intelligence/ai-native-services-2026",
+        66: "https://sinal.tech/intelligence/agentic-commerce-chargeback-intelligence-report-2026",
     }
     intel_url = INTELLIGENCE_PER_EDITION.get(
         edition,
