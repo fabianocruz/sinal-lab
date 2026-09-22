@@ -196,7 +196,7 @@ Semana movimentada em toda a America Latina.
         assert "</html>" in html
 
         # Footer e share CTA sempre presentes
-        assert "sinal.tech/assinar" in html
+        assert "sinal.tech/cadastro" in html
         assert "Metodologia" in html
 
     def test_build_newsletter_email_empty_markdown(self):
