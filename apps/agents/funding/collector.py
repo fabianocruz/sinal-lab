@@ -14,6 +14,7 @@ from typing import Any, List, Optional
 
 import feedparser
 
+from apps.agents.base.env import int_from_env
 from apps.agents.base.config import DataSourceConfig
 from apps.agents.base.provenance import ProvenanceTracker
 from apps.agents.sources.dedup import compute_composite_hash, deduplicate_by_hash
@@ -329,7 +330,17 @@ def fetch_feed(
         return []
 
 
-def _load_from_funding_rounds_table(days_back: int = 14) -> List[FundingEvent]:
+# How far back the FUNDING agent reads funding_rounds. Override with the
+# FUNDING_DAYS_BACK env var (e.g. 30 after a publishing gap).
+FUNDING_DAYS_BACK_ENV = "FUNDING_DAYS_BACK"
+DEFAULT_FUNDING_DAYS_BACK = 14
+FUNDING_ROUNDS_LIMIT = 100
+
+
+def _load_from_funding_rounds_table(
+    days_back: int = DEFAULT_FUNDING_DAYS_BACK,
+    limit: int = FUNDING_ROUNDS_LIMIT,
+) -> List[FundingEvent]:
     """Load pre-collected funding events from the funding_rounds DB table.
 
     The collect_funding.py daemon populates this table from Coresignal,
@@ -347,8 +358,15 @@ def _load_from_funding_rounds_table(days_back: int = 14) -> List[FundingEvent]:
         rows = (
             session.query(FundingRound)
             .filter(FundingRound.announced_date >= cutoff)
-            .order_by(FundingRound.announced_date.desc())
-            .limit(50)
+            # Rows with a disclosed amount and higher source confidence first:
+            # RSS ingestion produces hundreds of amount-less rows per week that
+            # would otherwise crowd out verified (e.g. Crunchbase) rounds.
+            .order_by(
+                FundingRound.amount_usd.isnot(None).desc(),
+                FundingRound.confidence.desc(),
+                FundingRound.announced_date.desc(),
+            )
+            .limit(limit)
             .all()
         )
 
@@ -399,7 +417,9 @@ def collect_all_sources(
 
     # Source 0: Pre-collected events from funding_rounds table
     # (populated by collect_funding.py daemon running 24/7)
-    db_events = _load_from_funding_rounds_table(days_back=14)
+    db_events = _load_from_funding_rounds_table(
+        days_back=int_from_env(FUNDING_DAYS_BACK_ENV, DEFAULT_FUNDING_DAYS_BACK)
+    )
     all_events.extend(db_events)
     for e in db_events:
         provenance.track(

@@ -7,8 +7,11 @@ from apps.agents.base.confidence import ConfidenceScore
 from apps.agents.funding.collector import FundingEvent
 from apps.agents.funding.scorer import ScoredFundingEvent
 from apps.agents.funding.synthesizer import (
+    MIN_SCORE_FOR_REPORT,
+    filter_reportable,
     format_amount,
     format_round_type,
+    is_large_round,
     synthesize_funding_report,
 )
 
@@ -86,3 +89,58 @@ def test_synthesize_empty_report():
     report = synthesize_funding_report([], week_number=7)
 
     assert "Sem rodadas relevantes" in report or "Nenhuma rodada" in report
+
+
+def _scored(name: str, round_type: str, amount_usd, score: float = 0.6) -> ScoredFundingEvent:
+    event = FundingEvent(
+        company_name=name,
+        company_slug=name.lower(),
+        round_type=round_type,
+        amount_usd=amount_usd,
+        announced_date=date(2026, 9, 9),
+        source_url=f"https://example.com/{name.lower()}",
+        source_name="crunchbase_manual_dump",
+    )
+    confidence = ConfidenceScore(data_quality=score, analysis_confidence=score)
+    return ScoredFundingEvent(event=event, confidence=confidence, composite_score=score)
+
+
+def test_is_large_round_handles_absolute_and_millions():
+    assert is_large_round(125_000_000) is True      # absolute USD
+    assert is_large_round(125.0) is True            # legacy millions
+    assert is_large_round(126_471) is False         # $126K pre-seed
+    assert is_large_round(3.7) is False             # legacy $3.7M
+    assert is_large_round(5_000_000) is True        # exactly the threshold
+    assert is_large_round(None) is False
+
+
+def test_filter_reportable_uses_min_score():
+    kept = _scored("Kept", "seed", 1_000_000, score=MIN_SCORE_FOR_REPORT)
+    dropped = _scored("Dropped", "seed", 1_000_000, score=MIN_SCORE_FOR_REPORT - 0.01)
+    assert filter_reportable([kept, dropped]) == [kept]
+
+
+def test_sections_group_by_normalized_amount():
+    """Absolute-USD amounts must not all land in the Series A+ bucket."""
+    events = [
+        _scored("Kapital", "series_c", 125_000_000),
+        _scored("Ginastee", "pre_seed", 126_471),
+        _scored("Doroth", "venture", 4_437_242),
+        _scored("Bull", "seed", 3.7),  # legacy millions format
+    ]
+    report = synthesize_funding_report(events, week_number=38, writer=None)
+
+    series_a_plus = report.split("## Series A+")[1].split("## ")[0]
+    seed_section = report.split("## Seed & Pre-Seed")[1].split("## ")[0]
+    other_section = report.split("## Outros Investimentos")[1].split("---")[0]
+
+    assert "Kapital" in series_a_plus
+    assert "Ginastee" not in series_a_plus and "Bull" not in series_a_plus
+    assert "Ginastee" in seed_section and "Bull" in seed_section
+    assert "Doroth" in other_section
+
+
+def test_template_intro_total_is_in_millions_after_normalization():
+    events = [_scored("Kapital", "series_c", 125_000_000), _scored("Bull", "seed", 3.7)]
+    report = synthesize_funding_report(events, week_number=38, writer=None)
+    assert "somando US$ 128.7M" in report

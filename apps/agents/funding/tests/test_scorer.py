@@ -234,3 +234,22 @@ def test_backward_compatible_without_sec_filings():
     # All events should have same DQ since no SEC cross-ref
     for r in result:
         assert r.confidence.data_quality == 0.4
+
+
+def test_crunchbase_source_gets_structured_source_bonus():
+    """Crunchbase rows are curated data, not RSS parsing: higher DQ than an RSS twin."""
+    from apps.agents.funding.scorer import score_single_event
+
+    today = date(2026, 9, 14)
+    base = dict(
+        company_name="Kapital",
+        company_slug="kapital",
+        round_type="series_c",
+        amount_usd=125_000_000,
+        announced_date=date(2026, 9, 9),
+        source_url="https://example.com",
+    )
+    rss = score_single_event(FundingEvent(source_name="bloomberg_linea", **base), today)
+    crunchbase = score_single_event(FundingEvent(source_name="crunchbase_manual_dump", **base), today)
+    assert crunchbase.confidence.data_quality > rss.confidence.data_quality
+    assert crunchbase.composite_score > rss.composite_score

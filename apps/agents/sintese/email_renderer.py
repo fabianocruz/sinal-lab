@@ -29,10 +29,10 @@ Arquitetura do email::
     │  ▌ MERCADO · Ecossistema        │
     ├─────────────────────────────────┤
     │  Esta newsletter foi útil?      │  ← Share CTA
-    │  [sinal.tech/assinar]           │
+    │  [sinal.tech/cadastro]          │
     ├─────────────────────────────────┤
     │  ● Sinal                        │
-    │  Metodologia · Arquivo · Pro    │  ← Footer profissional
+    │  Metodologia · Arquivo          │  ← Footer profissional
     │  Cancelar inscrição             │
     └─────────────────────────────────┘
 
@@ -1036,7 +1036,7 @@ def _share_cta() -> str:
     Uso::
 
         html = _share_cta()
-        # Retorna <tr> com card 'Esta newsletter foi util?' + link sinal.tech/assinar
+        # Retorna <tr> com card 'Esta newsletter foi util?' + link sinal.tech/cadastro
     """
     # NPS feedback URL base — score appended as query param
     api_base = "https://sinalapi-prod.up.railway.app/api/feedback"
@@ -1088,7 +1088,7 @@ def _share_cta() -> str:
     <td style="text-align:center;">
       <p style="font-family: {_FONT_SANS}; font-size: 13px; color: {_COLOR_MUTED}; margin: 0;">
         Encaminhe para quem constr\u00f3i tech na LATAM &rarr;
-        <a href="{site_base}/assinar" style="color:{_COLOR_SINTESE}; text-decoration:none; font-family:{_FONT_MONO}; font-size:12px;">sinal.tech/assinar</a>
+        <a href="{site_base}/cadastro" style="color:{_COLOR_SINTESE}; text-decoration:none; font-family:{_FONT_MONO}; font-size:12px;">sinal.tech/cadastro</a>
       </p>
     </td>
   </tr>
@@ -1130,8 +1130,6 @@ def _footer() -> str:
         <a href="https://sinal.tech/newsletter" style="color: {_COLOR_MUTED}; text-decoration: none;">Arquivo</a>
         &nbsp;&nbsp;\u00b7&nbsp;&nbsp;
         <a href="https://sinal.tech/correcoes" style="color: {_COLOR_MUTED}; text-decoration: none;">Corre\u00e7\u00f5es</a>
-        &nbsp;&nbsp;\u00b7&nbsp;&nbsp;
-        <a href="https://sinal.tech/pro" style="color: {_COLOR_MUTED}; text-decoration: none;">Pro</a>
       </p>
 
       <p style="font-family: {_FONT_SANS}; font-size: 11px; color: {_COLOR_BORDER}; margin: 0;">

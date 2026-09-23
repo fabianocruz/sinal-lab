@@ -9,12 +9,19 @@ Input format (7 lines per entry, blank line between):
     Date (e.g. "Apr 27, 2026")
     CompanyName raised $USDAmount on YYYY-MM-DD in Round Type
 
+Also accepts the Crunchbase "Funding Rounds" CSV export (``.csv`` extension),
+whose columns include Organization Name, Organization Location, Announced Date
+(YYYY-MM-DD), Funding Type and Money Raised (in USD).
+
 Usage:
     python3 scripts/ingest_crunchbase_dump.py data/crunchbase_latam_2026-04-21.txt --dry-run
     python3 scripts/ingest_crunchbase_dump.py data/crunchbase_latam_2026-04-21.txt
+    python3 scripts/ingest_crunchbase_dump.py data/funding-rounds-2026-09-14.csv --dry-run
 """
 
 import argparse
+import csv
+import io
 import logging
 import re
 import sys
@@ -177,6 +184,65 @@ def parse_dump(text: str) -> list[ParsedRound]:
     return rounds
 
 
+# Column names of the Crunchbase "Funding Rounds" CSV export.
+CSV_NAME = "Organization Name"
+CSV_LOCATION = "Organization Location"
+CSV_DATE = "Announced Date"
+CSV_ROUND_TYPE = "Funding Type"
+CSV_AMOUNT_USD = "Money Raised (in USD)"
+CSV_ROUND_URL = "Transaction Name URL"
+
+
+def parse_csv(text: str) -> list[ParsedRound]:
+    """Parse the Crunchbase "Funding Rounds" CSV export into ParsedRound objects.
+
+    Non-VC round types are skipped exactly like ``parse_dump``. A blank
+    "Money Raised (in USD)" cell means undisclosed (amount_usd=None).
+    """
+    reader = csv.DictReader(io.StringIO(text))
+    required = {CSV_NAME, CSV_DATE, CSV_ROUND_TYPE}
+    missing = required - set(reader.fieldnames or [])
+    if missing:
+        raise ValueError(f"CSV is missing required columns: {sorted(missing)}")
+
+    rounds: list[ParsedRound] = []
+    for row in reader:
+        name = (row.get(CSV_NAME) or "").strip()
+        round_type_raw = (row.get(CSV_ROUND_TYPE) or "").strip()
+        if not name or round_type_raw not in VC_ROUND_TYPES:
+            continue
+
+        announced = _parse_date((row.get(CSV_DATE) or "").strip())
+        if not announced:
+            logger.warning("Skipping %s: bad date %r", name, row.get(CSV_DATE))
+            continue
+
+        amount_usd: Optional[float] = None
+        raw_amount = (row.get(CSV_AMOUNT_USD) or "").strip().replace(",", "")
+        if raw_amount:
+            try:
+                amount_usd = float(raw_amount)
+            except ValueError:
+                logger.warning("Skipping amount for %s: unparseable %r", name, raw_amount)
+
+        city, country = _parse_location(row.get(CSV_LOCATION) or "")
+        source_url = (row.get(CSV_ROUND_URL) or "").strip() or "https://www.crunchbase.com"
+
+        rounds.append(ParsedRound(
+            company_name=name,
+            company_slug=_slugify(name),
+            city=city,
+            country=country,
+            round_type_raw=round_type_raw,
+            round_type=VC_ROUND_TYPES[round_type_raw],
+            amount_usd=amount_usd,
+            announced_date=announced,
+            source_url=source_url,
+        ))
+
+    return rounds
+
+
 # Crunchbase profile cards update over time: the SAME deal can reappear in a
 # later dump with a shifted announced_date (seen shifting by ~1 month). Dedup
 # therefore matches on (slug, round_type) + compatible amount + date within
@@ -291,9 +357,13 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(message)s",
     )
 
-    text = Path(args.path).read_text(encoding="utf-8")
-    parsed = parse_dump(text)
-    logger.info("Parsed %d VC funding rounds from dump", len(parsed))
+    path = Path(args.path)
+    text = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".csv":
+        parsed = parse_csv(text)
+    else:
+        parsed = parse_dump(text)
+    logger.info("Parsed %d VC funding rounds from %s", len(parsed), path.name)
 
     unique = dedup_rounds(parsed)
     logger.info("After dedup: %d unique rounds", len(unique))

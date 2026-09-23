@@ -16,7 +16,7 @@ from apps.agents.funding.collector import FundingEvent, collect_all_sources
 from apps.agents.funding.config import FUNDING_CONFIG
 from apps.agents.funding.processor import process_events
 from apps.agents.funding.scorer import ScoredFundingEvent, apply_cross_ref_verification, score_events
-from apps.agents.funding.synthesizer import normalize_amount_usd, synthesize_funding_report
+from apps.agents.funding.synthesizer import normalize_amount_usd, synthesize_funding_report, filter_reportable
 from apps.agents.funding.writer import FundingWriter
 
 logger = logging.getLogger(__name__)
@@ -176,8 +176,11 @@ class FundingAgent(BaseAgent):
 
         source_urls = self.provenance.get_source_urls()[:20]
 
+        # Headline and metadata describe the same rounds the body shows.
+        reportable = filter_reportable(scored_events)
+
         # Generate editorial title via LLM (falls back to template)
-        editorial_title = writer.write_headline(scored_events, self.week_number)
+        editorial_title = writer.write_headline(reportable, self.week_number)
         if not editorial_title:
             editorial_title = f"FUNDING Report — Semana {self.week_number}/2026"
 
@@ -195,11 +198,11 @@ class FundingAgent(BaseAgent):
                     "lead_investors": s.event.lead_investors,
                     "notes": s.event.notes or "",
                 }
-                for s in scored_events[:10]
+                for s in reportable[:10]
             ],
-            "item_count": len(scored_events),
+            "item_count": len(reportable),
             "funding_total_usd": sum(
-                normalize_amount_usd(s.event.amount_usd) or 0 for s in scored_events
+                normalize_amount_usd(s.event.amount_usd) or 0 for s in reportable
             ),
         }
 
@@ -213,7 +216,7 @@ class FundingAgent(BaseAgent):
             sources=source_urls,
             content_type="DATA_REPORT",
             summary=(
-                f"Semana {self.week_number}: {len(scored_events)} rodadas analisadas "
+                f"Semana {self.week_number}: {len(reportable)} rodadas analisadas "
                 f"de {len(self.provenance.get_sources())} fontes."
             ),
             metadata=metadata,

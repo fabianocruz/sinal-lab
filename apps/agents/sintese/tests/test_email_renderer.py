@@ -515,7 +515,7 @@ class TestHtmlHelpers:
     def test_share_cta_renders(self):
         html = _share_cta()
         assert "Esta newsletter foi" in html
-        assert "sinal.tech/assinar" in html
+        assert "sinal.tech/cadastro" in html
         assert _COLOR_CONTAINER in html
 
     def test_footer_renders_professional_links(self):
@@ -525,7 +525,6 @@ class TestHtmlHelpers:
         assert "Metodologia" in html
         assert "Arquivo" in html
         assert "Corre\u00e7\u00f5es" in html
-        assert "Pro" in html
         assert "Gerada por centenas de agentes" in html
         assert "Cancelar inscri\u00e7\u00e3o" in html
 
@@ -608,7 +607,7 @@ class TestBuildNewsletterEmail:
         """Share CTA sempre presente no email."""
         data = parse_newsletter_markdown(MINIMAL_MARKDOWN)
         html = build_newsletter_email_html(data)
-        assert "sinal.tech/assinar" in html
+        assert "sinal.tech/cadastro" in html
 
     def test_professional_footer_present(self):
         """Footer profissional com todos os links."""
@@ -616,7 +615,6 @@ class TestBuildNewsletterEmail:
         html = build_newsletter_email_html(data)
         assert "Metodologia" in html
         assert "Arquivo" in html
-        assert "Pro" in html
 
     def test_email_safe_no_div_layout(self):
         """Email usa layout baseado em tabelas, não divs."""
@@ -688,7 +686,7 @@ class TestBuildNewsletterEmail:
         assert "FUNDING" in html
 
         # Share CTA
-        assert "sinal.tech/assinar" in html
+        assert "sinal.tech/cadastro" in html
 
         # Professional footer
         assert "Metodologia" in html

@@ -13,6 +13,9 @@ from apps.agents.funding.collector import FundingEvent
 
 logger = logging.getLogger(__name__)
 
+# Substrings of source_name that identify structured (API/database) sources.
+STRUCTURED_SOURCE_MARKERS = ("api", "dealroom", "crunchbase")
+
 
 @dataclass
 class ScoredFundingEvent:
@@ -56,9 +59,9 @@ def score_single_event(event: FundingEvent, today: date) -> ScoredFundingEvent:
         # No conflict means amount is verified if present
         amount_verified = event.amount_usd is not None
 
-    # Detect if API source (for MVP, all sources are RSS)
-    # This would be True if source_name contains "api" or "dealroom"
-    has_api_source = "api" in event.source_name.lower() or "dealroom" in event.source_name.lower()
+    # Structured (non-scraped) sources get a data-quality bonus. Crunchbase
+    # dumps are curated rows with normalized amounts, not RSS title parsing.
+    has_api_source = any(marker in event.source_name.lower() for marker in STRUCTURED_SOURCE_MARKERS)
 
     # Calculate freshness
     data_freshness_days = 999  # Default: very old

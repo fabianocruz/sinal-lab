@@ -206,3 +206,72 @@ class TestUpsertRound:
 
     def test_tolerance_constant_is_30_days(self):
         assert DATE_TOLERANCE_DAYS == 30
+
+
+# ---------------------------------------------------------------------------
+# CSV export format
+# ---------------------------------------------------------------------------
+
+from scripts.ingest_crunchbase_dump import parse_csv  # noqa: E402
+
+CSV_HEADER = (
+    "Organization Name,Organization Name URL,Organization Location,Announced Date,"
+    "Funding Type,Money Raised,Money Raised Currency,Money Raised (in USD),"
+    "Description,Transaction Name,Transaction Name URL\n"
+)
+
+CSV_SAMPLE = CSV_HEADER + (
+    'Primero AI,https://www.crunchbase.com/organization/primero-ai,'
+    '"Mexico City, Distrito Federal, Mexico, North America",2026-08-25,Seed,'
+    '12000000,USD,12000000,Primero AI raised $12000000 on 2026-08-25 in Seed Round,'
+    'Seed Round - Primero AI,https://www.crunchbase.com/funding_round/primero-ai-seed--cd83c950\n'
+    'Flash,https://www.crunchbase.com/organization/flash-cd07,'
+    '"São Paulo, Sao Paulo, Brazil, South America",2026-08-19,Series D,'
+    '150000000,BRL,28776432,Flash raised $28776432 on 2026-08-19 in Series D,'
+    'Series D - Flash,https://www.crunchbase.com/funding_round/flash-cd07-series-d--53cf67fb\n'
+    'MercadoLibre,https://www.crunchbase.com/organization/mercadolibre,'
+    '"Buenos Aires, Distrito Federal, Argentina, South America",2026-09-09,Post-IPO Debt,'
+    '500000000,USD,500000000,MercadoLibre raised $500000000 on 2026-09-09 in Post-IPO Debt,'
+    'Post-IPO Debt - MercadoLibre,https://www.crunchbase.com/funding_round/meli-debt\n'
+    'Doroth,https://www.crunchbase.com/organization/doroth,'
+    '"Piracicaba, Sao Paulo, Brazil, South America",2026-09-01,Venture - Series Unknown,'
+    ',,,Doroth raised an undisclosed amount on 2026-09-01 in Venture Round,'
+    'Venture Round - Doroth,https://www.crunchbase.com/funding_round/doroth-venture\n'
+)
+
+
+class TestParseCsv:
+    def test_parses_vc_rounds_and_skips_debt(self):
+        rounds = parse_csv(CSV_SAMPLE)
+        slugs = [r.company_slug for r in rounds]
+        assert slugs == ["primero-ai", "flash", "doroth"]
+
+    def test_uses_usd_normalized_amount_not_local_currency(self):
+        rounds = {r.company_slug: r for r in parse_csv(CSV_SAMPLE)}
+        assert rounds["flash"].amount_usd == 28776432.0
+        assert rounds["flash"].round_type == "series_d"
+
+    def test_blank_amount_is_undisclosed(self):
+        rounds = {r.company_slug: r for r in parse_csv(CSV_SAMPLE)}
+        assert rounds["doroth"].amount_usd is None
+        assert rounds["doroth"].round_type == "venture"
+
+    def test_location_date_and_source_url(self):
+        r = {x.company_slug: x for x in parse_csv(CSV_SAMPLE)}["primero-ai"]
+        assert (r.city, r.country) == ("Mexico City", "Mexico")
+        assert r.announced_date == date(2026, 8, 25)
+        assert r.source_url.endswith("primero-ai-seed--cd83c950")
+        assert r.source_name == "crunchbase_manual_dump"
+
+    def test_missing_required_column_raises(self):
+        with pytest.raises(ValueError, match="missing required columns"):
+            parse_csv("Organization Name,Funding Type\nFoo,Seed\n")
+
+    def test_bad_date_row_is_skipped(self):
+        bad = CSV_HEADER + 'Foo,,"X, Y, Z, W",not-a-date,Seed,1,USD,1,,,\n'
+        assert parse_csv(bad) == []
+
+    def test_csv_rounds_dedup_against_dump_rounds(self):
+        csv_rounds = parse_csv(CSV_SAMPLE)
+        again = parse_csv(CSV_SAMPLE)
+        assert len(dedup_rounds(csv_rounds + again)) == 3
